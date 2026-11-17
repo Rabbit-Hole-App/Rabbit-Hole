@@ -1,0 +1,21 @@
+{
+  "_method": "Hand-checked by reading the normalized numeric sentences printed by verify-variants.mjs (dump mode) and recomputing each claim: errors = wrong numeric or logical claims (items, not mentions). cardInherited = the slip comes from the card's own wrong numbers. partialReuse = the script reuses the card's example structure without matching the automatic detector. Free-text factual claims were checked only for the flagged patterns (flat ground, per second, runoff, formula restated), not exhaustively.",
+  "fireworks|V0|4": { "errors": 1, "notes": "longer step on flat ground (wrong: gradient descent steps shrink as the gradient shrinks)" },
+  "fireworks|V0|5": { "errors": 2, "notes": "'sixty-two point two percent' stated as the complement of 36.8 (true 63.2), repeated 3 times; (0.99)^100 given as 36.5 (true 36.6) and coverage 63.5" },
+  "fireworks|V0|6": { "errors": 0, "cardContradiction": true, "notes": "script computes fences -3 and 21 (correct for Q1 6, Q3 12) and silently contradicts the card's printed 2 and 16" },
+  "fireworks|V0|9": { "errors": 3, "notes": "e^2/e^1 'roughly three-to-one' (2.7); e^0.1 = 1.15 (true 1.105); e^1.5 = 4.58 (true 4.48)" },
+  "fireworks|V0|12": { "errors": 3, "notes": "learning rate 1.5 example: w goes 9 then -3 (true -9); 2-weight updates (1.44,-0.72) and (1.752,-0.876) (true (1.28,-0.64) and (1.568,-0.768))" },
+  "gemini|V0|7": { "errors": 1, "notes": "'dozens of times every single second' (an idling cylinder fires about 6 times a second)" },
+  "fireworks|V1|6": { "errors": 1, "cardInherited": true, "notes": "treats the card's 2 and 16 as data and says 18 is an outlier although the true upper fence is 21 (confusion caused by the card's wrong fences)" },
+  "gemini|V1|6": { "errors": 1, "cardInherited": true, "notes": "'the upper fence is 16 ... an outlier like 18' repeats the card's wrong fence" },
+  "fireworks|V2|9": { "errors": 3, "notes": "own example 0.5/0/-0.5: e^0.5 'about 1.3' (1.65); sum 'about 3.9' (3.26); probabilities garbled ('3.4 tenths, 2.6 tenths, 0.1 tenths')" },
+  "fireworks|V2|12": { "errors": 1, "notes": "'loss at six is nine, higher than the initial loss of nine at zero' (equal)" },
+  "gemini|V2|10": { "errors": 0, "partialReuse": true, "notes": "same tree as the card (8, 3, right child 6) with a different key (4)" },
+  "fireworks|V3|12": { "errors": 1, "notes": "learning rate 1.5 sends w to 'negative 9' (it is +9)" },
+  "gemini|V3|6": { "errors": 1, "notes": "'if the lowest actual score is 45 ... even if a student scored 10' (self-contradictory)" },
+  "fireworks|V4|12": { "errors": 1, "notes": "learning rate 1/4 from w=5: 'first step moves you to 3.5' (it moves to 4; 3.5 is the second step)" },
+  "fireworks|V5|5": { "errors": 1, "notes": "'omission settles near 36 percent, inclusion near 63' (36.8 and 63.2; minor rounding slip)" },
+  "fireworks|V5|10": { "errors": 0, "partialReuse": true, "notes": "reuses the card's tree (8, 3, 10, 1, 6) for a search for 5" },
+  "fireworks|V5|12": { "errors": 1, "notes": "'step 6 units past the valley' from 2 units away (lands 4 past)" },
+  "gemini|V6|6": { "errors": 0, "notes": "echoes the card's 'upper fence at 16' as a hypothetical (consistent, not claimed as the example's fence)" }
+}

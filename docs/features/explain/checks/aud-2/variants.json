@@ -1,0 +1,1712 @@
+[
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1505,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1017,
+   "total_tokens": 1260,
+   "completion_tokens": 243,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 41
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 41
+   }
+  },
+  "reasoningTokens": 41,
+  "usd": 0.000298,
+  "words": 161,
+  "script": "The subtle point that trips many people is that precision looks at the answers you actually gave, while recall looks at the answers you could have given. Think of it this way: precision asks, among the items you marked as positive, what fraction are truly positive. Recall asks, among all the truly positive items in the whole set, what fraction did you manage to mark. Imagine a test with ten items, of which three are really positive. If your model labels four items as positive and three of those are correct, precision is three out of four, or seventy five percent, because you were right three times out of the four guesses you made. Recall, however, is three out of the three real positives, or one hundred percent, because you captured every true positive that existed. The key is to remember that precision judges the quality of your positive predictions, while recall judges the coverage of the true positives you missed.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1856,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 984,
+   "total_tokens": 1277,
+   "completion_tokens": 293,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 44
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 44
+   }
+  },
+  "reasoningTokens": 44,
+  "usd": 0.000323,
+  "words": 206,
+  "script": "The trickiest part is that the step direction is not chosen by guesswork but by the exact slope of the error surface at your current spot. You compute the gradient, which is the collection of partial slopes, and then move a little opposite to it. Think of it as feeling the steepest downhill direction with your foot, not just any direction that seems to go down. For instance, if you start at a point where the error rises one unit for each unit you move east and falls two units for each unit you move north, the gradient points eastward and northward with those rates. Moving opposite means you step west a little and south a little, reducing the error most efficiently. A simple analogy is a ball on a smooth bowl: the ball rolls straight toward the deepest part because gravity pulls it along the steepest slope at every instant. A common misconception is to assume that following the gradient will always land you in the absolute lowest valley. In reality, if the landscape has several valleys, the path will stop in the one nearest to where you began. To see this, try starting from different positions and notice which valley each run ends in.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2255,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1179,
+   "total_tokens": 1664,
+   "completion_tokens": 485,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 34
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 34
+   }
+  },
+  "reasoningTokens": 34,
+  "usd": 0.000468,
+  "words": 344,
+  "script": "The step that often trips learners is seeing the product (1 minus 1 over n) raised to the nth power and recognizing it as a familiar constant. Think of each draw as an independent chance that a particular row escapes selection. After one draw the escape chance is one minus one over n. After two draws it is (one minus 1 over n) times itself, and so on. Because the draws are independent, the overall escape probability is (1 minus 1 over n) to the n. As n grows, this expression settles down to a fixed number, not to zero. The limit of (1 minus 1 over n) to the n is the reciprocal of the exponential constant, that is one over e, which is about 0.368. The complement, one minus 0.368, is about 0.632. That is why a bootstrap sample of size n contains roughly 63 percent of the distinct rows.\n\nFor a concrete picture, imagine n equals ten. The chance a given row is never drawn is (1 minus 1/10) to the tenth power, which works out to roughly 0.35. So on average about three or four of the ten rows are omitted, leaving six or seven unique rows in the sample. If you increase n to one hundred, the omission probability becomes (1 minus 1/100) to the hundredth power, which is about 0.37, and the included proportion stays near 0.63. The numbers change only slightly as n gets larger, illustrating the stabilizing effect.\n\nA common misconception is to think that because we draw n items with replacement, we must see all n rows eventually. The mistake is ignoring the independence of each draw; each draw gives the same small chance of missing a particular row, and those chances compound rather than cancel. To check understanding, pick a small n, compute (1 minus 1 over n) to the n, and compare the complement to the observed coverage in an actual bootstrap sample. Seeing the numbers line up reinforces why the 63 percent figure holds regardless of how large the training set becomes.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2174,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1100,
+   "total_tokens": 1573,
+   "completion_tokens": 473,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 54
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 54
+   }
+  },
+  "reasoningTokens": 54,
+  "usd": 0.000449,
+  "words": 319,
+  "script": "The part that trips most learners is the placement of the fences: they are not tied to the extreme data points but to the quartiles, each shifted by one and a half times the inter‑quartile range. Think of the IQR as a fixed width measured between Q1 and Q3; you then extend that width outward from each quartile by the same factor. In the example the IQR is six, so one and a half times that is nine. Adding nine to Q3, which is twelve, gives the upper fence at twenty‑one, and subtracting nine from Q1, which is six, gives the lower fence at minus three. Because the data actually stop at sixteen and two, the whiskers end at those values, and any point beyond the fences, such as the eighteen shown, is flagged as an outlier.\n\nA concrete way to see this is to imagine a simple list: two, six, ten, twelve, sixteen. The quartiles are six and twelve, the median ten, and the IQR six. Extend six by half again to get nine, then the fences are at minus three and twenty‑one. The whisker ends at the largest data point that does not cross a fence, which is sixteen, and the smallest that stays within the lower fence, which is two. The point eighteen sits between the whisker end and the upper fence, so it is marked as an outlier.\n\nA common mistake is to think that any value beyond the minimum or maximum is automatically an outlier, or that the whisker length itself is a fixed multiple of the IQR. Remember that whiskers stop at the most extreme observations that still lie inside the fences; only points that lie outside the fences are outliers. To check your own box‑plot, compute the IQR, multiply by one and a half, add and subtract that from Q1 and Q3, and see where the data lie relative to those limits.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1907,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1059,
+   "total_tokens": 1431,
+   "completion_tokens": 372,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 32
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 32
+   }
+  },
+  "reasoningTokens": 32,
+  "usd": 0.000382,
+  "words": 283,
+  "script": "The step that most often trips learners is the idea that the power stroke does not happen because the piston is simply pushed by the spark, but because the ignited mixture rapidly expands and forces the piston down. Think of a balloon that bursts: the air rushes outward and pushes the balloon’s skin outward. In the cylinder the spark ignites the compressed mixture, the pressure rises dramatically and that pressure is what drives the piston down, not the spark itself. For a simple picture, imagine the piston at the top of its travel after compression, like a plunger pressed into a syringe. A tiny spark lights the fuel‑air charge, the pressure jumps, and the plunger is forced down with the same force that would push a piston in a hydraulic jack. A second example: picture a spring that has been fully compressed. When released, the stored energy pushes the spring outward. In the engine the compressed mixture stores chemical energy; the spark releases it, and the high‑pressure gas pushes the piston just as a spring releases its stored energy. A common misconception is to think the exhaust valve opens at the same moment the spark fires, which would waste power. In reality the exhaust valve stays closed during the power stroke, keeping the high pressure on the piston, and only opens after the piston reaches the bottom of its travel to begin the exhaust stroke. Notice the sequence of valve openings and the timing of the spark; that timing is what lets the engine turn smoothly. Next, try watching an animation that shows the valve positions and piston motion together, so you can see how each stroke follows the previous one without overlap.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2602,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1025,
+   "total_tokens": 1549,
+   "completion_tokens": 524,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 118
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 118
+   }
+  },
+  "reasoningTokens": 118,
+  "usd": 0.000468,
+  "words": 325,
+  "script": "The step that trips most learners is the way exponentiation reshapes the raw scores before they are turned into probabilities. Think of each score as a height on a hill; raising e to that height stretches the hill dramatically for larger heights and barely moves the low ones. In other words, a difference of one unit in the raw scores does not stay a difference of one after exponentiation – it becomes a multiplicative factor of about e, roughly two point seven. That is why softmax emphasizes the larger scores while still keeping every entry positive. \n\nTake the three raw scores shown in the diagram: two point zero, one point zero, and zero point one. Exponentiating gives e to the two point zero, roughly seven point four; e to the one point zero, about two point seven; and e to the zero point one, about one point one. Adding those three exponentiated values yields roughly eleven point two. Dividing each exponentiated value by this sum produces the final probabilities: the first becomes about seven point four divided by eleven point two, or roughly sixty six percent; the second about twenty four percent; the third about ten percent. You can see how the largest raw score ends up with the largest probability, yet the smaller scores still receive a share because none of the exponentiated values are zero. \n\nA common misconception is to think softmax simply picks the largest raw score and returns a one‑hot vector. That would be a hard max, not a softmax. The softmax keeps the relative ordering but spreads the mass across all entries. To see the difference, try scaling all three raw scores by the same constant, say multiplying each by two. The exponentials will grow, but because they all grow by the same factor, the resulting probabilities remain exactly the same. This invariance to uniform scaling is a useful property to test when you experiment with softmax in a notebook.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2449,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1097,
+   "total_tokens": 1617,
+   "completion_tokens": 520,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 39
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 39
+   }
+  },
+  "reasoningTokens": 39,
+  "usd": 0.000477,
+  "words": 384,
+  "script": "The part that trips most learners is the idea that the ordering invariant applies at every node, not just at the root. Think of the tree as a series of nested decision points: each node asks a yes‑or‑no question about the target key, and the answer determines which subtree you continue in. The answer is always based on the current node’s own value, regardless of what happened higher up. Because each step discards half of the remaining keys, the path length grows only with the logarithm of the total number of keys, assuming the tree stays balanced.\n\nConsider inserting the key seven into a tree that already contains the keys eight, three, ten, one, and six. Starting at the root eight, seven is smaller, so you move left to three. Seven is larger than three, so you go right to six. Seven is larger than six, so you take the right child, which is empty, and place seven there. The invariant still holds: all keys left of six are smaller, and all keys right of six – now just seven – are larger. Another simple example: searching for the key five in a tree that contains three, four, six, and nine. Begin at the root three; five is larger, so you go right to six. Five is smaller than six, so you go left and find four; five is larger than four, so you would move to the right child, which is empty, and conclude that five is not present. Each comparison eliminates the half of the tree that cannot contain the target.\n\nA common misconception is to think that the left‑right decision at a node depends on the original root’s value. In reality, the decision is always local: you compare the target to the node you are currently visiting. If you keep asking the wrong question, you will wander into the wrong subtree and never find the key, even if it exists elsewhere in the tree. To avoid this, mentally picture the tree as a series of independent checkpoints, each enforcing the same smaller‑on‑left, larger‑on‑right rule. When you practice, pause at each node and ask yourself only “Is the target smaller or larger than this node?” before moving on. This habit reinforces the invariant and ensures each step correctly halves the search space.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2603,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1030,
+   "total_tokens": 1550,
+   "completion_tokens": 520,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 60
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 60
+   }
+  },
+  "reasoningTokens": 60,
+  "usd": 0.000467,
+  "words": 377,
+  "script": "The part that trips most learners is the way evaporation is not just a simple boiling, but a continuous exchange that scales with both temperature and wind. Think of the surface as a kitchen sponge: the hotter the water, the more it wants to leave the sponge, and the stronger the wind, the more the sponge is shaken, letting water drip out faster. In the same way, the bulk aerodynamic formula multiplies a temperature‑driven vapor pressure term by a wind‑speed factor, so a warm, breezy day can produce twice the evaporation of a cool, still one.\n\nConsider a calm lake at twenty degrees Celsius with a gentle breeze of one meter per second. On such a day the evaporation might be a few millimetres per day. Now picture the same lake on a hot summer afternoon at thirty degrees Celsius with a wind of three meters per second. The temperature term has increased, and the wind term has tripled, so the combined effect can raise evaporation to roughly double the calm case, moving several millimetres of water into the atmosphere each day.\n\nA second example helps solidify the picture. Imagine a wet field after a spring rain. The soil surface is warm from the sun and the wind gusts across the open land. Even though the water is not boiling, the combined heat and wind pull moisture into the air, creating a visible mist that climbs and eventually forms clouds. Those clouds travel, cool, and release their droplets as rain elsewhere, closing the loop.\n\nA common misconception is to think that evaporation stops once clouds form, as if the water is locked in the sky. In reality, evaporation continues everywhere the conditions are right, even under existing clouds. The atmosphere can hold more water vapor until it reaches saturation, after which further cooling triggers additional condensation and precipitation.\n\nTo notice this in practice, watch a windy shoreline on a sunny day. You will see a fine spray rising from the water surface, even as clouds gather overhead. Try estimating how the breeze feels and how warm the sun is, and relate that feeling to the amount of mist you observe. That connection reinforces how temperature and wind together drive the continuous movement of water through the cycle.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V1",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2912,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1097,
+   "total_tokens": 1672,
+   "completion_tokens": 575,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 51
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 51
+   }
+  },
+  "reasoningTokens": 51,
+  "usd": 0.00051,
+  "words": 451,
+  "script": "One point that trips many learners is the way the learning rate controls the shape of the descent path. Think of the learning rate as the length of each step you take down a hill. A step that is exactly half the distance to the bottom will bring you closer without missing the trail. If the step is too long, you may step over the lowest point and end up on the other side, causing the path to bounce back and forth. If the step is too short, you will inch toward the bottom and need many more steps before you feel any progress. This picture shows why the learning rate must be chosen to match the steepness of the loss surface. \n\nConsider a simple quadratic loss where the contour lines are circles around the minimum. Starting at a point one unit away, a learning rate of one half moves the weight halfway toward the centre in each iteration. After the first update you are at half a unit away, after the second at a quarter, and so on. The distance shrinks steadily and you approach the minimum quickly. If you set the learning rate to two, the first update pushes you past the centre to the opposite side at the same distance you started. The next update then brings you back, and the process repeats without ever settling. Finally, a learning rate of one tenth makes the first move only a tenth of the way in, and you need many more updates before the distance becomes negligible. These two numeric scenarios illustrate the same principle that a learning rate that is too large makes the algorithm diverge, while a learning rate that is too small makes convergence sluggish. \n\nA common misconception is to think that a single learning rate works equally well for every parameter or every region of the loss surface. In practice the curvature can vary, so a rate that is safe for a flat region may be too large for a steep ridge, and vice versa. Notice how the contour plot in the visual shows elongated ellipses: along the long axis the loss changes slowly, while along the short axis it changes quickly. When you observe slow progress along one direction but jitter along another, it is a signal that a single scalar learning rate is insufficient. \n\nWhat to try next is to experiment with a smaller learning rate and watch how the steps become more aligned with the contour shapes, or to use a learning‑rate schedule that gradually reduces the step size as you approach the minimum. Either approach lets the descent follow the curvature more faithfully and avoids the overshoot that a too‑large rate produces.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1303,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1101,
+   "total_tokens": 1352,
+   "completion_tokens": 251,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 39
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 39
+   }
+  },
+  "reasoningTokens": 39,
+  "usd": 0.000316,
+  "words": 169,
+  "script": "A common source of confusion is thinking that high precision and high recall always go together. In reality they often move in opposite directions. Imagine you are looking for red balls in a mixed bucket. If you only pick up objects that are bright red, you will rarely pick a non‑red ball, so your precision will be high. But you will miss many dimmer red balls, so your recall will be low. Conversely, if you grab every ball that could possibly be red, you will collect almost all the red ones, giving you high recall, but you will also collect many non‑red balls, lowering precision. The key is to see precision as the trustworthiness of a positive prediction and recall as the completeness of capturing all positives. A frequent mistake is to treat the two as redundant measures of the same thing, assuming that improving one automatically improves the other. Instead, ask yourself whether you need fewer false alarms or fewer missed items, and adjust the decision threshold accordingly.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1333,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1057,
+   "total_tokens": 1284,
+   "completion_tokens": 227,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 47
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 47
+   }
+  },
+  "reasoningTokens": 47,
+  "usd": 0.000295,
+  "words": 144,
+  "script": "The tricky part is that each step is guided by the slope, not by guessing directions. The slope tells you how steep the hill is at that exact spot, so you move opposite to it. Think of a ball rolling on a smooth bowl that you can only feel with your hand. You tap the ball gently, feel whether it rolls left or right, and then push it a tiny amount in that direction. Each push is small enough that you don’t overshoot the bottom, but large enough to keep moving. If the pushes are too big, the ball might climb back up the other side; if they are too tiny, it will take a very long time to settle. The key is to choose a step size that balances speed and stability, letting you follow the gentle slope down to the lowest point.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2306,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1276,
+   "total_tokens": 1773,
+   "completion_tokens": 497,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 92
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 92
+   }
+  },
+  "reasoningTokens": 92,
+  "usd": 0.00049,
+  "words": 305,
+  "script": "Think of the sampling process as a series of independent chances for each row to be selected. Each draw offers a one‑in‑n chance to hit a particular row, so the chance of missing that row on a single draw is one minus one‑over‑n. When you repeat the draw n times, the probability of never hitting the row is the product of those missing chances, which is (one minus one‑over‑n) multiplied by itself n times. Because the draws are independent, that product is exactly (one minus one‑over‑n) to the nth power. As n grows, this repeated multiplication approaches the exponential expression e to the negative one, a well‑known limit. That limit equals about 0.368, meaning roughly a 36.8 percent chance that any given row is absent from the bootstrap sample. The complement, about 63.2 percent, is therefore the expected fraction of distinct rows that do appear.\n\nFor a concrete picture, imagine a training set of ten rows. Each draw picks one of the ten rows with equal probability. After ten draws, the chance that a specific row was never chosen is (nine‑tenth) to the tenth power, which is about 0.35. So even with only ten rows, you already expect roughly two‑thirds of the rows to be represented, and the proportion stabilizes as the set grows larger.\n\nA common misconception is to assume that because you draw exactly n times, you must obtain all n rows. The key point to notice is that drawing with replacement allows the same row to be chosen multiple times, so some rows are duplicated while others are omitted. When you observe the sample, look for repeated rows; the frequency of repeats tells you how much of the original data is left out, and it will hover around the 37 percent omission rate regardless of the exact size of the data set.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2078,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1182,
+   "total_tokens": 1618,
+   "completion_tokens": 436,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 41
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 41
+   }
+  },
+  "reasoningTokens": 41,
+  "usd": 0.000439,
+  "words": 288,
+  "script": "A frequent stumbling point is treating the fences as a separate scale instead of seeing them as extensions of the quartile positions on the same axis. Think of Q1 and Q3 as anchors; the fences are simply points that lie 1.5 times the IQR away from those anchors, measured along the same numeric line. The IQR itself is the distance between Q3 and Q1, so multiplying it by 1.5 gives a length that you add to Q3 for the upper fence and subtract from Q1 for the lower fence. The whisker ends are then placed at the most extreme data points that still lie inside those fence limits.\n\nFor instance, imagine a data set whose five‑number summary is minimum 4, Q1 8, median 10, Q3 14, and maximum 20. The IQR is fourteen minus eight, which is six. One‑and‑a‑half times six is nine. Adding nine to Q3 gives an upper fence at twenty‑three, while subtracting nine from Q1 gives a lower fence at negative one. All observed values between negative one and twenty‑three are considered regular, so the whiskers extend to the actual minimum of four and the actual maximum of twenty. Any recorded value above twenty‑three or below negative one would be flagged as an outlier.\n\nA common misconception is to think that any point beyond the whiskers is automatically an outlier. The whisker length is not fixed; it stops at the most distant point that still satisfies the fence condition. If the data contain a value of twenty‑two, the upper whisker will reach twenty‑two even though the fence is at twenty‑three, and no outlier is marked. Notice whether a point lies beyond the fence, not merely beyond the whisker, to decide if it is an outlier.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1793,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1137,
+   "total_tokens": 1492,
+   "completion_tokens": 355,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 38
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 38
+   }
+  },
+  "reasoningTokens": 38,
+  "usd": 0.000384,
+  "words": 266,
+  "script": "The part learners often miss is that the four strokes are not isolated actions but phases of a single, continuous motion, and the timing of each valve and the spark is linked to the piston’s exact position. Think of the piston as a runner on a track who must pass a baton at precise spots; the intake valve opens just before the runner reaches the start line, stays open while the runner moves down, then closes exactly as the runner reaches the turn. The compression valve closes a fraction later, trapping the mixture so that when the runner reaches the top of the hill the spark fires at the moment of maximum compression, not a little before or after. A simple way to picture this is a kitchen blender that only turns on when the lid is sealed and the ingredients are fully pressed together; if the lid opens too early or the motor starts before the blades are fully engaged, the blend fails. A common misconception is to think the spark can happen any time during the power stroke. In reality, if the spark occurs too early, the mixture ignites while still being compressed, causing a knock; if it fires too late, much of the pressure is lost and the piston does not receive full force. To notice the correct timing, watch the crankshaft angle markers on a real engine or a diagram and match the spark to the top‑dead‑center point of the compression phase. By linking valve operation and spark timing to the piston’s position, the engine extracts the most energy from each cycle.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2787,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1113,
+   "total_tokens": 1692,
+   "completion_tokens": 579,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 36
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 36
+   }
+  },
+  "reasoningTokens": 36,
+  "usd": 0.000514,
+  "words": 415,
+  "script": "One point that trips many learners is the role of the exponential in the softmax transformation. The exponential is not there just to make numbers larger; it stretches differences between scores so that a modest change in a raw score can produce a noticeable change in the resulting probability. Think of it as a magnifying glass on the score differences. For a concrete illustration, imagine three raw scores: 0.5, 0.0, and -0.5. Exponentiating gives e to the half, which is about one point three, e to the zero, which is one, and e to minus half, which is about six point one tenths. Those three numbers are now all positive and still reflect the original ordering, but the gap between the highest and lowest has widened. When we sum them—approximately three point nine—and divide each by that sum, we obtain probabilities roughly three point four tenths, two point six tenths, and zero point one tenths. The highest raw score now claims a larger share of the total probability than the raw scores alone would suggest. \n\nA second example helps cement the idea. Take raw scores -1, 0, and 1. Their exponentials are about three tenths, one, and two point seven. The sum is about four point zero, and the normalized probabilities become roughly eight percent, twenty five percent, and sixty seven percent. Notice how the central score, despite being only one unit away from each neighbor, ends up with a probability that sits between the extremes, reflecting the symmetric spread of the exponentials. \n\nA common misconception is to think that softmax simply rescales the scores linearly into the [0,1] interval. In reality, the normalization step is linear, but the exponential step is highly non‑linear. Because of that non‑linearity, softmax is sensitive to relative differences rather than absolute magnitudes. If you add the same constant to every raw score, the exponentials all get multiplied by the same factor, and the final probabilities remain unchanged. That invariance can be useful to remember when interpreting model outputs. \n\nTo explore this further, try taking a set of scores you are comfortable with, compute the exponentials, and then divide by their sum. Observe how shifting all scores by the same amount leaves the probabilities identical, while changing a single score shifts the distribution in a way that reflects the amplified effect of the exponential. This hands‑on experiment will reveal why softmax is a natural way to turn scores into a probability distribution that respects the relative confidence of each class.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2815,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1207,
+   "total_tokens": 1823,
+   "completion_tokens": 616,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 69
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 69
+   }
+  },
+  "reasoningTokens": 69,
+  "usd": 0.000551,
+  "words": 413,
+  "script": "One point that many learners miss is that the ordering invariant applies at every node, not just at the root. In other words, each node’s left subtree contains only keys that are smaller than that node’s key, and each node’s right subtree contains only keys that are larger. This rule must hold recursively down to every leaf, which is why the tree can be traversed by simple comparisons without ever needing to look at the whole structure.\n\nConsider a tree whose root holds the key 15, with a left child 9 and a right child 20. The left child 9 has its own left child 4 and right child 12. If we search for the key 12, we start at 15, see that 12 is smaller, move left to 9, then see that 12 is larger, move right to the node that holds 12, and stop. Each step eliminates roughly half of the remaining keys because the invariant guarantees that all keys in the discarded subtree are either all smaller or all larger than the target.\n\nNow imagine inserting the key 5 into the same tree. We compare 5 with 15, go left to 9, compare with 9, go left to 4, compare with 4, find that 5 is larger, and finally place 5 as the right child of 4. Notice that at no point did we need to examine the subtree rooted at 20; the invariant already told us that all those keys are larger than 5 and therefore irrelevant for this insertion.\n\nA common misconception is to assume that a binary search tree is automatically balanced, meaning its height is always proportional to the logarithm of the number of nodes. In reality, the logarithmic guarantee only holds when the tree remains balanced; a sequence of insertions in sorted order can produce a degenerate, chain‑like tree where each node has only a right child. In such a case, search, insertion, and deletion degrade to linear time.\n\nTo see the difference, try building a tree by inserting the keys 1, 2, 3, 4, 5 in that order. Observe how each new key becomes the right child of the previous node, forming a straight line. Then, rebuild the same set of keys but insert them in a more balanced order, such as 3, 1, 5, 2, 4, and notice how the height stays low. Recognizing the shape of the tree helps you decide when rebalancing techniques, like rotations or self‑balancing trees, might be needed.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2580,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1128,
+   "total_tokens": 1628,
+   "completion_tokens": 500,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 55
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 55
+   }
+  },
+  "reasoningTokens": 55,
+  "usd": 0.000469,
+  "words": 362,
+  "script": "What often trips learners is that the water cycle is not a single straight line but a set of overlapping pathways that operate at the same time. Imagine a patch of forest on a hillside. When the sun heats the leaves, water evaporates from the leaf surfaces and also from the soil beneath. Some of that vapor rises a short distance, cools, and joins the moist air that is already moving upslope. At the same time, a thin film of water on the leaf edges can flow downhill as runoff, entering tiny streams that feed a larger creek. Both the upward vapor and the downhill water are part of the same cycle, but they move in opposite directions at the same moment. This illustrates how evaporation and runoff can occur concurrently, driven by the same energy source yet manifesting in different forms.\n\nA second way to see the cycle’s complexity is to follow a single droplet of water as it changes phase repeatedly within a single storm system. The droplet may start as liquid water in a shallow pond, evaporate, condense onto a rising air parcel, become part of a cloud, fall as drizzle, be intercepted by the canopy, evaporate again from wet leaves, and finally return to the pond through ground seepage. The droplet’s path is not a single loop but a tangled web of short hops, each step governed by local temperature, wind, and humidity gradients.\n\nA common misconception is to think of the cycle as a closed, lossless system where the amount of water stays constant in each component. In reality, the atmosphere constantly exchanges heat with space, and small amounts of water are permanently stored as ice in polar caps or locked in deep groundwater for millennia. Notice that the bulk aerodynamic formulas for evaporation give a rate, not a total amount, and that rate can change with seasonal wind shifts. To explore further, try estimating how a sudden increase in wind speed over a lake would boost evaporation, then consider how that extra vapor would alter cloud formation on the leeward side of a mountain range. Observing those linked changes helps reveal the cycle’s continuous, interlocking nature.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V2",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2501,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1175,
+   "total_tokens": 1691,
+   "completion_tokens": 516,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 90
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 90
+   }
+  },
+  "reasoningTokens": 90,
+  "usd": 0.000486,
+  "words": 347,
+  "script": "The part many learners stumble over is why the gradient, which points uphill, is used to go downhill. The gradient of a differentiable loss tells you the direction of greatest increase, so stepping opposite to it follows the path of steepest decrease. This is why the update subtracts the gradient rather than adding it. The size of each step is set by the learning rate, which multiplies that direction. If the learning rate is too big, the step can leap over the valley and land on a higher part of the surface, causing the loss to rise again. If it is too small, each move barely changes the loss and you need many iterations to reach the bottom. Imagine a one‑dimensional quadratic loss L of w equal to w minus three squared. Its shape is a bowl centered at w equals three. Start at w equals zero. The gradient at zero is minus six, because the derivative of (w‑3)^2 is two times (w‑3). With a learning rate of one, the update moves to w equals zero minus one times minus six, landing at w equals six. The loss at six is nine, higher than the initial loss of nine at zero, showing an overshoot. Reduce the learning rate to half. The first step then moves to w equals three, exactly the minimum, and the loss becomes zero. This illustrates how the same gradient can produce very different outcomes depending on the step size. A common misconception is to think that a larger learning rate always speeds up learning. In practice, a too‑large rate can cause oscillation or divergence, especially on curved surfaces where the gradient direction changes rapidly. To see what is happening, monitor the loss after each update. If it climbs, the step was too aggressive; if it barely changes, the step is too timid. The next thing to try is to experiment with a few learning rates on a simple loss and observe how quickly and smoothly the loss falls. This hands‑on feel builds intuition for choosing an appropriate learning rate in more complex models.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1635,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1179,
+   "total_tokens": 1483,
+   "completion_tokens": 304,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 96
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 96
+   }
+  },
+  "reasoningTokens": 96,
+  "usd": 0.000359,
+  "words": 171,
+  "script": "Imagine you look at a basket of fruit and you only pick the red apples. You might be very sure that every apple you pick is red, but you could miss many red apples that are hidden among green ones. The trick is to see precision as the confidence that what you selected truly belongs, and recall as the completeness of your selection. Think of a spam filter that marks ten messages as spam, and nine of them are really unwanted; that high confidence is precision. If there are fifteen unwanted messages in total but the filter only catches ten, the proportion caught reflects recall. A common mistake is to think a high score on one automatically means a high score on the other. In practice, tightening the filter raises precision but often lowers recall, while loosening it does the opposite. Notice how adjusting the threshold shifts the balance between the two. Try looking at a different threshold and observe which metric improves and which drops, to feel the trade‑off directly.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1417,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1135,
+   "total_tokens": 1371,
+   "completion_tokens": 236,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 57
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 57
+   }
+  },
+  "reasoningTokens": 57,
+  "usd": 0.000312,
+  "words": 144,
+  "script": "Imagine a metal ball rolling on a smooth, tilted board that is covered with a thin layer of oil. The ball cannot see the whole surface, it only feels the tilt under it. Each tiny push it makes follows the direction the board slopes most sharply downward. That push is the core idea of gradient descent: move a little in the direction where the error falls fastest. The common slip is to think the steps must be large enough to jump straight to the bottom. In reality the steps are deliberately small, so the ball slowly spirals toward the valley without overshooting. Notice that if the step size is too big, the ball can bounce back up the other side and never settle. Try visualising a tiny adjustment each time you feel the slope, and watch how the error steadily shrinks toward its minimum.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2117,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1354,
+   "total_tokens": 1771,
+   "completion_tokens": 417,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 29
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 29
+   }
+  },
+  "reasoningTokens": 29,
+  "usd": 0.000453,
+  "words": 295,
+  "script": "Imagine pulling a handful of beads from a bowl that contains many identical beads, each time putting the bead back before the next pull. Even though you draw the same number of beads as are in the bowl, some beads will never appear in your handful. The key point that trips people is that the 63% figure does not come from counting how many draws you make, but from the probability that any particular bead is missed across all draws. Each draw gives a single bead a one‑in‑n chance of being selected, so the chance it is not selected in that draw is one minus one‑over‑n. Because the draws are independent, you multiply that non‑selection chance n times, which yields the expression (1 minus 1 over n) raised to the n. As n grows, this product settles near 0.368, meaning each individual row has about a 36.8% chance of being absent. The complement, roughly 63%, is therefore the expected share of distinct rows that appear at least once. For a concrete picture, picture a deck of ten cards and draw ten times with replacement. The chance that a given card never shows up is (9/10) to the tenth power, about 0.35, so you expect about six to seven different cards in the sample. A common misconception is to think the 63% comes from simply “10 draws out of 10 cards gives 10 ÷ 10 = 100% then subtract something.” The correct view is to treat each row’s omission probability separately and then look at the average over many rows. To check your intuition, try a smaller set, say five items drawn five times, compute (4/5) to the fifth power, and see that the omitted proportion is still close to one third, confirming the same pattern.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1863,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1260,
+   "total_tokens": 1628,
+   "completion_tokens": 368,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 30
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 30
+   }
+  },
+  "reasoningTokens": 30,
+  "usd": 0.00041,
+  "words": 258,
+  "script": "Imagine a data set where the lower quartile sits at four and the upper quartile at ten. The inter‑quartile range is simply the distance between those two points, so here it is six. To decide where the whiskers should stop, we extend 1.5 times that range outward from each quartile. One‑and‑half times six gives nine, so the lower fence is four minus nine, which lands at negative five, and the upper fence is ten plus nine, which lands at nineteen. Any observation that lies below negative five or above nineteen is classified as an outlier. In this picture the whisker ends at the most extreme non‑outlying values, namely the smallest data point above the lower fence and the largest data point below the upper fence. The rule that the fences are 1.5 × IQR away from Q1 and Q3 is often misunderstood as a statement about the distance from the minimum or maximum; it actually measures distance from the quartiles themselves, regardless of where the extreme points fall. Notice that if the data contain a value of twenty‑two, it will be flagged as an outlier because it exceeds the upper fence of nineteen, even though the whisker might end at a value like fifteen. A common snag is to assume that the whisker always reaches the minimum or maximum of the data. To check your plot, first compute Q1 and Q3, then the IQR, then the fences, and finally compare each datum to those fence values to decide whether it belongs on the whisker or is an outlier.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2404,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1215,
+   "total_tokens": 1533,
+   "completion_tokens": 318,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 40
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 40
+   }
+  },
+  "reasoningTokens": 40,
+  "usd": 0.000373,
+  "words": 231,
+  "script": "Imagine the piston as a hand that squeezes a balloon at just the right moment. The trick that many miss is that the cylinder is not a single continuous space; during compression the valves are closed, sealing the mixture, and during the power stroke the spark occurs only when the mixture is at its smallest volume. That sealed, compressed state is what makes the explosion push the piston with force. Think of a bicycle pump: you pull the handle up, the valve closes, you compress the air, then you release a burst through a tiny outlet. In a similar way, the closed intake and exhaust valves create a pressure chamber that stores energy until the spark releases it. A common error is to picture the spark as happening while the piston is still moving upward, as if the flame rides the piston. In reality the spark fires when the piston is near the top of its travel, when the volume is minimal. To feel the difference, watch a slow‑motion video of a valve train and note the exact moment the intake valve shuts just before the piston reaches the top. Notice that the power stroke starts only after that shut‑off, and the exhaust valve opens only after the piston has begun its upward return. By timing the valve events to the piston’s position, the engine extracts maximum work from each explosion.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2112,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1191,
+   "total_tokens": 1614,
+   "completion_tokens": 423,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 65
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 65
+   }
+  },
+  "reasoningTokens": 65,
+  "usd": 0.000432,
+  "words": 288,
+  "script": "Imagine three raw scores that are close together, say zero, one and two. First each score is turned into a positive number by raising the natural exponential to that score. So you get e to the zero, which is one, e to the one, about two point seven, and e to the two, about seven point four. The next step is to add those three exponentiated values together. One plus two point seven plus seven point four gives roughly eleven point one. Finally each exponentiated value is divided by that total. The one becomes about one elevenths, the two point seven becomes about twenty four hundredths, and the seven point four becomes about sixty six hundredths. The three results now form a probability distribution that adds to one. The key point that many overlook is that the exponential step does more than just make the numbers positive; it stretches larger scores much more than smaller ones, so small differences in the raw scores become larger differences in the probabilities. A different way to see this is to note that multiplying every raw score by the same constant does not change the final probabilities, because the exponential and the division cancel that common factor out. A common misconception is to think softmax simply scales the raw scores into the zero‑to‑one range. In reality it reshapes the relative magnitudes before scaling, so the output probabilities are not a linear rescaling of the inputs. To deepen your intuition, take a set of scores, compute the exponentials, sum them, and then divide each term. Observe how increasing the highest score by a little pushes its probability up disproportionately. That hands‑on trial will reveal how softmax converts scores into a coherent probability distribution.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2259,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1285,
+   "total_tokens": 1751,
+   "completion_tokens": 466,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 43
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 43
+   }
+  },
+  "reasoningTokens": 43,
+  "usd": 0.000472,
+  "words": 336,
+  "script": "Imagine you are standing at the root of a garden of numbers and you must decide which path to follow to reach a particular plant. The key to moving correctly is the ordering rule: every left branch holds only smaller keys than the node you are at, and every right branch holds only larger keys. This rule applies recursively, so each subtree is itself a correctly ordered garden. The subtle point many miss is that the rule is not just about the immediate children; it must hold for every descendant, otherwise the search can be led down a dead end. Think of a tree that contains the keys 15 at the root, 9 on the left, 20 on the right, with 5 as the left child of 9 and 12 as the right child of 9. If you look for the key 12, you first compare with 15 and go left because 12 is smaller. At 9 you compare again and go right because 12 is larger. The next node is 12 and the search stops. Each comparison discards half of the remaining possibilities, which is why the cost grows with the logarithm of the number of nodes when the tree stays balanced. A common misconception is to think that a binary search tree automatically stays balanced, so the logarithmic guarantee always holds. In fact, if you insert keys in sorted order, the tree can degenerate into a straight line, and each search then takes linear time. To see the difference, try building a tree by inserting the keys 2, 4, 1, 3 in that order and then trace a search for 3. Notice how the left‑right decisions still follow the ordering rule, but the shape of the tree influences how many steps are required. When the tree is balanced, the path length stays short; when it is skewed, the path length grows. Keep checking that every node respects the left‑smaller, right‑larger invariant, and observe how the height of the tree determines the actual search cost.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2357,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1206,
+   "total_tokens": 1630,
+   "completion_tokens": 424,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 37
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 37
+   }
+  },
+  "reasoningTokens": 37,
+  "usd": 0.000435,
+  "words": 323,
+  "script": "Imagine a large lake on a sunny day. The sun heats the water surface, but the deeper water stays cool. That temperature contrast is what lets the lake act as a heat battery, storing solar energy in the water itself. When that stored heat is later released as vapor, the atmosphere gains both mass and energy, and the air above the lake becomes lighter, rising toward higher, cooler layers. This upward motion is the key step that many overlook: it is not just water changing phase, it is the coupling of heat and mass that drives vertical motion and sets up the pressure gradients that move air around the globe. A useful way to picture it is to think of a hot air balloon: the heated air inside expands, becomes less dense, and lifts the balloon upward. In the water cycle, the vapor‑laden air behaves similarly, lifting and spreading moisture far from its source. Consider a midsummer afternoon over a desert basin where a shallow pond evaporates rapidly. The vapor rises, condenses into thin cirrus clouds, and the latent heat released during condensation fuels nearby wind patterns that can transport the moisture hundreds of kilometres before it falls as a brief shower in a distant mountain range. This shows how a local heat input can create distant precipitation. A common mistake is to treat evaporation and precipitation as isolated events, as if each drop of rain must fall where it evaporated. In reality, the latent heat carried aloft links distant regions, so the water that falls in the mountains may have originated from a sun‑warmed ocean far to the south. To see this connection, follow a parcel of air: note where it gains heat and moisture, watch its ascent, and then track where the released heat causes the air to sink and the water to return. That tracing reveals the continuous loop of energy and mass that makes the global water cycle work.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V3",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2385,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1253,
+   "total_tokens": 1705,
+   "completion_tokens": 452,
+   "prompt_tokens_details": {
+    "cached_tokens": 734
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 73
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 73
+   }
+  },
+  "reasoningTokens": 73,
+  "usd": 0.000459,
+  "words": 315,
+  "script": "Imagine you are standing on a smooth hill shaped like a simple bowl, where the depth of the bowl represents the loss value. The trick that often trips people up is that the gradient vector does not point toward the bottom of the bowl; it points uphill, in the direction of greatest increase. Gradient descent works by moving exactly opposite to that direction, stepping down the slope. In one dimension the loss might be L of w equals the square of w minus three, written as L(w)= (w minus three) squared. The gradient of this loss is two times w minus six. Starting at w equals zero, the gradient is minus six, so the update subtracts the learning rate times the gradient: w new equals zero minus eta times minus six, which adds six eta. If we choose a learning rate of one half, the first step moves w to three, landing exactly at the minimum. A smaller learning rate, say one tenth, would move w only to point six, and many more steps would be required to get close to three. Conversely, a learning rate larger than one, for example one point five, would push w to negative nine after the first step, sending you far away from the optimum and causing the algorithm to bounce back and forth. A common misconception is to assume that a larger learning rate always speeds up learning. What you should notice is that the step size must be balanced: too big and the updates overshoot, creating a zig‑zag pattern or divergence; too small and progress is painfully slow. To explore this balance, try plotting the loss curve and manually stepping down with different learning rates, watching how the path either slides smoothly into the minimum or spirals away. This hands‑on experiment makes clear why choosing an appropriate learning rate is essential for gradient descent to converge efficiently.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 4722,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1179,
+   "total_tokens": 2333,
+   "completion_tokens": 1154,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 966
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 966
+   }
+  },
+  "reasoningTokens": 966,
+  "usd": 0.000869,
+  "words": 149,
+  "script": "Imagine you are looking for red marbles in a bag. You pull out some marbles and label each as red or not. If you label ten marbles as red and only six are truly red, your precision is six out of ten. If the bag actually contains eight red marbles, and you found six of them, your recall is six out of eight. The tricky part is that precision and recall are linked. When you become stricter about labeling only obvious reds, you raise precision but you may miss some real reds, dropping recall. When you loosen the criteria to catch more reds, recall rises while precision can fall. A common mistake is to think that a high precision alone means the search is good. Notice whether you are also missing many true items. To balance the two, try adjusting the threshold and observe how both numbers move together.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 6674,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1135,
+   "total_tokens": 2747,
+   "completion_tokens": 1612,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 1398
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 1398
+   }
+  },
+  "reasoningTokens": 1398,
+  "usd": 0.001137,
+  "words": 177,
+  "script": "Imagine you are trying to tune a knob that shows you how far you are from the perfect setting. Each turn can only be a small amount, and you always turn in the direction that reduces the error shown. Gradient descent works exactly like that: it looks at the slope of the error surface, then moves a little opposite the slope. The size of the move is set by a learning rate, a single number that tells how big each step should be. For example, suppose the error is (x minus two) squared and you start at x equals four. The slope there is four, and with a learning rate of one half you move to x equals two, which is already the minimum. A common mistake is to assume that following the slope will always land you at the deepest valley; in a landscape with several dips the method can settle in a higher one. Notice the direction and the step size, and if you stop early, try a smaller learning rate or a different start.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 4187,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1354,
+   "total_tokens": 2286,
+   "completion_tokens": 932,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 641
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 641
+   }
+  },
+  "reasoningTokens": 641,
+  "usd": 0.000762,
+  "words": 229,
+  "script": "Imagine you have ten training rows and you draw one row, record it, then put it back, repeating the draw ten times. The chance that a particular row never appears is nine over ten raised to the tenth power, which is about thirty‑five percent. If about thirty‑five percent of the rows are missing, the remaining rows make up roughly sixty‑five percent of the set. That is the same pattern you see when the number of rows grows: the missed proportion approaches one over e, and the included proportion approaches one minus one over e, about sixty‑three percent.\n\nThink of each draw as an independent opportunity to capture a row. After many independent draws, the probability that a given row has escaped capture is the product of its miss chance on each draw, which converges to one over e. Because every row has the same chance, the expected fraction captured is the complement, one minus one over e.\n\nA common mistake is to assume that drawing exactly as many times as there are rows guarantees that most rows appear. The replacement allows the same row to be chosen many times, so repeats are frequent and many rows stay unseen.\n\nTo see this yourself, generate a bootstrap sample of your data and count how many distinct rows it contains. You will notice the count hovers around two‑thirds of the original size.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 10460,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1260,
+   "total_tokens": 2097,
+   "completion_tokens": 837,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 469
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 469
+   }
+  },
+  "reasoningTokens": 469,
+  "usd": 0.000691,
+  "words": 263,
+  "script": "Imagine a set of exam scores laid out on a single numeric line. The five‑number summary marks the minimum, the first quartile, the median, the third quartile, and the maximum. The box of a box‑plot encloses Q1, the median, and Q3. The inter‑quartile range, IQR, is simply Q3 minus Q1. That distance tells you where the middle half of the data sits. To decide where the whiskers stop, you extend 1.5 times the IQR outward from each quartile. That creates a lower fence at Q1 minus 1.5 × IQR and an upper fence at Q3 plus 1.5 × IQR. Any observation that lies beyond those fences is labeled an outlier. The whiskers themselves end at the most extreme data point that remains inside the fences, not necessarily at the absolute minimum or maximum. For a fresh example, suppose Q1 is ten, Q3 is sixteen, so the IQR is six. The lower fence is ten minus nine, which is one. The upper fence is sixteen plus nine, which is twenty‑five. All scores between one and twenty‑five stay inside the fences, and the whiskers meet the lowest and highest scores that fall in that interval. A score of twenty‑seven would sit beyond the upper fence and be marked as an outlier. A common mistake is to think the whiskers always reach the raw minimum and maximum of the data. In reality they stop at the farthest point that is not an outlier. To check, locate the fences first, then see which data points lie inside them; the whisker ends will align with those interior extremes.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 4605,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1215,
+   "total_tokens": 2276,
+   "completion_tokens": 1061,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 726
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 726
+   }
+  },
+  "reasoningTokens": 726,
+  "usd": 0.000819,
+  "words": 273,
+  "script": "Picture the piston as a rod that slides inside a cylinder while a crankshaft turns like a hand‑crank. The key trick of the four‑stroke engine is that the linear motion of the piston is turned into continuous rotary motion of the crankshaft, and that each complete turn of the crankshaft contains two up‑strokes and two down‑strokes. Because the crank pin is offset from the crankshaft centre, a downward push on the piston creates a clockwise turn, and the upward return pushes the crank further along the same rotation. This conversion happens on every stroke, so the engine never stops rotating while the pistons keep moving up and down. A simple way to see this is to imagine a bicycle pump attached to a gear. When you pull the pump handle back, the gear turns a little; when you push it forward, the gear turns the same amount again. After four motions – back, forward, back, forward – the gear has completed one full revolution. The engine works the same way, except the force applied during the power stroke is far larger because the fuel ignites. A common misconception is to think the spark plug fires when the piston is at the bottom of its travel. In reality the spark occurs just before the piston reaches the top of the compression stroke, when the mixture is most tightly packed. If the spark were delayed until the bottom, the expanding gases would have nowhere to push effectively. To feel the timing, try watching a slow‑motion video of a single cylinder and notice the spark flash a fraction of a second before the piston changes direction.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 4826,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1191,
+   "total_tokens": 2296,
+   "completion_tokens": 1105,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 618
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 618
+   }
+  },
+  "reasoningTokens": 618,
+  "usd": 0.000842,
+  "words": 404,
+  "script": "Imagine you have three possible actions and you assign them raw scores of zero, one, and two. The softmax first turns each score into an exponential weight, so the scores become e to the zero, e to the one, and e to the two. Those weights are all positive, and the larger original score now carries a weight that grows faster because of the exponent. The next step is to ask how much each weight contributes to the whole. To answer that, softmax divides each weight by the sum of all three weights. The result is a set of three numbers that add up to one, and each number can be read as the probability of choosing the corresponding action. In other words, softmax expresses each exponential weight as a proportion of the total exponential mass. A common stumbling point is to think that the softmax simply scales the raw scores so they sum to one. The exponentiation step makes the transformation nonlinear; a small difference in raw scores can become a large difference after exponentiation, and the final probabilities reflect those amplified differences. Consider a second example with raw scores of minus one, zero, and one. The exponentials become e to the minus one, e to the zero, and e to the one. Because e to the minus one is about one third of one, the middle weight is larger than the left but smaller than the right. After dividing by their sum, the middle probability sits between the extremes, showing how the relative ordering of scores is preserved but the spacing is stretched. A frequent misconception is to assume that changing all scores by the same constant does not affect the probabilities. In fact, adding the same number to every score multiplies every exponential weight by the same factor, and because that factor appears in both numerator and denominator, it cancels out, leaving the probabilities unchanged. You can test this by adding two to each of the scores zero, one, and two; the softmax outputs will be identical to the original case. To see softmax in action, pick a simple vector, compute the exponentials, sum them, and form the ratios. Notice how a single large score can dominate the distribution, and how equal scores lead to equal probabilities. This concrete practice reinforces the idea that softmax translates raw scores into a normalized set of probabilities by exponentiating and then proportioning each result.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 3955,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1285,
+   "total_tokens": 2189,
+   "completion_tokens": 904,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 315
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 315
+   }
+  },
+  "reasoningTokens": 315,
+  "usd": 0.000735,
+  "words": 464,
+  "script": "Imagine you are standing at the root of a garden of numbers and you are asked to locate a particular flower. The rule that guides every step is simple: every branch to the left leads to smaller numbers, every branch to the right leads to larger numbers, and this rule holds not only for the immediate children but for all descendants of each node. In other words, the ordering invariant is recursive; any left subtree is a miniature binary search tree whose keys are all less than the parent, and any right subtree is a miniature tree whose keys are all greater than the parent. That recursive view is often missed the first time, because it is easy to think only about the parent‑child comparison and forget that the same comparison must be true for every level deeper in the structure. \n\nConsider a tree whose root holds the key 15. Its left child stores 9 and its right child stores 20. The left child of 9 holds 4, and the right child of 9 holds 12. If you search for the key 11, you start at 15, move left because 11 is smaller, arrive at 9, then move right because 11 is larger than 9, and arrive at 12. Since 11 is smaller than 12, you would move left from 12. If the left slot under 12 is empty, the search stops and reports that 11 is not present. Each comparison has cut the remaining interval in half: from the whole set of keys to those less than 15, then to those greater than 9, then to those less than 12. \n\nNow insert the key 6 into the same tree. Starting at 15 you go left to 9, then left to 4 because 6 is smaller than 9 but larger than 4. The right child of 4 is empty, so 6 becomes that right child. Notice how the invariant is preserved: every key in the left subtree of 9 remains smaller than 9, and every key in the right subtree of 4 remains larger than 4 but still smaller than 9. \n\nA common misconception is to assume that a binary search tree will always stay balanced regardless of the order in which keys are added. In reality, inserting keys in sorted order, such as 1, 2, 3, 4, creates a chain where each node has only a right child. That chain degenerates to linear search time, destroying the logarithmic guarantee. To see the effect, try inserting a sequence of increasing numbers and then trace a search for the middle value; you will notice the path length equals the number of nodes visited. After observing the degradation, experiment with rebalancing operations or with inserting keys in a more mixed order to maintain the logarithmic height.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 12026,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1206,
+   "total_tokens": 4259,
+   "completion_tokens": 3053,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 2616
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 2616
+   }
+  },
+  "reasoningTokens": 2616,
+  "usd": 0.002013,
+  "words": 364,
+  "script": "Imagine a puddle left after a summer rain. The sun’s heat nudges the water at the surface, and a thin breath of vapor lifts away. That vapor does not vanish; it joins the surrounding air and moves with the wind. As it climbs, the surrounding air thins and cools, so the same amount of water finds a lower temperature to settle into. The shift from invisible vapor to countless tiny droplets is condensation, the same process that makes a cold glass sweat. Those droplets cling together to form a cloud, but the cloud is not a solid block; it is a collection of suspended droplets that can travel great distances with the air currents. One way to picture this is a kitchen kettle. Heat makes water boil and steam rise. The steam meets the cool lid, turns back into droplets, and drips down into a waiting cup. The kettle’s lid stands for the atmosphere, the steam for vapor, and the dripping water for precipitation that returns to the surface. The idea that trips many learners is assuming the cycle stops after the first drop falls. The cycle is not a series of isolated steps; it is a continuous exchange of mass and energy. Each droplet that reaches the ground can become runoff, seep into groundwater, or evaporate again within minutes. The same parcel of water may travel from a mountain stream to the ocean, rise as vapor, form a cloud over a desert, and fall as rain on a field, all without ever leaving the planetary system. A common misconception is that evaporation only depends on temperature. In reality, wind speed works hand in hand with temperature, stirring the air and removing saturated layers that would otherwise slow evaporation. Notice the breeze on a warm lake; the surface ripples and the water disappears faster than on a still day. To explore further, watch a sunny pond and feel the gentle wind. Estimate how long a small leaf stays dry before it darkens with moisture. Then compare that on a calm morning. The contrast will reveal how wind and heat together keep the water cycle moving, constantly redistributing thermal energy and mass across the planet.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V4",
+  "effort": "medium",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 4777,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1253,
+   "total_tokens": 2291,
+   "completion_tokens": 1038,
+   "prompt_tokens_details": {
+    "cached_tokens": 40
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 538
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 538
+   }
+  },
+  "reasoningTokens": 538,
+  "usd": 0.000811,
+  "words": 422,
+  "script": "You stand on a smooth hill whose height represents the loss of a model. Your foot position on the hill is the parameter value w. The slope of the hill at any point is the gradient, and it points uphill. Gradient descent tells you to step downhill, exactly opposite the slope, by an amount set by the learning rate. The common slip is to think the gradient itself points toward the minimum; in fact it points toward higher loss, so the update must subtract it, not add it. Think of a one‑dimensional quadratic loss L of w equal to the square of the distance from three, that is L of w equals (w minus three) squared. The gradient of this loss is two times (w minus three). Start at w equal five, choose a learning rate of one half. The update computes w new as five minus one half times two times (five minus three), which simplifies to five minus one half times four, giving two. After that single step you land exactly at three, the minimum. If you chose a smaller learning rate, say one quarter, the first step would move you to three and a half, then the next step to three point one quarter, and you would keep inching toward three without overshooting. The picture is like a ball rolling down a smooth bowl: the ball always moves opposite the direction the bowl slopes upward, and the size of each roll depends on how slippery the surface is, which is analogous to the learning rate. A frequent misunderstanding is to assume that a smaller learning rate always improves learning. Very small rates make progress so slow that you may stop before the bowl’s bottom is reached, wasting computation, while very large rates cause the ball to bounce past the bottom and climb the other side, leading to divergence. Notice the size of each step relative to the steepness of the slope; if the steps are larger than the curvature of the loss surface, the updates will overshoot. To explore further, try two runs on the same quadratic loss: one with a learning rate that halves the distance to the minimum each step, and another with a rate that cuts the distance in half plus a small extra. Observe how the larger rate reaches the minimum faster but risks overshooting if the curvature changes, while the smaller rate glides smoothly but needs many more steps. This hands‑on comparison highlights how the learning rate balances speed and stability in gradient descent.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1567,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 207,
+   "prompt_tokens": 966,
+   "total_tokens": 1173
+  },
+  "reasoningTokens": null,
+  "usd": 0.000807,
+  "words": 183,
+  "script": "Precision and recall look at two different types of mistakes a model can make. Precision cares about false alarms. When the model points to something and calls it positive, precision is the shield that asks if we can trust that claim. If precision is low, you are shouting wolf too often. Recall cares about missed opportunities. Out of all the actual targets hiding in the data, recall asks if your net caught them all. If recall is low, your net has holes and the targets swim right through. Imagine a filter checking incoming messages for spam. High precision means almost every message sent to the spam folder really is spam, so you rarely lose a real message. High recall means the filter catches nearly every piece of spam sent to your inbox, even if a few legitimate messages accidentally get dragged in along with it. People often think a model with high overall accuracy is doing a good job, but accuracy hides the trade off between these two measures. Notice which kind of error hurts your goal more before you tune your model.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1337,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 170,
+   "prompt_tokens": 933,
+   "total_tokens": 1103
+  },
+  "reasoningTokens": null,
+  "usd": 0.000705,
+  "words": 146,
+  "script": "The hardest part of gradient descent is trusting that the size of your step matters just as much as the direction. If you take steps that are too large, you might step right over the bottom of the valley and up the other side, bouncing back and forth forever without reaching the lowest point. If your steps are too small, you will move so slowly that you might never finish the journey. Think of adjusting the volume on a dial where you want the quietest sound. You listen to the current level, figure out which way makes it quieter, and turn the knob by a small amount. A common misconception is that gradient descent always finds the absolute lowest point in the entire landscape. In reality, it finds the nearest low point, which might just be a small dip and not the deepest valley at all.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1475,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 190,
+   "prompt_tokens": 1147,
+   "total_tokens": 1337
+  },
+  "reasoningTokens": null,
+  "usd": 0.000819,
+  "words": 165,
+  "script": "The hardest part here is seeing how drawing with replacement changes things. When you pull a row from your training set and put it right back before the next draw, every single draw has the exact same chance of missing your target row. Think of it like a raffle where your ticket goes back into the box every time. You might get lucky and draw it twice, or three times, and that leaves other rows sitting out entirely. As the number of rows grows very large, this independent repetition leads to a steady proportion. About thirty seven percent of the rows are left out, which leaves the remaining sixty three percent to form your bootstrap sample. A common misconception is that drawing with replacement means you will eventually cycle through every row if you draw enough times. In reality, the random nature means duplicates are guaranteed, which always leaves that gap of omitted rows behind. Notice how this limit relies on independence across all draws.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1386,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 205,
+   "prompt_tokens": 1053,
+   "total_tokens": 1258
+  },
+  "reasoningTokens": null,
+  "usd": 0.000828,
+  "words": 176,
+  "script": "The hardest part of this layout is seeing how the whiskers differ from the fences. People often think the whisker ends at the fence, but the whisker only stretches to the most extreme data point that still sits inside the fence. The fence is an invisible boundary calculated at one point five times the inter quartile range beyond the quartiles. Think of it like a property line. The fence marks where the rules change, but your actual fence post might sit a few feet back. In our example, the upper fence is sixteen, but the highest data point inside that fence might be a lower number, while an outlier like eighteen sits past the sixteen line all by itself. A common misconception is that outliers are removed from the data set automatically. They are not removed. They are only flagged and marked separately so you can inspect them. Next time you read a box plot, look closely at the gap between the end of the whisker and the fence line to see if any space exists.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1326,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 172,
+   "prompt_tokens": 1009,
+   "total_tokens": 1181
+  },
+  "reasoningTokens": null,
+  "usd": 0.000733,
+  "words": 148,
+  "script": "People often picture the power stroke as a continuous push on the piston, but the actual force comes from a single sharp explosion. Think of it like striking a bicycle pedal. You get one quick, forceful stomp down that keeps the wheel spinning through the other three quiet phases where no new energy is added. The piston relies on that single kick of momentum to carry it back up and down. A common mistake is assuming the engine is constantly creating power during all four movements. In reality, three of the strokes are just setting up or cleaning up after that single moment of combustion. Notice how the valves open and close at very specific times to manage this flow. Next time you look at an engine, track how three strokes serve to feed, squeeze, and clean the cylinder, leaving just one stroke to actually move the car.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1555,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 267,
+   "prompt_tokens": 970,
+   "total_tokens": 1237
+  },
+  "reasoningTokens": null,
+  "usd": 0.000959,
+  "words": 234,
+  "script": "The hardest part of the softmax function is seeing why exponentiation is necessary. You might wonder why we do not just divide each raw score by the sum of all raw scores. The problem with dividing raw scores directly is that raw scores can be negative, and they do not stretch the gap between high and low values effectively. Exponentiation fixes both issues. Raising e to the power of any raw score turns negative numbers into positive numbers and makes positive numbers grow much faster. Consider a vector of raw scores. If you take the exponent of each score, a higher score becomes vastly larger than a lower score. When you then divide each exponentized value by the sum of all of them, the largest score claims nearly all of the probability mass. A common misconception is that softmax gives a true measure of confidence or absolute certainty. In reality, softmax only shows relative preference among the scores you provided. If you scale all your raw scores up or down by a constant factor before applying softmax, the resulting probabilities change dramatically even though the underlying relative order of the scores stayed the same. Notice how sensitive the output is to the scale of your inputs. When you work with softmax next, try multiplying your raw scores by a number greater than one and observe how the probability distribution sharpens toward the maximum value.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1395,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 238,
+   "prompt_tokens": 1043,
+   "total_tokens": 1281
+  },
+  "reasoningTokens": null,
+  "usd": 0.000908,
+  "words": 210,
+  "script": "The hardest part of a binary search tree is trusting that local comparisons solve the global structure. You do not need to look at the whole tree to place a key. You only need to ask one question at a time. Consider inserting the number seven. You start at the root node which is eight. Since seven is smaller than eight, you move to the left child which is three. Seven is larger than three, so you move to its right child which is six. Finally, seven is larger than six, and because that right slot is empty, seven settles right there. Each step eliminates half the remaining possibilities without you ever having to check them. A common misconception is that any tree with two children per node is a binary search tree. But local branching is not enough. Every single node in the left subtree must be smaller than the root, and every single node in the right subtree must be larger. If even one node violates this rule down the line, the search breaks. When you build or modify a tree next, trace a path from the root for a new key, and notice how every single left or right turn cuts the remaining work precisely in half.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1508,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 209,
+   "prompt_tokens": 979,
+   "total_tokens": 1188
+  },
+  "reasoningTokens": null,
+  "usd": 0.000816,
+  "words": 190,
+  "script": "Solar energy does not just lift water up and drop it back down in a straight line. The hardest part to picture is that evaporation and condensation are happening continuously and simultaneously across the entire planet, not in separate shifts. Think of a pot of water on a stove with a lid on it. Tiny droplets form on the cool underside of the lid and fall back down while steam keeps rising from the surface below. Earth works the same way on a massive scale. A common misconception is that a single drop of water completes the whole loop in a short trip. In reality, a molecule of water might spend thousands of years trapped deep underground in a basin or locked in a glacier before it ever feels enough solar energy to start evaporating again. When you look at a river or a rain cloud, notice that you are seeing only one small visible piece of a massive, ongoing redistribution of thermal energy and mass. To take this further, try tracking how local wind speed and temperature changes alter the rate of evaporation in your own daily weather observations.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V1",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1495,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 252,
+   "prompt_tokens": 1045,
+   "total_tokens": 1297
+  },
+  "reasoningTokens": null,
+  "usd": 0.000944,
+  "words": 221,
+  "script": "People often picture gradient descent as walking straight down a slope until you hit the lowest point. But the gradient only tells you the steepest direction right where you stand. It does not know where the true bottom is. Imagine standing on a hilly landscape in thick fog. You can feel the slope beneath your feet and you take a step downward. Then you stop, feel the slope again, and take another step. If your steps are too big, you might step right over a valley and up the opposite hill, bouncing back and forth across the bottom without ever settling. If your steps are too small, you will take forever to reach the bottom, making thousands of tiny shuffles that barely move you forward. A common misconception is that gradient descent always finds the absolute lowest point of the function. In reality, it can get stuck in local valleys that are lower than their immediate surroundings, but higher than the true minimum elsewhere on the surface. When you train a model, notice how the loss changes over time. If the loss bounces up and down erratically, your step size is too large. If the loss decreases too slowly and stalls out, try increasing your step size or using an adaptive method that adjusts the step size automatically as training progresses.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1039,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 138,
+   "prompt_tokens": 1052,
+   "total_tokens": 1190
+  },
+  "reasoningTokens": null,
+  "usd": 0.000661,
+  "words": 119,
+  "script": "The hardest part is remembering that these two measures look in opposite directions. Precision looks at your positive guesses and checks how many of those specific guesses were correct. Recall completely ignores your wrong guesses and looks only at the total pool of actual items that you were supposed to find. Think of casting a wide net in the ocean. If you pull up a net with ten fish and all ten are the kind you wanted, your precision is perfect. But if there were one hundred of those fish in the water and you only caught ten, your recall is very low. You were completely trustworthy when you said yes, but you missed most of the total target.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1362,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 162,
+   "prompt_tokens": 1007,
+   "total_tokens": 1169
+  },
+  "reasoningTokens": null,
+  "usd": 0.000707,
+  "words": 138,
+  "script": "People often think gradient descent jumps straight to the answer in one giant leap. It does not. It takes tiny, cautious steps, checking the slope under your feet each time. Think of adjusting the volume knob on a stereo while listening closely. You turn it a tiny bit clockwise, listen to see if the sound got better or worse, and then turn it a tiny bit more in the direction that improved the sound. You repeat this small adjustment over and over until the volume is just right. A common mix up is believing that any downward step guarantees you will reach the absolute lowest valley on the entire landscape. In practice, you might get stuck in a local dip that is low, but not the lowest. Pay attention to the size of your steps as you practice.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1236,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 154,
+   "prompt_tokens": 1254,
+   "total_tokens": 1408
+  },
+  "reasoningTokens": null,
+  "usd": 0.000761,
+  "words": 133,
+  "script": "The part people find tricky is how drawing with replacement can leave out so many rows. Think of it like dropping balls into numbered buckets at random. Even though you drop as many balls as there are buckets, some buckets will end up with multiple balls while others stay completely empty. The math just tells us how many empty buckets to expect on average. A common misconception is that if you make your dataset huge, you will eventually capture every single row. But the limit stays fixed near thirty seven percent omitted, no matter how large your dataset grows. When you work on this next, remember that those left out rows are actually useful. They form out of bag samples you can use to test your model without needing a separate validation split.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1515,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 203,
+   "prompt_tokens": 1138,
+   "total_tokens": 1341
+  },
+  "reasoningTokens": null,
+  "usd": 0.000849,
+  "words": 173,
+  "script": "The hardest part is remembering that whiskers do not always stretch to the absolute minimum and maximum values in your data set. Instead, whiskers stop at the last actual data point that falls safely inside the inner fences. Think of a gated community. The houses inside the gates are your normal data. The gates themselves are the fences set at one point five times the inter quartile range beyond the quartiles. The whiskers stretch out from the box to meet the outermost houses that still live inside those gates. Any houses built way out past the gates are marked separately as outliers. A common misconception is that whiskers and fences are the exact same thing. They are not. Fences are invisible math boundaries calculated using the inter quartile range. Whiskers are visible lines on your plot that point toward the edge. When you look at a new plot, check where the whiskers end first. If a whisker stops short of the minimum or maximum value, look further out for isolated points marking outliers.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1357,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 160,
+   "prompt_tokens": 1089,
+   "total_tokens": 1249
+  },
+  "reasoningTokens": null,
+  "usd": 0.000727,
+  "words": 139,
+  "script": "The part people trip over is why squeezing the fuel mixture matters so much before the spark ever fires. Think of it like squishing a spring down tight. When you let go, it snaps back with much more punch than if you just dropped it loose. Squeezing the air and fuel forces all those tiny droplets close together so the flame spreads through the whole space instantly instead of burning in a lazy puff. A common mix up is thinking the spark plug is what pushes the piston down through the whole cycle. The spark only gives one sharp shove at the exact right second. Momentum from the heavy crankshaft keeps the piston moving the rest of the time. Notice how the valves stay firmly closed during compression and power so pressure can build up inside the sealed chamber.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1558,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 262,
+   "prompt_tokens": 1060,
+   "total_tokens": 1322
+  },
+  "reasoningTokens": null,
+  "usd": 0.000973,
+  "words": 229,
+  "script": "The hardest part to picture is why exponentiation matters so much in this process. It does more than just make negative numbers positive. It stretches out the gaps between the scores. A slightly higher score does not just get a slightly higher probability. It gets a massively larger share of the total after exponentiation. Imagine three horses running a race where their final raw performance scores are five, three, and one. When you exponentize these scores, the top horse pulls so far ahead that the resulting probabilities make the winner almost a sure thing while the others drop near zero. A common misconception is that softmax tells you the absolute confidence of a model in a single category. It does not. It only shows relative probabilities among the choices you gave it. If you add a new category with a very low raw score, all the other probabilities will shift downward to make room, even if nothing about the original categories changed. Notice how sensitive the output is to the scale of the raw scores. If you multiply all your raw scores by two before applying softmax, the probabilities become much sharper and more extreme. Try feeding a set of raw scores into the function where one score is slightly ahead, and then try again with the scores spaced much further apart to see how the probability distribution responds.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1435,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 242,
+   "prompt_tokens": 1156,
+   "total_tokens": 1398
+  },
+  "reasoningTokens": null,
+  "usd": 0.000952,
+  "words": 208,
+  "script": "The hardest part to picture is why the ordering invariant must hold for every single descendant, not just the immediate children of a node. When you look at a subtree, every node down that entire path restricts where future values can live. Imagine you are searching for the key four in a tree where the root is eight, and its left child is three, and the right child of that three is six. When you compare four to eight, you go left. When you compare four to three, you go right. Now you are at six. Four is smaller than six, so you need to go left from six. That empty left slot under six is the only valid spot for four. A common misconception is that if a tree looks balanced visually, its operations will always run in logarithmic time. In reality, the shape of the tree depends entirely on the order in which keys are inserted. If you insert keys in sorted order, the tree degenerates into a linear chain, and search time drops to linear time instead of logarithmic time. To notice this in practice, try tracing what happens when you insert sequential keys into an initially empty tree and observe how the height grows.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1377,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 197,
+   "prompt_tokens": 1078,
+   "total_tokens": 1275
+  },
+  "reasoningTokens": null,
+  "usd": 0.000816,
+  "words": 170,
+  "script": "Solar heating does not just lift water into the sky. It moves heat energy right along with the vapor. When liquid turns to gas, it absorbs heat from the surface left behind. That energy travels upward invisibly until condensation happens. In the clouds, that same heat is released back into the air. Think of a pot of soup on a stove where the steam carries thermal energy from the burner up to the kitchen ceiling. The bulk aerodynamic formulas mentioned earlier simply calculate how fast that heat and mass transfer happens based on wind and temperature differences. A common misconception is that clouds are made of water vapor. Water vapor is actually an invisible gas. The visible part of a cloud is liquid droplets or ice crystals formed after condensation has cooled that vapor down. To explore this further, watch how puddles dry on a windy day compared to a calm day. Notice how the temperature of the pavement changes as the water disappears, showing the energy transfer in action.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V2",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1587,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 283,
+   "prompt_tokens": 1126,
+   "total_tokens": 1409
+  },
+  "reasoningTokens": null,
+  "usd": 0.001045,
+  "words": 247,
+  "script": "The hardest part of gradient descent is seeing why the gradient points uphill instead of downhill. The gradient is a vector of partial derivatives, and it always points in the direction of the steepest ascent. That is why the update rule subtracts the gradient term. You want to go the opposite way of the steepest slope to decrease your objective function. Imagine standing on a hillside in the fog. You check the slope right where your feet are to find the steepest upward tilt. Then you turn around and take a step downhill. Think about tuning a simple linear model where your loss is just a squared error. If your current weight is too far from the optimal value, the derivative is large, so your step is large. As you get closer to the bottom, the slope flattens out, the derivative shrinks, and your steps naturally become smaller. A common misconception is that gradient descent will always find the lowest possible point on the loss surface. In practice, complex models have bumpy loss surfaces with many local valleys and saddle points. The algorithm can get stuck in a local minimum where every direction leads upward, even though a much deeper valley exists nearby. When you build your next model, try plotting your loss value over time. If your loss bounces around wildly or increases, your learning rate is too large. If the loss barely budges, your learning rate is too small and you need to increase it.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1047,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 115,
+   "prompt_tokens": 1129,
+   "total_tokens": 1244
+  },
+  "reasoningTokens": null,
+  "usd": 0.000626,
+  "words": 100,
+  "script": "Think of a security guard checking bags at a museum door. If the guard stops a bag every time a visitor looks suspicious, precision is how often the stopped bag actually contains a prohibited item. High precision means fewer false alarms. Recall is different. If ten prohibited items enter the building that day, recall asks how many of those ten the guard managed to catch. High recall means missing very few real threats. A common mistake is thinking you can maximize both easily, but tightening your standards to raise precision usually means letting more real items slip past your recall.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1148,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 107,
+   "prompt_tokens": 1084,
+   "total_tokens": 1191
+  },
+  "reasoningTokens": null,
+  "usd": 0.000593,
+  "words": 88,
+  "script": "Think of adjusting the temperature on a shower knob to find the ideal warm mix. You turn it slightly, feel if it is too hot or too cold, and adjust again until it feels right. That adjustment is the step downhill. Each turn depends entirely on how the water feels right at that moment. A common mistake is taking giant turns when you are far off, which can overshoot the sweet spot entirely. Notice how small, steady adjustments get you to the right temperature faster than wild guesses.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1444,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 190,
+   "prompt_tokens": 1331,
+   "total_tokens": 1521
+  },
+  "reasoningTokens": null,
+  "usd": 0.000874,
+  "words": 166,
+  "script": "Think of dropping cards into a hat one by one and drawing them back out with replacement. Every time you pull a card, you might pick one you already have instead of the missing ones. People often assume that if you draw as many times as you have rows, you will pull every single row at least once. But replacement means duplicates are inevitable, and some rows get left behind every single time. Imagine you have a bag with three items and you draw three times. Each item has a two thirds chance on any single draw of not being picked, and that risk compounds across your draws. People sometimes think that bigger data sets escape this quirk entirely. In reality, the proportion of unique rows you actually see stabilizes no matter how large your table grows. Notice whether your model suffers when it trains on only that sixty three percent subset, and remember that the left out rows form a natural validation set for free.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1635,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 268,
+   "prompt_tokens": 1215,
+   "total_tokens": 1483
+  },
+  "reasoningTokens": null,
+  "usd": 0.001035,
+  "words": 234,
+  "script": "When people first look at a box plot, they often think the whiskers stretch all the way to the absolute minimum and maximum values in the entire data set. They do not. The whiskers only stretch as far as the last real data points that sit safely inside the fences. Imagine a data set of test scores where the middle fifty percent of students scored between seventy and ninety. The inter quartile range is twenty. If you multiply twenty by one point five, you get thirty. Subtract thirty from the lower quartile of seventy, and your lower fence is forty. Add thirty to the upper quartile of ninety, and your upper fence is one hundred twenty. If the lowest actual score in the class is forty five, the bottom whisker stops right there at forty five, even if a struggling student scored ten. That score of ten sits way past the fence, so it gets plotted as an isolated dot standing far away from the whisker. A common mix up is assuming those fences are drawn at fixed percentage cutoffs like five percent and ninety five percent. They are not percentage based at all. They are strictly derived from the spread of the middle fifty percent of the data. When you read a new plot, check the ends of the whiskers first to see where the data actually stopped before the fences took over.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1240,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 173,
+   "prompt_tokens": 1166,
+   "total_tokens": 1339
+  },
+  "reasoningTokens": null,
+  "usd": 0.000782,
+  "words": 151,
+  "script": "People often picture the power stroke as a continuous push, like a steady wind driving a sailboat. But inside the cylinder, it is actually a sudden, violent explosion that delivers a single sharp blow to the piston, much like hitting a nail with a hammer. That one sharp kick has to carry the heavy crankshaft through the three other strokes where nothing is pushing it at all. Think of a bicycle rider who pushes down hard on one pedal and then coasts through the rest of the rotation relying on momentum. A common mistake is to think the fuel and air mixture explodes on its own during compression. If that happens before the spark plug fires, it causes engine knock, which wastes energy and can damage the metal parts. Notice how the spark plug timing has to be exact to catch the compressed mixture at the precise top of the stroke.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1533,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 215,
+   "prompt_tokens": 1137,
+   "total_tokens": 1352
+  },
+  "reasoningTokens": null,
+  "usd": 0.000879,
+  "words": 182,
+  "script": "When you look at raw scores, large differences between numbers can get lost if you just scale them directly. Exponentiating each score changes that dynamic completely. It stretches out the distance between values, making the highest score much larger relative to the others. Dividing by the sum then forces everything to fit neatly into a range between zero and one. Imagine you have raw scores of three point zero, one point zero, and zero point zero. When you exponentize them, the larger score grows exponentially faster than the others. A common misconception is that softmax turns raw scores into true absolute probabilities about the real world. It does not. It only creates a relative probability distribution over your specific set of choices based on how much larger one score is than the others. Notice how a negative score does not become negative after exponentiation. It becomes a fraction between zero and one. Try changing just one raw score slightly and watch how the final probabilities shift for all categories at once, because every score competes against the sum of all exponentized values.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1247,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 150,
+   "prompt_tokens": 1233,
+   "total_tokens": 1383
+  },
+  "reasoningTokens": null,
+  "usd": 0.000745,
+  "words": 132,
+  "script": "You might wonder why we need to maintain this strict ordering across every single level instead of just sorting the items in a flat list. Imagine looking for a word in a dictionary where every page you open instantly cuts the remaining pages in half. That is what the tree structure gives you. People often assume that if a tree is balanced, you can just insert new nodes anywhere as long as the depth stays small. But if you insert keys in a sorted order without rebalancing, the tree degrades into a straight line, turning your logarithmic searches into linear scans. Notice how each step makes a binary choice that discards half the remaining nodes. To keep this efficiency, try checking the balance factor of your nodes after every batch of insertions.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1697,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 257,
+   "prompt_tokens": 1155,
+   "total_tokens": 1412
+  },
+  "reasoningTokens": null,
+  "usd": 0.000989,
+  "words": 229,
+  "script": "When people picture water moving through the planet, they usually think of a simple circle where a drop of rain falls into a river and flows back to the sea. But the actual path is not a single ring. Instead, moisture branches out into complex networks of underground storage and atmospheric currents that can trap a single molecule of water for thousands of years in an ice sheet before it ever sees the sun again. Think of a sponge that you press in multiple spots at once. Water does not just move from one end to the other in a straight line. It seeps into deep aquifers, gets locked in glaciers, or cycles rapidly between shallow puddles and the local atmosphere within a single afternoon. A common misconception is that evaporation stops when the sun goes down or when the air feels humid enough. In reality, vapor exchange happens constantly as long as there is a difference in moisture pressure between the surface and the air above it, driven by wind and thermal energy even in the dark. Notice how wind speed acts like an invisible broom sweeping vapor away so more can rise. To explore this further, try observing how quickly puddles dry on a windy, cool day compared to a warm, still day, and notice how temperature and air movement trade off in driving the moisture upward.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V3",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1308,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 225,
+   "prompt_tokens": 1203,
+   "total_tokens": 1428
+  },
+  "reasoningTokens": null,
+  "usd": 0.000923,
+  "words": 196,
+  "script": "Imagine walking down a foggy mountain in the dark, trying to reach the lowest valley. You cannot see the bottom. You can only feel the slope right beneath your feet. You test which way is sloping downward, and you take a single step in that steepest direction. You repeat this feeling and stepping over and over until the ground feels flat. That physical act of feeling the local slope and moving downhill is what the gradient vector and the negative sign are doing mathematically. The gradient points uphill toward the steepest ascent. We want the opposite, so we subtract it. A common trap is thinking the learning rate is a fixed speed that stays constant throughout the journey, like setting the cruise control of a car. In practice, the slope gets flatter as you get closer to the bottom. Even with a fixed learning rate, the steps naturally shrink because the gradient itself becomes smaller as the derivative approaches zero. If you want to explore further, try sketching what happens when your objective function has multiple local valleys instead of just one global minimum. Notice how your starting point entirely changes which valley you fall into.",
+  "error": null
+ }
+]

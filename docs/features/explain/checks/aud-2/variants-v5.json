@@ -1,0 +1,479 @@
+[
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1593,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1167,
+   "total_tokens": 1424,
+   "completion_tokens": 257,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 31
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 31
+   }
+  },
+  "reasoningTokens": 31,
+  "usd": 0.000329,
+  "words": 190,
+  "script": "Imagine a net that catches fish. If every fish you pull out is a trout, your net has high precision, but if most trout in the river stay behind, its recall is low. The key distinction is that precision looks only at the items you labeled positive and asks what fraction of those are correct, while recall looks at all actual positives in the whole set and asks what fraction you captured. Think of a test that marks ten emails as spam. If eight of those are truly spam and two are legitimate, the precision is eight out of ten. Now consider there are fifteen spam emails in the inbox. Since you caught eight of them, the recall is eight out of fifteen. A common mistake is to treat a high number of correct predictions as indicating both precision and recall are high. Notice whether the denominator in each case comes from your predicted positives or from the total actual positives. To deepen your sense, try swapping the numbers: label more emails as spam and watch precision drop while recall rises, or tighten the criteria to see the opposite effect.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1587,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1134,
+   "total_tokens": 1400,
+   "completion_tokens": 266,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 33
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 33
+   }
+  },
+  "reasoningTokens": 33,
+  "usd": 0.00033,
+  "words": 190,
+  "script": "You may picture the slope as a vector that tells you how quickly the error grows in each direction. The key is that the gradient points uphill, so the descent step must go opposite that direction. Think of a simple bowl shaped like a parabola. If you are two units away from the centre, the slope points outward with a magnitude proportional to that distance. Moving a little toward the centre follows the negative gradient and reduces the error. Another picture is a marble rolling on a smooth surface. The surface’s tilt at the marble’s spot tells the marble which way to roll downhill; the marble’s motion is the negative of the tilt. A common mistake is to take a step in the same direction as the gradient, which climbs the hill instead of descending it. To avoid that, mentally flip the arrow before you step. When you try it, notice that each step should make the error smaller, not larger. If a step makes the error increase, you have moved the wrong way or taken too large a step, and you should reverse direction or shrink the step size.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1997,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1329,
+   "total_tokens": 1710,
+   "completion_tokens": 381,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 24
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 24
+   }
+  },
+  "reasoningTokens": 24,
+  "usd": 0.000428,
+  "words": 295,
+  "script": "You may picture drawing a name from a hat, writing it back, and repeating that exactly n times. Each time the chance that a particular name is not drawn is one minus one over n. Multiplying that chance across all n draws gives the probability that the name never appears, which is the product of n identical factors. That product approaches a constant because as n grows the tiny reduction each draw accumulates in a predictable way. Think of a very large class where you pick a student, note the name, replace the slip, and repeat as many times as there are students. Even after as many draws as there are students, many slips will never be selected. For a class of ten, the chance a given student is missed is roughly nine tenths to the tenth power, a little more than a third, so about two thirds of the class will have been seen at least once. The same pattern holds for any size: the omission probability settles near thirty‑six percent, and the inclusion proportion settles near sixty‑three percent. A common mistake is to assume that because you draw n times you must see every row at least once. The replacement rule means draws are independent, so repeats are just as likely as new selections. To see the effect, try a quick mental experiment: imagine drawing five cards from a five‑card deck with replacement. The chance a particular card never appears is four fifths raised to the fifth power, which is still close to one third. Notice that the repeats you observe are not errors; they are the source of the 63 percent limit. If you want a sample that contains every row, you must draw without replacement or draw more than n times.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1738,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1250,
+   "total_tokens": 1592,
+   "completion_tokens": 342,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 36
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 36
+   }
+  },
+  "reasoningTokens": 36,
+  "usd": 0.000393,
+  "words": 243,
+  "script": "Imagine a data set where the lower quartile sits at four and the upper quartile at nine. The distance between them, the inter‑quartile range, is simply five. To locate the fences you multiply that range by one point five, giving seven point five, and then move that distance outward from each quartile. The lower fence becomes four minus seven point five, which is negative three point five, and the upper fence becomes nine plus seven point five, which is sixteen point five. Any observation that falls below negative three point five or above sixteen point five would be marked as an outlier. The whiskers, however, stop at the most extreme data points that remain within the fences. If the smallest actual value in the set is two, the lower whisker will end at two, because two is still inside the lower fence. Likewise, if the largest value inside the fence is fifteen, the upper whisker will end at fifteen. Points such as twenty that lie beyond the upper fence are drawn separately as outliers. A common misconception is to think that the whiskers always reach the minimum and maximum of the data. In reality they are limited by the fences; only the most extreme points that satisfy the fence criteria become whisker ends. When you examine a new box‑plot, first check where the fences lie, then see how far the whiskers extend, and finally note any points drawn beyond those ends as outliers.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 2158,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1209,
+   "total_tokens": 1605,
+   "completion_tokens": 396,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 31
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 31
+   }
+  },
+  "reasoningTokens": 31,
+  "usd": 0.000419,
+  "words": 300,
+  "script": "Imagine watching the piston travel from the top of the cylinder to the bottom and back again, not just once but four times for every power push. The part that most learners miss is that only one of those four motions actually creates the useful force; the other three prepare the cylinder and clear it out. During the intake and exhaust motions the valves are open, so the piston is merely moving air in or out, not generating torque. The compression stroke closes both valves and squeezes the mixture, storing energy like a spring. Then the spark ignites the compressed mixture, and the resulting explosion forces the piston down with enough pressure to turn the crankshaft. That single downward push is the only stroke that contributes to moving the car.\n\nConsider a simple scenario with a single cylinder. In the intake motion the piston drops, drawing in a fresh mixture. It then rises, halving the volume of that mixture during compression. When the spark fires, the pressure spikes and pushes the piston down with roughly twice the force of the compression rise. Finally the piston rises again, pushing the spent gases out. The key is that the upward motion during compression does not add power; it stores potential energy for the next stroke.\n\nA common misconception is to think that the engine gets power on both the downstroke after ignition and the upstroke when the piston returns. In reality the upstroke after the power stroke is just the exhaust push, and the upstroke before ignition is a work‑absorbing compression. To feel the difference, watch a slow‑motion video and note when the crankshaft actually rotates forward versus when it is being held back by the piston’s upward travel. Notice that only the power stroke advances the crank in the forward direction.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2366,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1175,
+   "total_tokens": 1639,
+   "completion_tokens": 464,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 31
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 31
+   }
+  },
+  "reasoningTokens": 31,
+  "usd": 0.000455,
+  "words": 349,
+  "script": "Imagine you have two raw scores that differ only a little, say one is two and the other is one. After exponentiation the first becomes e to the two and the second e to the one, so the larger score is not just a little bigger, it is multiplied by the factor e. That amplification is what softmax does: it turns absolute differences into relative ones that dominate the final probabilities. Think of the exponent as a lever that lifts higher scores more than lower ones, while the division by the sum pulls everything back onto the unit interval. For a concrete picture, picture three scores: three, one, and zero. Exponentiating gives e to the three, e to the one, and e to the zero, which is one. The sum of those three numbers is the denominator. Each individual probability is just its own exponentiated value over that sum. Because the exponent grows quickly, the probability attached to the three‑point score will be much larger than the one‑point score, even though the raw gap was only two. A common misconception is to think that softmax merely scales each score so that they add to one, as if you were dividing the raw numbers directly. If you tried to divide the raw scores 3, 1, and 0 by their sum 4, you would get .75, .25, and zero, which does not reflect the intended emphasis on the highest score. The exponent step is essential; without it the transformation would not amplify differences. To see this, take any set of scores and first compute their exponentials, then compare the resulting probabilities to those you would obtain by a plain linear normalization. Notice how the highest score steals most of the probability mass after exponentiation. When you experiment, try swapping two scores while keeping the others fixed. Observe how the probabilities rearrange: the swapped higher score will now dominate, and the lower one will shrink dramatically. This shows that softmax is not a simple proportioner but a nonlinear mapper that converts raw scores into a valid probability distribution by emphasizing relative magnitude.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2298,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1247,
+   "total_tokens": 1716,
+   "completion_tokens": 469,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 46
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 46
+   }
+  },
+  "reasoningTokens": 46,
+  "usd": 0.000468,
+  "words": 348,
+  "script": "Imagine following a hallway that splits at every door: each split tells you whether to turn left or right based on a sign that compares your destination number with the number on the sign. The key to the tree is that each sign is placed so that any number you could reach by always turning left will always be smaller than the sign, and any number you could reach by always turning right will always be larger. This viewpoint makes clear why each comparison removes exactly half of the remaining possibilities, because every turn discards an entire subtree that cannot contain the target.\n\nConsider a tree that already contains the numbers eight, three, ten, one, and six. If you look for the value five, you start at eight. Five is smaller, so you go left to three. Five is larger, so you go right to six. Five is smaller again, so you move left from six, where there is no node. The absence of a node tells you that five is not present, and also shows where a new node with five would be inserted. The path you followed—left, right, left—illustrates the halving of the search space at each step.\n\nA common misconception is to think that the tree stores values in a strict numerical sequence from left to right, like a sorted list. In reality, the inorder traversal of the tree yields a sorted list, but the physical layout of nodes follows the hierarchical ordering rule, not a linear arrangement. To see the difference, picture swapping the left and right children of a node; the ordering invariant would be broken, and the search path would no longer discard half the space at each step.\n\nTo explore further, pick a small set of numbers, draw the tree by inserting them one by one, and then trace the search path for a value that is not in the set. Notice how each decision point eliminates a whole subtree. This practice reinforces the idea that the tree’s power comes from its invariant, not from any particular visual ordering of nodes.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2197,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1180,
+   "total_tokens": 1601,
+   "completion_tokens": 421,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 56
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 56
+   }
+  },
+  "reasoningTokens": 56,
+  "usd": 0.00043,
+  "words": 300,
+  "script": "Imagine a lake on a sunny day. The sun warms the surface and water molecules gain enough energy to slip away as invisible vapor. That upward movement is not a straight line; the vapor is carried by the wind, mixing with surrounding air as it rises. A second way to see this is to picture the vapor as a crowd of tiny particles that, when warmed, become restless and spread out, but when they encounter cooler air higher up, they calm down and cling together into droplets. Those tiny droplets form the visible clouds we see. One concrete example: on a warm afternoon, a shallow pond may lose a few centimeters of water by the evening, while a cloud forms overhead and later releases rain that refills the pond. Another analogy is a kitchen kettle: heat turns water into steam, the steam rises, cools on the lid, and condenses into droplets that trickle back down. The same principle operates on a planetary scale, only the energy comes from the sun and the atmosphere is far larger. A common misconception is to think that precipitation simply falls back to the same spot it evaporated from, forming a closed loop. In reality, winds transport vapor far from its source, and the water may return as rain in a distant basin, join rivers, seep into groundwater, or become snow on a mountain. Notice how the path can cross continents before completing the cycle. To explore further, try tracking a single raindrop: start with evaporation from a coastal ocean, follow the prevailing winds to a cloud over a valley, watch it fall as snow, melt into a stream, and finally return to the sea. This mental experiment highlights the continuous redistribution of thermal energy and mass that the water cycle achieves across the planet.",
+  "error": null
+ },
+ {
+  "provider": "fireworks",
+  "variant": "V5",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2439,
+  "answered": "accounts/fireworks/models/gpt-oss-120b",
+  "finish": "stop",
+  "usage": {
+   "prompt_tokens": 1247,
+   "total_tokens": 1750,
+   "completion_tokens": 503,
+   "prompt_tokens_details": {
+    "cached_tokens": 187
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 33
+   },
+   "output_tokens_details": {
+    "reasoning_tokens": 33
+   }
+  },
+  "reasoningTokens": 33,
+  "usd": 0.000489,
+  "words": 395,
+  "script": "Imagine you are standing on a smooth hill and you cannot see the top, only the slope beneath your feet. Gradient descent is the rule you follow: each move you take points straight downhill, and the length of the step depends on how steep you feel the ground is. The subtle point that often trips learners is that the gradient tells you direction, not distance. The algorithm uses the negative gradient to set direction, then the learning rate multiplies that vector to decide how far to travel. If you picture the hill as a bowl-shaped loss surface, the gradient points outward from the bottom, so moving opposite pulls you toward the centre. The learning rate is like the length of your walking stick; a short stick forces tiny steps that keep you safely on the path but may require many strides, while a long stick lets you stride quickly but may carry you over the rim and send you back down the other side.\n\nTake a simple quadratic loss where the surface looks like a paraboloid. Suppose the gradient at a point equals a vector of magnitude two. With a learning rate of one, you move two units directly toward the minimum. If the learning rate is half, you travel only one unit, landing closer to the valley but needing more updates. If the learning rate were three, you would step six units past the valley, ending on the opposite slope and then having to reverse direction in the next iteration. This illustrates why the step size must be tuned: it must be large enough to make progress, yet small enough to stay within the basin of attraction.\n\nA common misconception is to think that a larger learning rate always speeds up learning. In practice, a too‑large rate can cause the updates to bounce back and forth, never settling, or even to diverge entirely. To catch this, watch the loss values after each step. If they start increasing dramatically, the step is overshooting. Try halving the learning rate and observe whether the loss begins to decrease steadily. Conversely, if the loss declines very slowly over many steps, experiment with a modest increase. The key is to balance the direction given by the gradient with a step length that respects the curvature of the loss surface, allowing the algorithm to glide smoothly down to the minimum.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1575,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 218,
+   "prompt_tokens": 1122,
+   "total_tokens": 1340
+  },
+  "reasoningTokens": null,
+  "usd": 0.000882,
+  "words": 196,
+  "script": "Imagine you are searching for a few specific golden pebbles in a large pile of grey stones. Precision cares only about the handful of pebbles you actually pulled out of the pile. It asks how many of those chosen ones are real gold, and how many are just grey stones you mistakenly grabbed. If you pull out ten stones and call them all gold, but only five actually are, your precision is fifty percent. Recall ignores what you pulled out and looks instead at the whole pile. Out of all the actual gold hidden in that pile, recall asks what fraction you managed to bring to the light. If there are ten pieces of gold in total in the pile, and you only found five, your recall is also fifty percent, even if you did not grab any grey stones at all. A common trap is thinking a model with high precision must also have high recall, but you can easily get high precision by making just one very safe guess and ignoring everything else. Notice what happens to your search when you try to push both numbers as high as possible at the same time.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1241,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 117,
+   "prompt_tokens": 1089,
+   "total_tokens": 1206
+  },
+  "reasoningTokens": null,
+  "usd": 0.000619,
+  "words": 99,
+  "script": "When people hear about taking steps downhill, they often picture sliding straight down the steepest face to reach the valley floor. But the landscape has ridges and twists that can trap you in a local hollow instead of the true lowest point. The size of the step matters just as much as the direction. If your step size is too large, you might leap right over the valley and bounce back and forth between opposite hillsides without ever settling. If your step size is too small, you will barely creep forward and might stop before making any real progress.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1784,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 205,
+   "prompt_tokens": 1303,
+   "total_tokens": 1508
+  },
+  "reasoningTokens": null,
+  "usd": 0.000903,
+  "words": 187,
+  "script": "Imagine tossing a coin where the chance of landing on heads depends on the total number of coin flips you make. Each time you draw a row with replacement from your dataset, every other row faces that same independent chance of being ignored. When you repeat this draw many times, the chance that any single row escapes selection settles down near thirty six point eight percent. People often think that drawing with replacement means you will eventually pull every row if you try enough times. But the mathematics of drawing with replacement ensures that roughly thirty seven percent of your original rows remain untouched in every new sample, no matter how large your dataset grows. To see this in action, look at what happens when you pick a row and follow its odds across every single draw. Notice how the chance of omission stops changing once the dataset gets large enough. Next time you generate bootstrap samples for model evaluation, remember that your models are training on only about sixty three percent of the unique rows while the rest stay behind in the out of bag portion.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1637,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 271,
+   "prompt_tokens": 1209,
+   "total_tokens": 1480
+  },
+  "reasoningTokens": null,
+  "usd": 0.00104,
+  "words": 238,
+  "script": "When you look at a box plot on a single number line, it is easy to blur the difference between where the data actually ends and where the rules say to draw the fence. The box shows the middle fifty percent of your values, spanning from the first quartile to the third quartile. The distance between those two points is your interquartile range. Think of the whiskers not as the absolute minimum and maximum of the whole data set, but as stretching out to the last real data points that sit safely inside the fences. Those fences live one point five times the interquartile range beyond the quartiles. They are invisible boundaries used only to test for unusual values. If a number falls past a fence, it stops being part of the whisker. It gets plotted entirely on its own as an outlier. A common mistake is assuming that whiskers always stretch all the way out to the fences. They only go that far if an actual data point happens to land right on the fence or just inside it. If your most extreme data point sits closer to the median than the fence does, the whisker pulls back and ends right at that data point. Next time you read a box plot, check where the whisker ends relative to the fence. If there is a gap between them, that tells you an outlier is lurking further out.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1408,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 163,
+   "prompt_tokens": 1165,
+   "total_tokens": 1328
+  },
+  "reasoningTokens": null,
+  "usd": 0.000757,
+  "words": 139,
+  "script": "People often wonder how a downward push keeps happening if only one of the four steps actually creates power. The trick is that the heavy crankshaft keeps spinning from momentum, carrying the piston through the other three steps that use energy instead of making it. Think of riding a bicycle. You push down hard on one pedal to accelerate, but your legs still move through the top and bottom dead spots to keep the wheels turning smoothly. A common mix-up is thinking the spark plug fires on every single stroke. It actually only fires once for every two full rotations of the crankshaft, which means it stays silent during intake, compression, and exhaust. Watch how the valves open and close at different times than you might expect, staying shut during compression and power to keep the chamber completely sealed.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1726,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 268,
+   "prompt_tokens": 1126,
+   "total_tokens": 1394
+  },
+  "reasoningTokens": null,
+  "usd": 0.001008,
+  "words": 227,
+  "script": "Raw scores can be anything. They can be positive, negative, or zero, and they do not have an upper bound. The main trap is thinking that dividing a score by the sum of all scores is enough to turn them into probabilities. If you have negative scores, division alone leaves you with negative probabilities, which makes no sense. Exponentiation is what fixes this by turning every score into a strictly positive number while preserving the order between them. Larger scores grow much faster than smaller ones when you exponentiate them, which stretches the gap between the most likely outcome and the rest. Imagine you have a raw score of two and another of one. Exponentiate them, and the gap widens significantly before you ever divide by the total. People often assume softmax creates equal spacing between probabilities, but it actually amplifies differences. A common misconception is that softmax gives you confidence scores about how right a model is in an absolute sense. It does not. It only tells you the relative probability of each class compared to the others in that specific set. To build better intuition, try taking a set of scores where one is slightly larger than the rest, compute the exponentized values by hand using a rough estimate for e, and watch how quickly that single dominant score captures almost the entire probability mass.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1423,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 171,
+   "prompt_tokens": 1199,
+   "total_tokens": 1370
+  },
+  "reasoningTokens": null,
+  "usd": 0.000787,
+  "words": 147,
+  "script": "When people first look at how a tree grows, they often assume that inserting items in a random order will naturally keep the branches even. In practice, if you insert keys in sorted order, the tree leans entirely to one side and turns into a linked list. Instead of splitting your work in half at every step, you end up checking every single node in sequence. Think of a telephone directory where every new name is simply added to the very end of the page. You lose the advantage of the middle split entirely. A common misconception is that the tree balances itself automatically during standard insertions. It does not. Without extra balancing rules, the shape depends entirely on the order of your incoming keys. When you write your own insertion logic next, pay close attention to where the root ends up after a few uneven steps.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1617,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 248,
+   "prompt_tokens": 1135,
+   "total_tokens": 1383
+  },
+  "reasoningTokens": null,
+  "usd": 0.00096,
+  "words": 219,
+  "script": "Think of the atmosphere as a giant sponge that drinks up moisture from the warm surface of the ocean and squeezes it out over the land. The part that often trips people up is how vapor turns back into liquid in the clouds. It does not just get cold and clump together on its own. Every single droplet needs a tiny microscopic speck of dust or salt floating in the air to cling to before it can condense. Without those tiny particles, the vapor would stay as gas even below freezing temperatures. Imagine a puddle on the street disappearing on a sunny afternoon. That heat energy from the sun makes the water molecules move fast enough to break free into the air. When those same molecules rise high enough, they hit colder air and slow down. They bump into dust grains and stick, forming the clouds you see above you. A common trap is thinking that water disappears forever when it evaporates or that new water is somehow created when it rains. The total amount of water on Earth stays remarkably constant. It just changes forms and moves from place to place. Next time you watch rain falling, try to picture where that moisture might have been collected days before, perhaps miles away in a different basin or ocean.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V5",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1407,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 213,
+   "prompt_tokens": 1201,
+   "total_tokens": 1414
+  },
+  "reasoningTokens": null,
+  "usd": 0.000893,
+  "words": 183,
+  "script": "Imagine walking down a steep mountain in complete fog, trying to reach the lowest valley. You cannot see the bottom, but you can feel the slope right beneath your feet. You test the ground to find which way goes down most steeply, and you take a step in that direction. You repeat this process over and over until the ground flattens out. That physical feeling of the slope is what the gradient represents in the update rule. The learning rate acts like the length of your stride. A common misconception is that a smaller learning rate is always safer and better because it prevents overshooting. In practice, if your stride is too small, you might take millions of steps and never reach the bottom before your time or budget runs out. Conversely, if your stride is too large, you will step clean across the valley floor and bounce back and forth between the walls forever. When you test this yourself later, try plotting your loss function values over time to see if your steps are steadily decreasing or bouncing wildly up and down.",
+  "error": null
+ }
+]

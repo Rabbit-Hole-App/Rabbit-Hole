@@ -1,0 +1,200 @@
+[
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 1,
+  "id": "precision-recall",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1453,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 157,
+   "prompt_tokens": 1131,
+   "total_tokens": 1288
+  },
+  "reasoningTokens": null,
+  "usd": 0.000732,
+  "words": 136,
+  "script": "Think of precision as a strict bouncer at a club door. Every person the bouncer lets in is definitely on the guest list. But the bouncer might be too strict and accidentally turn away some friends who belong there. Recall is a wide net cast into the sea. You manage to catch every single fish of a certain type that swam into the area. But along with those fish, you also scooped up a lot of old boots and seaweed. Models face this exact trade off. If you want every positive guess to be correct, you raise your standards and miss things. If you want to find every true item, you lower your standards and accept mistakes. Notice how changing your threshold shifts the balance between trusting your yes answers and finding everything that is there.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 4,
+  "id": "gradient-descent",
+  "depthLabel": "Brief",
+  "http": 200,
+  "ms": 1386,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 166,
+   "prompt_tokens": 1098,
+   "total_tokens": 1264
+  },
+  "reasoningTokens": null,
+  "usd": 0.000744,
+  "words": 148,
+  "script": "You might wonder how a blindfolded person knows which way is down. They test the ground right around their feet to find the steepest drop. Gradient descent works the same way with math. It looks at the current error and calculates the slope of the error curve at that exact position. That slope tells the algorithm whether to increase or decrease the settings. Think of adjusting the volume knob on a stereo until the sound is clearest. If the sound is too loud or too soft, you turn the knob in the direction that reduces the distortion until you hit the sweet spot. A common trap is making the steps too large. If your steps are too big, you might jump right across the valley and never settle at the bottom. Watch how changing the step size affects your path as you try to reach the lowest error.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1740,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 271,
+   "prompt_tokens": 1312,
+   "total_tokens": 1583
+  },
+  "reasoningTokens": null,
+  "usd": 0.001071,
+  "words": 243,
+  "script": "Why does drawing with replacement leave out roughly thirty seven percent of your data every single time no matter how large your dataset gets. Think about tossing a coin or rolling a die where each choice is completely independent of the last. When you draw a row from your dataset and put it right back in before drawing again, you give every row an equal chance of being picked or ignored on every single try. As you make more draws, you might expect to sweep up every single row eventually. But because you replace each row after looking at it, you can keep drawing the exact same row over and over while other rows stay untouched. Imagine you have a bag with a large number of numbered slips and you draw one, note the number, and drop it back in. Some slips will be drawn twice or three times, and a specific group of slips will naturally get left at the bottom. That leftover fraction stabilizes because of how exponential growth and decay balance out in the limit. People often assume that if you draw as many times as you have rows, you will naturally end up with the entire original dataset. Notice instead that about thirty seven percent of your rows are missing, which means your bootstrap models always train on a slightly randomized subset of roughly sixty three percent unique rows, leaving the rest out as a built in validation set.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1475,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 238,
+   "prompt_tokens": 1218,
+   "total_tokens": 1456
+  },
+  "reasoningTokens": null,
+  "usd": 0.00096,
+  "words": 203,
+  "script": "When you look at a box-plot spread across a single number line, it is easy to blur the difference between where the data actually ends and where the mathematical fences sit. The whiskers do not stretch out to the fences automatically. The whiskers reach only as far as the actual data points that fall within the fences. If your upper fence sits at sixteen, but your highest normal data point is fourteen, your whisker stops at fourteen. The fence is an invisible boundary line, not a flag planted at the edge of your data. Think of it like a height restriction on a ride. The fence marks the limit of where normal passengers can go. Anyone taller than the limit is flagged as an outlier, standing entirely separate from the group. A common mix-up is assuming that outliers are always removed from your dataset entirely. They are not erased. They are just marked with a special symbol beyond the whisker so you can investigate them while keeping your main summary statistics focused on the core group. Notice how the distance from the median to the quartiles shapes the width of the box, setting the scale for how far those outer fences will reach.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 7,
+  "id": "four-stroke",
+  "depthLabel": "Balanced",
+  "http": 200,
+  "ms": 1527,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 186,
+   "prompt_tokens": 1174,
+   "total_tokens": 1360
+  },
+  "reasoningTokens": null,
+  "usd": 0.000817,
+  "words": 162,
+  "script": "People often picture the spark plug firing as a gentle push, but it is actually a violent explosion that slams the piston down with enormous force. Think of it like a tightly coiled spring suddenly releasing inside a sealed tube. Only one of the four strokes actually creates power for the car, while the other three strokes just set things up or clean things out. Imagine a cyclist on a bicycle. You push down hard on one pedal to move forward, and your momentum carries you through the other three dead zones where your legs are just repositioning. People sometimes assume that fuel burns continuously in the engine, but the combustion is actually a series of brief, violent micro explosions happening thousands of times every minute. Pay attention to how the valves open and close at precise moments to trap the gases inside the cylinder. Notice how the camshaft and crankshaft work together to keep this rhythm going without missing a beat.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 9,
+  "id": "softmax",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1896,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 288,
+   "prompt_tokens": 1135,
+   "total_tokens": 1423
+  },
+  "reasoningTokens": null,
+  "usd": 0.001061,
+  "words": 251,
+  "script": "Raw scores can be any positive or negative real number, and they do not have an upper bound. This creates a challenge when you need to turn them into mutually exclusive choices that must add up to one hundred percent. Exponentiating the scores solves the negative number problem by pushing everything above zero, but it also stretches the differences between the scores. Think of a race where the runner in first place gets a massive multiplier while the runner in last place gets shrunk down near zero. Suppose you have two raw scores, one and zero. Exponentiating them gives roughly two point seven one and one. The sum of these two values is three point seven one. Dividing each by that sum yields about seventy three percent for the first score and twenty seven percent for the second score. If you change that first score to two, its exponentized value jumps to about seven point three nine. The new sum is eight point three nine, making the new probability about eighty eight percent. A common trap is assuming that softmax turns linear score differences into linear probability differences. Notice how a linear increase in the raw score causes an exponential growth in the resulting probability. When one score is much larger than the others, softmax acts almost like a hard maximum function, pushing that single probability close to one and starving the rest. Try testing what happens when all your raw scores are negative numbers before you apply the exponential step.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 10,
+  "id": "bst",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1817,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 273,
+   "prompt_tokens": 1208,
+   "total_tokens": 1481
+  },
+  "reasoningTokens": null,
+  "usd": 0.001045,
+  "words": 240,
+  "script": "When you look at a tree with dozens of nodes, it is easy to assume that every node in the left branch must only be smaller than the immediate parent. The strict ordering invariant actually demands more than that. Every single key in the entire left subtree must remain smaller than the root, no matter how deep the branch goes. If you place a large key incorrectly on the left side of an upper node, you violate the invariant for the whole branch below it. Imagine searching for a key in a telephone directory where every page you turn eliminates half the remaining names instantly. You start at the middle page. If your target name comes earlier in the alphabet, you discard the entire second half of the book at once. You repeat this halving step on the remaining pages until you point directly to your target. Notice how the tree shape forces this halving behavior automatically. A common misconception is that balancing happens automatically whenever you insert new keys. Left unmanaged, repeated insertions in sorted order can turn the tree into a long linear chain rather than a branching structure. When that happens, the logarithmic time complexity degrades into linear time because you lose the benefit of halving the search space at each step. To try next, trace an insertion path through an unbalanced tree and watch how the depth increases when nodes are added in strict numerical sequence.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 11,
+  "id": "water-cycle",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 1874,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 326,
+   "prompt_tokens": 1144,
+   "total_tokens": 1470
+  },
+  "reasoningTokens": null,
+  "usd": 0.001158,
+  "words": 290,
+  "script": "Think about how a puddle disappears on a warm windy day. The heat from the sun gives the water molecules enough energy to break free into the air as invisible vapor. That invisible state is where people often get tripped up. They picture steam like from a boiling kettle, but true evaporation happens quietly molecule by molecule at ordinary temperatures. As that vapor climbs higher into the atmosphere, the surrounding air gets colder. This drop in temperature forces the vapor to change back into liquid droplets, clustering together around tiny particles in the air to build a cloud. When those droplets grow heavy enough that rising air currents can no longer hold them up, gravity pulls them down as rain or snow. Once that moisture hits the ground, it takes one of two paths. Some water soaks deep into the soil to become groundwater, while the rest flows over the surface as runoff. Imagine a gentle slope after a rainstorm where water sheets across the driveway and feeds into a street drain. That flowing water gathers into larger streams and rivers, eventually returning to the vast ocean basins where the whole process begins again. A common edge case to consider is a frozen lake in the middle of winter. Even when temperatures stay below freezing, ice can still slowly vanish into the dry air without melting first through a process called sublimation. Notice how the total amount of water on Earth remains constant. The cycle does not create or destroy moisture; it merely moves thermal energy and mass from one place to another. Try watching a pot of water on the stove and notice the vapor rising before it reaches a full boil to see this energy transfer in action.",
+  "error": null
+ },
+ {
+  "provider": "gemini",
+  "variant": "V6",
+  "effort": "low",
+  "n": 12,
+  "id": "gradient-descent",
+  "depthLabel": "Detailed",
+  "http": 200,
+  "ms": 2147,
+  "answered": "gemini-3.5-flash-lite",
+  "finish": "stop",
+  "usage": {
+   "completion_tokens": 350,
+   "prompt_tokens": 1210,
+   "total_tokens": 1560
+  },
+  "reasoningTokens": null,
+  "usd": 0.001238,
+  "words": 306,
+  "script": "Imagine standing on a foggy hillside and trying to walk down to the lowest valley using only the slope beneath your boots. You test the steepness with your foot, and you take a step in the direction that slopes downward. Gradient descent works the same way for an objective function, replacing your boots with math. People often trip over the minus sign in the update rule. That minus sign does not mean the function is negative. It ensures you move against the gradient, walking away from the uphill slope and down toward the minimum. Think of it as a dial that tells you which way is down. Now, consider a simple landscape shaped like a smooth bowl. If your learning rate is too large, you take massive strides. You might step right across the bottom of the bowl and land on the opposite rim, bouncing back and forth forever instead of settling at the lowest point. On the other hand, if your learning rate is microscopic, your steps shrink to the width of a coin. You will move forward, but you might need millions of steps to cross a short distance, wasting precious time and power. A subtle edge case happens when the slope is completely flat, such as at the exact bottom of a bowl or on a flat plateau. Because the gradient vector becomes zero, the update term vanishes entirely. The algorithm stops moving even if it has not reached the true global minimum, getting trapped on a flat spot. A common misconception is that a smaller learning rate is always safer and better. While it avoids overshooting, it often strands your progress before training finishes. Notice how the shape of the loss function dictates your speed. Try watching how changing just the step size alters the path your weights take across the surface.",
+  "error": null
+ }
+]
