@@ -1134,3 +1134,8 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 
 /* While a card or the canvas is being dragged the card action pill (Enter, Add to chat, Quick Edit, Minimize) is hidden (owner 2026-11-13). */
 body.canvas-dragging [data-card-chrome-row] { display: none; }
+
+/* The transcript window beside a playing Explanation card (TranscriptWindow.jsx, mounted in CanvasNode): while it is open the card (and its footprint slot) rises above the cards painted after it, so the
+   window over a neighbour is not covered by it. A sibling card's own z-[5] (selected) is the same rank and wins by order only when both are open, which one audio never is. */
+[data-block]:has(> [data-card-transcript]),
+[data-card-slot]:has(> [data-block] > [data-card-transcript]) { z-index: 6; }
