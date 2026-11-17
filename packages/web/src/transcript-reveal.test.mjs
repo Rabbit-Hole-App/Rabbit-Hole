@@ -102,3 +102,25 @@ test('the sentence split never lands inside a span', () => {
   assert.equal(text.slice(split), 'Then $y$ follows.');
   assert.equal(revealScript(s, 30, 100).split, 0, 'the dot inside the span is not a sentence end');
 });
+
+// The window's fixed height: about seven sentences, in px, clamped 160..360.
+import { transcriptHeight } from './transcript-reveal.js';
+const sentences = (n, words) => Array.from({ length: n }, () => `${Array(words).fill('word').join(' ')}.`).join(' ');
+
+test('height: seven sentences of the average length, in lines of 45 characters at 18 px, clamped', () => {
+  const sevenOfNinety = Array.from({ length: 12 }, () => 'a'.repeat(88) + '.').join(' '); // 89 characters + a space each
+  assert.equal(transcriptHeight(sevenOfNinety), 14 * 18, 'about 14 lines: 252 px');
+  assert.equal(transcriptHeight(sentences(8, 3)), 160, 'short sentences clamp up');
+  assert.equal(transcriptHeight(sentences(6, 40)), 360, 'long sentences clamp down');
+  const mid = transcriptHeight(sentences(10, 12));
+  assert.ok(mid > 160 && mid < 360 && mid % 18 === 0, `whole lines: ${mid}`);
+});
+
+test('height: no text, blanks, one sentence, none-ending text and equations all give a height in range', () => {
+  for (const s of ['', '   ', undefined, 'No full stop at all', 'One sentence only.', 'Decay is $e^{-1}$ per step. Then $1/N$.']) {
+    const h = transcriptHeight(s); assert.ok(h >= 160 && h <= 360, `${s}: ${h}`);
+  }
+  assert.equal(transcriptHeight(''), 160);
+  const a = 'Take $x = 1. 5$ here. Then it goes on and on for a while longer than that.';
+  assert.equal(transcriptHeight(a), transcriptHeight(a), 'stable for the same text');
+});
