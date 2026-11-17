@@ -179,7 +179,7 @@ test('a card edited after authoring (another revision) shows no pills and no sug
   assert.ok($('[data-follow-up-toggle]'), 'the follow-up conversation is not tied to the old text');
 });
 
-test('suggestions: three questions; Ask in chat and Ask in a new card per row; send captures card, revision and question; cleared once, after admission', async () => {
+test('suggestions: three questions; each row is one button that asks in a new card; send captures card, revision and question; cleared once, after admission', async () => {
   const card = await envelope();
   const calls = [], saved = [];
   let admit = null;
@@ -187,22 +187,24 @@ test('suggestions: three questions; Ask in chat and Ask in a new card per row; s
   await mount(card, { host, onChangeQuiet: next => saved.push(next) });
   const rows = $$('[data-explanation-suggestion]');
   assert.deepEqual(rows.map(row => row.textContent), card.interactions.questions.map(q => q.text));
-  assert.deepEqual([...rows[0].querySelectorAll('button')].map(b => b.getAttribute('aria-label')), ['Ask in chat', 'Ask in a new card']);
+  assert.ok(rows.every(row => row.querySelectorAll('button').length === 1 && row.querySelector('button').textContent === row.textContent), 'one button per row, holding the question');
+  assert.equal($('[data-explanation-suggestions] [data-ask]'), null, 'no Ask in chat or Ask in a new card icons');
   assert.ok(before($('[data-explanation-flow] [data-explanation-field]'), $('[data-explanation-suggestions]')), 'below the reading');
-  const [here, branch] = rows[1].querySelectorAll('button');
+  const here = rows[1].querySelector('button'), branch = rows[0].querySelector('button');
   await click(here);
   assert.equal(calls.length, 1);
-  assert.deepEqual({ ...calls[0], actionId: typeof calls[0].actionId }, { id: 'card-1', revision: card.interactions.contentRevision, question: 'What happens when a tree gets too deep?', destination: 'here', actionId: 'string' });
+  assert.deepEqual({ ...calls[0], actionId: typeof calls[0].actionId }, { id: 'card-1', revision: card.interactions.contentRevision, question: 'What happens when a tree gets too deep?', destination: 'card', actionId: 'string' });
   assert.equal(saved.length, 0, 'not consumed before admission');
   assert.ok($$('[data-explanation-suggestion] button').every(b => b.disabled), 'the actions are disabled while the send waits');
   assert.equal(here.getAttribute('aria-busy'), 'true');
+  assert.equal(branch.getAttribute('aria-busy'), null, 'only the pending row is busy');
   // A double click, or the other action, cannot send a second one.
-  await click(here); await click(branch); await click(rows[0].querySelector('button'));
+  await click(here); await click(branch);
   assert.equal(calls.length, 1, 'one send');
   await B.act(async () => admit());
   await settle();
   assert.equal(saved.length, 1, 'consumed once, at admission');
-  assert.deepEqual(saved[0].interactionState, { contentRevision: card.interactions.contentRevision, consumed: true, action: { id: calls[0].actionId, question: calls[0].question, destination: 'here' } });
+  assert.deepEqual(saved[0].interactionState, { contentRevision: card.interactions.contentRevision, consumed: true, action: { id: calls[0].actionId, question: calls[0].question, destination: 'card' } });
   assert.equal(saved[0].id, 'card-1');
   // The saved card reloads with no suggestions and no empty row.
   await mount(saved[0], { host });
@@ -212,12 +214,12 @@ test('suggestions: three questions; Ask in chat and Ask in a new card per row; s
 
 const before = (a, b) => !!(a.compareDocumentPosition(b) & 4);
 
-test('Ask in a new card sends the written action; a refusal before admission keeps the questions and the buttons work again', async () => {
+test('pressing a suggestion row sends the written action (destination card); a refusal before admission keeps the questions and the buttons work again', async () => {
   const card = await envelope();
   const calls = [], saved = [];
   toasts.length = 0;
   await mount(card, { host: { ask: async request => { calls.push(request); return false; } }, onChangeQuiet: next => saved.push(next) });
-  const [, branch] = $$('[data-explanation-suggestion]')[0].querySelectorAll('button');
+  const branch = $$('[data-explanation-suggestion]')[0].querySelector('button');
   await click(branch);
   await settle();
   assert.deepEqual(calls.map(c => [c.destination, c.question]), [['card', 'How does a tree choose its first question?']]);
