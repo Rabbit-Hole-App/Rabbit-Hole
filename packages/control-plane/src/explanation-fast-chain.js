@@ -254,10 +254,10 @@ export async function generateWithFallbacks(env, input, options, generate) {
       if (error.final || seen.final) break;
       continue;
     }
-    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
+    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}), ...(out.failedOn?.length ? { failedOn: out.failedOn } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
     if (out.result !== 'validation_error') return { ...out, attempts }; // a plan refusal or a question back is not a provider failure
     last = { ...out, reason: 'validation_error' };
-    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
+    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.failedOn?.length ? { failedOn: out.failedOn } : {}), ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
   }
   if (last instanceof Error) throw Object.assign(last, { attempts });
   return last ? { ...last, attempts } : { result: 'unsupported', message: 'Explanations are not set up on this server yet, so nothing was sent or charged.', reason: 'credential_missing', attempts };

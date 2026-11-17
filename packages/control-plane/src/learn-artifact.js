@@ -219,6 +219,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   let { result, call } = await ask(messages);
   // At most one repair: the first failure goes back to the model once (an arithmetic issue may get a second, ARITHMETIC_REPAIRS_SAME_MODEL).
   let limit = repairs;
+  const failedOn = []; // card archive: the failure outcome of each answer that failed ('arithmetic' | 'validation_error'), so a mixed failure is visible later
   for (let attempt = 0; ; attempt++) {
     if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
     if (call.name === CLARIFY.name) {
@@ -338,14 +339,15 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(failedOn.length ? { failedOn } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
+      failedOn.push(error.numbers || /explanation_bad_numbers/.test(error.message) ? 'arithmetic' : 'validation_error'); // a first answer's numbers problem has no .numbers yet (explanationProblem names it)
       // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
       if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && error.numbers.kinds.some(kind => !nextCanWrite(kind))) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
-      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, ...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
+      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, failedOn,...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
       const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
