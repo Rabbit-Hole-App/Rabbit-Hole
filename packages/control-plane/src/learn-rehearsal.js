@@ -7,7 +7,7 @@
 //   POST /api/learn/rehearsal {app, board, action:'catalogue'}   -> start (or return the cached) catalogue; answers GET's shape plus catalogueDoc when ready
 //   POST /api/learn/rehearsal {app, board, action:'start', routeId} -> rehearse that catalogue route only; answers the status shape below
 //   GET  /api/learn/rehearsal?app=&board=[&routeId=]              -> schemas/learn-rehearsal-get.json: {indexing, catalogue:{status, practicalRoutes?, error?}, routes[], record? (routeId asked, ready)}
-// The catalogue is not a click: the repository import (repositories.js) calls startCatalogue when the snapshot turns ready; a GET that finds a ready repository with no catalogue job starts one too.
+// The catalogue is not a click: the repository import in repositories.js calls startCatalogue when the snapshot turns ready; a GET that finds a ready repository with no catalogue job starts one too.
 // A rehearsal reply, one of (HTTP 200):
 //   {status: queued|discovering|provisioning|running|repairing|planning, step?, attempt?, fixes?, elapsedSec}   (schemas/status.json)
 //   {status: 'ready', elapsedSec, record}                                                                      (record: schemas/record.json; also one that gave up: gaveUp set, a step failed)
