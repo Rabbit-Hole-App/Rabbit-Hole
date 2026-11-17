@@ -1,0 +1,43 @@
+record ../../docs/features/rehearsal/evidence/2026-11-15/datasette-serve-first-gaveup/record.json
+fixture datasette-e9d45fe route serve
+
+FAIL    [route.commit] commit b98e1a2e1465 is the fixture's e9d45fe40060 -- a different commit; the fixture facts (line numbers, version) may not apply
+PASS    [route.hardware] hardware cpu
+FAIL    [record.gaveUp (a FINDING when set)] the run did not give up -- gave up at step serve: The command and environment look fine. I started `datasette fixtures.db` on port 8001 and a plain HTTP GET to / returned 200 with the Datasette HTML. The only anomaly is uvicorn's "WARNING: Invalid HTTP request received.", which means the checker sent a non-HTTP or malformed request, such as TLS or a raw probe. No command flag, env var or package change can fix that, so the problem is in the check harness.
+PASS    [install includes 'pip install -e .'] install 'python3 -m pip install -e . --group dev'
+FAIL    [install source one of ['pyproject.toml:55', 'README.md:37']] source docs/contributing.rst:46 -- source ['docs/contributing.rst:46', 'docs/contributing.rst:46'] is not allowed (the fixture lists only the pyproject/README citation)
+FAIL    [steps fixtures cmd (whitespace collapsed, uv run dropped, --port free)] fixtures -- no route step has it; the route's steps are ['python tests/fixtures.py fixtures.db fixtures-config.json fixtures-metadata.json plugins --extra-db-filename extra_database.db', 'datasette fixtures.db']
+FAIL    [steps serve cmd (whitespace collapsed, uv run dropped, --port free)] serve -- no route step has it; the route's steps are ['python tests/fixtures.py fixtures.db fixtures-config.json fixtures-metadata.json plugins --extra-db-filename extra_database.db', 'datasette fixtures.db']
+FAIL    [steps same order] fixture steps found, in order -- found 0 of 2, positions []
+INFO    [step by role] fixtures: scored on 'python tests/fixtures.py fixtures.db fixtures-config.json fixtures-metadata.json plugins --extra-db-filename extra_database.db' (the step that writes the database; its command did not match the fixture's)
+INFO    [step by role] serve: scored on 'datasette fixtures.db' (the step that is longRunning; its command did not match the fixture's)
+PASS    [database-writing step before serve] a step running tests/fixtures.py precedes serve
+PASS    [fixtures checks: exit_zero + files_exist fixtures.db] declared
+PASS    [execution: rc 0 and every check passed] build_fixtures: rc 0, 2/2 checks passed
+PASS    [stdout contains (tests/fixtures.py:460)] 'Test tables written to fixtures.db'
+PASS    [timing fixtures <= fixturesSecMax] fixtures took 1.34 s (max 120)
+PASS    [files: fixtures.db in step files, bytesMin] fixtures.db 249856 bytes >= 50000
+PASS    [serve is longRunning] longRunning true
+PASS    [serve checks: port_listens + http_200 on its port] port_listens + 1 http_200 on 8001
+FAIL    [execution: rc 0 and every check passed] serve: rc 0, 1/2 checks passed -- failed checks ['http_200'], error: WARNING: Invalid HTTP request received., step marked failed
+FAIL    [timing startedSec <= serveStartedSecMax] startedSec None (max 60) -- startedSec absent (the server never answered) or too slow
+SKIPPED [http body /-/versions.json contains "datasette"] the record has no body for /-/versions.json (probed []) and the log does not hold it
+SKIPPED [http body /-/versions.json contains "1.0a42"] the record has no body for /-/versions.json (probed []) and the log does not hold it
+PASS    [notExpected: a second serve on the same port] serve ports [8001]
+PASS    [route.knobs listed with types, extras allowed] --port type int
+PASS    [route.knobs listed with types, extras allowed] --cors type bool
+FAIL    [route.knobs listed with types, extras allowed] --memory type bool -- knob missing
+PASS    [route.knobs listed with types, extras allowed] --setting type string
+PASS    [route.knobs listed with types (optional)] --root not listed (optional)
+FAIL    [knobVerification: a serve on a non-default --port, probed] knobsVerified[0] -- record.knobsVerified is empty
+FAIL    [traps each must fail] trap port_not_an_integer (datasette serve fixtures.db --port abc --get /-/versions.json) -- not among record.traps (the record ran none)
+FAIL    [traps each must fail] trap fixtures_db_exists (python tests/fixtures.py fixtures.db) -- not among record.traps (the record ran none)
+FAIL    [traps each must fail] trap fixtures_wrong_extension (python tests/fixtures.py data.sqlite) -- not among record.traps (the record ran none)
+PASS    [allowedFixes (kind + change)] 1 fix(es), all allowed
+INFO    [fixes pip repair] fix 1 'pip install --upgrade pip' (install_package): the documented pip-too-old repair for `--group` (pip < 25.1)
+PASS    [allowedFixes: allow_domain not expected] no allow_domain
+PASS    [notExpected: a fix installing Docker or a browser] none
+PASS    [notExpected: editing repository files] no file edit
+PASS    [uv absent from the sandbox] no step needs uv
+
+SUMMARY 20 PASS, 13 FAIL, 2 SKIPPED (not scored)

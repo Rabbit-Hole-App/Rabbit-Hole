@@ -1,0 +1,3 @@
+
+--- stderr ---
+Error: fixtures.db already exists, use --recreate to reset it

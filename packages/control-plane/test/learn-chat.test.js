@@ -21,7 +21,10 @@ import { CANVAS_UNAVAILABLE, canvasMentions } from '../src/canvas-refs.js';
 import { canvasMentionRef } from '../../web/src/canvas-mention-ref.js';
 import { learnDb } from './learn-grade-fixture.js';
 import * as chatModes from '../src/chat-modes.js';
-import { answerToolsOn } from '../src/chat-capability-route.js';
+import { answerToolsOn, decideChat, verifyChatRoute } from '../src/chat-capability-route.js';
+import { composeTutorPrompt } from '../src/tutor-prompt.js';
+import { codeExplainTurn, UNANCHORED_LINE } from '../src/learn-code-explain.js';
+import { validateMessageMeta } from '../src/code-explain-contract.js';
 import { CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson } from '../src/chat-tools.js';
 import * as answerMeta from '../src/chat-answer-meta.js';
 import { randomHex } from '../src/token.js';
@@ -41,15 +44,20 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 // three in parallel lists. Getting that wrong surfaces as a ReferenceError
 // swallowed into a 502, which reads like a broken feature; it has cost this
 // file four debugging rounds already.
+const codeModel = { calls: [], queue: [] };
 const deps = {
   json,
   appForUser: async (env, user, name) => env.apps[name],
   appContext: async (env, app) => ({ name: app.name }),
   askStream: async (env, context, history, question, onFull, metadata, blocks, toolOpts, model, org, system, research) => {
     env.answers.push({ history: [...history], question, context, toolOpts, model, system, org, blocks, research, db: env.DB });
-    await onFull('Answer: ' + question);
+    // As askStream does: a code-explain turn's research.answer answers it (null: ordinary chat), then research.onAnswer settles the text.
+    const handled = research?.answer ? await research.answer() : null;
+    await onFull(research?.answer ? research.onAnswer(handled ? handled.answer : 'Answer: ' + question) : 'Answer: ' + question);
     return json(metadata);
   },
+  // The code-explain handler with its model call stubbed: codeModel.queue holds the model's replies (Anthropic message shapes), codeModel.calls the requests.
+  codeExplainTurn: args => codeExplainTurn({ ...args, callModel: async (env, body) => { codeModel.calls.push(body); const next = codeModel.queue.shift(); return next ? Response.json(next) : new Response('{}', { status: 500 }); } }),
   askModel,
   MESSAGE_LIMIT,
   MENTION_LIMIT,
@@ -61,7 +69,7 @@ const deps = {
   learnMedia,
   contextDocumentBlocks,
   ...chatModes,
-  answerToolsOn, CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson,
+  answerToolsOn, verifyChatRoute, CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson,
   ...answerMeta,
   canvasMentions,
   CANVAS_UNAVAILABLE,
@@ -867,6 +875,96 @@ test('a project canvas asks with its own project\'s repository, re-checked on ev
     assert.match(answer.context, /a standalone learning canvas/, name);
     assert.deepEqual(repositoryTools(answer), [], name);
   }
+});
+
+// Docs tutor-prompts-and-routing.md sections 1c, 2, 7: a project canvas's chat turn asks with base + chat (+ the goal's overlay when the browser names one of the
+// fourteen uses), and the answer's meta records the route decision and the prompt record. askStream is the recording stub, so no model is called.
+test('a project canvas chat turn composes base + chat (+ the goal overlay) and records route and the prompt record in the answer meta', async t => {
+  const env = fixture(t);
+  env.INLINE_DECISION_KEY = 'k'.repeat(40); env.CODE_EXPLAIN_ENABLED = 'true'; // the code-explain route's switch (on in dev; off in production)
+  env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  const SHA = 'a'.repeat(40), snapshot = { repo: 'acme/lab', commit: SHA, graph: { nodes: [], edges: [] }, files: { 'lab.py': 'import torch\nprint(1)' } };
+  env.REPOSITORY_SNAPSHOTS = { get: async key => (key === 'snap/lab' ? { json: async () => snapshot } : null) };
+  sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('workspace-a','repo-0a0a0a0a-lab','owner@example.test','acme/lab','main','${SHA}','ready')`);
+  sqlite.exec("INSERT INTO repository_versions(app_id,commit_sha,storage_key) SELECT id,commit_sha,'snap/lab' FROM repository_apps");
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title,project) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention','repo-0a0a0a0a-lab')");
+  const seam = () => canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get('canvas-0a1b2c3d'), owner));
+  const code = { sourceId: `code:acme/lab@${SHA}:lab.py`, kind: 'code', name: 'lab.py', version: '', range: { path: 'lab.py', start: 1, end: 2 } };
+  const message = 'What does lab.py do?';
+  const ask = async extra => { assert.equal((await handlers.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message, mode: 'auto', context_refs: [code], ...extra }), env, {}, owner, 'learn', seam())).status, 200); return env.answers.at(-1); };
+  const meta = () => JSON.parse(sqlite.prepare("SELECT meta_json FROM chat_message_meta WHERE role='assistant' ORDER BY message_id DESC LIMIT 1").get().meta_json);
+  const storedAnswer = () => sqlite.prepare("SELECT content FROM messages WHERE role='assistant' ORDER BY id DESC LIMIT 1").get().content;
+  const logs = [], log = console.log; console.log = line => logs.push(String(line)); t.after(() => { console.log = log; });
+
+  const plain = await ask({});
+  assert.ok(plain.research.system.includes(composeTutorPrompt({ task: 'chat' }).text), 'base + chat, no overlay');
+  assert.ok(!plain.research.system.includes(readFileSync(new URL('../src/prompts/tutor/uses/use_codebase.md', import.meta.url), 'utf8').trimEnd()));
+  assert.deepEqual([meta().route, meta().tutor.task, meta().tutor.use, meta().tutor.layers.use, meta().tutor.route, meta().tutor.model], ['answer', 'chat', null, null, null, null]);
+  assert.equal(meta().tutor.layers.base, composeTutorPrompt({ task: 'chat' }).layers.base);
+
+  const goal = await ask({ use: 'use_codebase', use_route: { confidence: 0.91 } });
+  assert.ok(goal.research.system.includes(composeTutorPrompt({ task: 'chat', use: 'use_codebase' }).text), 'the goal\'s overlay comes after base + chat');
+  assert.deepEqual([meta().tutor.use, meta().tutor.layers.use, meta().tutor.route], ['use_codebase', composeTutorPrompt({ task: 'chat', use: 'use_codebase' }).layers.use, { use: 'use_codebase', confidence: 0.91 }]);
+  assert.ok(logs.some(line => JSON.parse(line).event === 'tutor_call' && JSON.parse(line).use === 'use_codebase'), 'every call logs its record');
+
+  assert.equal((await ask({ use: '../../etc/passwd' })).research.system.includes('This use is not built yet'), false);
+  assert.equal(meta().tutor.use, null, 'an id that is not one of the fourteen is no goal');
+
+  // A verified code-explain route is recorded; the model call itself is the handler's (learn-code-explain.js), not this turn's.
+  const routed = await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: 'req-00000009', fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null }, capability: 'code-explain' });
+  assert.equal(routed.route, 'capability:code-explain');
+  await ask({ route_token: routed.token });
+  assert.equal(meta().route, 'code-explain');
+
+  // The handler answers a verified code-explain turn: no model reply is queued here, so this one falls back to ordinary chat, names why, and appends the one line.
+  assert.equal(meta().codeExplain, null);
+  assert.match(meta().reason, /could not be generated/);
+  assert.deepEqual([meta().tutor.task, storedAnswer()], ['chat', `Answer: ${message}\n\n${UNANCHORED_LINE}`], "the ordinary chat's own record stands on a fall back");
+
+  // With the model's reply: the Standard prose is the chat answer, the payload is in the meta (stored and on the stream), the record is the code-explain one.
+  const token = async n => (await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: `req-0000002${n}`, fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null }, capability: 'code-explain' })).token;
+  const reply = input => ({ model: 'claude-sonnet-5-5', stop_reason: 'tool_use', usage: { input_tokens: 5000, output_tokens: 900 }, content: [{ type: 'tool_use', id: 'tu1', name: 'code_explain', input }] });
+  const good = {
+    title: 'What lab.py does', suggestions: ['Why torch?', 'What does print do here?', 'What if it printed 2?'],
+    files: [{ path: 'lab.py', ranges: [{ id: 'r1', start: 1, end: 1 }, { id: 'r2', start: 2, end: 2 }] }], mentioned: [],
+    depths: { brief: { prose: 'It prints a number.', anchors: [] }, standard: { prose: 'It imports torch. Then it prints one.', anchors: [{ sentence: 0, target: 'r1' }, { sentence: 1, target: 'r2' }] }, detailed: { prose: 'Nothing is trained. It only prints.', anchors: [{ sentence: 1, target: 'r2' }], trace: { input: 'one call', steps: ['import torch', 'print 1'] } } },
+  };
+  codeModel.calls.length = 0;
+  codeModel.queue.push(reply(good));
+  await ask({ route_token: await token(1) });
+  assert.equal(codeModel.calls.length, 1);
+  assert.ok(codeModel.calls[0].messages[0].content.includes(`QUESTION\n${message}\n\n\nCODE THE LEARNER ADDED\n### lab.py  lines 1-2   (commit aaaaaaa)\n1: import torch\n2: print(1)`));
+  assert.equal(storedAnswer(), 'It imports torch. Then it prints one.');
+  assert.deepEqual(validateMessageMeta({ route: meta().route, codeExplain: meta().codeExplain }, { lines: () => 2 }), []);
+  assert.equal(meta().route, 'code-explain');
+  assert.equal(meta().codeExplain.question, message);
+  assert.equal(meta().codeExplain.title, 'What lab.py does');
+  assert.deepEqual([meta().tutor.task, meta().tutor.usage.inputTokens, meta().tutor.usage.credits, 'reason' in meta()], ['code-explain', 5000, 1.9, false]);
+  assert.ok(logs.some(line => JSON.parse(line).event === 'tutor_call' && JSON.parse(line).task === 'code-explain'));
+
+  // Invalid twice: no card, the reason, the one line after the answer.
+  codeModel.queue.push(reply({ ...good, suggestions: [] }), reply({ ...good, suggestions: [] }));
+  await ask({ route_token: await token(2) });
+  assert.equal(storedAnswer(), `It imports torch. Then it prints one.\n\n${UNANCHORED_LINE}`);
+  assert.equal(meta().codeExplain, null);
+  assert.match(meta().reason, /did not validate after one retry/);
+  assert.deepEqual(validateMessageMeta({ route: meta().route, codeExplain: meta().codeExplain, reason: meta().reason }, { lines: () => 2 }), []);
+
+  // Route 'answer' (no verified route): no handler, no hook, nothing in the meta, and no model call of its own.
+  codeModel.calls.length = 0;
+  const ordinary = await ask({});
+  assert.equal(ordinary.research.answer, undefined);
+  assert.equal(codeModel.calls.length, 0);
+  assert.equal(storedAnswer(), `Answer: ${message}`);
+  assert.deepEqual([meta().route, 'codeExplain' in meta(), 'reason' in meta()], ['answer', false, false]);
 });
 
 // repo-canvas-graph.md sections 6-8: a project canvas's code refs (graph nodes, Files selections) are read from the project's

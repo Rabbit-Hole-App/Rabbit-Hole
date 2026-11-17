@@ -8,7 +8,8 @@ import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendO
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
 import { CANVAS_UNAVAILABLE, canvasMentions } from './canvas-refs.js';
-import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
+import { codeExplainTurn } from './learn-code-explain.js';
+import { chatContext, chatFields, chatSystem, codebaseUseId, docIds, logTutorCall, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, tutorRecord, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
 import { progressQuestionContext } from './learn-progress-context.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
@@ -1035,9 +1036,11 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   }
   // CR-1 (chat-capability-route.js): a route decision the server signed for this learner and these exact turn fields. A
   // proposal route makes this turn that command's proposal turn, as if it were typed; nothing else is decided here.
+  let routeDecision = null; // the verified route: { cap, flow, confidence }; recorded in the answer's meta below
   if (body.route_token != null) {
     const routed = conversation === 'learn' && chat ? await verifyChatRoute(env, body, user.email) : null;
     if (!routed) return json({ error: 'This route decision does not match this message. Send it again.', code: 'route_mismatch' }, 400);
+    routeDecision = routed;
     if (routed.flow === 'proposal') chat.command = routed.cap;
   }
   // UI-15/MOT-20 (generation-proposal.js): a Learn chat turn from a build that offers proposals sends generation
@@ -1080,7 +1083,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   const videos = videoMomentTools(env, user.org, findVideoMoments);
   // A project canvas asks with its project's repository, as the Main canvas does: read again on every ask, so a project
   // the caller lost falls back to a general canvas (canvases.js projectRepository, docs/features/project-canvases.md).
-  const repository = conversation === 'learn' && seam?.repository ? await seam.repository() : null;
+  const repository = conversation === 'learn' && seam?.repository ? await seam.repository(codebaseUseId(body.use)) : null;
   const research = conversation === 'learn' ? {
     papers: [],
     // Shared with the context assembly below: an article already on the
@@ -1345,6 +1348,18 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   }
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
+  // Docs tutor-prompts-and-routing.md section 1c: the record every Tutor model call carries, and the route decision, in the answer's meta (never a silent pick).
+  // route: 'code-explain' when the verified route chose it (the handler runs it, learn-code-explain.js), else 'answer'; tutor.route: the use a routed typed line chose, with its confidence.
+  const useRoute = body.use_route, tutorUse = codebaseUseId(body.use);
+  const tutorRoute = tutorUse && Number.isFinite(useRoute?.confidence) ? { use: tutorUse, confidence: useRoute.confidence } : null;
+  const tutor = repository?.tutor && research.system?.includes(repository.tutor.text) ? tutorRecord(repository.tutor, { route: tutorRoute, model: modelId }) : null;
+  // A verified code-explain route (learn-code-explain.js): one structured Sonnet call answers the turn (askStream calls research.answer instead of the research loop), and
+  // the answer's meta carries codeExplain (the card payload, or null with its reason). The turn falls back to the ordinary chat answer when nothing usable came back.
+  const codeExplain = research && chat && routeDecision?.cap === 'code-explain' && !chat.command && !chat.regenerate
+    ? codeExplainTurn({ env: seam ? { ...env, DB: db } : env, question: message, refs: chat.contextRefs, use: tutorUse, route: tutorRoute, snapshot: async () => repository?.snapshot ?? (await seam?.snapshot?.(chat.contextRefs)) ?? null, logChat: () => tutor && logTutorCall(tutor) }) : null;
+  if (codeExplain) { const split = research.onAnswer; Object.assign(research, { answer: codeExplain.answer, onAnswer: text => codeExplain.close(split ? split(text) : text) }); }
+  else if (tutor) logTutorCall(tutor);
+  const turnMeta = base => { const record = codeExplain?.tutor() ?? tutor, merged = { ...base, ...(record ? { tutor: record } : {}), ...(chat && (record || routeDecision) ? { route: routeDecision?.cap === 'code-explain' ? 'code-explain' : 'answer' } : {}), ...codeExplain?.meta() }; return Object.keys(merged).length ? merged : null; };
   // tools ride only when the user can edit the scope - a viewer's model has none
   const toolOpts = canAct && conversation !== 'learn'
     ? {
@@ -1361,7 +1376,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
     // motionDev: motion is suggested only on a turn where a Motion video can start (generation, MOT-20b); its Send proposes it first.
-    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta: toolRequest ? { ...proposalMeta, toolRequest } : proposalMeta, validate: (raw, opts) => { const meta = validateAnswerMeta(raw, { ...opts, motionDev: !!generation }); return answerOnly ? { ...meta, actions: [] } : meta; } }); // an answer-only turn suggests no artifact to make next
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta: turnMeta(toolRequest ? { ...proposalMeta, toolRequest } : proposalMeta), validate: (raw, opts) => { const meta = validateAnswerMeta(raw, { ...opts, motionDev: !!generation }); return answerOnly ? { ...meta, actions: [] } : meta; } }); // an answer-only turn suggests no artifact to make next
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);

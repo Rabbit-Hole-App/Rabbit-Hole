@@ -1,0 +1,102 @@
+[
+  {
+    "cellId": "install",
+    "kind": "install",
+    "title": "Install",
+    "cmd": "pip install torch numpy tiktoken requests",
+    "timeoutSec": 600,
+    "flags": [],
+    "expected": {
+      "sec": null
+    }
+  },
+  {
+    "cellId": "prepare",
+    "kind": "step",
+    "title": "Prepare the data",
+    "cmd": "python data/shakespeare_char/prepare.py",
+    "timeoutSec": 300,
+    "flags": [],
+    "expected": {
+      "sec": 0.7,
+      "files": [
+        {
+          "path": "data/shakespeare_char/train.bin",
+          "bytes": 2007708
+        }
+      ],
+      "stdoutHead": "length of dataset in characters: 1,115,394\nvocab size: 65\ntrain has 1,003,854 tokens\nval has 111,540 tokens"
+    }
+  },
+  {
+    "cellId": "train",
+    "kind": "step",
+    "title": "Train a small model",
+    "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+    "timeoutSec": 1200,
+    "flags": [],
+    "expected": {
+      "sec": 69.8,
+      "metrics": [
+        {
+          "name": "loss",
+          "first": 4.1828,
+          "last": 1.6958
+        }
+      ],
+      "files": [
+        {
+          "path": "out-shakespeare-char/ckpt.pt",
+          "bytes": 9678732
+        }
+      ]
+    }
+  },
+  {
+    "cellId": "sample",
+    "kind": "step",
+    "title": "Generate text",
+    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+    "timeoutSec": 600,
+    "flags": [],
+    "expected": {
+      "sec": 10.2
+    }
+  },
+  {
+    "cellId": "knobs",
+    "kind": "knobs",
+    "title": "Make it yours",
+    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=ROMEO: --num_samples=2 --max_new_tokens=200 --temperature=0.4",
+    "timeoutSec": 600,
+    "flags": [
+      {
+        "flag": "--start",
+        "type": "string",
+        "value": "ROMEO:",
+        "editable": true
+      },
+      {
+        "flag": "--temperature",
+        "type": "float",
+        "value": "0.4",
+        "editable": true
+      },
+      {
+        "flag": "--num_samples",
+        "type": "int",
+        "value": "2",
+        "editable": true
+      },
+      {
+        "flag": "--max_new_tokens",
+        "type": "int",
+        "value": "200",
+        "editable": true
+      }
+    ],
+    "expected": {
+      "sec": 9.0
+    }
+  }
+]

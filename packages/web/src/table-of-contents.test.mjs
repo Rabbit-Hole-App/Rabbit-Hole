@@ -155,7 +155,7 @@ test('the page: a syllabus proposal brings the contents forward, a Tutor one onl
   assert.match(page, /onOutlineProposal: canEditCanvas \? proposal => \{ setProposal\(proposal\); if \(proposal\?\.source === 'syllabus'\) setPanelTab\('toc'\); \} : undefined,/);
   assert.match(page, /tocPending=\{proposal && canEditCanvas \? 1 : 0\}/);
   assert.match(page, /const canEditCanvas = !\(app\.kind === 'canvas' && app\.canEdit === false\);/);
-  assert.match(page, /<TableOfContents [^\n]*activeId=\{canvasState\.activeSection \?\? null\} readOnly=\{!canEditCanvas\}/);
+  assert.match(page, /<TableOfContents [^\n]*activeId=\{planDone && planCurrent \? planCurrent : canvasState\.activeSection \?\? null\} readOnly=\{!canEditCanvas \|\| planDone\}/); // an accepted Learn plan: read-only, the Tutor's current section
 });
 
 // The project line and the learning goal under the heading (owner brief 2026-10-16 item 7; lead ruling: real data or nothing).

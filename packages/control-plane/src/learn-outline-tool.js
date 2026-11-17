@@ -54,9 +54,10 @@ const description = value => typeof value === 'string' && value.trim() && value.
 // Adds and level changes are played onto a copy of the heading list as they are read, so a parent's subtree is the
 // one the learner would see at that point of the proposal. An anchor `after` X lands after X's own subtree, except
 // the parent itself, which puts the new heading first under it.
-export function validateOutlineOps(ops, outline) {
+// maxOps: 24 for a chat proposal; a learn plan (learn-plan.js) passes 48. An empty outline is allowed: adds only, every parent a key minted earlier in the same call.
+export function validateOutlineOps(ops, outline, { maxOps = MAX_OPS } = {}) {
   if (!Array.isArray(ops) || !ops.length) throw new Error('Propose at least one outline change');
-  if (ops.length > MAX_OPS) throw new Error(`Propose at most ${MAX_OPS} outline changes at once`);
+  if (ops.length > maxOps) throw new Error(`Propose at most ${maxOps} outline changes at once`);
   const adds = ops.filter(op => op?.op === 'add').length, have = (outline || []).length;
   if (adds && have + adds > MAX_OUTLINE_HEADINGS) throw new Error(`The table of contents holds at most ${MAX_OUTLINE_HEADINGS} headings and has ${have}: ${moreFit(have)}`);
   const list = (outline || []).map(entry => ({ id: entry.id, level: entry.level }));

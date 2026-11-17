@@ -22,7 +22,7 @@ export async function repositoryRegenerate(db, threadId, chat) {
 // attached refs and a long thread's summary), system(base) is its system prompt with the trailer rules, research joins
 // askStream's research (the trailer split; a Tutor turn runs with no tools), and onDone(saveGraph) is askStream's onDone,
 // storing the answer with its meta and then its graph. A plain ask gets PLAIN: no context, the same system, onDone null.
-export async function repositoryChatTurn(db, { chat, turn = null, threadId, history, message, readPaper = null }) {
+export async function repositoryChatTurn(db, { chat, turn = null, threadId, history, message, readPaper = null, tutor = null }) {
   if (!chat) return PLAIN;
   const asked = turn ? { ...chat, mode: turn.mode, command: turn.command, contextRefs: turn.contextRefs } : chat;
   await recordUserTurn(db, threadId, history.userMessageId, asked, !!turn);
@@ -34,7 +34,7 @@ export async function repositoryChatTurn(db, { chat, turn = null, threadId, hist
     system: base => chatSystem(base, answerMetaSystem({ repository: true }), resolved, memory.long),
     research: { onAnswer: text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; }, ...(resolved.mode === 'tutor' ? { tools: [], system: null } : {}) },
     onDone: saveGraph => async (full, stopped = false) => {
-      const stored = await recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat: asked, resolved, turn, prior: memory.summary, long: memory.long, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
+      const stored = await recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat: asked, resolved, turn, prior: memory.summary, long: memory.long, ...(tutor ? { proposalMeta: { tutor } } : {}), validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
       if (stored) await saveGraph(Number(stored.done.messageId));
       return stored;
     },

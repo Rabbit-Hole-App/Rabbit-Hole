@@ -287,6 +287,31 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
   assert.equal(f.sqlite.prepare('SELECT status FROM repository_apps WHERE id=?').get(row.id).status,'ready');
 });
 
+// Rehearsal fixtures (owner stack only): a connect request may pin a commit when REHEARSAL_PIN_COMMIT=1; the indexer then gets that commit, not the branch head.
+test('connect with a commit: pinned only where REHEARSAL_PIN_COMMIT=1, validated, and absent keeps the branch head',async t=>{
+  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const pin='c'.repeat(40),sent=[],github=[];
+  globalThis.fetch=async(url,init)=>{url=new URL(url);if(url.host==='api.github.com'){github.push(url.pathname);return url.pathname.endsWith('/ccccccc')?new Response(pin):new Response('',{status:422});}
+    if(url.pathname==='/repository-metadata')return Response.json({commit:newer});if(url.pathname==='/repositories')sent.push(JSON.parse(init.body).commit);return Response.json({status:'queued'});};
+  const connect=async(flag,extra)=>{const f=fixture(t);if(flag)f.env.REHEARSAL_PIN_COMMIT='1';
+    f.env.REPOSITORY_IMPORTS={idFromName:String,get:()=>({fetch:(url,init)=>f.actor.fetch(new Request(url,init))})};
+    const response=await repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main',...extra})}),f.env,{});
+    if(response.status===202)await f.actor.alarm();return{response,f};};
+  const {response,f}=await connect(true,{commit:pin.toUpperCase()});assert.equal(response.status,202);
+  assert.deepEqual(sent,[pin]);assert.equal((await response.json()).name.startsWith('repo-'),true);
+  assert.equal(f.sqlite.prepare('SELECT count(*) n FROM repository_apps').get().n,2);
+  await connect(true,{commit:'ccccccc'});assert.deepEqual(sent,[pin,pin]);assert.deepEqual(github,['/repos/example/project/commits/ccccccc']);
+  await connect(true,{});assert.deepEqual(sent,[pin,pin,newer]); // absent: the branch head, as in production
+  for(const bad of ['abc123','g'.repeat(40),'c'.repeat(41),123,null,'']){const r=await connect(true,{commit:bad});assert.equal(r.response.status,400,String(bad));}
+  assert.equal((await connect(true,{commit:'deadbee'})).response.status,400); // not in the repository
+  const off=await connect(false,{commit:pin});assert.equal(off.response.status,400);assert.match((await off.response.json()).error,/not accepted/);
+  assert.equal(off.f.sqlite.prepare('SELECT count(*) n FROM repository_apps').get().n,1); // refused before a project is created
+  assert.deepEqual(sent,[pin,pin,newer]);
+  assert.equal((await connect(false,{})).response.status,202); // flag off, no commit: unchanged
+});
+for(const file of ['wrangler.rabbit-hole-prod.jsonc','wrangler.rabbit-hole-dev.jsonc'])test(`${file} does not set REHEARSAL_PIN_COMMIT`,()=>assert.doesNotMatch(readFileSync(new URL('../'+file,import.meta.url),'utf8'),/REHEARSAL_PIN_COMMIT/));
+test('the web Worker configs do not set REHEARSAL_PIN_COMMIT',()=>{for(const file of readdirSync(new URL('../../web/',import.meta.url)).filter(f=>/^wrangler.*\.jsonc$/.test(f)))assert.doesNotMatch(readFileSync(new URL('../../web/'+file,import.meta.url),'utf8'),/REHEARSAL_PIN_COMMIT/,file);});
+
 // Dev storage hygiene (user, 2026-09-28): dev repository snapshots live in their own bucket, never in the
 // live small-runs bucket under a prefix. The dev config binds that bucket; production has no such binding.
 const jsonc=(path)=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8').replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,(m,str)=>str||'').replace(/,(\s*[}\]])/g,'$1'));

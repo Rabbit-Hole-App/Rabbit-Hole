@@ -1,0 +1,13 @@
+{
+  "indexing": "ready",
+  "catalogue": {
+    "status": "ready",
+    "practicalRoutes": 1
+  },
+  "routes": [
+    {
+      "routeId": "shakespeare_char",
+      "status": "ready"
+    }
+  ]
+}

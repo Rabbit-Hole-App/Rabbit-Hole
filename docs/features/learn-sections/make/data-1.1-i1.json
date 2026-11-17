@@ -1,0 +1,35 @@
+{
+  "case": "data",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "itemId": "i1",
+  "preReview": true,
+  "ms": 6824,
+  "out": {
+    "item": {
+      "itemId": "i1",
+      "command": "explanation",
+      "lead": "Before reading any logic, read the imports at the top of the app file (lines 1-171). They list everything the app depends on, so they tell you what it is made of.\n\nSort them into six families as you read. The card names each family, the lines it sits on, and what the app uses it for.",
+      "follow": "You have grouped the imports into six families, and the app file pulls them all together. It is a hub. Next, we look at how the app turns these settings into configuration, databases and shared state."
+    },
+    "perform": {
+      "op": "slash",
+      "line": "/explain What are the main families of imports at the top of the Datasette app file, and what is each for? Show it as a table on these lines: concurrency (lines 3, 23, 27), templating (jinja2, markupsafe, 32-41), signing (itsdangerous, 31), database (47, 111-115), views (117-171), plugins (49). One plain sentence per family. Do not cover settings, shared state, or how asyncio and the thread pool split work. Afterwards the reader should be able to group the imports into families and say what each is for.",
+      "depth": "balanced",
+      "context": "datasette/app.py:1-171 @ e9d45fe400608d516d7b2b676f678ee4461579e1\n1: from __future__ import annotations\n2: \n3: import asyncio\n4: from collections.abc import Iterable, Sequence\n5: from typing import TYPE_CHECKING, Any\n6: \n7: if TYPE_CHECKING:\n8:     from datasette.permissions import Resource\n9:     from datasette.tokens import TokenRestrictions\n10: import collections\n11: import dataclasses\n12: import datetime\n13: import functools\n14: import glob\n15: import importlib.metadata\n16: import inspect\n17: import json\n18: import logging\n19: import os\n20: import re\n21: import secrets\n22: import sys\n23: import threading\n24: import time\n25: import types\n26: import urllib.parse\n27: from concurrent import futures\n28: from pathlib import Path\n29: \n30: import httpx2\n31: from itsdangerous import BadSignature, URLSafeSerializer\n32: from jinja2 import (\n33:     ChoiceLoader,\n34:     Environment,\n35:     FileSystemLoader,\n36:     PrefixLoader,\n37:     pass_context,\n38: )\n39: from jinja2.environment import Template\n40: from jinja2.exceptions import TemplateNotFound\n41: from markupsafe import Markup, escape\n42: \n43: from . import stored_queries, write_sql\n44: from .background_tasks import BackgroundTask, BackgroundTaskSupervisor\n45: from .column_types import SQLiteType\n46: from .csrf import CrossOriginProtectionMiddleware\n47: from .database import Database, QueryInterrupted\n48: from .events import Event\n49: from .plugins import DEFAULT_PLUGINS, get_plugins, pm\n50: from .renderer import json_renderer\n51: from .resources import DatabaseResource, TableResource\n52: from .telemetry import (\n53:     TelemetryMiddleware,\n54:     _in_datasette_client,\n55:     clamp_http_method,\n56:     register_datasette,\n57:     request_span,\n58:     tracer,\n59:     unregister_datasette,\n60: )\n61: from .telemetry_registry import HTTP_ROUTE, STARTUP\n62: from .tokens import TokenInvalid\n63: from .tracer import AsgiTracer\n64: from .url_builder import Urls\n65: from .utils import (\n66:     SPATIALITE_FUNCTIONS,\n67:     PaginatedResources,\n68:     PrefixedUrlString,\n69:     StartupError,\n70:     add_cors_headers,\n71:     async_call_with_supported_arguments,\n72:     await_me_maybe,\n73:     baseconv,\n74:     call_with_supported_arguments,\n75:     detect_json1,\n76:     display_actor,\n77:     escape_css_string,\n78:     escape_sqlite,\n79:     find_spatialite,\n80:     format_bytes,\n81:     module_from_path,\n82:     move_plugins_and_allow,\n83:     move_table_config,\n84:     parse_metadata,\n85:     redact_keys,\n86:     resolve_env_secrets,\n87:     resolve_routes,\n88:     row_sql_params_pks,\n89:     sha256_file,\n90:     tilde_decode,\n91:     tilde_encode,\n92:     to_css_class,\n93:     urlsafe_components,\n94: )\n95: from .utils.asgi import (\n96:     AsgiLifespan,\n97:     AsgiRunOnFirstRequest,\n98:     BadRequest,\n99:     DatabaseNotFound,\n100:     Forbidden,\n101:     NotFound,\n102:     Request,\n103:     Response,\n104:     RowNotFound,\n105:     TableNotFound,\n106:     asgi_send,\n107:     asgi_send_file,\n108:     asgi_send_redirect,\n109:     asgi_static,\n110: )\n111: from .utils.internal_db import init_internal_db, populate_schema_tables\n112: from .utils.sqlite import (\n113:     sqlite3,\n114:     using_pysqlite3,\n115: )\n116: from .version import __version__\n117: from .views import Context\n118: from .views.database import (\n119:     DatabaseView,\n120:     QueryView,\n121:     database_download,\n122: )\n123: from .views.execute_write import ExecuteWriteAnalyzeView, ExecuteWriteView\n124: from .views.index import IndexView\n125: from .views.row import RowDeleteView, RowUpdateView, RowView\n126: from .views.special import (\n127:     AllowDebugView,\n128:     AllowedResourcesView,\n129:     ApiExplorerView,\n130:     AuthTokenView,\n131:     AutocompleteDebugView,\n132:     CreateTokenView,\n133:     DatabaseSchemaView,\n134:     InstanceSchemaView,\n135:     JsonDataView,\n136:     JumpView,\n137:     LogoutView,\n138:     MessagesDebugView,\n139:     PatternPortfolioView,\n140:     PermissionCheckView,\n141:     PermissionRulesView,\n142:     PermissionsDebugView,\n143:     TableSchemaView,\n144: )\n145: from .views.stored_queries import (\n146:     GlobalQueryListView,\n147:     QueryCreateAnalyzeView,\n148:     QueryDefinitionView,\n149:     QueryDeleteView,\n150:     QueryEditView,\n151:     QueryListView,\n152:     QueryParametersView,\n153:     QueryStoreView,\n154:     QueryUpdateView,\n155: )\n156: from .views.table import (\n157:     TableAutocompleteView,\n158:     TableCountView,\n159:     TableDropView,\n160:     TableFragmentView,\n161:     TableInsertView,\n162:     TableSetColumnTypeView,\n163:     TableUpsertView,\n164:     table_view,\n165: )\n166: from .views.table_create_alter import (\n167:     DatabaseForeignKeyTargetsView,\n168:     TableAlterView,\n169:     TableCreateView,\n170:     TableForeignKeySuggestionsView,\n171: )"
+    },
+    "next": "i2"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 2,
+      "usd": 0.020422,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

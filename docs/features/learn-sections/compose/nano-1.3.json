@@ -1,0 +1,83 @@
+{
+  "case": "nano",
+  "section": "1.3",
+  "sectionId": "1.3",
+  "ms": 10834,
+  "out": {
+    "composition": {
+      "sectionId": "1.3",
+      "items": [
+        {
+          "id": "i1",
+          "beatId": "b1",
+          "command": "explanation",
+          "request": "Explain encoding as giving each character the number of its position in the sorted list of 65 characters. Show a small table: newline 0, space 1, '!' 2, so the list order becomes the id.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "A short definition plus a small table transfers position-as-id best.",
+          "source": null,
+          "content": null,
+          "after": null
+        },
+        {
+          "id": "i2",
+          "beatId": "b2",
+          "command": "notebook",
+          "request": "Cells with a small sorted chars list like ['\\n',' ','!','a','b']. Show list(enumerate(chars)), then stoi = { ch:i for i,ch in enumerate(chars) }, then print stoi['a'] and stoi['!'].",
+          "requirements": null,
+          "lookFor": null,
+          "why": "Running the comprehension on real values shows how pairs get flipped into character-to-position.",
+          "source": null,
+          "content": "authored",
+          "after": null
+        },
+        {
+          "id": "i3",
+          "beatId": "b3",
+          "command": "notebook",
+          "request": "Cells that build itos = { i:ch for i,ch in enumerate(chars) } beside stoi = { ch:i for i,ch in enumerate(chars) } over the same small list. Print both and itos[2]. Point out that only the order of ch and i differs, so one is the exact reverse of the other.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "Seeing the two tables side by side makes the reversal obvious.",
+          "source": null,
+          "content": "authored",
+          "after": null
+        },
+        {
+          "id": "i4",
+          "beatId": "b4",
+          "command": "notebook",
+          "request": "Cells defining encode(s) = [stoi[c] for c in s] and decode(l) = ''.join([itos[i] for i in l]) over a small chars list including 'h' and 'i'. Trace encode('hi') to two ids, decode back to 'hi', and check the round trip. Then try encoding 'é' and show the KeyError, since only seen characters are mapped.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "The learner runs the round trip and meets the unseen-character error.",
+          "source": null,
+          "content": "authored",
+          "after": null
+        },
+        {
+          "id": "i5",
+          "beatId": "b5",
+          "command": "quiz",
+          "request": "Ask what happens when encode gets 'é', a character not in the Shakespeare text. Options: returns 0; raises a KeyError from the lookup; skips it; adds it to the table. Feedback notes both tables are saved in the meta file.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "A prediction question checks the edge of the idea.",
+          "source": null,
+          "content": null,
+          "after": null
+        }
+      ]
+    }
+  },
+  "log": [
+    {
+      "event": "learn_section_compose",
+      "section": "1.3",
+      "calls": 2,
+      "usd": 0.025792,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

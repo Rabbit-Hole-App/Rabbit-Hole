@@ -1,0 +1,537 @@
+{
+ "version": "rehearsal-1",
+ "routeId": "serve_fixtures_site",
+ "repo": "simonw/datasette",
+ "commit": "e9d45fe400608d516d7b2b676f678ee4461579e1",
+ "hardware": "cpu",
+ "provider": "modal",
+ "sandboxId": "sb-01M7GE2VV1787HM4PS09Q4C9AF",
+ "terminated": true,
+ "sandboxesLeftAfter": 0,
+ "image": {
+  "ref": "modal:im-8VpybE4cwE9oblPPZlmrdr (python:3.12-slim)",
+  "digest": "sha256:03b891cb7412bb76303f343d744a4c4bb150d7267840e9371122d21ac8f66d84"
+ },
+ "model": "claude-sonnet-5-5",
+ "startedUtc": "2026-11-15T20:23:51Z",
+ "finishedUtc": "2026-11-15T20:24:42Z",
+ "wallSec": 50.9,
+ "environment": {
+  "python": "3.12.16",
+  "cpu": 2,
+  "memGiB": 4,
+  "packagesAfter": {
+   "aiofiles": "25.1.0",
+   "annotated-types": "0.8.0",
+   "anyio": "4.16.0",
+   "asgiref": "3.13.0",
+   "asyncinject": "0.7",
+   "click": "8.5.1",
+   "click-default-group": "1.2.4",
+   "datasette": "1.0a42",
+   "filelock": "4.2.4",
+   "fsspec": "2026.9.0",
+   "h11": "0.16.0",
+   "httpcore2": "2.16.0",
+   "httpx2": "2.16.0",
+   "hupper": "1.12.1",
+   "idna": "3.20",
+   "iniconfig": "2.3.1",
+   "itsdangerous": "2.2.0",
+   "Jinja2": "3.1.6",
+   "MarkupSafe": "3.0.3",
+   "mergedeep": "1.3.4",
+   "mpmath": "1.3.0",
+   "networkx": "3.7",
+   "numpy": "2.5.4",
+   "opentelemetry-api": "1.45.2",
+   "packaging": "26.3",
+   "pip": "25.0.1",
+   "pluggy": "1.7.0",
+   "pydantic": "2.14.3",
+   "pydantic_core": "2.50.4",
+   "Pygments": "2.21.0",
+   "pytest": "9.2.0",
+   "python-dateutil": "4.0.0",
+   "PyYAML": "6.0.3",
+   "setuptools": "78.1.0",
+   "sqlite-fts4": "1.0.3",
+   "sqlite-utils": "4.2.1",
+   "sympy": "1.14.0",
+   "tabulate": "0.10.0",
+   "torch": "2.15.0+cpu",
+   "truststore": "0.10.5",
+   "typing_extensions": "4.16.0",
+   "typing-inspection": "0.4.5",
+   "tzdata": "2026.6",
+   "uvicorn": "0.54.0"
+  }
+ },
+ "route": {
+  "routeId": "serve_fixtures_site",
+  "title": "Browse a sample database in your web browser",
+  "whyChosen": "These are the three documented commands in docs/contributing.rst (build fixtures.db, then serve it on port 8001), with the `uv run ` prefix dropped because the sandbox has no uv, and the package installed from the checkout with `pip install -e .` rather than from PyPI.",
+  "prerequisites": [],
+  "install": [
+   {
+    "cmd": "pip install -e .",
+    "source": "pyproject.toml:1"
+   },
+   {
+    "cmd": "pip install pytest",
+    "source": "repair fix 1"
+   }
+  ],
+  "steps": [
+   {
+    "id": "install",
+    "cmd": "pip install -e .",
+    "source": "pyproject.toml:1",
+    "timeoutSec": 600,
+    "checks": [
+     {
+      "type": "exit_zero"
+     }
+    ]
+   },
+   {
+    "id": "make_fixtures_db",
+    "cmd": "python tests/fixtures.py fixtures.db",
+    "source": "docs/contributing.rst:146",
+    "timeoutSec": 120,
+    "checks": [
+     {
+      "type": "exit_zero"
+     },
+     {
+      "type": "files_exist",
+      "paths": [
+       "fixtures.db"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "serve_fixtures",
+    "cmd": "datasette fixtures.db",
+    "source": "docs/contributing.rst:150",
+    "timeoutSec": 120,
+    "longRunning": true,
+    "checks": [
+     {
+      "type": "port_listens",
+      "port": 8001
+     },
+     {
+      "type": "http_200",
+      "port": 8001,
+      "path": "/"
+     }
+    ]
+   }
+  ],
+  "knobs": [
+   {
+    "step": "serve_fixtures",
+    "flag": "--port",
+    "default": "8001",
+    "type": "int",
+    "source": "datasette/cli.py:375",
+    "safeValue": "8011"
+   },
+   {
+    "step": "serve_fixtures",
+    "flag": "--host",
+    "default": "127.0.0.1",
+    "type": "string",
+    "source": "datasette/cli.py:365",
+    "safeValue": "0.0.0.0"
+   },
+   {
+    "step": "serve_fixtures",
+    "flag": "--reload",
+    "default": "",
+    "type": "bool",
+    "source": "datasette/cli.py:385",
+    "optional": true
+   },
+   {
+    "step": "serve_fixtures",
+    "flag": "--cors",
+    "default": "",
+    "type": "bool",
+    "source": "datasette/cli.py:390",
+    "optional": true
+   },
+   {
+    "step": "serve_fixtures",
+    "flag": "--setting",
+    "default": "",
+    "type": "string",
+    "source": "datasette/cli.py:427",
+    "safeValue": "default_page_size 20",
+    "optional": true
+   },
+   {
+    "step": "serve_fixtures",
+    "flag": "--metadata",
+    "default": "",
+    "type": "string",
+    "source": "datasette/cli.py:398",
+    "optional": true
+   },
+   {
+    "step": "serve_fixtures",
+    "flag": "--immutable",
+    "default": "",
+    "type": "string",
+    "source": "datasette/cli.py:358",
+    "safeValue": "fixtures.db",
+    "optional": true
+   },
+   {
+    "step": "make_fixtures_db",
+    "flag": "--recreate",
+    "default": "False",
+    "type": "bool",
+    "source": "tests/fixtures.py:436",
+    "safeValue": "true",
+    "optional": true
+   },
+   {
+    "step": "make_fixtures_db",
+    "flag": "--extra-db-filename",
+    "default": "",
+    "type": "string",
+    "source": "tests/fixtures.py:442"
+   }
+  ]
+ },
+ "attempts": [
+  {
+   "step": "install",
+   "n": 1,
+   "cmd": "pip install -e .",
+   "rc": 0,
+   "sec": 4.8,
+   "stderrTail": "\n[notice] A new release of pip is available: 25.0.1 -> 26.3\n[notice] To update, run: pip install --upgrade pip",
+   "log": "logs/install-1.log"
+  },
+  {
+   "step": "install",
+   "n": 2,
+   "cmd": "pip install -e .",
+   "rc": 0,
+   "sec": 2.3,
+   "stderrTail": "\n[notice] A new release of pip is available: 25.0.1 -> 26.3\n[notice] To update, run: pip install --upgrade pip",
+   "log": "logs/install-2.log"
+  },
+  {
+   "step": "make_fixtures_db",
+   "n": 1,
+   "cmd": "python tests/fixtures.py fixtures.db",
+   "rc": 1,
+   "sec": 0.36,
+   "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/tests/fixtures.py\", line 9, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'",
+   "log": "logs/make_fixtures_db-1.log"
+  },
+  {
+   "step": "fix-1",
+   "n": 1,
+   "cmd": "pip install pytest",
+   "rc": 0,
+   "sec": 1.67,
+   "stderrTail": "\n[notice] A new release of pip is available: 25.0.1 -> 26.3\n[notice] To update, run: pip install --upgrade pip",
+   "log": "logs/fix-1-1.log"
+  },
+  {
+   "step": "make_fixtures_db",
+   "n": 2,
+   "cmd": "python tests/fixtures.py fixtures.db",
+   "rc": 0,
+   "sec": 1.03,
+   "stderrTail": "Test tables written to fixtures.db",
+   "log": "logs/make_fixtures_db-2.log"
+  },
+  {
+   "step": "serve_fixtures",
+   "n": 1,
+   "cmd": "datasette fixtures.db",
+   "rc": 0,
+   "sec": 1.93,
+   "stderrTail": "INFO:     Started server process [862]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)\nWARNING:  Invalid HTTP request received.\nINFO:     127.0.0.1:21601 - \"GET / HTTP/1.1\" 200 OK",
+   "log": "logs/serve_fixtures-1.log"
+  }
+ ],
+ "fixes": [
+  {
+   "n": 1,
+   "step": "make_fixtures_db",
+   "kind": "install_package",
+   "change": "pip install pytest",
+   "evidence": "tests/fixtures.py:9 `import pytest` -> \"ModuleNotFoundError: No module named 'pytest'\"; pytest absent from pip list",
+   "modelCalls": 2
+  }
+ ],
+ "steps": [
+  {
+   "id": "install",
+   "cmd": "pip install -e .",
+   "rc": 0,
+   "sec": 2.3,
+   "checks": [
+    {
+     "type": "exit_zero",
+     "passed": true
+    }
+   ],
+   "files": {},
+   "log": "logs/install-2.log",
+   "warnings": [],
+   "stdoutHead": "Obtaining file:///work/repo\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nRequirement already satisfied: asgiref>=3.2.10 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (3.13.0)\nRequirement already satisfied: click>=7.1.1 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (8.5.1)\nRequirement already satisfied: click-default-group>=1.2.3 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (1.2.4)\nRequirement already satisfied: Jinja2>=2.10.3 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (3.1.6)\nRequirement already satisfied: hupper>=1.9 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (1.12.1)\nRequirement already satisfied: httpx2>=2.0 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (2.16.0)\nRequirement already satisfied: pluggy>=1.0 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (1.7.0)\nRequirement already satisfied: uvicorn>=0.29 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (0.54.0)\nRequirement already satisfied: aiofiles>=0.4 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (25.1.0)\nRequirement already satisfied: PyYAML>=5.3 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (6.0.3)\nRequirement already satisfied: mergedeep>=1.1.1 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (1.3.4)\nRequirement already satisfied: itsdangerous>=1.1 in /usr/local/lib/python3.12/site-packages (from datasette==1.0a42) (2.2.0)",
+   "stdoutTail": "Requirement already satisfied: MarkupSafe>=2.0 in /usr/local/lib/python3.12/site-packages (from Jinja2>=2.10.3->datasette==1.0a42) (3.0.3)\nRequirement already satisfied: annotated-types>=0.6.0 in /usr/local/lib/python3.12/site-packages (from pydantic>=2->datasette==1.0a42) (0.8.0)\nRequirement already satisfied: pydantic-core==2.50.4 in /usr/local/lib/python3.12/site-packages (from pydantic>=2->datasette==1.0a42) (2.50.4)\nRequirement already satisfied: typing-inspection>=0.4.4 in /usr/local/lib/python3.12/site-packages (from pydantic>=2->datasette==1.0a42) (0.4.5)\nRequirement already satisfied: python-dateutil in /usr/local/lib/python3.12/site-packages (from sqlite-utils>=4.0->datasette==1.0a42) (4.0.0)\nRequirement already satisfied: sqlite-fts4 in /usr/local/lib/python3.12/site-packages (from sqlite-utils>=4.0->datasette==1.0a42) (1.0.3)\nRequirement already satisfied: tabulate in /usr/local/lib/python3.12/site-packages (from sqlite-utils>=4.0->datasette==1.0a42) (0.10.0)\nRequirement already satisfied: tzdata in /usr/local/lib/python3.12/site-packages (from python-dateutil->sqlite-utils>=4.0->datasette==1.0a42) (2026.6)\nBuilding wheels for collected packages: datasette\n  Building editable for datasette (pyproject.toml): started\n  Building editable for datasette (pyproject.toml): finished with status 'done'\n  Created wheel for datasette: filename=datasette-1.0a42-0.editable-py3-none-any.whl size=9713 sha256=3a5bc8c518fe99ae7a5c1ae181ecaf464ce1551e4e3df03d290fbc1714963222\n  Stored in directory: /tmp/pip-ephem-wheel-cache-w_qrucdk/wheels/3a/4a/18/2e0c658c99e17426cd11b3c369a39c9159b7d6a4981ab576c1\nSuccessfully built datasette\nInstalling collected packages: datasette\n  Attempting uninstall: datasette\n    Found existing installation: datasette 1.0a42\n    Uninstalling datasette-1.0a42:\n      Successfully uninstalled datasette-1.0a42\nSuccessfully installed datasette-1.0a42"
+  },
+  {
+   "id": "make_fixtures_db",
+   "cmd": "python tests/fixtures.py fixtures.db",
+   "rc": 0,
+   "sec": 1.03,
+   "checks": [
+    {
+     "type": "exit_zero",
+     "passed": true
+    },
+    {
+     "type": "files_exist",
+     "passed": true
+    }
+   ],
+   "files": {
+    "fixtures.db": {
+     "bytes": 249856,
+     "sha256": "bb02de1ccb1dbb9de79ab6ff31363daccc60addea390014de037b4e4b1cbfea1"
+    }
+   },
+   "log": "logs/make_fixtures_db-2.log",
+   "warnings": [],
+   "stdoutHead": "Test tables written to fixtures.db",
+   "stdoutTail": "Test tables written to fixtures.db"
+  },
+  {
+   "id": "serve_fixtures",
+   "cmd": "datasette fixtures.db",
+   "rc": 0,
+   "sec": 1.93,
+   "startedSec": 0.73,
+   "checks": [
+    {
+     "type": "port_listens",
+     "passed": true
+    },
+    {
+     "type": "http_200",
+     "passed": true,
+     "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <title>Datasette: fixtures</title>\n    <link rel=\"stylesheet\" href=\"/-/static/app.css?_hash=3d78d20edee2\">\n    <meta name=\"viewport\" content=\"width=device-w"
+    }
+   ],
+   "files": {},
+   "log": "logs/serve_fixtures-1.log",
+   "warnings": [
+    "WARNING:  Invalid HTTP request received."
+   ],
+   "stdoutHead": "INFO:     Started server process [862]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)\nWARNING:  Invalid HTTP request received.\nINFO:     127.0.0.1:21601 - \"GET / HTTP/1.1\" 200 OK",
+   "stdoutTail": "INFO:     Started server process [862]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)\nWARNING:  Invalid HTTP request received.\nINFO:     127.0.0.1:21601 - \"GET / HTTP/1.1\" 200 OK"
+  }
+ ],
+ "traps": [
+  {
+   "id": "port_not_an_integer",
+   "cmd": "datasette fixtures.db --port=abc",
+   "kind": "wrong_type",
+   "knob": "--port",
+   "rc": 2,
+   "sec": 0.53,
+   "stderrTail": "Usage: datasette serve [OPTIONS] [FILES]...\nTry 'datasette serve --help' for help.\n\nError: Invalid value for '-p' / '--port': 'abc' is not a valid integer range.",
+   "failsAsExpected": true,
+   "log": "logs/trap-port_not_an_integer.log"
+  },
+  {
+   "id": "host_with_equals_sign",
+   "cmd": "datasette fixtures.db --host=A=B",
+   "kind": "string_equals",
+   "knob": "--host",
+   "rc": 3,
+   "sec": 0.57,
+   "stderrTail": "INFO:     Started server process [1260]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nERROR:    [Errno -2] Name or service not known\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.",
+   "failsAsExpected": true,
+   "log": "logs/trap-host_with_equals_sign.log"
+  },
+  {
+   "id": "unknown_key",
+   "cmd": "datasette fixtures.db --pot=8011",
+   "kind": "unknown_flag",
+   "knob": "--port",
+   "rc": 2,
+   "sec": 0.54,
+   "stderrTail": "Usage: datasette serve [OPTIONS] [FILES]...\nTry 'datasette serve --help' for help.\n\nError: No such option '--pot'. (Did you mean one of: '--host', '--port', '--root'?)",
+   "failsAsExpected": true,
+   "log": "logs/trap-unknown_key.log"
+  },
+  {
+   "id": "extra-db-filename_with_equals_sign",
+   "cmd": "python tests/fixtures.py fixtures.db --extra-db-filename=A=B",
+   "kind": "string_equals",
+   "knob": "--extra-db-filename",
+   "rc": 1,
+   "sec": 0.56,
+   "stderrTail": "Error: fixtures.db already exists, use --recreate to reset it",
+   "failsAsExpected": true,
+   "log": "logs/trap-extra-db-filename_with_equals_sign.log"
+  },
+  {
+   "id": "unknown_key_make_fixtures_db",
+   "cmd": "python tests/fixtures.py fixtures.db --extr-db-filename=hello",
+   "kind": "unknown_flag",
+   "knob": "--extra-db-filename",
+   "rc": 2,
+   "sec": 0.56,
+   "stderrTail": "Usage: fixtures.py [OPTIONS] [DB_FILENAME] [CONFIG] [METADATA] [PLUGINS_PATH]\nTry 'fixtures.py --help' for help.\n\nError: No such option '--extr-db-filename'. Did you mean '--extra-db-filename'?",
+   "failsAsExpected": true,
+   "log": "logs/trap-unknown_key_make_fixtures_db.log"
+  }
+ ],
+ "knobsVerified": [
+  {
+   "cmd": "datasette fixtures.db --port=8011 --host=0.0.0.0 '--setting=default_page_size 20' --immutable=fixtures.db",
+   "rc": 0,
+   "sec": 0.72,
+   "startsWithPrompt": false,
+   "separators": 0
+  }
+ ],
+ "knobsFailed": [],
+ "allChecksPassed": true,
+ "network": {
+  "outboundDomainAllowlist": [
+   "pypi.org",
+   "files.pythonhosted.org",
+   "download.pytorch.org",
+   "github.com",
+   "*.github.com",
+   "codeload.github.com",
+   "raw.githubusercontent.com",
+   "objects.githubusercontent.com",
+   "*.githubusercontent.com"
+  ],
+  "outboundCidrAllowlist": [],
+  "allowDomainFixes": []
+ },
+ "modelCalls": [
+  {
+   "role": "discovery",
+   "model": "claude-sonnet-5-5",
+   "inputTokens": 10539,
+   "outputTokens": 913,
+   "usd": 0.030208
+  },
+  {
+   "role": "repair",
+   "model": "claude-sonnet-5-5",
+   "inputTokens": 3667,
+   "outputTokens": 167,
+   "usd": 0.009004
+  },
+  {
+   "role": "repair",
+   "model": "claude-sonnet-5-5",
+   "inputTokens": 4201,
+   "outputTokens": 151,
+   "usd": 0.009912
+  },
+  {
+   "role": "plan",
+   "model": "claude-sonnet-5-5",
+   "inputTokens": 5221,
+   "outputTokens": 985,
+   "usd": 0.020292
+  }
+ ],
+ "modelSpendUsd": 0.069416,
+ "sandboxSpendNote": "not yet visible (billing report returned 6 items at 2026-11-15T20:24:41Z; job cost not in an hourly bucket yet)",
+ "draftPlan": {
+  "repo": "simonw/datasette",
+  "commit": "e9d45fe400608d516d7b2b676f678ee4461579e1",
+  "hardware": "cpu",
+  "timeBudgetMin": 20,
+  "totalMin": 11,
+  "steps": [
+   {
+    "n": 1,
+    "pattern": "see",
+    "title": "See the route: build fixtures.db with tests/fixtures.py, then serve it with `datasette fixtures.db` (docs/contributing.rst)",
+    "minutes": 2,
+    "check": null
+   },
+   {
+    "n": 2,
+    "pattern": "run",
+    "title": "Install datasette from the checkout",
+    "minutes": 1,
+    "cmd": "pip install -e .",
+    "measuredSec": 2.3,
+    "check": {
+     "type": "exit_zero"
+    }
+   },
+   {
+    "n": 3,
+    "pattern": "run",
+    "title": "Build the sample fixtures database",
+    "minutes": 1,
+    "cmd": "python tests/fixtures.py fixtures.db",
+    "measuredSec": 1.03,
+    "check": {
+     "type": "files_exist",
+     "paths": [
+      "fixtures.db"
+     ]
+    }
+   },
+   {
+    "n": 4,
+    "pattern": "run",
+    "title": "Serve the database and open it in your browser",
+    "minutes": 2,
+    "cmd": "datasette fixtures.db",
+    "measuredSec": 1.93,
+    "check": {
+     "type": "recorded"
+    }
+   },
+   {
+    "n": 5,
+    "pattern": "change",
+    "title": "Serve on another port, with a smaller page size, immutable",
+    "minutes": 5,
+    "cmd": "datasette fixtures.db --port=8011 --host=0.0.0.0 '--setting=default_page_size 20' --immutable=fixtures.db",
+    "check": {
+     "type": "recorded"
+    }
+   }
+  ],
+  "install": [
+   "pip install -e .",
+   "pip install pytest"
+  ],
+  "trapsToWarn": [
+   "tests/fixtures.py imports pytest, but the install doesn't pull it in: run `pip install pytest` before building fixtures.db.",
+   "The README's `uv run` prefix doesn't apply without uv: run `python tests/fixtures.py fixtures.db` and `datasette fixtures.db` directly after `pip install -e .`.",
+   "--port must be an integer: `--port=abc` is rejected.",
+   "--host cannot contain =: `--host=A=B` starts, then fails with a name-resolution error.",
+   "Option names must be exact: `--pot=8011` fails with 'No such option'; `--extr-db-filename` likewise fails for fixtures.py.",
+   "fixtures.py refuses to overwrite an existing fixtures.db: pass --recreate to reset it."
+  ]
+ },
+ "gaveUp": null,
+ "snapshotImage": "im-01M7GE4290DXHPQRV2RFGGAEST"
+}

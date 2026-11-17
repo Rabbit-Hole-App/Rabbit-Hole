@@ -1,0 +1,494 @@
+{
+ "project": "repo-bc9972f9-nanogpt",
+ "canvas": "canvas-c6e10551",
+ "indexing": "ready",
+ "catalogue": {
+  "status": "ready",
+  "practicalRoutes": 2
+ },
+ "catalogueDoc": {
+  "summary": "nanoGPT is a small, readable codebase for training and finetuning GPT language models, and for sampling text from them. It can train from scratch on Shakespeare or OpenWebText, or start from OpenAI's GPT-2 checkpoints.",
+  "groups": [
+   {
+    "id": "main",
+    "label": "command-line scripts",
+    "path": "./"
+   }
+  ],
+  "routes": [
+   {
+    "routeId": "benchmark_model",
+    "group": "main",
+    "title": "Benchmark the model's training speed",
+    "description": "Runs the core training step on random data and prints time per iteration.",
+    "resultKind": "metric",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0,
+     "evidence": []
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python bench.py --device=cpu --compile=False",
+      "source": "bench.py:12"
+     }
+    ],
+    "knobsHint": [
+     {
+      "flag": "--batch_size",
+      "source": "bench.py:12"
+     },
+     {
+      "flag": "--block_size",
+      "source": "bench.py:13"
+     },
+     {
+      "flag": "--device",
+      "source": "bench.py:17"
+     },
+     {
+      "flag": "--compile",
+      "source": "bench.py:19"
+     },
+     {
+      "flag": "--profile",
+      "source": "bench.py:20"
+     }
+    ],
+    "prerequisites": [],
+    "practical": true,
+    "effort": "Quick \u2014 just Python",
+    "recommended": true
+   },
+   {
+    "routeId": "shakespeare_char_cpu",
+    "group": "main",
+    "title": "Train a tiny Shakespeare model on CPU and read what it writes",
+    "description": "Downloads the small Shakespeare text, trains a small character-level GPT on the CPU for a few minutes, then prints generated Shakespeare-like text.",
+    "resultKind": "stdout",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0.001,
+     "downloadHosts": [
+      "raw.githubusercontent.com"
+     ],
+     "evidence": [
+      {
+       "kind": "download",
+       "source": "README.md:40"
+      }
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python data/shakespeare_char/prepare.py",
+      "source": "README.md:40"
+     },
+     {
+      "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+      "source": "README.md:85"
+     },
+     {
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+      "source": "README.md:91"
+     }
+    ],
+    "knobsHint": [
+     {
+      "flag": "--max_iters",
+      "source": "train.py:59"
+     },
+     {
+      "flag": "--n_layer",
+      "source": "train.py:52"
+     },
+     {
+      "flag": "--n_embd",
+      "source": "train.py:54"
+     },
+     {
+      "flag": "--block_size",
+      "source": "train.py:50"
+     },
+     {
+      "flag": "--batch_size",
+      "source": "train.py:49"
+     },
+     {
+      "flag": "--temperature",
+      "source": "sample.py:17"
+     },
+     {
+      "flag": "--num_samples",
+      "source": "sample.py:15"
+     }
+    ],
+    "prerequisites": [],
+    "practical": true,
+    "effort": "Quick \u2014 just Python"
+   },
+   {
+    "routeId": "sample_pretrained_gpt2",
+    "group": "main",
+    "title": "Have pretrained GPT-2 continue a prompt you give it",
+    "description": "Downloads OpenAI's GPT-2 XL weights and prints several continuations of a prompt.",
+    "resultKind": "stdout",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 6.5,
+     "downloadHosts": [
+      "huggingface.co"
+     ],
+     "evidence": [
+      {
+       "kind": "download",
+       "source": "README.md:197"
+      }
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python sample.py --init_from=gpt2-xl --start=\"What is the answer to life, the universe, and everything?\" --num_samples=5 --max_new_tokens=100 --device=cpu",
+      "source": "README.md:197"
+     }
+    ],
+    "knobsHint": [
+     {
+      "flag": "--init_from",
+      "source": "sample.py:12"
+     },
+     {
+      "flag": "--start",
+      "source": "sample.py:14"
+     },
+     {
+      "flag": "--num_samples",
+      "source": "sample.py:15"
+     },
+     {
+      "flag": "--max_new_tokens",
+      "source": "sample.py:16"
+     },
+     {
+      "flag": "--temperature",
+      "source": "sample.py:17"
+     },
+     {
+      "flag": "--top_k",
+      "source": "sample.py:18"
+     },
+     {
+      "flag": "--device",
+      "source": "sample.py:20"
+     }
+    ],
+    "prerequisites": [],
+    "practical": false,
+    "effort": "Heavy \u2014 large download",
+    "reason": "needs a download of about 6.5 GB"
+   },
+   {
+    "routeId": "multinode_training",
+    "group": "main",
+    "title": "Train across two GPU nodes with distributed training",
+    "description": "Launches distributed training on a master node and a worker node, 8 GPUs each.",
+    "resultKind": "metric",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": true,
+     "downloadGB": 0,
+     "evidence": [
+      {
+       "kind": "gpu",
+       "source": "README.md:127"
+      }
+     ]
+    },
+    "prerequisites": [
+     "reproduce_gpt2_openwebtext"
+    ],
+    "stepsSketch": [
+     {
+      "cmd": "torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py",
+      "source": "README.md:127"
+     },
+     {
+      "cmd": "torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py",
+      "source": "README.md:129"
+     }
+    ],
+    "practical": false,
+    "effort": "Heavy \u2014 needs a GPU",
+    "reason": "needs a GPU"
+   },
+   {
+    "routeId": "reproduce_gpt2_openwebtext",
+    "group": "main",
+    "title": "Reproduce GPT-2 (124M) training on OpenWebText",
+    "description": "Downloads and tokenizes OpenWebText, then trains GPT-2 124M across 8 GPUs for about four days, logging loss down to about 2.85.",
+    "resultKind": "metric",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": true,
+     "downloadGB": 55,
+     "downloadHosts": [
+      "huggingface.co"
+     ],
+     "accounts": [
+      "wandb (optional logging)"
+     ],
+     "evidence": [
+      {
+       "kind": "gpu",
+       "source": "README.md:118"
+      },
+      {
+       "kind": "download",
+       "source": "README.md:112"
+      },
+      {
+       "kind": "account",
+       "source": "train.py:43"
+      }
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python data/openwebtext/prepare.py",
+      "source": "README.md:112"
+     },
+     {
+      "cmd": "torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py",
+      "source": "README.md:118"
+     }
+    ],
+    "knobsHint": [
+     {
+      "flag": "--wandb_log",
+      "source": "train.py:43"
+     },
+     {
+      "flag": "--batch_size",
+      "source": "train.py:49"
+     },
+     {
+      "flag": "--max_iters",
+      "source": "train.py:59"
+     }
+    ],
+    "prerequisites": [],
+    "practical": false,
+    "effort": "Heavy \u2014 needs a GPU",
+    "reason": "needs a GPU"
+   },
+   {
+    "routeId": "finetune_gpt2_shakespeare",
+    "group": "main",
+    "title": "Finetune GPT-2 on Shakespeare and read the samples",
+    "description": "Prepares the tiny Shakespeare text with the GPT-2 tokenizer, finetunes a pretrained GPT-2 checkpoint on it, and saves the best checkpoint.",
+    "resultKind": "files",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": true,
+     "downloadGB": 6.5,
+     "downloadHosts": [
+      "huggingface.co",
+      "raw.githubusercontent.com"
+     ],
+     "evidence": [
+      {
+       "kind": "gpu",
+       "source": "README.md:163"
+      },
+      {
+       "kind": "download",
+       "source": "README.md:163"
+      }
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python data/shakespeare/prepare.py",
+      "source": "README.md:163"
+     },
+     {
+      "cmd": "python train.py config/finetune_shakespeare.py",
+      "source": "README.md:163"
+     },
+     {
+      "cmd": "python sample.py --out_dir=out-shakespeare",
+      "source": "README.md:163"
+     }
+    ],
+    "knobsHint": [
+     {
+      "flag": "--init_from",
+      "source": "train.py:41"
+     },
+     {
+      "flag": "--block_size",
+      "source": "train.py:50"
+     },
+     {
+      "flag": "--learning_rate",
+      "source": "train.py:58"
+     },
+     {
+      "flag": "--max_iters",
+      "source": "train.py:59"
+     }
+    ],
+    "prerequisites": [],
+    "practical": false,
+    "effort": "Heavy \u2014 needs a GPU",
+    "reason": "needs a GPU"
+   },
+   {
+    "routeId": "shakespeare_char_gpu",
+    "group": "main",
+    "title": "Train a baby GPT on Shakespeare on a GPU and sample from it",
+    "description": "Trains the default 6-layer character-level GPT on a GPU in a few minutes, then prints several generated Shakespeare-style samples.",
+    "resultKind": "stdout",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": true,
+     "downloadGB": 0.001,
+     "downloadHosts": [
+      "raw.githubusercontent.com"
+     ],
+     "evidence": [
+      {
+       "kind": "gpu",
+       "source": "README.md:48"
+      },
+      {
+       "kind": "download",
+       "source": "README.md:40"
+      }
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python data/shakespeare_char/prepare.py",
+      "source": "README.md:40"
+     },
+     {
+      "cmd": "python train.py config/train_shakespeare_char.py",
+      "source": "README.md:48"
+     },
+     {
+      "cmd": "python sample.py --out_dir=out-shakespeare-char",
+      "source": "README.md:54"
+     }
+    ],
+    "prerequisites": [],
+    "practical": false,
+    "effort": "Heavy \u2014 needs a GPU",
+    "reason": "needs a GPU"
+   },
+   {
+    "routeId": "eval_gpt2_baselines",
+    "group": "main",
+    "title": "Measure the loss of OpenAI's GPT-2 models on OpenWebText",
+    "description": "Prepares OpenWebText, then evaluates the GPT-2 checkpoint and prints its train and validation loss; medium, large and xl configs follow the same pattern.",
+    "resultKind": "metric",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": true,
+     "downloadGB": 55,
+     "downloadHosts": [
+      "huggingface.co"
+     ],
+     "evidence": [
+      {
+       "kind": "download",
+       "source": "README.md:112"
+      },
+      {
+       "kind": "gpu",
+       "source": "train.py:72"
+      }
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22"
+     },
+     {
+      "cmd": "python data/openwebtext/prepare.py",
+      "source": "README.md:112"
+     },
+     {
+      "cmd": "python train.py config/eval_gpt2.py",
+      "source": "README.md:141"
+     },
+     {
+      "cmd": "python train.py config/eval_gpt2_medium.py",
+      "source": "README.md:142"
+     },
+     {
+      "cmd": "python train.py config/eval_gpt2_large.py",
+      "source": "README.md:143"
+     },
+     {
+      "cmd": "python train.py config/eval_gpt2_xl.py",
+      "source": "README.md:144"
+     }
+    ],
+    "prerequisites": [],
+    "practical": false,
+    "effort": "Heavy \u2014 needs a GPU",
+    "reason": "needs a GPU"
+   }
+  ],
+  "repo": "karpathy/nanoGPT",
+  "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+  "hardware": "cpu"
+ },
+ "routes": [
+  {
+   "routeId": "benchmark_model",
+   "status": "none"
+  },
+  {
+   "routeId": "shakespeare_char_cpu",
+   "status": "none"
+  }
+ ]
+}

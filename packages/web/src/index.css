@@ -1075,6 +1075,13 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
    Explanation program sizes its drawing to the pane (ProgramScene focusFrameBox); when the pane is under its legible box, the
    whole focused card scrolls, never the drawing alone. */
 [data-focus-host] [data-focus-hide] { display: none; }
+/* The Study | Canvas pill sits at the header row's right end (LearnPage); the centred group keeps clear of it. */
+@media (min-width: 768px) { [data-canvas-header]:has([data-study-toggle]) { padding-right: 8rem; } }
+/* Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly, owner 2026-11-15): the card alone fills the right pane. The dotted surface and
+   every other card are not drawn (visibility, never display: nothing unmounts, so a Run card's session and the Runbook editor live on); the focused host is. */
+[data-study-card] [data-canvas-surface] { background-image: none !important; }
+[data-study-card] [data-canvas-world] { visibility: hidden; }
+[data-study-card] [data-canvas-world] [data-focus-host] { visibility: visible; }
 [data-focus-host]:has([data-program-viewport]) { overflow: auto !important; overscroll-behavior: contain; }
 /* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
    the height. Play, the scrubber and the inputs keep their 32 px targets; Interact's label sits beside its inputs. The Slash

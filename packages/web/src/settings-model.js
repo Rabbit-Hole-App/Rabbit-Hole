@@ -5,7 +5,7 @@ export const SETTINGS_PANES = [
   { id: 'profile', title: 'Profile' },
   { id: 'appearance', title: 'Appearance & input' },
   { id: 'learning', title: 'Learning & voice' },
-  { id: 'usage', title: 'AI usage' },
+  { id: 'usage', title: 'Usage' },
   { id: 'privacy', title: 'Privacy & security' },
 ];
 export const DEFAULT_PANE = 'profile';

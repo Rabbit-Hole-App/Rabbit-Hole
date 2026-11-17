@@ -1,0 +1,9 @@
+{
+ "project": "repo-1768708e-datasette",
+ "canvas": "canvas-cb7f187c",
+ "indexing": "failed",
+ "catalogue": {
+  "status": "failed",
+  "error": "The repository could not be indexed."
+ }
+}

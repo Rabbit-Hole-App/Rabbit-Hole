@@ -509,28 +509,12 @@ await check('15 Arrange and View submenus: Align stays greyed with nothing selec
   await quiet(page, 'submenus', before);
 });
 
-// Pinned Study (UI-27 Release 1, approved spec 2026-10-22: Canvas and Study live inside View, no extra top row).
-await check('16 View has Canvas and Study radios above Workspace (Canvas checked); Study opens the reference pane, Canvas closes it, the Workspace choice is untouched, and neither asks anything', async () => {
-  const before = counts();
-  const radios = async () => { const view = await openMenu(page, 'View'); const out = await view.getByRole('menuitemradio').evaluateAll(rows => rows.filter(row => !row.parentElement.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out; };
-  assert.deepEqual(await radios(), [['Canvas', 'true'], ['Study', 'false']]);
+// Run | Canvas is the header pill, not a View row (owner 2026-11-15). UNRUN: browser check.
+await check('16 View has no Canvas or Run rows and no Workspace or Go to document start; the mode is the pill at the top of the page', async () => {
   const rows = await (await openMenu(page, 'View')).evaluate(menu => [...menu.querySelectorAll(':scope [role^="menuitem"]')].filter(row => row.closest('[role="menu"]') === menu).map(row => row.textContent.trim()));
   await closeMenus(page);
-  assert.ok(rows.indexOf('Study') > rows.indexOf('Fit selection') && rows.indexOf('Study') < rows.indexOf('Workspace'), `Canvas and Study sit above Workspace: ${rows.join(', ')}`);
-  const view = await openMenu(page, 'View');
-  await view.getByRole('menuitemradio', { name: 'Study', exact: true }).click();
-  await closeMenus(page);
-  await page.locator('[data-study-pane]').waitFor({ timeout: 10000 });
-  assert.deepEqual(await radios(), [['Canvas', 'false'], ['Study', 'true']]);
-  await shot(page, 'view-16-study');
-  await (await openMenu(page, 'View')).getByRole('menuitemradio', { name: 'Canvas', exact: true }).click();
-  await closeMenus(page);
-  await page.locator('[data-study-pane]').waitFor({ state: 'detached', timeout: 10000 });
-  assert.deepEqual(await radios(), [['Canvas', 'true'], ['Study', 'false']]);
-  const workspace = await openMenu(page, 'View', 'Workspace');
-  assert.deepEqual(await workspace.getByRole('menuitemradio').allInnerTexts(), ['Canvas', 'Editor'], 'Workspace keeps its own Canvas / Editor');
-  await closeMenus(page);
-  await quiet(page, 'Canvas / Study', before);
+  assert.ok(!rows.includes('Canvas') && !rows.includes('Run') && !rows.includes('Study'), `View has no mode rows: ${rows.join(', ')}`);
+  assert.ok(!rows.includes('Workspace') && !rows.includes('Go to document start'), `the single document's rows are gone: ${rows.join(', ')}`);
 });
 
 // Owner spec 2026-10-29 section 7.1: View > Slash Commands opens the Slash Commands window, last in View after a divider; opening and

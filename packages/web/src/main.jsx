@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { Minimize2 } from 'lucide-react';
 import './index.css';
 import App from './App.jsx';
+import TooltipLayer from './TooltipLayer.jsx';
 import { AskPanel } from './ask.jsx';
 import MembersPage from './Members.jsx';
 import SearchModal from './Search.jsx';
@@ -199,4 +200,4 @@ const crashed = () => {
 };
 
 // The error is logged before the root is replaced, so a crash leaves its stack in the console.
-createRoot(rootEl, { onUncaughtError: (error, info) => { console.error(error, info?.componentStack); reportClientError('boundary', error, { componentStack: info?.componentStack }); crashed(); } }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);
+createRoot(rootEl, { onUncaughtError: (error, info) => { console.error(error, info?.componentStack); reportClientError('boundary', error, { componentStack: info?.componentStack }); crashed(); } }).render(<>{isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />}<TooltipLayer /></>);
