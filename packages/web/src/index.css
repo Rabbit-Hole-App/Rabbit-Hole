@@ -132,6 +132,7 @@ html {
   --viz-identity-2-text: #867033;
   --viz-surface: #FFFCF0;
   --viz-fill-slate: #A8BBD0;
+  --viz-playing: #3A7E69;
   /* A solid-filled role carries its own readable ink, because the fill is the
      background at that point and which ink reads on it flips with the theme:
      observed is near-black in light and near-white in dark. */
@@ -479,6 +480,7 @@ html {
   --viz-identity-3-text: #9c6aff;
   --viz-surface: #1f1f1f;
   --viz-fill-slate: #A8BBD0;
+  --viz-playing: #3A7E69;
   --viz-on-observed: #1f1f1f;
   --viz-on-success: #1f1f1f;
   /* Heat diverging scale, dark - each clears 3:1 against --viz-surface:
@@ -1098,6 +1100,16 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-block]:has([data-sketch-owner]) {
   outline: 2px solid color-mix(in srgb, var(--color-select) 35%, transparent);
   outline-offset: 2px;
+}
+
+/* A card whose explanation audio is playing (audio-playing.js, AdaptiveCanvas CanvasNode data-audio-playing; owner 2026-11-17): a green frame, the palette's success green (--viz-playing, generated from palette.js),
+   as the card's border and a soft outer outline, in addition to the selection ring (a box-shadow, so the two never collide). Outline, not a thicker border: no layout shift.
+   A static frame, no pulse; the border colour fades over the card's 150 ms (Settings' reduced motion zeroes it). */
+[data-block][data-block-id] { transition-property: box-shadow, border-color; }
+[data-block][data-audio-playing] {
+  border-color: var(--viz-playing);
+  outline: 3px solid color-mix(in srgb, var(--viz-playing) 25%, transparent);
+  outline-offset: 0;
 }
 
 /* A written Explanation's Markdown table (Md explain): the TutorDiagram frame - the shared surface, a 12px rounded border, a muted slate

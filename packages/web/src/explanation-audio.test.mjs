@@ -35,7 +35,7 @@ globalThis.URL.revokeObjectURL = () => {};
 
 const dir = mkdtempSync(join(tmpdir(), 'explanation-audio-')), outfile = join(dir, 'explanation.cjs');
 await esbuild.build({
-  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { getPlayingCard } from './audio-playing.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -234,4 +234,29 @@ test('a press on the pill never reaches the card (no drag, no selection)', async
   await mount(card('a'), { onPointerDown: () => { reached = true; } }); // a React handler on an ancestor, as the canvas's card drag is
   await B.act(async () => { $('[data-audio-play]').dispatchEvent(new window.Event('pointerdown', { bubbles: true, cancelable: true })); });
   assert.equal(reached, false);
+});
+
+test('the playing card id follows audible playback: set on play, cleared on pause, end, failure, another card and unmount', async () => {
+  reset();
+  await mount(card('a', { narration: ready('fs_a') }), card('b', { narration: ready('fs_b') }));
+  const [first, second] = $$('[data-explanation-audio]');
+  assert.equal(B.getPlayingCard(), null, 'idle: nothing plays');
+  await click(first.querySelector('[data-audio-play]'));
+  assert.equal(B.getPlayingCard(), 'a');
+  await click(first.querySelector('[data-audio-play]'));
+  assert.equal(B.getPlayingCard(), null, 'paused');
+  await click(first.querySelector('[data-audio-play]'));
+  await click(second.querySelector('[data-audio-play]'));
+  assert.equal(B.getPlayingCard(), 'b', 'starting another card moves it, and the first card pausing does not clear the new one');
+  await raise(audios[1], 'ended', { ended: true, paused: true });
+  assert.equal(B.getPlayingCard(), null, 'ended');
+  await click(second.querySelector('[data-audio-replay]'));
+  assert.equal(B.getPlayingCard(), 'b');
+  await raise(audios[1], 'error');
+  assert.equal(B.getPlayingCard(), null, 'a failure');
+  await click(first.querySelector('[data-audio-replay]'));
+  assert.equal(B.getPlayingCard(), 'a');
+  await B.act(async () => root.unmount());
+  root = null;
+  assert.equal(B.getPlayingCard(), null, 'unmounting');
 });
