@@ -98,7 +98,7 @@ test('preparing shows a spinner with the name Preparing audio, play disabled and
   assert.equal(audios.length, 0);
 });
 
-test('ready shows play, replay and the length as m:ss, inside the card header, and reads nothing until pressed', async () => {
+test('ready shows play and replay (no time), inside the card header, and reads nothing until pressed', async () => {
   reset();
   await mount(card('a'));
   const head = $('[data-explanation-head]'), pill = $('[data-explanation-audio]');
@@ -108,13 +108,13 @@ test('ready shows play, replay and the length as m:ss, inside the card header, a
   assert.equal(play.getAttribute('title'), 'Play explanation');
   assert.equal(replay.getAttribute('title'), 'Replay from the start');
   assert.equal(replay.getAttribute('aria-label'), 'Replay from the start');
-  assert.equal(pill.querySelector('[data-audio-time]').textContent, '1:24');
+  assert.equal(pill.querySelector('[data-audio-time]'), null, 'no time is shown');
   for (const button of [play, replay]) { assert.equal(button.tagName, 'BUTTON'); assert.equal(button.getAttribute('type'), 'button'); assert.match(button.className, /\bh-7\b/); assert.match(button.className, /\bw-7\b/); assert.match(button.className, /focus-visible:outline-2/); }
   assert.equal(reads.length, 0, 'no audio is downloaded until it is played');
   assert.equal(audios.every(a => a.plays === 0), true, 'never autoplays');
 });
 
-test('play reads the card file like its figures, plays, becomes Pause and counts elapsed over the total; pause keeps the position and play resumes from it', async () => {
+test('play reads the card file like its figures, plays, becomes Pause; pause keeps the position and play resumes from it', async () => {
   reset();
   await mount(card('a'));
   await click($('[data-audio-play]'));
@@ -126,13 +126,13 @@ test('play reads the card file like its figures, plays, becomes Pause and counts
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'playing');
   assert.match($('[data-audio-play]').innerHTML, /lucide-pause/);
   await raise(audio, 'timeupdate', { currentTime: 12.6 });
-  assert.equal($('[data-audio-time]').textContent, '0:12 / 1:24');
+  assert.equal($('[data-audio-time]'), null, 'no time is shown');
   await click($('[data-audio-play]'));
   assert.equal(audio.paused, true);
   assert.equal($('[data-audio-play]').getAttribute('title'), 'Play explanation');
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'paused');
   assert.equal(audio.currentTime, 12.6, 'the position is kept');
-  assert.equal($('[data-audio-time]').textContent, '0:12 / 1:24');
+  assert.equal($('[data-audio-time]'), null, 'no time is shown');
   await click($('[data-audio-play]'));
   assert.equal(audio.plays, 2);
   assert.equal(audio.currentTime, 12.6, 'resumed, not restarted');
@@ -151,7 +151,7 @@ test('replay restarts at zero and plays, also before the file was ever read', as
   await click($('[data-audio-replay]'));
   assert.equal(audio.currentTime, 0);
   assert.equal(audio.plays, 2);
-  assert.equal($('[data-audio-time]').textContent, '0:00 / 1:24');
+  assert.equal($('[data-audio-time]'), null, 'no time is shown');
   assert.equal($('[data-audio-play]').getAttribute('title'), 'Pause explanation');
 });
 
@@ -165,7 +165,7 @@ test('at the end it returns to the idle ready state with the position back at ze
   assert.equal(audio.currentTime, 0);
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'idle');
   assert.equal($('[data-audio-play]').getAttribute('title'), 'Play explanation');
-  assert.equal($('[data-audio-time]').textContent, '1:24');
+  assert.equal($('[data-audio-time]'), null, 'no time is shown');
 });
 
 test('only one card plays at a time: starting another pauses the first, which keeps its place', async () => {
@@ -181,7 +181,7 @@ test('only one card plays at a time: starting another pauses the first, which ke
   assert.equal(first.getAttribute('data-audio-state'), 'paused');
   assert.equal(second.getAttribute('data-audio-state'), 'playing');
   assert.equal(audios[0].currentTime, 5);
-  assert.equal(second.querySelector('[data-audio-time]').textContent, '0:00 / 1:01');
+  assert.equal(second.querySelector('[data-audio-time]'), null, 'no time is shown');
 });
 
 test('it stops when the card becomes a minimized tile, and when the card goes away', async () => {
@@ -211,7 +211,7 @@ test('an audio error or a stall shows a button-local failure, no toast, and the 
   await raise(audio, 'error');
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'failed');
   assert.equal($('[data-audio-play]').getAttribute('title'), 'Audio could not play. Try again.');
-  assert.equal($('[data-audio-time]').textContent, '1:24', 'back to the ready state');
+  assert.equal($('[data-audio-time]'), null, 'no time is shown');
   assert.equal(audio.paused, true);
   assert.deepEqual(toasts, [], 'no toast');
   await click($('[data-audio-play]'));
