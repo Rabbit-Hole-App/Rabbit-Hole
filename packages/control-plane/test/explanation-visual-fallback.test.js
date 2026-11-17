@@ -49,3 +49,23 @@ test('nothing readable at all: with a plan the card fails (the chain gets its ne
   const noPlan = (await quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'stack vs queue', planned: true, plan: null }, { callModel: model({ title: 'Stack and queue', body }), repairs: 0 }))).value;
   assert.equal([noPlan.result, noPlan.block?.visualFallback].join(), 'artifact,dropped');
 });
+
+// Arithmetic-tagged issues (box-plot fences that are not Q1 - 1.5 IQR) are never dropped or simplified, with or without a plan: the step fails with explanation_bad_numbers and the wrong number is never delivered.
+test('a diagram with an arithmetic issue fails the step (explanation_bad_numbers) where an invalid diagram without one is dropped; the repair message carries the rewrite sentence', async () => {
+  const wrong = { version: 1, diagram: { kind: 'box-plot', title: 'Fences from the quartiles', x: { label: 'Reading', min: 0, max: 20 }, boxes: [{ label: 'Trial', whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14, fences: { lower: 2, upper: 16 } }] } };
+  const prose = spec => `The fences from the quartiles mark where an outlier begins.\n\n${fence(spec)}\n\nA reading beyond a fence is an outlier, so the quartiles decide the fences.`;
+  const sent = [], recorded = card => async (e, b) => { sent.push(b); return model(card)(); };
+  const asked = (card, repairs) => quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'box plot fences', planned: true, plan: null }, { callModel: recorded(card), repairs })).then(r => r.value);
+  const failed = await asked({ title: 'Fences', body: prose(wrong) }, 0);
+  assert.equal(failed.result, 'validation_error');
+  assert.match(failed.error, /^explanation_bad_numbers: .*not 2 and 16/);
+  assert.equal(failed.block, undefined, 'the prose is not delivered with the wrong number');
+  const repaired = await asked({ title: 'Fences', body: prose(wrong) }, 1);
+  assert.equal(repaired.result, 'validation_error');
+  assert.equal(sent.length, 3, 'one call at repairs 0, then the call and its one repair');
+  assert.ok(sent[2].messages.at(-1).content[0].content.includes('Rewrite every sentence that states these numbers.'));
+  // The same card with a diagram that is invalid without an arithmetic tag keeps the old drop path.
+  const other = { version: 1, diagram: { kind: 'matrix', title: 'Fences', columns: [{ heading: 'A' }] } };
+  const dropped = await asked({ title: 'Fences', body: prose(other) }, 0);
+  assert.equal([dropped.result, dropped.block?.visualFallback].join(), 'artifact,dropped');
+});

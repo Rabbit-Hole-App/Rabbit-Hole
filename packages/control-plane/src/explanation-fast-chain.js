@@ -1,6 +1,6 @@
 // The 'fast-chain' adapter of the written /explain model profiles (explanation-models.js fireworks-* and cerebras-*, owner 2026-11-08): a written card must
-// not fail, and it must be fast. Production (fireworks-low) runs the author call on Fireworks gpt-oss-120b; when that step fails (HTTP 429 or 5xx, a
-// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on Gemini gemini-3.5-flash-lite. Cerebras is
+// not fail, and it must be fast. Production (google-low) runs the author call on Gemini gemini-3.5-flash-lite, with Fireworks gpt-oss-120b as the fallback; a fireworks-low profile runs them the other way round. When a step fails (HTTP 429 or 5xx, a
+// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on the next step. Cerebras is
 // never a fallback step (owner, 2026-11-08); a cerebras-* profile, chosen on its own, runs Cerebras, then Fireworks, then Gemini. Never the plan model (Opus). A step whose credential is not set on this server is skipped. Each step is the real generateArtifact (validation, the one repair,
 // the saved card) with this step's transport injected, so every step's calls are admitted, priced and settled by spendTransport like any paid call.
 // EXPLANATION_FALLBACK=off (benchmarks: a fallback is a failure) runs the profile's own provider only, and its failure is reported as one.
@@ -72,8 +72,12 @@ export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s =
 const NEW = new Set(NEW_KINDS);
 const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.content ?? []).map(p => (typeof p === 'string' ? p : p?.text)).filter(Boolean).at(-1);
   try { return new Set((JSON.parse(first).requiredVisuals ?? []).map(v => v.diagramKind).filter(Boolean)); } catch { return new Set(); } };
+// Whether a step can write a diagram kind: Gemini's schema (forGemini) drops the NEW kinds unless the request names them; every other provider gets them all.
+// learn-artifact.js ARITHMETIC_REPAIRS_SAME_MODEL reads this to decide whether a step whose answer has a wrong number gets a second repair or hands over to the next provider.
+const geminiWrites = (kind, keep) => !NEW.has(kind) || keep.has(kind);
+export const canWriteKind = (step, kind, keep = new Set()) => step.provider !== 'google' || geminiWrites(kind, keep);
 export const forGemini = (o, keep = new Set()) => {
-  if (Array.isArray(o)) return o.filter(b => !NEW.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
+  if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep));
   if (!o || typeof o !== 'object') return o;
   if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
@@ -235,22 +239,25 @@ export async function generateWithFallbacks(env, input, options, generate) {
   const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
   try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
   async function runSteps() {
-  for (const step of steps) {
-    const note = outcome => { attempts.push({ provider: step.provider, model: step.model, outcome }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
+  // The kinds the learner named (the request's requiredVisuals, what stepRequest sends and requiredKinds reads back): Gemini writes a NEW kind only for these.
+  const named = new Set((input.visualRequirements?.items ?? []).filter(i => !i.implied).map(i => i.diagramKind).filter(Boolean));
+  for (const [index, step] of steps.entries()) {
+    const next = steps.slice(index + 1).find(later => env[later.credentialRef]); // the provider that would run if this step fails; none: this is the last
+    const note = (outcome, extra = {}) => { attempts.push({ provider: step.provider, model: step.model, outcome, ...extra }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
     if (!env[step.credentialRef]) { note('skipped'); continue; }
     const seen = {};
     let out = null;
-    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
+    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, nextCanWrite: kind => Boolean(next) && canWriteKind(next, kind, named), callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
     catch (error) {
       last = Object.assign(error, { code: error.code || 'provider_error' });
       note(last.code);
       if (error.final || seen.final) break;
       continue;
     }
-    if (out.result === 'artifact') { note('artifact'); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
+    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
     if (out.result !== 'validation_error') return { ...out, attempts }; // a plan refusal or a question back is not a provider failure
     last = { ...out, reason: 'validation_error' };
-    note('validation_error');
+    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
   }
   if (last instanceof Error) throw Object.assign(last, { attempts });
   return last ? { ...last, attempts } : { result: 'unsupported', message: 'Explanations are not set up on this server yet, so nothing was sent or charged.', reason: 'credential_missing', attempts };

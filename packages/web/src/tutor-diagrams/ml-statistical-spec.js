@@ -134,7 +134,13 @@ function checkBoxes(d, issue) {
     if (box.fences) {
       const { lower, upper } = box.fences;
       if (lower > box.whiskerLow || upper < box.whiskerHigh) issue(['boxes', i, 'fences'], 'Fences must enclose both whiskers');
-      if (!within(lower, d.x.min, d.x.max) || !within(upper, d.x.min, d.x.max)) issue(['boxes', i, 'fences'], 'Fences are outside the shared axis domain');
+      // Fences may fall outside the author's x range (the renderer widens the axis to hold them); summary values and outliers may not.
+      const places = Math.max(0, ...[box.q1, box.q3, lower, upper].map(value => (String(value).split('.')[1] ?? '').length));
+      const spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, round = value => Number(value.toFixed(places + 1));
+      // Same rounding allowance as the waterfall total: half a unit of the last decimal written.
+      if (Math.abs(lower - low) > 0.5 * 10 ** -places + 1e-9 || Math.abs(upper - high) > 0.5 * 10 ** -places + 1e-9) {
+        issue(['boxes', i, 'fences'], `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.`, { code: 'arithmetic' });
+      }
     }
     (box.outliers ?? []).forEach(({ value }, j) => {
       if (!within(value, d.x.min, d.x.max)) issue(['boxes', i, 'outliers', j, 'value'], 'Outlier is outside the shared axis domain');

@@ -428,9 +428,26 @@ export function diagramProblem(md) {
     if (f.lang === 'mermaid') return 'explanation_bad_diagram: a mermaid fence is not accepted; write the diagram as one closed ```rh-diagram fence holding a TutorDiagram JSON spec';
     if (f.lang !== DIAGRAM) continue;
     if (!f.closed) return 'explanation_bad_diagram: an rh-diagram fence is not closed';
+    try { parseTutorDiagram(f.lines.join('\n')); } catch (error) { return fenceProblem(error); }
+  }
+  return null;
+}
+// An issue the diagram validator tagged params { code: 'arithmetic' } (spec.js issue callback; today the box-plot fence check) means a number in the diagram is wrong: the
+// problem is named explanation_bad_numbers, its tagged issue first, and learn-artifact.js never drops or simplifies such a diagram (the card fails or is repaired instead).
+const arithmeticOf = error => (Array.isArray(error?.issues) ? error.issues : []).filter(i => i.params?.code === 'arithmetic');
+function fenceProblem(error) {
+  const all = Array.isArray(error?.issues) ? error.issues : [], numbers = arithmeticOf(error);
+  const issues = all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
+  return numbers.length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+}
+// -> null, or { problem, issue, kind } for the first closed rh-diagram fence of the card (body or folded sections) that carries an arithmetic-tagged issue:
+// the problem text (explanation_bad_numbers: ...), the tagged issue's own message, and the diagram's kind.
+export function numbersIssue(block) {
+  for (const md of [block?.body, ...(block?.more || []).map(s => s?.text)]) for (const f of split(md).fences) {
+    if (f.lang !== DIAGRAM || !f.closed) continue;
     try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
-      const issues = Array.isArray(error?.issues) ? error.issues.slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
-      return `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+      const [first] = arithmeticOf(error);
+      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } return { problem: fenceProblem(error), issue: first.message, kind }; }
     }
   }
   return null;
