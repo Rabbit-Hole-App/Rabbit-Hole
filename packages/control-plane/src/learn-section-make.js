@@ -31,10 +31,22 @@ const json = (body, status = 200) => Response.json(body, { status, headers: { 'C
 const label = command => (SECTION_TOOLS[command]?.label || command).toLowerCase();
 const skipNote = command => `I skipped the ${label(command)} for this part.`;
 
-// The tool's module, loaded on use so the TOOLS lane's modules plug in as they land. null: not there (or it failed to load).
+// The tool's module, loaded on use. Literal specifiers only: the dev-deploy Worker graph scan refuses a computed specifier. null: not there (or it failed to load).
+const TOOL_MODULES = {
+  arxiv: () => import('./learn-section-make/arxiv.js'),
+  browser: () => import('./learn-section-make/browser.js'),
+  code: () => import('./learn-section-make/code.js'),
+  diagram: () => import('./learn-section-make/diagram.js'),
+  document: () => import('./learn-section-make/document.js'),
+  explanation: () => import('./learn-section-make/explanation.js'),
+  graph: () => import('./learn-section-make/graph.js'),
+  notebook: () => import('./learn-section-make/notebook.js'),
+  wikipedia: () => import('./learn-section-make/wikipedia.js'),
+  youtube: () => import('./learn-section-make/youtube.js'),
+};
 export async function loadToolModule(command) {
-  if (!COMMAND.test(command)) return null;
-  try { const m = await import(`./learn-section-make/${command}.js`); return typeof m.validate === 'function' ? m : null; } catch { return null; }
+  if (!COMMAND.test(command) || !Object.hasOwn(TOOL_MODULES, command)) return null;
+  try { const m = await TOOL_MODULES[command](); return typeof m.validate === 'function' ? m : null; } catch { return null; }
 }
 
 // C §0 and §4c: the words around the card. -> { lead, follow, errors, leadDefault }

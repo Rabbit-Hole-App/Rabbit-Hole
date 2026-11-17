@@ -43,7 +43,7 @@ export const NEVER_ON_PRODUCTION = ['REHEARSAL_PIN_COMMIT', 'TEST_BYPASS_SECRET'
 export const BUILD_ENV = {
   VITE_RABBIT_HOLE: 'true',
   // The rehearsal feature ships ON (Reviewer 2026-11-16 12:10): the Tutor flow, the Run card, the section rows and the Start-from-GitHub canvas destination
-  // (start-run.js). The code-explain route stays dark behind the server's CODE_EXPLAIN_ENABLED. rehearsal-flag.js builds it in only for '1'.
+  // (start-run.js). The code-explain route follows the server's CODE_EXPLAIN_ENABLED. rehearsal-flag.js builds it in only for '1'.
   VITE_REHEARSAL_TRIGGER: '1',
   // /motion (owner activation GO, 2026-10-21): the production orchestrator and renderer serve it.
   VITE_MOTION: 'true',

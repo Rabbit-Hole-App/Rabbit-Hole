@@ -12,8 +12,8 @@ const names = readdirSync(dir);
 const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar', 'Animation3DCard', 'RunCard', 'TutorRehearsal'];
 // The rehearsal feature's user-facing text that must ship with it: the codebase chip, the Tutor flow, the Run card and the section rows.
 const REQUIRED_TEXT = ['Use the codebase', 'Next section', 'Build this section', 'Planning this section'];
-// The code-explain card (CodeExplainCard.jsx, code-explain-insert.js) loads behind the same rehearsal flag, so its chunks ship; it is never made in production
-// because its chat route is dark behind the server's CODE_EXPLAIN_ENABLED (chat-capability-route.js availability, Reviewer 2026-11-16 12:10).
+// The code-explain card (CodeExplainCard.jsx, code-explain-insert.js) loads behind the same rehearsal flag, so its chunks ship; production makes it only
+// when the server's CODE_EXPLAIN_ENABLED offers its chat route (chat-capability-route.js availability, Reviewer 2026-11-16 12:10).
 const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
 // Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
 // dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN, and the

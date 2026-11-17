@@ -185,8 +185,8 @@
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev",
     // Monthly AI allowance per signed-in user (owner D3 2026-10-16; credits Phase 1 shows it, enforcement comes later).
     "AI_MONTHLY_ALLOWANCE_USD": "25",
-    // The code-explain chat route (chat-capability-route.js availability): OFF in production until its calibration run 4 passes (Reviewer 2026-11-16 12:10).
-    "CODE_EXPLAIN_ENABLED": "false",
+    // The code-explain chat route (chat-capability-route.js availability): ON in production (owner 2026-11-17: ship with every flag on). Set "false" to take the route dark again.
+    "CODE_EXPLAIN_ENABLED": "true",
     // Compute usage (learn-compute.js; usage-limits spec): pinned in production, never the code defaults (Reviewer 2026-11-16 11:55). Rates are micro-USD per
     // CPU core-second and per GiB-second, from Modal's non-preemptible Sandbox pricing (read 2026-11-15); the allowance is US$ per user per month.
     "COMPUTE_MONTHLY_ALLOWANCE_USD": "10",
