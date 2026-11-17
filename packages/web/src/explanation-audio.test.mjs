@@ -292,3 +292,16 @@ test('the transcript window data follows the audio: opens on play with the scrip
   root = null;
   assert.equal(B.getTranscript(), null, 'unmounting closes it');
 });
+
+test('the window shows narration.transcript (LaTeX) when there is one, else the script; the voice file is the same either way', async () => {
+  reset(); B.closeTranscript('a');
+  await mount(card('a', { narration: ready('fs_a', { script: 'e to the minus one per step.', transcript: 'Decay is $e^{-1}$ per step.' }) }));
+  await click($('[data-audio-play]'));
+  assert.equal(B.getTranscript().script, 'Decay is $e^{-1}$ per step.', 'the displayed text is the LaTeX transcript');
+  assert.equal(reads.length, 1, 'the same one audio file is read');
+  await mount(card('a', { narration: ready('fs_a2', { script: 'plain spoken words.', transcript: '  ' }) }));
+  await click($('[data-audio-play]'));
+  assert.equal(B.getTranscript().script, 'plain spoken words.', 'a blank transcript falls back to the script');
+  await B.act(async () => root.unmount());
+  root = null;
+});

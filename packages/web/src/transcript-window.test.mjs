@@ -12,10 +12,21 @@ import { parseHTML } from 'linkedom';
 
 const { window, document } = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
 Object.assign(globalThis, { window, document, HTMLElement: window.HTMLElement, Node: window.Node, Element: window.Element, IS_REACT_ACT_ENVIRONMENT: true });
+globalThis.localStorage ||= { getItem: () => null, setItem() {}, removeItem() {} };
+globalThis.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
+Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { userAgent: 'node', clipboard: { writeText: async () => {} } } });
 const dir = mkdtempSync(join(tmpdir(), 'transcript-window-')), outfile = join(dir, 'w.cjs');
 await esbuild.build({
   stdin: { contents: "export { default as TranscriptWindow } from './TranscriptWindow.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client'; export { openTranscript, updateTranscript, closeTranscript } from './audio-playing.js';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
+  loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
+  plugins: [{ name: 'stubs', setup(build) { // Md.jsx pulls in mermaid and shiki, which the window never draws
+    build.onResolve({ filter: /\?(url|raw|worker)$/ }, args => ({ path: args.path, namespace: 'asset' }));
+    build.onLoad({ filter: /.*/, namespace: 'asset' }, () => ({ contents: 'export default ""' }));
+    build.onResolve({ filter: /^(mermaid|shiki)$/ }, args => ({ path: args.path, namespace: 'stub' }));
+    build.onLoad({ filter: /^mermaid$/, namespace: 'stub' }, () => ({ contents: 'export default { initialize() {}, async render() { return { svg: "<svg></svg>" }; } };' }));
+    build.onLoad({ filter: /^shiki$/, namespace: 'stub' }, () => ({ contents: 'export async function codeToHtml() { throw new Error("no shiki in node"); }' }));
+  } }],
 });
 globalThis.MessageChannel = class { constructor() { const port1 = { onmessage: null }; this.port1 = port1; this.port2 = { postMessage: data => setImmediate(() => port1.onmessage?.({ data })) }; } };
 const B = createRequire(import.meta.url)(outfile);
@@ -90,4 +101,36 @@ test('the card mounts it once in the canvas node, and the open card rises above 
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
   assert.equal(canvas.match(/<TranscriptWindow id=\{id\} \/>/g).length, 1);
   assert.match(css, /\[data-block\]:has\(> \[data-card-transcript\]\)[^{]*\{ z-index: 6; \}/);
+});
+
+const BS = String.fromCharCode(92); // a backslash, for LaTeX commands
+test('equations are typeset by the app inline renderer: KaTeX markup for a revealed span, none for an unspoken one, source text for invalid LaTeX', async () => {
+  const text = `Decay is $e^{-1}$ per step. Then $${BS}frac{1}{N}$ follows. Last $${BS}frac{1}{$ is broken.`;
+  await B.act(async () => B.openTranscript('b', text));
+  await B.act(async () => B.updateTranscript('b', 20, 100));
+  let shown = $('[data-transcript-text]');
+  assert.ok(shown.querySelector('.katex'), 'the first equation is typeset');
+  assert.ok(shown.querySelector('[data-chat-math="inline"]'), 'by the same inline renderer as the follow-up strips (MathText)');
+  assert.equal(shown.querySelectorAll('.katex').length, 1, 'the later equations are not shown yet');
+  assert.doesNotMatch(shown.innerHTML, /frac/, 'an unspoken equation is not in the DOM, not even as source');
+  assert.doesNotMatch(shown.textContent, /\$/, 'no dollar signs: the equation is typeset, not printed');
+  await B.act(async () => B.updateTranscript('b', 100, 100));
+  shown = $('[data-transcript-text]');
+  assert.equal(shown.querySelectorAll('.katex').length, 2, 'both valid equations at the end');
+  assert.equal(shown.querySelectorAll('.katex-error').length, 1, 'the invalid one is KaTeX failure (throwOnError false), its source text kept');
+  assert.match(shown.textContent, /Last/);
+  await B.act(async () => B.closeTranscript('b'));
+});
+
+test('invalid LaTeX stays as its source text (no error box), an unclosed dollar is plain text, and KaTeX output takes the canvas ink', async () => {
+  await B.act(async () => B.openTranscript('b', `Bad $${BS}frac{1}{$ here, and a lone $5 stays.`));
+  await B.act(async () => B.updateTranscript('b', 10, 10));
+  const shown = $('[data-transcript-text]');
+  assert.match(shown.textContent, /Bad .*frac\{1\}\{ here, and a lone \$5 stays\./, 'the invalid equation shows as its source, the lone dollar as text');
+  assert.equal(shown.querySelectorAll('.katex').length, 0);
+  assert.match(shown.className, /text-\[var\(--learn-canvas-ink\)\]/, 'KaTeX output inherits this colour: its root rule sets none');
+  assert.match(shown.className, /\[&_\.katex-error\]:!text-\[var\(--learn-canvas-ink\)\]/, "and KaTeX's failure span, which pins its own red inline, is overridden to the same ink");
+  const css = readFileSync(new URL('../../../node_modules/katex/dist/katex.min.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css.match(/\.katex\{[^}]*\}/)?.[0] || '', /[^-]color:/, "katex's own root rule sets no colour");
+  await B.act(async () => B.closeTranscript('b'));
 });
