@@ -49,3 +49,56 @@ test('split marks the start of the current sentence; the first sentence has none
   const done = revealScript('One. Two!', 10, 10);
   assert.equal(done.text.slice(done.split), 'Two!', 'a finished last sentence is still the current one');
 });
+
+// Equations ($...$ and the other spans Md's tokenizeMath finds) are atomic: never shown half-written.
+const BS = String.fromCharCode(92); // a backslash, for LaTeX commands and escaped dollars
+const everyShown =(s, d = 100) => { const out = []; for (let t = 0; t <= d; t += 1) out.push(revealScript(s, t, d)); return out; };
+
+test('a span in the middle comes in whole, never half-written, at every moment', () => {
+  const s = `The rate is $e^{-1} + ${BS}frac{1}{N}$ per step, always.`;
+  const span = `$e^{-1} + ${BS}frac{1}{N}$`;
+  let seen = false;
+  for (const { text } of everyShown(s)) {
+    const at = text.indexOf('$');
+    if (at < 0) continue;
+    seen = true;
+    assert.ok(text.includes(span), `whole span once it starts: ${text}`);
+  }
+  assert.ok(seen);
+  assert.equal(revealScript(s, 100, 100).text, s);
+});
+
+test('a span at the start, at the end and two adjacent spans', () => {
+  for (const s of ['$x^2$ is the area.', 'The area is $x^2$', 'Both $a$$b$ here.', 'Both $a$ $b$ here.']) {
+    for (const { text } of everyShown(s)) {
+      assert.ok(s.startsWith(text), s);
+      const spans = [...s.matchAll(/\$[^$]+\$/g)].map(m => [m.index, m.index + m[0].length]);
+      for (const [a, b] of spans) assert.ok(text.length <= a || text.length >= b, `${s}: cut at ${text.length} inside [${a},${b})`);
+    }
+  }
+  assert.equal(revealScript('$x^2$ is the area.', 1, 100).text, '$x^2$', 'the first word is the equation');
+});
+
+test('an unclosed dollar and an escaped dollar are plain text, cut by words like any text', () => {
+  for (const s of ['It costs $5 for each of them today.', `It costs ${BS}$5 and ${BS}$6 in total here.`, 'Only $x never closes here at all.']) {
+    const lens = everyShown(s).map(r => r.text);
+    assert.ok(lens.some(t => t.length > 0 && t.length < s.length && !/\s$/.test(t) && /\s/.test(s[t.length] || ' ')), s);
+    for (const t of lens) assert.ok(s.startsWith(t));
+  }
+  assert.equal(revealScript('It costs $5 for each of them today.', 10, 100).text, 'It costs');
+});
+
+test('a span containing spaces is one unit: the point inside it brings it in with the word it ends', () => {
+  const s = 'Then $a + b = c$, and so on.';
+  const { text } = revealScript(s, 30, 100);
+  assert.ok(text.startsWith('Then $a + b = c$,'), text);
+  assert.doesNotMatch(revealScript(s, 18, 100).text, /\$a \+ b$/);
+});
+
+test('the sentence split never lands inside a span', () => {
+  const s = 'Take $x = 1. 5$ here. Then $y$ follows.';
+  const { text, split } = revealScript(s, 100, 100);
+  assert.equal(text, s);
+  assert.equal(text.slice(split), 'Then $y$ follows.');
+  assert.equal(revealScript(s, 30, 100).split, 0, 'the dot inside the span is not a sentence end');
+});

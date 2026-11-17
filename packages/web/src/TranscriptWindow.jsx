@@ -1,9 +1,10 @@
 // The transcript window beside a playing Explanation card (owner 2026-11-17; docs/features/explain.md "Audio control"). Mounted once inside the card's canvas node (AdaptiveCanvas CanvasNode), so
-// it moves and scales with the card. No panel: no fill, border, shadow or blur; the text floats on the canvas in the canvas ink (--learn-canvas-ink, black in light, white in dark; earlier text at reduced opacity).
+// it moves and scales with the card. The text is the displayed transcript (narration.transcript, LaTeX equations between dollars, else the script), typeset by Md.jsx MdInline mathOnly like the follow-up strips. No panel: no fill, border, shadow or blur; the text floats on the canvas in the canvas ink (--learn-canvas-ink, black in light, white in dark; earlier text at reduced opacity).
 // The wrapper never takes the pointer; only the text and the close button do (a press on them never drags or selects the card, the wheel scrolls the text and never the canvas).
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { closeTranscript, usePlayingTranscript } from './audio-playing.js';
+import { MdInline } from './Md.jsx';
 import { revealScript } from './transcript-reveal.js';
 
 const INK = 'text-[var(--learn-canvas-ink)]';
@@ -37,8 +38,8 @@ export default function TranscriptWindow({ id }) {
       </div>
       <div ref={box} data-scroll data-transcript-text aria-live="off" onPointerDown={stop}
         onScroll={event => { const e = event.currentTarget; stick.current = e.scrollHeight - e.scrollTop - e.clientHeight < 24; }}
-        className={`pointer-events-auto min-h-0 flex-1 cursor-text overflow-y-auto text-[13px] leading-snug select-text ${INK}`}>
-        <span className="opacity-60">{text.slice(0, split)}</span>{text.slice(split)}
+        className={`pointer-events-auto min-h-0 flex-1 cursor-text overflow-y-auto text-[13px] leading-snug select-text ${INK} [&_.katex-error]:!text-[var(--learn-canvas-ink)]`}>
+        <span className="opacity-60"><MdInline text={text.slice(0, split)} mathOnly /></span><MdInline text={text.slice(split)} mathOnly />
       </div>
     </div>
   );
