@@ -8,6 +8,7 @@ import { createLayouts, PLOT_NOTES_MAX } from './ml-plot-layouts.js';
 import { references } from './ml-plot-references.js';
 import { lineHeight, textWidth } from './primitives.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
+import { renderTutorDiagram } from './TutorDiagram.js';
 
 const text = max => z.string().min(1).max(max);
 const numeric = z.number().min(-1e9).max(1e9);
@@ -482,4 +483,14 @@ test('PLT-2B-n2: line and band labels are one line; one that does not fit goes a
   assert.equal(plotBounds.top, 40 + above.length * 14, 'the top margin grows by the rows used');
   assert.ok(plotBounds.top - 10 - 14 * (above.length - 1) > 0 && width === 408);
   assert.equal(render(plot(), 408).plotBounds.top, 40, 'a plot without such labels keeps its margin');
+});
+
+test('a legend pill is as long as its name: Arial advance widths plus the marker and the padding, not the generous layout estimate', () => {
+  const grouped = { version: 1, diagram: { kind: 'bar-chart', variant: 'grouped', title: 'Uniform probabilities', unit: 'value', categories: ['Class 0', 'Class 1'],
+    series: [{ label: 'Raw score', values: [1, 1] }, { label: 'Probability', values: [0.33, 0.33] }] } };
+  const svg = renderToStaticMarkup(renderTutorDiagram(grouped, 408).element);
+  const widths = [...svg.matchAll(/<rect[^>]*rx="11"[^>]*>/g)].map(m => Number(m[0].match(/width="([\d.]+)"/)[1]));
+  // 'Raw score' is 4.723 em and 'Probability' 4.668 em of Arial at 12 px (x 1.03 for the 500 weight), plus 10 + 9 + 6 before the name and 10 after it
+  assert.deepEqual(widths, [Math.ceil(4.723 * 12 * 1.03) + 35, Math.ceil(4.668 * 12 * 1.03) + 35]);
+  assert.ok(widths.every((width, index) => width < textWidth(['Raw score', 'Probability'][index], 12) + 35), 'shorter than the generous estimate');
 });
