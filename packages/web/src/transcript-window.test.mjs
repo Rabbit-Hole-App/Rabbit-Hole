@@ -65,7 +65,10 @@ test('transparent: no fill, border, shadow or blur; canvas ink; only the text an
   const classes = [...document.querySelectorAll('[data-card-transcript], [data-card-transcript] *')].map(e => e.getAttribute('class') || '').join(' ');
   assert.doesNotMatch(classes, /(?<![\w:-])(bg-(?!transparent)\S+|border(?!-0)\S*|shadow\S*|backdrop-\S+|blur\S*|ring\S*)/, classes);
   assert.match(region.className, /\bpointer-events-none\b/);
-  assert.match(region.className, /\bleft-full\b/); assert.match(region.className, /\btop-0\b/); assert.match(region.className, /\bml-3\b/); assert.match(region.className, /\bw-72\b/); assert.match(region.className, /\bmax-h-full\b/);
+  assert.match(region.className, /\bleft-full\b/); assert.match(region.className, /\btop-0\b/); assert.match(region.className, /\bml-3\b/); assert.match(region.className, /\bw-72\b/); assert.doesNotMatch(region.className, /max-h/, "the height is the text block's own, not the card's");
+  assert.match(text.className, /\boverflow-y-auto\b/); assert.match(text.className, /\bshrink-0\b/);
+  const px = Number.parseInt(text.style.height, 10);
+  assert.ok(text.style.height.endsWith('px') && px >= 160 && px <= 360, `an explicit height in 160..360 px: ${text.style.height}`);
   assert.match(text.className, /\bpointer-events-auto\b/); assert.match(close.className, /\bpointer-events-auto\b/);
   assert.match(text.className, /var\(--learn-canvas-ink\)/); assert.match(text.className, /text-\[13px\]/); assert.match(text.className, /leading-snug/);
   assert.ok(text.hasAttribute('data-scroll'), 'the canvas leaves a scrollable region to scroll itself');
@@ -132,5 +135,37 @@ test('invalid LaTeX stays as its source text (no error box), an unclosed dollar 
   assert.match(shown.className, /\[&_\.katex-error\]:!text-\[var\(--learn-canvas-ink\)\]/, "and KaTeX's failure span, which pins its own red inline, is overridden to the same ink");
   const css = readFileSync(new URL('../../../node_modules/katex/dist/katex.min.css', import.meta.url), 'utf8');
   assert.doesNotMatch(css.match(/\.katex\{[^}]*\}/)?.[0] || '', /[^-]color:/, "katex's own root rule sets no colour");
+  await B.act(async () => B.closeTranscript('b'));
+});
+
+test('auto-scroll: follows the newest text, ignores its own smooth scroll, stops after a deliberate scroll up, resumes at the bottom and on a new run', async () => {
+  const long = Array.from({ length: 30 }, (_, i) => `Sentence number ${i} says something.`).join(' ');
+  await B.act(async () => B.openTranscript('b', long));
+  const element = $('[data-transcript-text]'), state = { top: 0, height: 1000, scrolls: [] };
+  Object.defineProperty(element, 'scrollHeight', { configurable: true, get: () => state.height });
+  Object.defineProperty(element, 'clientHeight', { configurable: true, get: () => 200 });
+  Object.defineProperty(element, 'scrollTop', { configurable: true, get: () => state.top, set: v => { state.top = v; } });
+  element.scrollTo = ({ top, behavior }) => { state.scrolls.push([top, behavior]); state.top = top; };
+  const scroll = top => B.act(async () => { state.top = top; element.dispatchEvent(new window.Event('scroll')); });
+  const grow = (t, height) => B.act(async () => { state.height = height; B.updateTranscript('b', t, 100); });
+  await grow(10, 1000);
+  assert.deepEqual(state.scrolls.at(-1), [800, 'smooth'], 'follows to the very bottom, with the short smooth scroll');
+  await scroll(400); // the browser's own smooth scroll still moving: not the learner
+  await grow(20, 1200);
+  assert.deepEqual(state.scrolls.at(-1), [1000, 'smooth'], 'still following');
+  await new Promise(resolve => setTimeout(resolve, 450)); // our scroll has settled
+  await scroll(300); // the learner scrolls up by hand
+  const before = state.scrolls.length;
+  await grow(30, 1400);
+  assert.equal(state.scrolls.length, before, 'not pulled back down while they read');
+  assert.equal(state.top, 300);
+  await scroll(1200); // and back to the bottom (1400 - 200)
+  await grow(40, 1600);
+  assert.deepEqual(state.scrolls.at(-1), [1400, 'smooth'], 'following again');
+  await new Promise(resolve => setTimeout(resolve, 450));
+  await scroll(0);
+  await grow(0, 200); // a replay starts empty (nothing to scroll)
+  await grow(5, 1000);
+  assert.deepEqual(state.scrolls.at(-1), [800, 'smooth'], 'a new run follows again');
   await B.act(async () => B.closeTranscript('b'));
 });
