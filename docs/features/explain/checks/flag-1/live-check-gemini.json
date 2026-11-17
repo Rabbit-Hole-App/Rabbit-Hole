@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-16",
+  "approved_cap_usd": 0.05,
+  "calls_per_provider": 1,
+  "retries": 0,
+  "flag": "EXPLANATION_FORMULA_SAMPLER=on",
+  "commit": "72a6bf353",
+  "results": [
+    {
+      "provider": "google",
+      "model": "gemini-3.5-flash-lite",
+      "key_name": "GEMINI_API_KEY",
+      "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "max_tokens_sent": 400,
+      "http_status": 200,
+      "accepted": "yes",
+      "finish_reason": "length",
+      "input_tokens": 3706,
+      "output_tokens": 384,
+      "total_tokens": 4090,
+      "content_head": "{\n  \"title\": \"Heavier Tailed Curves vs. the Normal Curve\",\n  \"visuals\": [\n    {\n      \"k\": \"diagram\",\n      \"spec\": {\n        \"version\": 1,\n        \"diagram\": {\n          \"title\": \"Normal vs. Heavy Tails\",\n          \"kind\": \"coordinate-plot\",\n          \"x\": {\n            \"label\": \"x\",\n            \"m",
+      "estimated_usd": 0.002072
+    }
+  ],
+  "control": {
+    "google": {
+      "model": "gemini-3.5-flash-lite",
+      "planned_kind": "coordinate-plot",
+      "flag_on_has_formula_string": true,
+      "flag_on_series_items_has_anyOf": true,
+      "flag_on_series_items_keys": [
+        "anyOf"
+      ],
+      "flag_off_series_items_plain_object": true,
+      "flag_off_series_items_keys": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "property_count_flag_on": 315,
+      "property_count_flag_off": 308,
+      "gemini_limit": 362,
+      "flag_off_has_formula_string": false,
+      "body_bytes": 38433,
+      "original_max_tokens": 3000,
+      "stream": false
+    },
+    "cerebras": {
+      "model": "gpt-oss-120b",
+      "planned_kind": "coordinate-plot",
+      "flag_on_has_formula_string": true,
+      "flag_on_series_items_has_anyOf": true,
+      "flag_on_series_items_keys": [
+        "anyOf"
+      ],
+      "flag_off_series_items_plain_object": true,
+      "flag_off_series_items_keys": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "property_count_flag_on": 315,
+      "property_count_flag_off": 308,
+      "gemini_limit": 362,
+      "flag_off_has_formula_string": false,
+      "body_bytes": 42144,
+      "original_max_tokens": 3000,
+      "stream": false
+    }
+  }
+}
