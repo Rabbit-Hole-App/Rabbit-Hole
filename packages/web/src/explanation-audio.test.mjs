@@ -184,16 +184,15 @@ test('only one card plays at a time: starting another pauses the first, which ke
   assert.equal(second.querySelector('[data-audio-time]'), null, 'no time is shown');
 });
 
-test('it stops when the card becomes a minimized tile, and when the card goes away', async () => {
+test('a card saved as minimized is its full card and keeps its audio pill (minimize was removed 2026-11-17); it stops when the card goes away', async () => {
   reset();
   await mount(card('a'));
   await click($('[data-audio-play]'));
   const audio = audios[0];
   assert.equal(audio.paused, false);
   await mount(card('a', { minimized: true, summary: 'Short.' }));
-  assert.equal(audio.paused, true, 'minimizing stops it');
-  assert.equal($('[data-explanation-audio]'), null, 'no pill on the tile');
-  assert.ok($('[data-explanation-tile]'));
+  assert.ok($('[data-explanation-audio]'), 'the pill stays: it is the full card');
+  assert.equal($('[data-explanation-tile]'), null, 'no tile');
   await mount(card('a'));
   await click($('[data-audio-play]'));
   const again = audios.at(-1);

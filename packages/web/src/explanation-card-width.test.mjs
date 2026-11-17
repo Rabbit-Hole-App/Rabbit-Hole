@@ -70,7 +70,7 @@ test('a picture is displayed at 512 px: the card and its tile widen to fit it (5
 test('the tile uses the same rule on its one visual and never scales it: a 697 px diagram is a 731 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
   const diagramCard = card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`, { w: 300, h: 500 });
   const tile = { ...diagramCard, minimized: true };
-  assert.equal(isMinimized(tile), true);
+  assert.equal(isMinimized(tile), false, 'minimize was removed (owner 2026-11-17): a saved-minimized card is the full card, and the tile helpers below are unused');
   assert.equal(tileWidth(tile), 697 + CARD_CHROME, 'the diagram at its natural width inside the tile');
   assert.equal(tileWidth(tile), explanationCardWidth(diagramCard), 'the same function as the card');
   const pictureCard = card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: picture } });
@@ -86,7 +86,7 @@ test('the tile uses the same rule on its one visual and never scales it: a 697 p
 
 test('the canvas takes the derived width: wider than its 560 column the card is centred, a dragged width still wins, and the stacked column keeps neighbours apart', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /const cardWidth = tile \? tileWidth\(block\) : sized\?\.width \?\? explanationCardWidth\(block\) \?\? BLOCK_TYPES\[block\.type\]\?\.width;/);
+  assert.match(canvas, /const cardWidth = sized\?\.width \?\? explanationCardWidth\(block\) \?\? BLOCK_TYPES\[block\.type\]\?\.width;/);
   assert.match(canvas, /width=\{cardWidth\} wide=\{cardWidth > COLUMN\}/, 'a card wider than the column is centred on it (self-center), as a wide slide is');
   assert.match(canvas, /const displayWidth = full \? [^;]*size\.w \|\| width;/, 'a saved (dragged) width wins over the derived one');
   assert.match(canvas, /<div ref=\{column\}[^>]*className=\{`absolute top-0 left-0 flex flex-col gap-5/, 'cards are stacked in one column: a wider card never lies over the cards above or below it');
