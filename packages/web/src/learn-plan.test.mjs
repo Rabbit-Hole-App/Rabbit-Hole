@@ -102,12 +102,3 @@ test('a title that carries its own number is not numbered twice', async () => {
   assert.deepEqual(cleanOps(numbered).map(op => op.text), ['The Big Picture', 'One object']);
   assert.match(read('TutorRehearsal.jsx'), /ops: cleanOps\(out\.proposal\.ops\)/, 'the contents get the clean titles too');
 });
-
-test('sectionEntries: each chapter and section of the plan -> its contents entry, matched in order by level and title (twins in two chapters stay apart)', async () => {
-  const { sectionEntries } = await import('./learn-plan.js');
-  const ops = [{ op: 'add', key: 'a', level: 1, text: '1. Text as numbers' }, { op: 'add', key: 'a1', parent: 'a', level: 2, text: 'Overview' },
-    { op: 'add', key: 'b', level: 1, text: 'The task' }, { op: 'add', key: 'b1', parent: 'b', level: 2, text: 'Overview' }];
-  const outline = [{ id: 'x', level: 1, label: 'Mine' }, { id: 'c1', level: 1, label: 'Text as numbers' }, { id: 's1', level: 2, label: 'Overview' }, { id: 'c2', level: 1, label: 'The task' }, { id: 's2', level: 2, label: 'Overview' }];
-  assert.deepEqual(sectionEntries(ops, outline), { 1: 'c1', '1.1': 's1', 2: 'c2', '2.1': 's2' });
-  assert.deepEqual(sectionEntries(ops, []), {});
-});

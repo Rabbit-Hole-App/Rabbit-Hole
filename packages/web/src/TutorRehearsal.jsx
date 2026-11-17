@@ -11,14 +11,13 @@ import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
 import { flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute } from './rehearsal-flow.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
-import { chapterCount, cleanOps, planRows, planTree, sectionEntries, storedLearn } from './learn-plan.js';
+import { chapterCount, cleanOps, planRows, storedLearn } from './learn-plan.js';
 import { SENTENCES, catalogueMessage, internal } from './tutor-rehearsal-text.js';
 import { depthOf } from './learn-settings.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
-import { performItem, placeChapter } from './learn-section-perform.js';
-import { SPACING_SCALES } from './learn-position.js';
+import { performItem } from './learn-section-perform.js';
 import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 
 // The initial pipeline as the Tutor's own conversation in the Chat transcript (initial-pipeline-spec.md section 1; owner: everything lives inside the AI tutor's chat as Tutor
@@ -311,16 +310,6 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     // ponytail: a Make press after a reload starts again at the first item (the browser does not read made[] back); the server's next order is kept from there.
     let itemId = sec.next || composition?.items?.[0]?.id || null;
     if (!itemId) { failSection('make', null); return; }
-    // Position (learn-position-spec.md): the section's contents entry each card it makes is tied to, and the chapter's heading card before its first section's first card.
-    const canvasApi = chatRef.current.canvasOps?.tutorCanvas?.() || null, ops = st.current.plan?.ops || [];
-    const entries = sectionEntries(ops, chatRef.current.canvasOps?.outlineNow?.()?.outline), chapter = sectionId.split('.')[0];
-    const items = composition?.items || [], orderOf = id => { const k = items.findIndex(entry => entry.id === id); return k < 0 ? items.length : k; }; // notes come after every item
-    let first = true, previous = st.current.section.last || null;
-    if (canvasApi && !(canvasApi.blocks?.() || []).some(block => block.learn?.role === 'chapter' && block.learn.sectionId === chapter)) {
-      const title = planTree(ops)[Number(chapter) - 1]?.title;
-      if (title) { const id = await placeChapter(canvasApi, { chapter, title, entry: entries[chapter] || null }); if (id) { previous = id; sectionPatch({ last: id }); } }
-      if (!alive()) return;
-    }
     while (itemId) {
       sectionPatch({ next: itemId });
       const out = await sectionPost({ action: 'learn_section_make', sectionId, itemId });
@@ -331,9 +320,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
       let done;
       try {
         done = await performItem({ canvasApi: chatRef.current.canvasOps?.tutorCanvas?.() || null, slash, perform: out.perform, item: out.item,
-          ctx: { sectionId, itemId, board, depth: depthOf(chatRef.current.settings?.depth) || null, ops: chatRef.current.canvasOps, after: composed.after ? cards[composed.after] || null : null, previous: st.current.section.last || previous, repository: repoRef.current,
-            order: orderOf(itemId), afterItem: composed.after || null, entry: entries[sectionId] || null, first } });
-        first = false;
+          ctx: { sectionId, itemId, board, depth: depthOf(chatRef.current.settings?.depth) || null, ops: chatRef.current.canvasOps, after: composed.after ? cards[composed.after] || null : null, previous: st.current.section.last || null, repository: repoRef.current } });
       } catch { if (alive()) failSection('make', null); return; }
       if (!alive()) return;
       sectionPatch({ cards: { ...cards, ...(done.cardId ? { [itemId]: done.cardId } : {}) }, last: done.last || done.cardId || st.current.section.last || null });
@@ -374,8 +361,6 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     else if (id === 'section:retry') retrySection();
     else if (id === 'section:skip' || id === 'section:next') nextSection();
     else if (id === 'section:make') makeSection();
-    else if (id === 'section:arrange') { const sec = st.current.section; if (sec?.id && !chat.canvasOps?.tutorCanvas?.()?.arrangeLearn?.(sec.id)) toast('No cards of this section to arrange.'); }
-    else if (id.startsWith('spacing:') && SPACING_SCALES[id.slice(8)]) chat.canvasOps?.tutorCanvas?.()?.learnSpacing?.(SPACING_SCALES[id.slice(8)]);
     else if (id === 'plan:change') { if (st.current.planLog.at(-1)?.text !== SENTENCES.planEditPlaceholder) patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planEditPlaceholder)] }); chat.composer?.focus?.(); }
     else if (id === 'plan:keep') { const previous = st.current.plan?.previous; if (previous) { patch({ plan: { ...previous, previous: null, busy: false } }); chat.canvasOps?.proposeOutline?.({ ops: previous.ops, base: previous.base, source: 'learn-plan' }); savePlan({ ops: previous.ops, revision: previous.base, acceptedAt: null, text: previous.text }); } }
     else if (id === 'plan:plain') { planSeq.current += 1; patch({ plan: { status: 'plain' } }); chat.canvasOps?.proposeOutline?.(null); }

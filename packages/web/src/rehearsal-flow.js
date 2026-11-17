@@ -16,7 +16,6 @@ import { planMessage } from './learn-rehearsal-view.js';
 import { SENTENCES, catalogueMessage, factsMessage, indexingFailure, rehearsalFailure, repoName, routeQuestion } from './tutor-rehearsal-text.js';
 import { learnOf, optionRows } from './learn-intake.js';
 import { draftText } from './learn-plan.js';
-import { reviewTools } from './flags.js';
 
 // Plain words for the rehearsal's status (no status code, no machine or provider term).
 const STATUS_WORDS = { queued: 'Getting ready to try it', discovering: 'Reading how it is meant to run', provisioning: 'Setting up a place to run it', running: 'Running the steps', repairing: 'Fixing a step that did not work', planning: 'Writing up the plan' };
@@ -91,9 +90,7 @@ export function flowMessages(state, { repo }) {
     else if (sec) {
       const making = sec.stage === 'making';
       if (making) out.push(pending('learn-section-making', SENTENCES.sectionMaking));
-      // Position's dev controls (Reviewer 2026-11-17 10:20 A: dev build only, never shipped): Arrange section, and the spacing toggle the owner compares on 8878.
-      const dev = reviewTools ? [{ id: 'section:arrange', label: 'Arrange section', disabled: making }, ...['tight', 'normal', 'loose'].map(name => ({ id: `spacing:${name}`, label: `Spacing: ${name}` }))] : [];
-      out.push({ key: 'learn-section', role: 'assistant', section: sec, choices: [{ id: 'section:next', label: SENTENCES.sectionNext, disabled: making }, { id: 'section:make', label: SENTENCES.sectionMake, disabled: making }, ...dev] });
+      out.push({ key: 'learn-section', role: 'assistant', section: sec, choices: [{ id: 'section:next', label: SENTENCES.sectionNext, disabled: making }, { id: 'section:make', label: SENTENCES.sectionMake, disabled: making }] });
     }
   }
   if (state.elsewhere) return out;

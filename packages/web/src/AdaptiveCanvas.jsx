@@ -118,7 +118,6 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
-import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -341,8 +340,6 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // A Tutor card inserted at the column's default place, before its offsets put it on its slot (placeRoadmapCard, pendingAt): laid out (so it is measured) but not shown,
 // so it never flashes at the default place (UI.06).
 const PLACING = { visibility: 'hidden' };
-// A learner's own resize of a Learn section card (learn-position.js): the card keeps that size; the column's width and the content height no longer apply to it. A quiet resize is the canvas's own.
-const learnSized = (block, quiet) => (block.learn?.slot && !quiet ? { ...block, learn: { ...block.learn, sized: true, fit: false } } : block);
 const grown = (height, grow) => (height == null ? height : height + grow);
 function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
@@ -369,7 +366,6 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // The selected card keeps its buttons whether or not the pointer is on it (owner 2026-11-13: nothing may disappear from it); a card that is only hovered shows its row while the pointer is on it.
   const showTools = rowShown && !!(selected ? tools : hoverTools);
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
-  placing = placing || !!edit.learnHidden?.(id); // also a Learn section card before the column put it on its slot (learn-position.js): laid out and measured, not shown
   const [cornerDrag, setCornerDrag] = useState(null);
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
   // (card-layout.js fullLength, no slot) as the ordinary sized card it becomes on release (resizeCardLayout corner).
@@ -943,10 +939,9 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
 // show the editor read-only.
 function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
   const edit = useContext(CanvasEdit);
-  const fit = !!block.learn?.fit && !block.h; // a Learn section's lead, follow, notes or chapter heading: as tall as its words, no inner scroll (learn-position.js)
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={DOC_CARD_SIZE.w} height={fit ? undefined : block.h || DOC_CARD_SIZE.h} autoMax={undefined} fitContent={fit} saved={{ w: block.w, h: block.h }}
+      connected={connected} width={DOC_CARD_SIZE.w} height={block.h || DOC_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
       tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
@@ -1071,7 +1066,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
-      autoMax={tile ? null : block.learn?.fit ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
+      autoMax={tile ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
@@ -2415,7 +2410,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // A code-explain answer's Add as card (code-explain-insert.js addCodeExplain): the primary card, its satellite code cards and the numbered connectors, in ONE undo step. `place(env)` (the
       // lazily loaded insertion module) returns each card's column offsets from the free place beside `beside` (a card id), else the one selected card, else the view; the camera follows the primary
       // only if it landed off screen. Idempotent on the primary's id: a card already here is located (never doubled; a satellite the learner deleted is not put back). -> the primary's id, or null.
-      insertCodeExplain: ({ blocks: made, links: joined = [], beside = null, place, reveal = true }) => {
+      insertCodeExplain: ({ blocks: made, links: joined = [], beside = null, place }) => {
         const primary = made?.[0];
         if (!alive.current || readOnlyRef.current || localCopyRef.current || !primary?.id || typeof place !== 'function') return null;
         if (blocksRef.current.some(block => block.id === primary.id)) { commandsRef.current.focusBlock(primary.id); return primary.id; }
@@ -2427,7 +2422,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         blocksRef.current = [...blocksRef.current, ...added];
         setBlocks(previous => [...previous, ...added]);
         if (joined.length) setLinks(previous => [...previous, ...joined.filter(link => !previous.some(entry => entry.id === link.id))]);
-        if (!reveal) return primary.id;
         setSelection([primary.id]);
         revealAfter(primary.id);
         return primary.id;
@@ -2443,27 +2437,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // Whether a card has been drawn and measured (insertCodeExplain's `beside` needs its box).
       measured: id => !!boundsRef.current[id],
-      // Learn sections, Position (learn-position.js): whether the column has put a section card on its slot (perform waits for it), the camera for a card just placed
-      // (spec 3: the section's first card is centred once; a later card is followed only while the previous one is on screen; zoom unchanged), the dev row Arrange
-      // section (the cards of one section made before Position join the column once, one undo step; a dragged card keeps its place) and the dev spacing toggle.
-      learnPlaced: id => !!blocksRef.current.find(block => block.id === id)?.learn?.placed,
-      learnReveal: (id, previous = null) => {
-        const box = boundsRef.current[id], before = previous && boundsRef.current[previous];
-        if (!box || !surface.current) return false;
-        if (!previous) { centerOn(box); return true; }
-        if (!before || !framesAnyBlock(viewRef.current, controlArea(), [before])) return false;
-        centerOn(union([before, box]));
-        return true;
-      },
-      arrangeLearn: sectionId => {
-        if (readOnlyRef.current || localCopyRef.current) return 0;
-        const ids = new Set(blocksRef.current.filter(block => block.learn?.sectionId === sectionId && !block.learn.slot).map(block => block.id));
-        if (!ids.size) return 0;
-        snapshot();
-        setBlocks(previous => previous.map(block => (ids.has(block.id) ? { ...block, learn: { ...block.learn, slot: true, placed: !!block.at } } : block)));
-        return ids.size;
-      },
-      learnSpacing: scale => { setSpacingScale(scale); setLearnTick(n => n + 1); },
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
       insertImported: (block, at = null) => {
@@ -2934,8 +2907,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // what follows, and the camera already knows how to land on one. A contents entry frames the heading it links; one
       // with no canvas heading has nothing to frame.
       showSection: id => {
-        const linked = blocksRef.current.filter(block => block.learn?.slot && block.tocLinks?.includes(id)).map(block => boundsRef.current[block.id]).filter(Boolean);
-        if (linked.length) { showLearnBoxes(linked); return; }
         const heading = tocHeading(tocRef.current, id);
         if (heading == null) return;
         const steps = presentSteps(blocksRef.current, boundsRef.current);
@@ -5554,7 +5525,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false, slot = null) => {
     if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
-    setBlocks(previous => previous.map(block => block.id === id ? learnSized(resizeCardLayout(block, w, h, x, minimum, corner, slot), quiet) : block));
+    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner, slot) : block));
   };
   const setCardLayout = (id, mode) => {
     if (readOnly || lockedRef.current.has(id) || selection.length !== 1) return;
@@ -5804,44 +5775,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   // Anchored cards (card-anchor.js): when the column moves under a dragged card (a card inserted above it, one above it growing), it is re-offset by the same amount and stays put.
   const anchorSeen = useRef(new Map());
-  // Learn sections, Position (learn-position-spec.md, learn-position.js): the cards of an accepted plan's sections (block.learn.slot) stand in one column. On every measure each
-  // takes the column's width W and its type's height (a card the learner resized, learn.sized, keeps its own), then each is put on its slot by its offsets, as a drag would. A card
-  // the learner dragged (its anchor, block.at) keeps its place and the column flows around it. A card is shown once it stands on its slot (learn.placed, saved with it). No undo
-  // step: the card's insertion was the step.
-  const [learnTick, setLearnTick] = useState(0);
-  useLayoutEffect(() => {
-    if (readOnly || localCopy) return;
-    const plan = blocks.filter(block => block.learn?.slot);
-    if (!plan.length) return;
-    const natural = block => (block.type === 'explanation' ? explanationCardWidth(block) : block.type === 'doc' ? DOC_CARD_SIZE.w : block.type === 'repo-code' ? CODE_CARD.w : BLOCK_TYPES[block.type]?.width) || COLUMN;
-    const W = columnWidth(plan.map(natural)), sizes = new Map();
-    for (const block of plan) {
-      if (block.learn.sized) continue;
-      const w = cardWidth(natural(block), W), h = fixedHeight(block, W), fit = fitsContent(block);
-      if (block.cardLayout?.mode === 'full') { if (block.cardLayout.fullWidth !== w) sizes.set(block.id, { cardLayout: { ...block.cardLayout, fullWidth: w } }); continue; }
-      if (block.cardLayout) continue; // a Scrollable layout the learner chose keeps its own frame
-      if (block.w !== w || (h != null && block.h !== h) || !!block.learn.fit !== fit) sizes.set(block.id, { w, ...(h != null ? { h } : {}), learn: { ...block.learn, fit } });
-    }
-    if (sizes.size) { setBlocks(previous => previous.map(block => (sizes.has(block.id) ? { ...block, ...sizes.get(block.id) } : block))); return; }
-    const cards = plan.map(block => { const box = bounds[block.id] || null; return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
-    const { targets } = learnLayout({ cards, others: inlineCanvas.obstacles(plan.map(block => block.id)), W });
-    const moves = new Map();
-    for (const block of plan) {
-      const target = targets.get(block.id), box = bounds[block.id];
-      if (!target || !box) continue;
-      const ddx = Math.round(target.x - box.x), ddy = Math.round(target.y - box.y);
-      if (ddx || ddy || !block.learn.placed) moves.set(block.id, { dx: (block.dx || 0) + ddx, dy: (block.dy || 0) + ddy, learn: { ...block.learn, placed: true } });
-    }
-    if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
-  }, [bounds, blocks, learnTick, readOnly, localCopy]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A TOC click on a section with cards (spec 3, 5): the camera to the top of those cards, centred on the column, zoom unchanged unless the view is narrower than the column.
-  const showLearnBoxes = boxes => {
-    const box = union(boxes), top = boxes.reduce((a, b) => (b.y < a.y ? b : a)), area = controlArea(), room = area.right - area.left, need = top.w + 2 * SPACING.card;
-    setView(v => {
-      const z = room < need ? Math.min(1, room / need) : v.z;
-      return (autoView.current = { ...v, z, x: (area.left + area.right) / 2 - (top.x + top.w / 2) * z, y: area.top + SPACING.card - box.y * z });
-    });
-  };
   useLayoutEffect(() => {
     if (readOnly) return;
     const moves = holdAnchors(blocksRef.current, bounds, anchorSeen.current);
@@ -6484,7 +6417,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, learnHidden: id => { const block = !readOnly && !localCopy && blocksRef.current.find(entry => entry.id === id); return !!block?.learn?.slot && !block.learn.placed && !block.at; }, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
