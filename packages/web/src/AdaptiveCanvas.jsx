@@ -36,6 +36,8 @@ import { jitterPoint, roughnessOf, roughnessPatch, seedOf, sloppyLink, sloppySha
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
+import { usePlayingCard } from './audio-playing.js';
+import TranscriptWindow from './TranscriptWindow.jsx';
 import { activeSection, presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocHeading, tocEntryFor } from './learn-outline-model.js';
@@ -335,6 +337,7 @@ const PLACING = { visibility: 'hidden' };
 const grown = (height, grow) => (height == null ? height : height + grow);
 function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, fitCeiling = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
+  const audioPlaying = usePlayingCard(id); // this card's explanation audio is playing: the green frame (index.css [data-audio-playing])
   // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
   // It is this card's own state: a hover change re-renders this card only, never the canvas.
   const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
@@ -442,6 +445,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
+      data-audio-playing={audioPlaying || undefined}
       onPointerEnter={hoverIn} onPointerMove={hoverIn} onPointerLeave={hoverOut}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
@@ -514,6 +518,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {full && !locked && edit.selectionCount <= 1 && ['left','right'].map(side => <button key={side} type="button" role="slider" aria-orientation="horizontal" aria-label={`Resize card width from ${side}`} aria-valuemin={limits.min} aria-valuemax={limits.max} aria-valuenow={Math.round(displayWidth)} data-node-tool className={`absolute top-6 bottom-2 z-20 w-2 cursor-ew-resize focus-visible:bg-accent/30 ${side === 'left' ? '-left-1' : '-right-1'}`} onPointerDown={event => resizeWidth(event, side)} onKeyDown={event => resizeWidthKey(event, side)} />)}
       {!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
+      <TranscriptWindow id={id} />
     </div>
   );
   return footprint ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: footprint.w, height: footprint.h, marginTop: space || undefined }}>{node}</div> : node;
@@ -6132,7 +6137,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }
   const minimapBoxes = [
     ...(docBox ? [{ ...docBox, doc: true }] : []),
-    ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
+    ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, id, hole: true } : { ...box, id })),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];

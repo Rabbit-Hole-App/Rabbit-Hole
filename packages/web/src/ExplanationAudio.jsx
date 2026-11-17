@@ -6,27 +6,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play, RotateCcw } from 'lucide-react';
 import { followSource } from './IllustrationFigure.jsx';
+import { clearPlayingCard, closeTranscript, openTranscript, restartTranscript, setPlayingCard, updateTranscript } from './audio-playing.js';
 
 let playing = null; // the audio element that is playing now; starting another pauses it
 
 const PILL = 'inline-flex h-7 items-center rounded-full border border-line-strong bg-surface text-ink-2';
-const BUTTON = 'grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-45';
+const BUTTON = 'grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 p-0 text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-45';
 const stop = event => event.stopPropagation(); // a press on the control never drags or selects the card
 
-function AudioPill({ narration }) {
+function AudioPill({ narration, cardId }) {
   const ref = useRef(null), want = useRef(null), halted = useRef(false); // halted: a failure paused it, so that pause event is not a learner's pause
   const [phase, setPhase] = useState('idle'); // idle | loading | playing | paused
   const [failed, setFailed] = useState(false), [url, setUrl] = useState(''), [wanted, setWanted] = useState(false);
   const audio = () => ref.current || (ref.current = new Audio());
-  const fail = () => { want.current = null; halted.current = true; audio().pause(); setPhase('idle'); setFailed(true); };
+  const live = useRef({}); live.current = { cardId, script: narration.script }; // the transcript window's owner and text (audio-playing.js), read by the element's events
+  const fail = () => { want.current = null; halted.current = true; audio().pause(); setPhase('idle'); setFailed(true); if (cardId) closeTranscript(cardId); };
   const failRef = useRef(fail); failRef.current = fail;
 
   useEffect(() => {
     const a = audio();
     const on = {
-      play: () => setPhase('playing'),
+      play: () => { setPhase('playing'); const { cardId: id, script } = live.current; if (id) { openTranscript(id, script); if (a.currentTime < 0.05) restartTranscript(id); } },
+      timeupdate: () => { const { cardId: id } = live.current; if (id) updateTranscript(id, a.currentTime, a.duration); },
       pause: () => { if (!a.ended && !halted.current) setPhase('paused'); },
-      ended: () => { a.currentTime = 0; setPhase('idle'); },
+      ended: () => { const { cardId: id } = live.current, length = a.duration; a.currentTime = 0; setPhase('idle'); if (id && length > 0) updateTranscript(id, length, length); }, // the window stays open with the full text
       error: () => failRef.current(), stalled: () => failRef.current(),
     };
     for (const [name, fn] of Object.entries(on)) a.addEventListener(name, fn);
@@ -54,6 +57,9 @@ function AudioPill({ narration }) {
   };
 
   const active = phase === 'playing', loading = phase === 'loading';
+  // The canvas card's green frame and the minimap's mark follow `phase === 'playing'` (audio-playing.js); a pause, the end, a failure or unmounting clears it.
+  useEffect(() => { if (cardId) { if (active) setPlayingCard(cardId); else clearPlayingCard(cardId); } }, [active, cardId]);
+  useEffect(() => () => { if (cardId) { clearPlayingCard(cardId); closeTranscript(cardId); } }, [cardId]);
   const label = failed ? 'Audio could not play. Try again.' : active ? 'Pause explanation' : 'Play explanation';
   return (
     <span data-explanation-audio data-audio-state={failed ? 'failed' : phase} onPointerDown={stop} className={PILL}>
@@ -70,7 +76,7 @@ function AudioPill({ narration }) {
 }
 
 // canEdit: the audio route is owner-only (file-access.js: a signed-out viewer gets 404), so a card this viewer cannot edit draws nothing.
-export function ExplanationAudio({ narration, canEdit }) {
+export function ExplanationAudio({ narration, canEdit, cardId }) {
   if (!canEdit || !narration) return null;
   if (narration.status === 'preparing') {
     return (
@@ -80,5 +86,5 @@ export function ExplanationAudio({ narration, canEdit }) {
     );
   }
   const source = narration.fileRef?.source;
-  return narration.status === 'ready' && source?.id ? <AudioPill key={`${source.id}:${source.rev}`} narration={narration} /> : null;
+  return narration.status === 'ready' && source?.id ? <AudioPill key={`${source.id}:${source.rev}`} narration={narration} cardId={cardId} /> : null;
 }
