@@ -1093,6 +1093,16 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
   outline-offset: 2px;
 }
 
+/* A card whose explanation audio is playing (audio-playing.js, AdaptiveCanvas CanvasNode data-audio-playing; owner 2026-11-17): a green frame, the app's --color-success,
+   as the card's border and a soft outer outline, in addition to the selection ring (a box-shadow, so the two never collide). Outline, not a thicker border: no layout shift.
+   A static frame, no pulse; the border colour fades over the card's 150 ms (Settings' reduced motion zeroes it). */
+[data-block][data-block-id] { transition-property: box-shadow, border-color; }
+[data-block][data-audio-playing] {
+  border-color: var(--color-success);
+  outline: 3px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+  outline-offset: 0;
+}
+
 /* A written Explanation's Markdown table (Md explain): the TutorDiagram frame - the shared surface, a 12px rounded border, a muted slate
    header, neutral rows and hairline dividers - so a table and a diagram sit together as one set. Cells wrap; the frame scrolls sideways
    only when the columns' minimum widths need more room than the card has. Scoped to [data-explain-table]; every other table is untouched. */

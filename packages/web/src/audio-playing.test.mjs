@@ -1,0 +1,73 @@
+// The playing-card store (audio-playing.js) and where it shows: the minimap's green mark (CanvasMinimap rendered for real) and the canvas card's green frame (CanvasNode's
+// data-audio-playing and its index.css rule, read from source: AdaptiveCanvas is too large to mount here). WIRING only: the real frame's pixels are the owner's to see.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
+import { clearPlayingCard, getPlayingCard, setPlayingCard, subscribePlaying } from './audio-playing.js';
+import { minimapLayout } from './learn-minimap.js';
+
+const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
+
+test('the store holds one playing id: set replaces, clear empties, a stale clear does not', () => {
+  setPlayingCard(null);
+  setPlayingCard('a'); assert.equal(getPlayingCard(), 'a');
+  setPlayingCard('b'); assert.equal(getPlayingCard(), 'b', 'only one at a time');
+  clearPlayingCard('a'); assert.equal(getPlayingCard(), 'b', 'a card that was replaced cannot clear the new one');
+  clearPlayingCard('b'); assert.equal(getPlayingCard(), null);
+  setPlayingCard('c'); setPlayingCard(undefined); assert.equal(getPlayingCard(), null);
+});
+
+test('subscribers hear each change once, not a repeat, and none after unsubscribing', () => {
+  setPlayingCard(null);
+  let calls = 0;
+  const off = subscribePlaying(() => { calls += 1; });
+  setPlayingCard('a'); setPlayingCard('a'); setPlayingCard('b'); setPlayingCard(null);
+  assert.equal(calls, 3);
+  off(); setPlayingCard('a');
+  assert.equal(calls, 3);
+  setPlayingCard(null);
+});
+
+test('the minimap layout keeps each card id, so the playing card is findable', () => {
+  const layout = minimapLayout([{ id: 'a', x: 0, y: 0, w: 100, h: 100 }, { x: 200, y: 0, w: 50, h: 50 }], { x: 0, y: 0, z: 1 }, { w: 1000, h: 500 }, { w: 180, h: 120 });
+  assert.equal(layout.boxes[0].id, 'a');
+  assert.equal('id' in layout.boxes[1], false);
+});
+
+test('the minimap marks the playing card green and no other, and follows the store live', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'audio-playing-')), outfile = join(dir, 'minimap.cjs');
+  await esbuild.build({
+    stdin: { contents: "export { default as CanvasMinimap } from './CanvasMinimap.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server'; export { setPlayingCard } from './audio-playing.js';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+    bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
+  });
+  const B = createRequire(import.meta.url)(outfile);
+  rmSync(dir, { recursive: true, force: true });
+  const html = () => B.renderToStaticMarkup(B.createElement(B.CanvasMinimap, { boxes: [{ id: 'a', x: 0, y: 0, w: 300, h: 200 }, { id: 'b', x: 400, y: 0, w: 300, h: 200 }], view: { x: 0, y: 0, z: 1 }, surface: { w: 1000, h: 500 }, onView() {}, onFit() {} }));
+  assert.doesNotMatch(html(), /data-minimap-playing/);
+  B.setPlayingCard('b');
+  const marked = html();
+  assert.equal((marked.match(/data-minimap-playing/g) || []).length, 1);
+  assert.match(marked, /<rect[^>]*data-minimap-playing[^>]*stroke-success/, 'the green token as the stroke');
+  assert.match(marked, /fill-success\/35/, 'and a light tint of it');
+  B.setPlayingCard(null);
+  assert.doesNotMatch(html(), /data-minimap-playing/);
+});
+
+test('the canvas card carries data-audio-playing from the store, and index.css frames it in --color-success without a ring or a thicker border', () => {
+  const canvas = read('AdaptiveCanvas.jsx'), css = read('index.css');
+  assert.match(canvas, /const audioPlaying = usePlayingCard\(id\);/);
+  assert.match(canvas, /data-audio-playing=\{audioPlaying \|\| undefined\}/);
+  assert.match(canvas, /\.\.\.box, id, hole: true \} : \{ \.\.\.box, id \}/, 'the minimap boxes carry the card id');
+  const rule = css.match(/\[data-block\]\[data-audio-playing\] \{([^}]*)\}/)?.[1] ?? '';
+  assert.match(rule, /border-color: var\(--color-success\)/);
+  assert.match(rule, /outline: 3px solid color-mix\(in srgb, var\(--color-success\) 25%, transparent\)/);
+  assert.match(rule, /outline-offset: 0/);
+  assert.doesNotMatch(rule, /ring|border-width|border:|animation/);
+  assert.match(css, /\[data-block\]\[data-block-id\] \{ transition-property: box-shadow, border-color; \}/, 'the colour fades over the card 150 ms');
+  assert.match(css, /--color-success: #[0-9a-f]{6};/, 'the token exists (one value, both themes)');
+});
