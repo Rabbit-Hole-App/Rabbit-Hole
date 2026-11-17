@@ -1,0 +1,316 @@
+diff --git a/packages/control-plane/src/explanation-fast-chain.js b/packages/control-plane/src/explanation-fast-chain.js
+index 3617fb8c6..7f1474014 100644
+--- a/packages/control-plane/src/explanation-fast-chain.js
++++ b/packages/control-plane/src/explanation-fast-chain.js
+@@ -72,8 +72,12 @@ export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s =
+ const NEW = new Set(NEW_KINDS);
+ const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.content ?? []).map(p => (typeof p === 'string' ? p : p?.text)).filter(Boolean).at(-1);
+   try { return new Set((JSON.parse(first).requiredVisuals ?? []).map(v => v.diagramKind).filter(Boolean)); } catch { return new Set(); } };
++// Whether a step can write a diagram kind: Gemini's schema (forGemini) drops the NEW kinds unless the request names them; every other provider gets them all.
++// learn-artifact.js ARITHMETIC_REPAIRS_SAME_MODEL reads this to decide whether a step whose answer has a wrong number gets a second repair or hands over to the next provider.
++const geminiWrites = (kind, keep) => !NEW.has(kind) || keep.has(kind);
++export const canWriteKind = (step, kind, keep = new Set()) => step.provider !== 'google' || geminiWrites(kind, keep);
+ export const forGemini = (o, keep = new Set()) => {
+-  if (Array.isArray(o)) return o.filter(b => !NEW.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
++  if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep));
+   if (!o || typeof o !== 'object') return o;
+   if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
+   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
+@@ -235,22 +239,25 @@ export async function generateWithFallbacks(env, input, options, generate) {
+   const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
+   try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
+   async function runSteps() {
+-  for (const step of steps) {
+-    const note = outcome => { attempts.push({ provider: step.provider, model: step.model, outcome }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
++  // The kinds the learner named (the request's requiredVisuals, what stepRequest sends and requiredKinds reads back): Gemini writes a NEW kind only for these.
++  const named = new Set((input.visualRequirements?.items ?? []).filter(i => !i.implied).map(i => i.diagramKind).filter(Boolean));
++  for (const [index, step] of steps.entries()) {
++    const next = steps.slice(index + 1).find(later => env[later.credentialRef]); // the provider that would run if this step fails; none: this is the last
++    const note = (outcome, extra = {}) => { attempts.push({ provider: step.provider, model: step.model, outcome, ...extra }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
+     if (!env[step.credentialRef]) { note('skipped'); continue; }
+     const seen = {};
+     let out = null;
+-    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
++    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, nextCanWrite: kind => Boolean(next) && canWriteKind(next, kind, named), callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
+     catch (error) {
+       last = Object.assign(error, { code: error.code || 'provider_error' });
+       note(last.code);
+       if (error.final || seen.final) break;
+       continue;
+     }
+-    if (out.result === 'artifact') { note('artifact'); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
++    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
+     if (out.result !== 'validation_error') return { ...out, attempts }; // a plan refusal or a question back is not a provider failure
+     last = { ...out, reason: 'validation_error' };
+-    note('validation_error');
++    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
+   }
+   if (last instanceof Error) throw Object.assign(last, { attempts });
+   return last ? { ...last, attempts } : { result: 'unsupported', message: 'Explanations are not set up on this server yet, so nothing was sent or charged.', reason: 'credential_missing', attempts };
+diff --git a/packages/control-plane/src/learn-artifact.js b/packages/control-plane/src/learn-artifact.js
+index ad59d5655..c03dc3480 100644
+--- a/packages/control-plane/src/learn-artifact.js
++++ b/packages/control-plane/src/learn-artifact.js
+@@ -17,7 +17,7 @@ import { consumeProposal, releaseProposal, verifyProposal } from './generation-p
+ import { repositoryIdentity } from './repositories.js';
+ import { contextDocumentBlocks } from './learn-context-docs.js';
+ import { literalBreaksDeep } from './literal-breaks.js';
+-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
++import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+ import { planModel } from './ask.js';
+ import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
+ import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
+@@ -169,8 +169,15 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
+ // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
+ const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
+ 
+-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null } = {}) {
+-  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
++// Why a wrong number gets one more repair on the same model (owner/Reviewer 2026-11-17): an arithmetic-tagged diagram issue (params.code 'arithmetic', e.g. a box-plot fence that is not
++// Q1 - 1.5 IQR) is never dropped, so a card that still has one after its repair fails the step. When the NEXT provider cannot write that kind (explanation-fast-chain.js nextCanWrite:
++// Gemini does not get box-plot unless the request names it; the last step has no next), the current model gets repairs up to this many in all before the step fails, so one miss
++// is not a dead card. When the next provider can write the kind, the old rule stands. The archive records repairs and repairedAt per step so the second repair's worth can be measured;
++// if it rarely matters, set this to 1 and the rule is gone.
++export const ARITHMETIC_REPAIRS_SAME_MODEL = 2;
++
++export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null, nextCanWrite = null } = {}) {
++  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls. `nextCanWrite(kind)` (the fast chain's, see ARITHMETIC_REPAIRS_SAME_MODEL) says whether the next provider can write a diagram kind.
+   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
+   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
+   // `figures` (EXP-13, trusted): { store, scope?, adapter? } for explanation-figures.js illustrateExplanation; omitted, no picture is made and every rh-illustration fence is removed.
+@@ -210,7 +217,8 @@ export async function generateArtifact(env, input, { callModel: injected = null,
+   };
+   const verify = block => sceneVerdict(env, callModel, input.args, block);
+   let { result, call } = await ask(messages);
+-  // At most one repair: the first failure goes back to the model once.
++  // At most one repair: the first failure goes back to the model once (an arithmetic issue may get a second, ARITHMETIC_REPAIRS_SAME_MODEL).
++  let limit = repairs;
+   for (let attempt = 0; ; attempt++) {
+     if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
+     if (call.name === CLARIFY.name) {
+@@ -282,7 +290,9 @@ export async function generateArtifact(env, input, { callModel: injected = null,
+         block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
+         { const hier = treesAsHierarchy(block.body); if (hier.count) { block = { ...block, body: hier.md }; corrections.tree_hierarchy_layout = hier.count; } } // batch-1 audit 2026-11-09: a short-key tree is drawn top-down, not as an outline
+         block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
+-        if (attempt >= repairs) {
++        if (attempt >= limit) {
++          // An arithmetic-tagged issue is never dropped or simplified away, and the prose is never delivered with the wrong number: the step fails (explanation_bad_numbers) and the chain's next provider runs.
++          const numbers = numbersIssue(block); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
+           let trimmed = dropInvalidDiagrams(block), fallback = null;
+           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
+           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
+@@ -328,13 +338,16 @@ export async function generateArtifact(env, input, { callModel: injected = null,
+       if (GATES[id]) block = GATES[id](block);
+       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
+       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
+-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
++      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
+     } catch (error) {
+       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
+       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
+       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
+-      if (input.imageSource || attempt >= repairs) return { result: 'validation_error', primitive: id || null, error: error.message };
+-      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
++      // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
++      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && !nextCanWrite(error.numbers.kind)) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
++      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, ...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
++      const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
++      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
+     }
+   }
+ }
+diff --git a/packages/control-plane/src/learn-primitives.js b/packages/control-plane/src/learn-primitives.js
+index 1375160d5..52a163c6f 100644
+--- a/packages/control-plane/src/learn-primitives.js
++++ b/packages/control-plane/src/learn-primitives.js
+@@ -428,9 +428,26 @@ export function diagramProblem(md) {
+     if (f.lang === 'mermaid') return 'explanation_bad_diagram: a mermaid fence is not accepted; write the diagram as one closed ```rh-diagram fence holding a TutorDiagram JSON spec';
+     if (f.lang !== DIAGRAM) continue;
+     if (!f.closed) return 'explanation_bad_diagram: an rh-diagram fence is not closed';
++    try { parseTutorDiagram(f.lines.join('\n')); } catch (error) { return fenceProblem(error); }
++  }
++  return null;
++}
++// An issue the diagram validator tagged params { code: 'arithmetic' } (spec.js issue callback; today the box-plot fence check) means a number in the diagram is wrong: the
++// problem is named explanation_bad_numbers, its tagged issue first, and learn-artifact.js never drops or simplifies such a diagram (the card fails or is repaired instead).
++const arithmeticOf = error => (Array.isArray(error?.issues) ? error.issues : []).filter(i => i.params?.code === 'arithmetic');
++function fenceProblem(error) {
++  const all = Array.isArray(error?.issues) ? error.issues : [], numbers = arithmeticOf(error);
++  const issues = all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
++  return numbers.length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
++}
++// -> null, or { problem, issue, kind } for the first closed rh-diagram fence of the card (body or folded sections) that carries an arithmetic-tagged issue:
++// the problem text (explanation_bad_numbers: ...), the tagged issue's own message, and the diagram's kind.
++export function numbersIssue(block) {
++  for (const md of [block?.body, ...(block?.more || []).map(s => s?.text)]) for (const f of split(md).fences) {
++    if (f.lang !== DIAGRAM || !f.closed) continue;
+     try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
+-      const issues = Array.isArray(error?.issues) ? error.issues.slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
+-      return `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
++      const [first] = arithmeticOf(error);
++      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } return { problem: fenceProblem(error), issue: first.message, kind }; }
+     }
+   }
+   return null;
+diff --git a/packages/control-plane/test/explanation-fast-chain.test.js b/packages/control-plane/test/explanation-fast-chain.test.js
+index bfc76ba7b..8f4ba739a 100644
+--- a/packages/control-plane/test/explanation-fast-chain.test.js
++++ b/packages/control-plane/test/explanation-fast-chain.test.js
+@@ -16,7 +16,9 @@ import { explanationTarget } from '../src/chat-depth.js';
+ import { INTERACTION_GUIDANCE, INTERACTIONS_SETTING } from '../src/explanation-interactions.js';
+ import { requestSpendBound } from '../src/learn-spend.js';
+ import { noteUsageIdentity, toMicros, withUsage } from '../src/learn-usage.js';
+-import { withVisual } from './explanation-layout-fixture.js';
++import { diagramFence, withVisual } from './explanation-layout-fixture.js';
++import { artifactFetch } from '../src/learn-artifact.js';
++import { OWNER } from './explain-fixture.js';
+ 
+ const URL_OF = { fireworks: CHAIN_ENDPOINTS.fireworks.url, cerebras: CHAIN_ENDPOINTS.cerebras.url, google: CHAIN_ENDPOINTS.google.url };
+ const FW = 'accounts/fireworks/models/gpt-oss-120b';
+@@ -392,3 +394,86 @@ test('EXPLANATION_FALLBACK=off: only the profile\'s own provider, and its failur
+   assert.equal((await ask(offline('fireworks-low'))).result, 'artifact');
+   assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'google']);
+ });
++
++// Arithmetic issues (params.code 'arithmetic': a box-plot fence that is not Q1 - 1.5 IQR and Q3 + 1.5 IQR) are never dropped: the step repairs, then fails with explanation_bad_numbers.
++// The same model gets a second repair only when the NEXT provider cannot write the kind (Gemini and a box-plot the learner did not name; or no next provider).
++const boxCard = fences => ({ title: 'Fences from the quartiles', body: withVisual('The fences from the quartiles mark where an outlier begins.', { after: 'A reading beyond a fence is an outlier.', visual: diagramFence({ version: 1, diagram: { kind: 'box-plot', title: 'Fences from the quartiles', x: { label: 'Reading', min: 0, max: 20 }, boxes: [{ label: 'Trial', whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14, fences }] } }) }) });
++const wrongFences = boxCard({ lower: 2, upper: 16 }), goodFences = boxCard({ lower: -3, upper: 21 });
++const FENCE_ISSUE = 'Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.';
++const SENTENCE = 'Rewrite every sentence that states these numbers.';
++const named = { visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'box-plot', purpose: 'the fences' }] } };
++
++test('the box-plot answer is valid with true fences and an arithmetic problem with wrong ones', () => {
++  assert.equal(explanationProblem({ ...artifactBlock('explanation', goodFences), body: goodFences.body }), null);
++  assert.match(explanationProblem({ ...artifactBlock('explanation', wrongFences), body: wrongFences.body }), /^explanation_bad_numbers: .*Fences must be Q1 - 1.5 x IQR/);
++});
++
++test('arithmetic: the next provider cannot write box-plot, so the same model gets a second repair; success on repair 2 is recorded', async t => {
++  quiet(t);
++  const sent = providers(t, ok(wrongFences), ok(wrongFences), ok(goodFences));
++  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
++  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'fireworks'], 'Gemini would not get box-plot, so no hand-over');
++  assert.deepEqual([out.result, out.repaired, out.repairs, out.repairedAt], ['artifact', true, 2, 2]);
++  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 2, repairedAt: 2 }]);
++  for (const call of [sent[1], sent[2]]) assert.ok(call.body.messages.at(-1).content.startsWith('Validation failed: explanation_bad_numbers: ') && call.body.messages.at(-1).content.includes(SENTENCE), 'the exact numbers, then the sentence');
++  assert.ok(sent[1].body.messages.at(-1).content.includes(FENCE_ISSUE), 'the validator\'s first issue names the true fences');
++});
++
++test('arithmetic: success on the first repair stops there (no second repair)', async t => {
++  quiet(t);
++  const sent = providers(t, ok(wrongFences), ok(goodFences));
++  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
++  assert.equal(sent.length, 2);
++  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 1, repairedAt: 1 }]);
++});
++
++test('arithmetic: when the next provider CAN write the kind (it is named, or it is Fireworks) the old rule stands: one repair, the step fails, the next provider runs', async t => {
++  quiet(t);
++  let sent = providers(t, ok(wrongFences), ok(wrongFences), ok(goodFences));
++  let out = await ask(offline('fireworks-low'), 'Draw a box plot of the fences', named); // Gemini gets box-plot when the learner names it
++  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google']);
++  assert.deepEqual(out.attempts.map(a => [a.provider, a.outcome, a.repairs]), [['fireworks', 'arithmetic', 1], ['google', 'artifact', 0]]);
++  assert.deepEqual(out.attempts[0].issues, [FENCE_ISSUE]);
++  sent = providers(t, ok(wrongFences), ok(wrongFences), ok(goodFences));
++  out = await ask(offline('google-low'), 'Explain the box plot fences'); // Gemini first, Fireworks next writes everything
++  assert.deepEqual(sent.map(s => s.provider), ['google', 'google', 'fireworks']);
++  assert.deepEqual(out.attempts.map(a => [a.provider, a.outcome, a.repairs]), [['google', 'arithmetic', 1], ['fireworks', 'artifact', 0]]);
++});
++
++test('arithmetic: every step failing gives validation_error explanation_bad_numbers, nothing delivered and the diagram never dropped; each step keeps its issue', async t => {
++  quiet(t);
++  const sent = providers(t, ok(wrongFences));
++  const out = await ask(offline('google-low'), 'Explain the box plot fences');
++  assert.deepEqual(sent.map(s => s.provider), ['google', 'google', 'fireworks', 'fireworks', 'fireworks'], 'Gemini: call and one repair; Fireworks is last, so a second repair');
++  assert.equal(out.result, 'validation_error');
++  assert.match(out.error, /^explanation_bad_numbers: /);
++  assert.equal(out.block, undefined);
++  assert.deepEqual(out.attempts, [
++    { provider: 'google', model: 'gemini-3.5-flash-lite', outcome: 'arithmetic', repairs: 1, issues: [FENCE_ISSUE] },
++    { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, issues: [FENCE_ISSUE] }]);
++});
++
++test('a non-arithmetic invalid answer never gets the second repair and keeps its own issue text per step', async t => {
++  quiet(t);
++  const sent = providers(t, ok(long));
++  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
++  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google', 'google']);
++  assert.deepEqual(out.attempts.map(a => [a.outcome, a.repairs]), [['validation_error', 1], ['validation_error', 1]]);
++  assert.match(out.attempts[0].issues[0], /^explanation_/);
++  assert.ok(!sent[1].body.messages.at(-1).content.includes(SENTENCE), 'the sentence belongs to arithmetic issues only');
++});
++
++test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs and issue text, and the client gets the validation_error', async t => {
++  quiet(t);
++  providers(t, ok(wrongFences));
++  const puts = [], LEARN_MEDIA = { async put(key, body) { puts.push(JSON.parse(body)); } };
++  const env = { ...offline('google-low'), LEARN_MEDIA, RELEASE_SHA: 'abc123', CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo', org: OWNER.org, user_id: OWNER.userId, email: 'private@example.test' }) } };
++  const res = await artifactFetch(new Request('https://dev.test/api/learn/artifact', { method: 'POST', body: JSON.stringify({ app: 'demo', command: 'explanation', args: 'Explain the box plot fences' }) }), env);
++  const body = await res.json();
++  assert.equal(body.result, 'validation_error');
++  assert.equal(puts.length, 1);
++  assert.equal(puts[0].outcome, 'validation_error');
++  assert.match(puts[0].error, /^explanation_bad_numbers: /);
++  assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues]), [['google', 'arithmetic', 1, [FENCE_ISSUE]], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE]]]);
++  assert.ok(!JSON.stringify(puts[0]).includes('private@example.test'));
++});
+diff --git a/packages/control-plane/test/explanation-visual-fallback.test.js b/packages/control-plane/test/explanation-visual-fallback.test.js
+index 8813434e7..43f0e20a2 100644
+--- a/packages/control-plane/test/explanation-visual-fallback.test.js
++++ b/packages/control-plane/test/explanation-visual-fallback.test.js
+@@ -49,3 +49,23 @@ test('nothing readable at all: with a plan the card fails (the chain gets its ne
+   const noPlan = (await quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'stack vs queue', planned: true, plan: null }, { callModel: model({ title: 'Stack and queue', body }), repairs: 0 }))).value;
+   assert.equal([noPlan.result, noPlan.block?.visualFallback].join(), 'artifact,dropped');
+ });
++
++// Arithmetic-tagged issues (box-plot fences that are not Q1 - 1.5 IQR) are never dropped or simplified, with or without a plan: the step fails with explanation_bad_numbers and the wrong number is never delivered.
++test('a diagram with an arithmetic issue fails the step (explanation_bad_numbers) where an invalid diagram without one is dropped; the repair message carries the rewrite sentence', async () => {
++  const wrong = { version: 1, diagram: { kind: 'box-plot', title: 'Fences from the quartiles', x: { label: 'Reading', min: 0, max: 20 }, boxes: [{ label: 'Trial', whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14, fences: { lower: 2, upper: 16 } }] } };
++  const prose = spec => `The fences from the quartiles mark where an outlier begins.\n\n${fence(spec)}\n\nA reading beyond a fence is an outlier, so the quartiles decide the fences.`;
++  const sent = [], recorded = card => async (e, b) => { sent.push(b); return model(card)(); };
++  const asked = (card, repairs) => quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'box plot fences', planned: true, plan: null }, { callModel: recorded(card), repairs })).then(r => r.value);
++  const failed = await asked({ title: 'Fences', body: prose(wrong) }, 0);
++  assert.equal(failed.result, 'validation_error');
++  assert.match(failed.error, /^explanation_bad_numbers: .*not 2 and 16/);
++  assert.equal(failed.block, undefined, 'the prose is not delivered with the wrong number');
++  const repaired = await asked({ title: 'Fences', body: prose(wrong) }, 1);
++  assert.equal(repaired.result, 'validation_error');
++  assert.equal(sent.length, 3, 'one call at repairs 0, then the call and its one repair');
++  assert.ok(sent[2].messages.at(-1).content[0].content.includes('Rewrite every sentence that states these numbers.'));
++  // The same card with a diagram that is invalid without an arithmetic tag keeps the old drop path.
++  const other = { version: 1, diagram: { kind: 'matrix', title: 'Fences', columns: [{ heading: 'A' }] } };
++  const dropped = await asked({ title: 'Fences', body: prose(other) }, 0);
++  assert.equal([dropped.result, dropped.block?.visualFallback].join(), 'artifact,dropped');
++});
+diff --git a/packages/web/src/learn-slash.js b/packages/web/src/learn-slash.js
+index 170b84697..a4f6d870b 100644
+--- a/packages/web/src/learn-slash.js
++++ b/packages/web/src/learn-slash.js
+@@ -362,6 +362,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage
+   if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${typed} ${args}`, notice: { tone: 'error',
+     text: 'The interactive explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.',
+     detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${typedOf('explanation')} ${args}` }] } };
++  // A diagram whose numbers stayed wrong after the repair and every provider (learn-artifact.js numbersIssue, explanation_bad_numbers) is never shown, dropped or simplified: say so plainly, keep the line, show no numbers.
++  if (result.result === 'validation_error' && /explanation_bad_numbers/.test(result.error || '')) return { keep: `/${typed} ${args}`, notice: { tone: 'error', text: "Couldn't make a reliable card. Try again." } };
+   // Any other card the model could not make valid, even after its one repair: say so in plain words and keep the validator's
+   // words as the detail (a contract violation, with no primitive, keeps its message).
+   if (result.result === 'validation_error' && result.primitive) return { keep: `/${typed} ${args}`, notice: { tone: 'error', text: `${NAMES[result.primitive] ? NAMES[result.primitive][0].toUpperCase() + NAMES[result.primitive].slice(1) : 'The card'} could not be made: it failed its checks, so nothing was added. Send the line again to retry.`, detail: failedCheck(result.error) } };
+diff --git a/packages/web/src/learn-slash.test.mjs b/packages/web/src/learn-slash.test.mjs
+index 1c712c2c9..8f0cdf12b 100644
+--- a/packages/web/src/learn-slash.test.mjs
++++ b/packages/web/src/learn-slash.test.mjs
+@@ -620,3 +620,14 @@ test('a typed /explain asks to follow the previous card; a request from a card i
+   await runLearnCommand('/explain more on this', { app: 'demo', canvas, post: async () => ({ result: 'clarification', question: 'Which?' }), openSearch: () => {}, target: { id: 'card-9', beside: true, alignY: 30 } });
+   assert.deepEqual(did[0], { label: 'Creating /explain', card: 'explanation', beside: 'card-9', besideDy: 30 }, 'a follow-up keeps its beside and no follow');
+ });
++
++// Every provider's answer kept a wrong number in a diagram (explanation_bad_numbers): no card, no numbers shown, the line kept, one plain sentence.
++test('/explain: wrong numbers after every provider say Couldn\'t make a reliable card, keep the line and show no detail', async () => {
++  const failed = harness({ result: 'validation_error', primitive: 'explanation', error: 'explanation_bad_numbers: the rh-diagram spec states wrong numbers (boxes.0.fences: Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.)' });
++  const out = await failed.run('/explain box plot fences');
++  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
++  assert.equal(out.notice.tone, 'error');
++  assert.equal(out.notice.text, "Couldn't make a reliable card. Try again.");
++  assert.equal(out.notice.detail, undefined);
++  assert.equal(out.keep, '/explain box plot fences');
++});

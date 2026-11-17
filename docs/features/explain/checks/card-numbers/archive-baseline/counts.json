@@ -1,0 +1,185 @@
+{
+ "generatedFrom": "R2 rabbit-hole-prod-learn-media explain-archive/ (LIST+GET)",
+ "cutoff": "2026-11-14T07:40:00.000Z",
+ "dayRangeListed": [
+  "2026-11-14",
+  "2026-11-14"
+ ],
+ "atRange": {
+  "first": "2026-11-14T18:58:13.215Z",
+  "last": "2026-11-14T19:00:39.840Z"
+ },
+ "totals": {
+  "listed": 2,
+  "listedBefore": 0,
+  "readKeys": 2,
+  "beforeInReadDays": 0,
+  "since": 2,
+  "typedExplain": 2,
+  "typedDelivered": 2,
+  "typedOther": 0,
+  "v2JobSkipped": 0,
+  "unparsed": 0,
+  "deliveredWithNumericDiagram": 0,
+  "deliveredWithAnyDiagram": 2,
+  "badFences": 0,
+  "specs": 0,
+  "releases": {
+   "65164f68673631bbf2762f5a47d508990d6d4728": 2
+  },
+  "byDepth": {
+   "balanced": 2
+  },
+  "modelFrom": {
+   "steps": 2
+  },
+  "planKinds": {
+   "flow": 1,
+   "relationship": 1
+  },
+  "kindsDelivered": {
+   "flow": 1,
+   "relationship": 1
+  },
+  "kindsNumeric": {},
+  "validator": {
+   "release": {
+    "ok": 0,
+    "fail": 0
+   },
+   "cn": {
+    "ok": 0,
+    "fail": 0
+   }
+  }
+ },
+ "rules": {
+  "box-fence-arithmetic": {
+   "kind": "box-plot",
+   "text": "fences = Q1 - 1.5 x IQR and Q3 + 1.5 x IQR (tolerance half a unit of the last decimal written)",
+   "release": false,
+   "cn": true,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "box-outlier-inside-fence": {
+   "kind": "box-plot",
+   "text": "every outlier strictly outside the fences (whiskers when no fences)",
+   "release": true,
+   "cn": true,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "stacked-total": {
+   "kind": "bar-chart (stacked, total stated)",
+   "text": "parts sum to the stated total (half a unit of the last decimal per part)",
+   "release": true,
+   "cn": true,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "token-links-normalized": {
+   "kind": "token-links",
+   "text": "normalized query weights sum to 1 (0.98 to 1.02)",
+   "release": true,
+   "cn": true,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "histogram-proportion-sum": {
+   "kind": "histogram (measure proportion)",
+   "text": "bin proportions in [0,1] and sum to 1 (1e-6)",
+   "release": true,
+   "cn": true,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "heatmap-range-encloses": {
+   "kind": "heatmap",
+   "text": "every cell inside the stated colour range (range encloses min and max)",
+   "release": true,
+   "cn": true,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "plot-reference-stat": {
+   "kind": "coordinate-plot",
+   "text": "reference line labelled mean/average/median equals that statistic of the plotted values (half a unit of its last decimal)",
+   "release": false,
+   "cn": false,
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  }
+ },
+ "info": {
+  "bar-unit-sum": {
+   "text": "bar-chart (basic) with a probability/percent unit: values sum to 1 / 100 (informational; grouped or ranking charts need not sum)",
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "softmax-recompute": {
+   "text": "transformation labelled softmax: after = softmax(before) within 0.011 (checks.mjs; informational)",
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  },
+  "transformation-probabilities-sum": {
+   "text": "transformation labelled softmax/probability: after items sum to 1 (checks.mjs; informational)",
+   "cardsExamined": 0,
+   "cardsViolating": 0,
+   "itemsExamined": 0,
+   "itemsViolating": 0
+  }
+ },
+ "noRule": {
+  "waterfall": "opening + changes: the closing is derived by the renderer, no total is stated in the schema",
+  "t-account": "debits and credits: the balance is derived by the renderer, no balance is stated in the schema"
+ },
+ "perModel": {
+  "google/gemini-3.5-flash-lite": {
+   "delivered": 2,
+   "numeric": 0,
+   "rules": {}
+  }
+ },
+ "perRecord": {
+  "716e11a8-cd8d-4b94-8976-1d72f6008d23": {
+   "day": "2026-11-14",
+   "depth": "balanced",
+   "model": "google/gemini-3.5-flash-lite",
+   "release": "65164f68673631bbf2762f5a47d508990d6d4728",
+   "kinds": [
+    "flow"
+   ],
+   "rules": {}
+  },
+  "a8aaef1f-d681-4844-98c6-3201dee1d554": {
+   "day": "2026-11-14",
+   "depth": "balanced",
+   "model": "google/gemini-3.5-flash-lite",
+   "release": "65164f68673631bbf2762f5a47d508990d6d4728",
+   "kinds": [
+    "relationship"
+   ],
+   "rules": {}
+  }
+ },
+ "unparsed": []
+}

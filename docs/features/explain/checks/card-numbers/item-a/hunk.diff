@@ -1,0 +1,110 @@
+diff --git a/packages/web/src/tutor-diagrams/README.md b/packages/web/src/tutor-diagrams/README.md
+index fc38102c2..36f71f932 100644
+--- a/packages/web/src/tutor-diagrams/README.md
++++ b/packages/web/src/tutor-diagrams/README.md
+@@ -53,7 +53,7 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
+ | `heatmap` | Numeric `rows[].cells`, columns, explicit `range`, masked nulls and indexed highlights | `ml-statistical-*` |
+ | `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements | `ml-statistical-*` |
+ | `histogram` | `binEdges`, count/proportion series, markers; unequal-width bins require `density` | `ml-statistical-*` |
+-| `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis; stated fences must equal Q1 - 1.5 IQR and Q3 + 1.5 IQR (arithmetic issue), and the axis widens to hold fences and outliers outside the author range | `ml-statistical-*` |
++| `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis; stated fences must equal Q1 - 1.5 IQR and Q3 + 1.5 IQR (arithmetic issue), summary values and outliers must lie inside the author's axis, and the axis widens to hold a fence outside it | `ml-statistical-*` |
+ | `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
+ | `relationship` | `layout: graph`, each node drawn once, separate directed/reciprocal routes and labelled ledger | `ml-topology-*` |
+ | `flow` | `fork` and `merge` for simultaneous branches. Arrivals from three or more edges use distinct top ports and staggered approaches. | `ml-topology-*` |
+diff --git a/packages/web/src/tutor-diagrams/ml-statistical-layouts.js b/packages/web/src/tutor-diagrams/ml-statistical-layouts.js
+index 295cd0a95..74adcf5d8 100644
+--- a/packages/web/src/tutor-diagrams/ml-statistical-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-statistical-layouts.js
+@@ -228,7 +228,7 @@ function histogram(d, requested) {
+ function boxPlot(d, requested) {
+   const width = Math.max(360, requested, formulaWidth([d.x.label, ...d.boxes.flatMap(box => [box.label, ...(box.outliers ?? []).map(point => point.label)])]) + PAD * 2);
+   const left = PAD + 10, right = width - PAD - 10;
+-  // The axis widens (outward, to whole numbers) to hold every drawn value: a computed fence or a far outlier can lie past the author's x.min and x.max.
++  // The axis widens (outward, to whole numbers) to hold every drawn value: a computed fence can lie past the author's x.min and x.max.
+   const drawn = d.boxes.flatMap(box => [box.whiskerLow, box.q1, box.q3, box.whiskerHigh, ...(box.fences ? [box.fences.lower, box.fences.upper] : []), ...(box.outliers ?? []).map(point => point.value)]);
+   const axisMin = Math.min(...drawn) < d.x.min ? Math.floor(Math.min(...drawn)) : d.x.min;
+   const axisMax = Math.max(...drawn) > d.x.max ? Math.ceil(Math.max(...drawn)) : d.x.max;
+diff --git a/packages/web/src/tutor-diagrams/ml-statistical-spec.js b/packages/web/src/tutor-diagrams/ml-statistical-spec.js
+index 7e5e140d5..738914bbe 100644
+--- a/packages/web/src/tutor-diagrams/ml-statistical-spec.js
++++ b/packages/web/src/tutor-diagrams/ml-statistical-spec.js
+@@ -128,12 +128,13 @@ function checkBoxes(d, issue) {
+   d.boxes.forEach((box, i) => {
+     const fields = ['whiskerLow', 'q1', 'median', 'q3', 'whiskerHigh'];
+     fields.forEach((field, j) => {
++      if (!within(box[field], d.x.min, d.x.max)) issue(['boxes', i, field], 'Summary is outside the shared axis domain');
+       if (j && box[field] < box[fields[j - 1]]) issue(['boxes', i, field], 'Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh');
+     });
+     if (box.fences) {
+       const { lower, upper } = box.fences;
+       if (lower > box.whiskerLow || upper < box.whiskerHigh) issue(['boxes', i, 'fences'], 'Fences must enclose both whiskers');
+-      // The renderer widens the axis to hold fences, whiskers and outliers, so none of them has to fit the author's x range.
++      // Fences may fall outside the author's x range (the renderer widens the axis to hold them); summary values and outliers may not.
+       const places = Math.max(0, ...[box.q1, box.q3, lower, upper].map(value => (String(value).split('.')[1] ?? '').length));
+       const spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, round = value => Number(value.toFixed(places + 1));
+       // Same rounding allowance as the waterfall total: half a unit of the last decimal written.
+@@ -142,6 +143,7 @@ function checkBoxes(d, issue) {
+       }
+     }
+     (box.outliers ?? []).forEach(({ value }, j) => {
++      if (!within(value, d.x.min, d.x.max)) issue(['boxes', i, 'outliers', j, 'value'], 'Outlier is outside the shared axis domain');
+       const lower = box.fences?.lower ?? box.whiskerLow, upper = box.fences?.upper ?? box.whiskerHigh;
+       if (within(value, lower, upper)) issue(['boxes', i, 'outliers', j, 'value'], 'An outlier must lie strictly outside the fences, or whiskers when no fences are supplied');
+     });
+diff --git a/packages/web/src/tutor-diagrams/ml-statistical.test.mjs b/packages/web/src/tutor-diagrams/ml-statistical.test.mjs
+index de9dfb450..bd0def34f 100644
+--- a/packages/web/src/tutor-diagrams/ml-statistical.test.mjs
++++ b/packages/web/src/tutor-diagrams/ml-statistical.test.mjs
+@@ -201,8 +201,8 @@ test('box plots reject unordered summaries, invalid fences, false outliers and a
+     d => { d.boxes[0].q1 = 4; }, d => { d.boxes[0].median = 5; },
+     d => { d.boxes[0].whiskerLow = 3; }, d => { d.boxes[0].whiskerHigh = 3; },
+     d => { d.boxes[0].fences.lower = 1; }, d => { d.boxes[0].fences.upper = 5; },
+-    d => { d.boxes[0].outliers[0].value = 7; },
+-    d => { d.x.max = d.x.min; },
++    d => { d.boxes[0].outliers[0].value = 7; }, d => { d.boxes[0].outliers[0].value = 13; },
++    d => { d.x.min = 2; }, d => { d.x.max = d.x.min; },
+     d => { d.boxes[0].median = NaN; },
+   ];
+   for (const change of invalid) { const d = copy(boxes); change(d); assert.equal(schema.safeParse(d).success, false); }
+@@ -231,7 +231,7 @@ test('box plot fences that are not Q1 - 1.5 IQR and Q3 + 1.5 IQR are rejected wi
+ test('box plot with the true fences passes, with or without an outlier beyond them', () => {
+   const fences = { lower: -3, upper: 21 };
+   assert.deepEqual(problems(fenceCard({ ...trial, fences })), []);
+-  assert.equal(schema.safeParse(fenceCard({ ...trial, fences, outliers: [{ label: 'High', value: 25 }] }, { label: 'Reading', min: 0, max: 20 })).success, true);
++  assert.equal(schema.safeParse(fenceCard({ ...trial, fences, outliers: [{ label: 'High', value: 25 }] }, { label: 'Reading', min: 0, max: 25 })).success, true);
+ });
+ 
+ test('box plot without fences is unaffected by the fence arithmetic', () => {
+@@ -249,15 +249,15 @@ test('box plot fence arithmetic keeps fractions exact and allows half a unit of
+   assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.37, upper: 11.09 } })).map(i => i.params), [{ code: 'arithmetic' }]);
+ });
+ 
+-test('box plot axis widens to hold a computed fence and a far outlier instead of clipping or failing', () => {
+-  const d = fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'Far reading', value: 25 }] });
++test('box plot axis widens to hold a computed fence below x.min instead of clipping or failing', () => {
++  const d = fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'Far reading', value: 25 }] }, { label: 'Reading', min: 0, max: 25 });
+   assert.equal(schema.safeParse(d).success, true);
+   const { width, svg: rendered } = svg(d);
+   const fence = marks(rendered, 'data-tutor-box-fence'), outlier = marks(rendered, 'data-tutor-box-outlier');
+   const xs = [...fence.map(m => num(m.tag, 'x1')), ...outlier.map(m => num(m.tag, 'cx')), ...marks(rendered, 'data-tutor-box-whisker').flatMap(m => [num(m.tag, 'x1'), num(m.tag, 'x2')])];
+   const left = 12 + 10, right = width - 12 - 10; // PAD 12 plus the 10 px inset
+   for (const value of xs) assert.ok(value >= left - 1e-6 && value <= right + 1e-6, `${value} is outside the plot ${left} to ${right}`);
+-  // The widened axis runs -3 to 25: the lower fence sits at the left edge and the outlier at the right.
++  // The widened axis runs -3 (the fence, below the author's x.min) to 25 (the outlier, at the author's x.max).
+   close(num(fence[0].tag, 'x1'), left);
+   close(num(outlier[0].tag, 'cx'), right);
+   assert.match(rendered, /Lower fence: -3; Upper fence: 21/);
+diff --git a/scripts/topic-pipeline/agents/inputs/renderer-constraints.md b/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
+index 94849e176..804544cba 100644
+--- a/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
++++ b/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
+@@ -22,7 +22,9 @@ Generated by `build-renderer-constraints.mjs` from the tutor-diagram parser sour
+ - An outlier must lie strictly outside the fences, or whiskers when no fences are supplied
+ - Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 … and Q3 … that is … and …, not … and ….
+ - Fences must enclose both whiskers
++- Outlier is outside the shared axis domain
+ - Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh
++- Summary is outside the shared axis domain
+ - The axis maximum must exceed its minimum
+ 
+ ## coordinate-plot
