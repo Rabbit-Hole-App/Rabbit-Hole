@@ -11,8 +11,8 @@ const resetsAt = '2026-11-01T00:00:00.000Z';
 const refusal = reason => ({ code: 'allowance_limited', reason, resetsAt, error: 'server text' });
 
 test('each allowance state reads differently, names the reset where it applies, and never reads like the platform limit', () => {
-  assert.equal(refusalMessage(refusal('exhausted')), "Not enough AI units. Renews on October 31, 5:00 PM PDT.");
-  assert.equal(refusalMessage(refusal('insufficient')), 'This needs more AI units than you have left. Renews on October 31, 5:00 PM PDT.');
+  assert.equal(refusalMessage(refusal('exhausted')), "Not enough AI credits. Renews on October 31, 5:00 PM PDT.");
+  assert.equal(refusalMessage(refusal('insufficient')), 'This needs more AI credits than you have left. Renews on October 31, 5:00 PM PDT.');
   assert.match(refusalMessage(refusal('reserved')), /temporarily reserved by AI work that is still running/);
   assert.match(refusalMessage(refusal('unavailable')), /temporarily unavailable.*Your work is saved/);
   const platform = { code: 'spend_limited', reason: 'daily_cap_reached', error: 'AI is paused for now because the platform daily limit has been reached.' };

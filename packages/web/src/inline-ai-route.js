@@ -177,7 +177,6 @@ export const CHAT_CAPABILITIES = Object.freeze({
   explanation: { flow: 'direct', intent: 'The learner wants to understand a whole topic, concept, mechanism, cause or comparison, so a structured written explanation they would keep on the board and read again later is worth more than a quick reply. It can be asked as a question ("how does a transformer work?", "why do language models hallucinate?", "what is the difference between fine-tuning and LoRA?") or as a request ("write up how attention works for my notes"). A short or casual "what is X?" counts when X is a whole concept or subject, not the meaning of one term ("what is a transformer?", "what is inflation?", "what is overfitting?"): that learner wants to understand it, not read one line. Not for a narrow definition or fact, a follow-up about what was just said or the selected card, advice, an opinion, a yes/no, a question about the tool, or small talk; and not a drawing, diagram, graph, video or interactive scene.' },
   // Owner 2026-11-14: the test is the learner's goal, not their wording. A whole document on the canvas (a Markdown file, notes, an article they added) to be taught as a structured course: a
   // table of contents of sections and a card for each part. One answer, one card or a single question about the document is NOT this.
-  'codebase-options': { flow: 'direct', standalone: true, intent: 'The learner asks what they can do with a code repository on the canvas: what is possible, what the options are, how it can be used, or where to start. Not a question about how a specific part of the code works.' },
   course: { flow: 'direct', standalone: true, intent: 'The learner wants a document they added to the canvas (a Markdown file, notes or an article) turned into a whole course: a structured table of contents of sections, with an explanation for each part, made for them to study from start to finish. The test is the goal, not the words: a course or set of lessons built from the document, not one answer, one card or a quick question about it.' },
   practice: { flow: 'direct', intent: 'A practice task for the learner to do, with feedback on their answer: for example "let me try explaining it back to you" or "give me an exercise to practise this". A single test question is a quiz, not this.' },
 });
@@ -185,18 +184,12 @@ const CHAT_META = {
   several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
   none: 'None of these fits: an action neither a chat reply nor these tools can do, such as sending an email or booking something.',
 };
-// docs tutor-prompts-and-routing.md section 1b: code-explain is a route, not a command (no slash entry, no picker row), so it is declared here and not in CHAT_CAPABILITIES.
-// It is offered to the router only while the chat holds at least one code ref (the server passes it to chatRoutesWith, chat-capability-route.js); with none it is not a
-// route, so a code question stays an ordinary answer. flow 'direct': the chat turn's own handler runs it (control-plane learn-code-explain.js).
-export const CODE_CAPABILITIES = Object.freeze({
-  'code-explain': { flow: 'direct', intent: 'An explanation of how a specific piece of this repository\'s code works — what these lines do, how a function or feature behaves, how one part calls another. The chat holds code references the learner added.' },
-});
 // The chat choice options: 'answer', every declared capability the router may choose (not an explicit-only one), several, none.
 // Only commands whose flag is ON are options (agent/slash.js SLASH_FLAGS, owner 2026-11-13): an off command can never be chosen, so its message stays a chat answer.
 // standalone: a capability the router may choose that is no slash command (no picker row, colour or window card): the browser runs it itself (ask.jsx; owner 2026-11-14, Create a course).
 export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([id, entry]) => !entry.explicit && !entry.guarded && (SLASH_FLAGS[id] || entry.standalone))) });
 // The routes with the guarded capabilities this server enables added (EXP-T15): the server decides, never the browser.
-export const chatRoutesWith = (offered = []) => Object.freeze({ ...Object.fromEntries(Object.entries(CHAT_ROUTES).filter(([id]) => id === 'answer' || SLASH_FLAGS[id] || CHAT_CAPABILITIES[id]?.standalone)), ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded && SLASH_FLAGS[id]).map(id => [id, CHAT_CAPABILITIES[id]])), ...Object.fromEntries(offered.filter(id => CODE_CAPABILITIES[id]).map(id => [id, CODE_CAPABILITIES[id]])) });
+export const chatRoutesWith = (offered = []) => Object.freeze({ ...Object.fromEntries(Object.entries(CHAT_ROUTES).filter(([id]) => id === 'answer' || SLASH_FLAGS[id] || CHAT_CAPABILITIES[id]?.standalone)), ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded && SLASH_FLAGS[id]).map(id => [id, CHAT_CAPABILITIES[id]])) });
 // One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
 export const chatCapability = id => {
   const chat = CHAT_CAPABILITIES[id], entry = SLASH.find(command => command.name === id) ?? (chat?.standalone ? { label: 'Course', kind: 'action', action: 'course' } : null);

@@ -2,6 +2,7 @@
 // BASE and SMALL_CP must be the existing local stack. VARS reads TEST_BYPASS_SECRET only.
 // Real invite/accept and publication fixtures follow comments-check.mjs; no permission route is mocked.
 // Usage: BASE=http://127.0.0.1:5441 SMALL_CP=http://127.0.0.1:9093 VARS=<file> OUT=<dir> node e2e/canvas-search-viewers-check.mjs
+import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -156,17 +157,18 @@ try {
       assert.deepEqual(writes, []);
       await page.locator('[data-panel-tab="find"]').click(); await expect(panel).toBeVisible();
     });
-    // The one legacy-document migration check (commit 3, 2026-11-15): this board's `doc` (a seed that predates Document cards) has non-empty
-    // blocks, so every viewer's load turns it into ONE Document card holding the same blocks (canvas-doc.js migrateDocToCard), read-only
-    // here, found by Search under the Document filter. A viewer's load saves nothing.
-    await check(`${audience}: a legacy document opens as one Document card holding the same blocks, read-only, and Search finds it`, async () => {
-      await expect(page.locator('[data-doc-card]')).toHaveCount(1);
-      await expect(page.locator('[data-doc-card]')).toContainText('Hidden document obsidian passage.');
-      assert.equal(await page.locator('[data-doc-card] [contenteditable="true"]').count(), 0, 'a viewer cannot edit the card');
-      await search('obsidian', 'document'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
+    await check(`${audience}: hidden document is searchable and revealed read-only`, async () => {
+      await expect(page.locator('[data-canvas-doc]')).toHaveCount(0); // View > Mode is Canvas
+      await search('obsidian', 'text'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
+      await expect(panel.getByText('Document', { exact: true })).toBeVisible();
       await panel.locator('[data-search-index]').click();
-      await expect(page.locator('[data-doc-card]')).toContainText('Hidden document obsidian passage.');
+      await expect(page.locator('[data-doc-state="ready"]')).toBeVisible();
+      await expect(page.locator('[data-canvas-doc-editor]')).toContainText('Hidden document obsidian passage.');
+      assert.equal(await page.locator('[data-canvas-doc-editor] [contenteditable="true"]').count(), 0);
       await expect(panel).toBeVisible();
+      // Back to Canvas through the normal canvas's View menu (SHARE-01: no separate Show document button).
+      await chooseWorkspace(page, 'Canvas'); // // Owner brief 2026-10-22: View > Workspace > Canvas
+      await expect(page.locator('[data-canvas-doc]')).toHaveCount(0);
     });
     await check(`${audience}: open and resolved threads retain Search state and never resolve on opening; a deleted card's thread is out of Search`, async () => {
       const ids = threads[audience], base = audience === 'member' ? memberBase : publicBase;

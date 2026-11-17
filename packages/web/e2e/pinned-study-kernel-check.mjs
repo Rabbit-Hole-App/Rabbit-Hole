@@ -114,7 +114,7 @@ const sameFrame = async label => {
   const state = await page.evaluate(mark => { const node = document.querySelector('[data-notebook-frame]'); return { same: node?.__mark === mark, loads: node?.__loads ?? null, count: document.querySelectorAll('[data-notebook-frame]').length }; }, MARK);
   assert.deepEqual(state, { same: true, loads: 0, count: 1 }, `${label}: one notebook iframe, the same element, never reloaded`);
 };
-const view = async label => { await page.locator(`[data-study-toggle-option="${label === 'Canvas' ? 'canvas' : 'study'}"]`).click(); }; // the header pill (Run | Canvas), no View rows since 2026-11-15; UNRUN
+const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
 // The drawing toolbar (owner 2026-10-29): not drawn over the pinned Study notebook (no pointer or keyboard target left), drawn on Canvas.
 const tools = n => until(async () => (await page.locator('[role="toolbar"][aria-label="Canvas tools"]').count()) === n, `${n ? 'the Canvas tools are shown' : 'no Canvas tools'}`, 5000);

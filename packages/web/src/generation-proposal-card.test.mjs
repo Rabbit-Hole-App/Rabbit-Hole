@@ -88,10 +88,10 @@ test('Audio: Off selected, On disabled with the coming-soon tooltip', () => {
 });
 
 test('the usage line: server credits on one line, never dollars', () => {
-  assert.match(html(), /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI units<\/p>/);
+  assert.match(html(), /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/);
   const big = html({ proposal: proposal({ usage: { estimate_credits: 1200, max_credits: 4200, reserve_credits: 8960 } }) });
-  assert.match(big, /Estimated cost: 1,200 AI units</);
-  assert.match(big, /Most it can cost: 4,200 AI units\./);
+  assert.match(big, /Estimated cost: 1,200 AI credits</);
+  assert.match(big, /Most it can cost: 4,200 AI credits\./);
   for (const usage of [{ estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, { estimate_credits: 100, max_credits: 350, reserve_credits: null }, { estimate_credits: null, reserve_credits: 896 }, { estimate_credits: 1200, max_credits: 4200, reserve_credits: 8960 }]) {
     for (const line of [B.usageLine(usage), B.maxLine(usage), B.holdLine(usage)]) assert.doesNotMatch(line, /\$/, JSON.stringify(usage));
   }
@@ -105,9 +105,9 @@ test('the usage line: server credits on one line, never dollars', () => {
 // shown alone (docs/features/motion-credit-disclosure.md). The pre-2026-10-26 rule "the reservation stays internal" is replaced.
 test('the Motion card states the estimate, the maximum and the temporary hold apart; without a maximum it shows no estimate and blocks Generate', () => {
   const out = html();
-  assert.match(out, /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI units<\/p>/);
-  assert.match(out, /<p data-proposal-max[^>]*>Most it can cost: 350 AI units\. You are never charged more\.<\/p>/);
-  assert.match(out, /<p data-proposal-hold[^>]*>896 AI units are held while it runs; whatever is not used is released\.<\/p>/);
+  assert.match(out, /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/);
+  assert.match(out, /<p data-proposal-max[^>]*>Most it can cost: 350 AI credits\. You are never charged more\.<\/p>/);
+  assert.match(out, /<p data-proposal-hold[^>]*>896 AI credits are held while it runs; whatever is not used is released\.<\/p>/);
   assert.doesNotMatch(out, /about 100|\.\.\.|…/, 'no single "about N credits" explanation, no ellipsis');
   assert.doesNotMatch(out, /data-proposal-generate="true"[^>]*disabled/, 'a complete quote can be generated');
   // The Motion proposal the server sent without a maximum (negative control: the same card with one is generatable above).

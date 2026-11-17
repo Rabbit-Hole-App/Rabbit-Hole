@@ -62,31 +62,3 @@ export function paintHighlights(key, ranges) {
   if (ranges?.length) painted.set(key, ranges); else painted.delete(key);
   CSS.highlights.set('wiki-highlight', new Highlight(...[...painted.values()].flat()));
 }
-
-// Learn sections (learn-section-make-spec.md sections 6b, 7b; DECISIONS S): a quote the Tutor stored on a card is an ordinary highlight entry that also carries
-// `learn: { sectionId, itemId }`. It is resolved once, when the card shows the text it belongs to: found, it becomes a plain highlight in the text's own words (so it paints as
-// any other); not found, it is dropped and its item is told (LEARN_HIGHLIGHT_EVENT, which the Tutor's flow records through learn_section_made as highlight 'not_found').
-export const LEARN_HIGHLIGHT_EVENT = 'rh:learn-section-highlight';
-// shortcut: whitespace is ignored entirely (a PDF text layer drops the space at a line end), so a quote matches across line breaks; ligatures and hyphenation are not undone.
-export function locateLoose(text, exact) {
-  const needle = String(exact || '').replace(/\s+/g, '');
-  if (!needle) return null;
-  const at = [], kept = [];
-  for (let i = 0; i < text.length; i += 1) if (!/\s/.test(text[i])) { at.push(i); kept.push(text[i]); }
-  const found = kept.join('').indexOf(needle);
-  return found === -1 ? null : { start: at[found], end: at[found + needle.length - 1] + 1 };
-}
-// entries: the card's highlights; text: what it shows now; belongs(entry): the entry is for this text (its page, its article). -> { next, missed: [learn] }, or null when none waits.
-export function resolveLearnQuotes(entries, text, belongs) {
-  if (!(entries || []).some(entry => entry?.learn && belongs(entry))) return null;
-  const missed = [];
-  const next = entries.flatMap(entry => {
-    if (!entry?.learn || !belongs(entry)) return [entry];
-    const { learn, ...rest } = entry;
-    const span = locateQuote(text, { prefix: '', suffix: '', ...rest }) || locateLoose(text, rest.exact);
-    if (!span) { missed.push(learn); return []; }
-    return [{ ...rest, exact: text.slice(span.start, span.end), prefix: text.slice(Math.max(0, span.start - CONTEXT), span.start), suffix: text.slice(span.end, span.end + CONTEXT) }];
-  });
-  return { next, missed };
-}
-export const reportLearnHighlight = (learn, highlight, cardId = null) => window.dispatchEvent(new CustomEvent(LEARN_HIGHLIGHT_EVENT, { detail: { ...learn, highlight, ...(cardId ? { cardId } : {}) } }));

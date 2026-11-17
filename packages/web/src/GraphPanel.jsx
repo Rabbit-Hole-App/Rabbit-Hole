@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, Package, Search, SquareCode, Waypoints } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
-import ActionBar, { ACTIONS } from './ActionIcons.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { objectOf, relationshipGroups, typeOf } from './inspector.js';
 import { askDraft, askQuestion, whyQuestion } from './agent/scope.js';
@@ -30,7 +29,7 @@ import { insertCodeCard, insertCodeCards, nodeCodeCard } from './code-card.js';
 // Closing the companion column clears the temporary selection; pinned refs stay.
 // Add to canvas (clarification section 1, Release 2; owner brief 2026-10-16 item 5): the header's add adds the graph shown
 // here (addGraph below), and for a selection
-// "Add selection as graph" (its nodes and only their indexed relationships) or "Add to canvas" (nodes with retrievable code),
+// "Add selection as graph" (its nodes and only their indexed relationships) or "Add code card" (nodes with retrievable code),
 // from the selection row or a node's right-click menu. They place a card on this canvas and never touch Chat.
 const ICONS = { file: FileCode, symbol: Braces, external: Package };
 const short = commit => (commit || '').slice(0, 7);
@@ -75,12 +74,11 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   // A right-clicked node outside the selection becomes the selection, so the menu acts on what is lit.
   const openMenu = (node, at) => { if (!selected.includes(node.id)) setSelected([node.id]); setMenu(at); };
   const menuIds = menu ? selected : [];
-  const [searchOpen, setSearchOpen] = useState(false); // the small Search window over the graph
 
   // Escape closes an open menu first, before the graph clears its selection (clarification section 5).
   return <section data-graph-panel aria-label="Repository graph" className="flex min-h-0 flex-1 flex-col gap-2"
     onKeyDownCapture={event => { if (menu && event.key === 'Escape') { event.stopPropagation(); setMenu(null); } }}>
-    {!snapshot && <header className="flex shrink-0 items-center gap-2 text-xs text-ink-2">
+    <header className="flex shrink-0 items-center gap-2 text-xs text-ink-2">
       <span data-graph-status={status} className="flex min-w-0 flex-1 items-center gap-1.5">
         {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
           <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>
@@ -89,51 +87,37 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
-    </header>}
+      {/* "Add to canvas" (owner brief 2026-10-16 item 4; owner review UI-10: the shared inverse Button, as in Context and Files): a labelled
+          filled button in the graph's header; what it adds is addGraph's. */}
+      {snapshot && <Button size="sm" variant="inverse" data-graph-add-to-canvas disabled={!ops || !snapshot.graph.nodes.length} className="shrink-0"
+        title={['queued', 'indexing'].includes(status) ? `Add the graph of commit ${short(snapshot.commit)} to the canvas (a newer commit is still indexing)` : 'Add graph to canvas'}
+        onClick={() => addGraph()}>Add to canvas</Button>}
+      {memory && snapshot && <Button size="sm" data-map-layers-open aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} />Layers<ChevronDown size={12} className="text-ink-3" /></Button>}
+    </header>
     <Body repository={repository} />
     {snapshot && <>
+      <label className="relative shrink-0">
+        <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
+        <Input aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
+      </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
-      {shown.nodes.length ? <div className="relative flex min-h-64 flex-1 flex-col">
-        {/* Owner 2026-11-15, to save space: the repository and its commit sit inside the graph window at its top left; Search and Layers are icons at its top right (Search opens a small window). */}
-        <span data-graph-window-label className="pointer-events-none absolute top-2 left-2 z-10 flex max-w-[60%] items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 text-xs text-ink-2 shadow-sm">
-        <span data-graph-status={status} className="flex min-w-0 flex-1 items-center gap-1.5">
-          {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
-            <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>
-            {snapshot && <span className="shrink-0 font-mono" title={`Indexed commit ${snapshot.commit}`}>{short(snapshot.commit)}</span>}
-            {['queued', 'indexing'].includes(status) && <span className="flex shrink-0 items-center gap-1"><Loader2 size={12} className="animate-spin" aria-hidden />{snapshot ? 'Indexing a newer commit' : status === 'queued' ? 'Waiting for the indexer' : 'Indexing'}</span>}
-            {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
-          </>}
-        </span>
-        </span>
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-          <IconBtn data-graph-search-open aria-label="Search files or symbols" title="Search files or symbols" aria-expanded={searchOpen} className={query.trim() ? 'bg-accent/10 text-accent' : ''} onClick={() => setSearchOpen(open => !open)}><Search size={14} /></IconBtn>
-          {memory && <IconBtn data-map-layers-open aria-label="Layers" title="Layers" aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} /></IconBtn>}
-        </div>
-        {searchOpen && <div data-graph-search-window role="search" className="absolute top-11 right-2 z-20 w-64 max-w-[calc(100%-1rem)] rounded-lg border border-line bg-white p-1.5 shadow-pop"
-          onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setSearchOpen(false); } }}>
-          <label className="relative block">
-            <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
-            <Input autoFocus aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
-          </label>
-        </div>}
+      {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
         <RepositoryGraph key={snapshot.commit} fit graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>
       {selected.length > 0 && <div data-graph-selection className="flex shrink-0 items-center gap-2 border-t border-line pt-2 text-sm">
         <span className="min-w-0 flex-1 text-ink-2">{selected.length} selected</span>
-        <ActionBar side="top" actions={[
-          { id: 'chat', disabled: !chat || !graphRefs(repository).length, onClick: addToChat, title: 'Add to chat: keep the selected code with this chat', data: { 'data-graph-add-to-chat': '' } },
-          { id: 'graph', disabled: !ops || !indexed(selected).length, onClick: () => addGraph(indexed(selected)), data: { 'data-graph-add-selection': '' } },
-          { id: 'canvas', disabled: !canCode, onClick: () => addCode(codeNodes(selected)), title: insertCodeCard ? 'Add to canvas: the selected code as code cards' : 'Code cards are not available yet', data: { 'data-graph-add-code': '' } },
-          { id: 'close', label: 'Clear selection', title: 'Clear selection (Escape)', onClick: () => clearSelection(repository), data: { 'data-graph-clear': '' } },
-        ]} />
+        <Button size="sm" variant="secondary" data-graph-add-to-chat disabled={!chat || !graphRefs(repository).length} title="Keep the selected code with this chat" onClick={addToChat}>Add to chat</Button>
+        <IconBtn data-graph-add-selection aria-label="Add selection as graph" title="Add selection as graph" disabled={!ops || !indexed(selected).length} onClick={() => addGraph(indexed(selected))}><SquarePlus size={14} /></IconBtn>
+        <IconBtn data-graph-add-code aria-label="Add code card" title={insertCodeCard ? 'Add code card' : 'Code cards are not available yet'} disabled={!canCode} onClick={() => addCode(codeNodes(selected))}><FileCode size={14} /></IconBtn>
+        <IconBtn data-graph-clear aria-label="Clear selection" title="Clear selection (Escape)" onClick={() => setSelected([])}><X size={14} /></IconBtn>
       </div>}
       <Menu open={!!menu} portal style={menu ? { left: menu.x, top: menu.y } : undefined} onClose={() => setMenu(null)} className="w-52">
         <div data-graph-node-menu role="menu" aria-label="Graph selection">
-          <MenuItem icon={ACTIONS.graph.Icon} role="menuitem" data-menu-add-selection disabled={!ops || !indexed(menuIds).length} onClick={() => { addGraph(indexed(menuIds)); setMenu(null); }}>Add selection as graph</MenuItem>
-          <MenuItem icon={ACTIONS.canvas.Icon} role="menuitem" data-menu-add-code disabled={!canCode} onClick={() => { addCode(codeNodes(menuIds)); setMenu(null); }}>Add to canvas</MenuItem>
-          <MenuItem icon={ACTIONS.chat.Icon} role="menuitem" data-menu-add-to-chat disabled={!chat || !graphRefs(repository).length} onClick={() => { addToChat(); setMenu(null); }}>Add to chat</MenuItem>
+          <MenuItem icon={SquarePlus} role="menuitem" data-menu-add-selection disabled={!ops || !indexed(menuIds).length} onClick={() => { addGraph(indexed(menuIds)); setMenu(null); }}>Add selection as graph</MenuItem>
+          <MenuItem icon={FileCode} role="menuitem" data-menu-add-code disabled={!canCode} onClick={() => { addCode(codeNodes(menuIds)); setMenu(null); }}>Add code card</MenuItem>
+          <MenuItem icon={MessageSquarePlus} role="menuitem" data-menu-add-to-chat disabled={!chat || !graphRefs(repository).length} onClick={() => { addToChat(); setMenu(null); }}>Add to chat</MenuItem>
         </div>
       </Menu>
       {one && <NodeDetails repository={repository} node={one} onOpenSource={onOpenSource} onExplore={id => setExplore({ id, at: Date.now() })} onSelect={node => choose(node)} />}
@@ -163,9 +147,6 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
   if (MEMORY_KINDS.includes(node.kind)) return <div data-node-details className="shrink-0 border-t border-line pt-2 text-sm"><p className="font-medium">{node.label}</p><p className="text-xs text-ink-3">Fixture record</p></div>;
   const object = objectOf(snapshot.graph, node), Icon = ICONS[object.kind] || Braces;
   const groups = relationshipGroups(snapshot.graph, object.nodeId || node.id);
-  // Open in files (owner 2026-11-15): the node's own file and each listed file open in Files through the same onOpenSource as Open source; an entry that is not a file of this snapshot (math, inspect) has no icon.
-  const inFiles = path => !!path && !!snapshot.files?.some(file => file.path === path);
-  const openIcon = (path, line) => <IconBtn data-node-open-files aria-label="Open in files" title="Open in files" onClick={() => onOpenSource?.(path, line, line)}><FileCode size={14} /></IconBtn>;
   const href = object.path && repositoryUrl({ repo: app?.repo, commit: snapshot.commit, path: object.path, line: object.kind === 'file' ? null : object.line });
   return <div data-node-details className="flex max-h-[40%] shrink-0 flex-col gap-1.5 overflow-y-auto border-t border-line pt-2">
     <div className="flex items-center gap-1.5">
@@ -173,10 +154,10 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
       <h3 className="min-w-0 flex-1 truncate text-sm font-semibold" title={object.label}>{object.label}</h3>
       {href && <a data-node-github href={href} target="_blank" rel="noreferrer" aria-label="Open on GitHub" title="Open this source on GitHub at the indexed commit" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"><ArrowUpRight size={14} /></a>}
     </div>
-    <div className="flex items-center gap-1"><p className="min-w-0 flex-1 truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>{inFiles(object.path) && openIcon(object.path, object.line)}</div>
+    <p className="truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>
     <div className="flex flex-wrap gap-1">
       <Button size="sm" variant="secondary" data-node-open-source disabled={!object.path} title={object.path ? 'Open in Files at this line' : 'An external dependency has no source here'} onClick={() => onOpenSource?.(object.path, object.line || 1, object.line || 1)}>Open source</Button>
-      {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add to canvas</Button>}
+      {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add code card</Button>}
       <Button size="sm" data-node-ask onClick={() => askDraft(askQuestion(object))}>Ask about this</Button>
       <Button size="sm" data-node-why onClick={() => askDraft(whyQuestion(object))}>Ask why</Button>
       <Button size="sm" data-node-learn onClick={() => askDraft(`Teach me ${object.label}`)}>Learn this</Button>
@@ -185,12 +166,9 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
     {groups.length > 0 && <div data-node-relationships className="text-sm">
       {groups.map(group => <div key={group.label} data-relation={group.label}>
         <p className="pt-1 text-xs text-ink-3">{group.label}</p>
-        {group.items.map(({ node: other, inferred }, i) => <div key={`${other.id}-${i}`} className="flex items-center gap-1">
-          <button type="button" onClick={() => onSelect(other)} className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1.5 py-0.5 text-left hover:bg-hover">
-            <span className="min-w-0 flex-1 truncate">{other.label}</span>{inferred && <span title="Inferred by the indexer, not read from the code" className="text-xs text-ink-3">inferred</span>}
-          </button>
-          {inFiles(other.path) && openIcon(other.path, other.line)}
-        </div>)}
+        {group.items.map(({ node: other, inferred }, i) => <button key={`${other.id}-${i}`} type="button" onClick={() => onSelect(other)} className="flex w-full items-center gap-2 rounded-sm px-1.5 py-0.5 text-left hover:bg-hover">
+          <span className="min-w-0 flex-1 truncate">{other.label}</span>{inferred && <span title="Inferred by the indexer, not read from the code" className="text-xs text-ink-3">inferred</span>}
+        </button>)}
       </div>)}
     </div>}
   </div>;

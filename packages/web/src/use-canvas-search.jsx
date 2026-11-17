@@ -24,7 +24,7 @@ const sessions = new Map();
 // linkResults (LearnPage only, where the Links tab was): the board's links and backlinks are Search results under Links;
 // onOpenLink(href) opens a canvas (the page's go, which saves first). A shared view keeps links to its cards' chips.
 // canInsert: this viewer may add cards here (a link result's Add to canvas, UI-13); a view-only page leaves it off.
-export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, linkResults = false, onOpenLink, children, onComment, canInsert = false }) {
+export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, linkResults = false, onOpenLink, children, onComment, revealDocument, canInsert = false }) {
   const [session, setSession] = useState(() => ({ scopeKey, ...sessions.get(scopeKey) || initial(scopeKey) }));
   const current = session.scopeKey === scopeKey ? session : { scopeKey, ...sessions.get(scopeKey) || initial(scopeKey) };
   const patch = useCallback(change => setSession(previous => {
@@ -118,7 +118,15 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
     const api = canvasApi.current;
     if (!current.back) patch({ back: api?.captureNavigation?.() || null });
     patch({ activeId: result.id });
-    const outcome = await canvasApi.current?.focusSearchTarget?.(result.target);
+    if (result.kind === 'document') revealDocument?.();
+    let outcome;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      if (!alive()) return;
+      outcome = await canvasApi.current?.focusSearchTarget?.(result.target);
+      if (!alive()) return;
+      if (!['document-hidden', 'document-loading'].includes(outcome?.reason)) break;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
     if (!alive()) return;
     if (result.kind === 'comment') onComment?.(result);
     setNotice(!outcome?.found && result.kind !== 'comment' ? { scopeKey, message: outcome?.reason === 'missing-target' ? 'This result is no longer on the canvas.' : 'The matching content is not currently visible in this object.' } : null);

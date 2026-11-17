@@ -83,7 +83,7 @@ test('the outline scrolls above and the composer is fixed below, in the contents
   assert.match(tab, /<TableOfContents [^\n]*\n\s+className=\{`mb-3 flex \$\{setupChat \? 'max-h-\[45%\] shrink-0' : 'min-h-0'\} flex-col overflow-y-auto`\} \/>/, 'the outline is the scroller');
   assert.ok(tab.indexOf('<TableOfContents') < tab.indexOf('<TocWorkspace key={app.name}><TocConversation'), 'the conversation comes after the outline');
   assert.ok(tab.indexOf('<TocWorkspace') < tab.indexOf('<ChatPane'), 'inside the contents tab, before Chat');
-  assert.match(tab, /\{!setupChat && !planDone && \(app\.hosting !== 'aws' \|\| app\.app_chat\) && <TocWorkspace key=\{app\.name\}>/);
+  assert.match(tab, /\{!setupChat && \(app\.hosting !== 'aws' \|\| app\.app_chat\) && <TocWorkspace key=\{app\.name\}>/);
   assert.match(tab, /boardContext=\{\{ \.\.\.boardContext, onOutlineProposal: canEditCanvas \?/, 'an outline change the Tutor proposes applies to the contents');
 });
 
@@ -99,7 +99,7 @@ test('Add to chat on a contents row makes a pill in the CONTENTS composer and ne
   assert.match(told[0], /Could not add/);
   // The page hands that ref to the contents workspace's own context, and nothing else.
   const page = read('LearnPage.jsx');
-  assert.match(page, /onAddToChat=\{planDone \? null : ref => \{ chat\.toc\.context\.attach\(ref\); chat\.toc\.composer\.focus\?\.\(\); \}\}/); // after an accepted plan there is no composer to add to
+  assert.match(page, /onAddToChat=\{ref => \{ chat\.toc\.context\.attach\(ref\); chat\.toc\.composer\.focus\?\.\(\); \}\}/);
   assert.doesNotMatch(page, /onAddToChat=\{[^}]*chat\.(addToChat|context\.attach)/);
   // The canvas builds the ref; it selects, sends and adds nothing.
   const canvas = read('AdaptiveCanvas.jsx');

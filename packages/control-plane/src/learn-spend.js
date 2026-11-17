@@ -159,11 +159,3 @@ export function spendCallModel(env, access, category, callModel) {
     { userId: access.user_id || access.email, category, ...(model?.startsWith?.('gemini-') ? { provider: 'google' } : {}) });
 }
 
-
-// Learn sections (docs/features/learn-sections/BLOCKERS.md): a per-call bound with input estimated at `bytesPer` request bytes a token (real text is about 4),
-// for a turn whose cap would otherwise allow only two calls under requestSpendBound's one-byte-a-token bound. null when requestSpendBound refuses the request.
-export function estimatedSpendBound(body, model, bytesPer = 3, provider = 'anthropic') {
-  if (requestSpendBound(body, model, provider) == null) return null;
-  const price = priceFor(model, provider), input = Math.ceil(new TextEncoder().encode(JSON.stringify(body)).length / bytesPer) + 1000;
-  return Math.ceil((input * price[0] * 1.25 + body.max_tokens * price[1]) * (body.speed === 'fast' ? 2 : 1)) / 1e6;
-}

@@ -1,1 +1,0 @@
-The learner has chosen a topic to learn from this repository. Open it in one paragraph: say in plain words what the topic is in this code, name the two or three files where it lives and cite them, and end with one question that tells you how much the learner already knows. No lesson yet, no list, no next steps.

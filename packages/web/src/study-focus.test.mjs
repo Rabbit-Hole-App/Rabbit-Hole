@@ -61,15 +61,3 @@ test('P7: Unpin, View > Canvas, Study > Canvas and Locate end Study\'s Focus bef
   // No Study path ends a Focus it does not own.
   assert.doesNotMatch(pane, /canvas\.exitFocus\(\)/);
 });
-
-// Pinned Study for a codebase canvas (pinned-study-codebase-spec.md 2c): Run and Runbook are Focus on their card exactly as Notebook is.
-test('Study owns the Focus of its Run card and its Runbook, and only on the card it is working in', () => {
-  const study = { work: 'run', runId: 'r1', runbookId: 'd1', notebookId: 'nb' };
-  assert.equal(studyOwnsFocus(study, { id: 'r1', kind: 'run' }), true);
-  assert.equal(studyOwnsFocus(study, { id: 'd1', kind: 'doc' }), false, 'the Runbook is not the work');
-  assert.equal(studyOwnsFocus({ ...study, work: 'runbook' }, { id: 'd1', kind: 'doc' }), true);
-  assert.equal(studyOwnsFocus({ ...study, work: 'canvas' }, { id: 'r1', kind: 'run' }), false);
-  const own = fakeCanvas({ id: 'r1', kind: 'run' });
-  assert.equal(endStudyFocus(own, study), true);
-  assert.deepEqual(own.calls, ['exitFocus']);
-});

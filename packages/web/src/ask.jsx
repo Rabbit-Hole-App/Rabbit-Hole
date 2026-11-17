@@ -1,4 +1,4 @@
-import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL, StripTool } from './ChatComposer.jsx';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
 import { takePrefill } from './creator-analytics.js';
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
@@ -20,7 +20,7 @@ import { codeRef } from './chat-sources.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
@@ -55,10 +55,6 @@ import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
 import { TutorCoaching } from './use-learn-coaching.jsx';
-import { REHEARSAL } from './rehearsal-flag.js';
-// The literal env test beside the import lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER; it runs only when the flow renders.
-const TutorRehearsalFlow = lazy(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./TutorRehearsal.jsx') : Promise.reject(new Error('not part of this build'))));
-import { CODEBASE_OPTIONS_EVENT, canvasUseId, offerIntakeText } from './codebase-use-route.js';
 import RoadmapTranscript, { TutorMessage } from './RoadmapTranscript.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
@@ -318,7 +314,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const stripMode = !!(stripHost && chat && !tocView);
   // Curious's own toggle (owner 2026-11-13): in the canvas strip's toolbar, next to the / control; LearnPage owns the state (curiousToggle: { min, set }).
   const curiousButton = stripMode && curiousToggle ? (
-    <StripTool data-curious-toggle label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} on={!curiousToggle.min} onClick={() => curiousToggle.set(!curiousToggle.min)}><CircleHelp size={16} strokeWidth={1.7} /></StripTool>) : null;
+    <button type="button" data-curious-toggle aria-label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} aria-pressed={!curiousToggle.min} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} onMouseDown={event => event.preventDefault()} onClick={() => curiousToggle.set(!curiousToggle.min)}
+      className={cn(COMPOSER_TOOL, !curiousToggle.min && 'bg-hover text-accent hover:text-accent')}><CircleHelp size={16} strokeWidth={1.7} /></button>) : null;
   // The window above the strip (owner 2026-11-13): sending from the strip leaves the right panel closed and opens this small fixed-height window, which holds
   // the conversation (moved here without remounting) and can be minimized or maximized; a send reopens a minimized one.
   const [windowSeen, setWindowSeen] = useState(false), [winState, setWinState] = useState('normal');
@@ -335,7 +332,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   useLayoutEffect(() => { const where = windowMode ? windowBody.current : convSlot.current; if (where && convHost.parentNode !== where) where.appendChild(convHost); });
   // Minimized, the window is gone completely; this button in the strip's toolbar (next to the Curious toggle) shows it again, and hides it while it is open.
   const chatWindowButton = stripMode && windowHost && windowSeen ? (
-    <StripTool data-chat-window-toggle label={winState === 'min' ? 'Show chat' : 'Hide chat'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} on={winState !== 'min'} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}><MessageSquare size={16} strokeWidth={1.7} /></StripTool>) : null;
+    <button type="button" data-chat-window-toggle aria-label={winState === 'min' ? 'Show chat' : 'Hide chat'} aria-pressed={winState !== 'min'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} onMouseDown={event => event.preventDefault()} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}
+      className={cn(COMPOSER_TOOL, winState !== 'min' && 'bg-hover text-accent hover:text-accent')}><MessageSquare size={16} strokeWidth={1.7} /></button>) : null;
   const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const inlineSlot = useRef(null);
   useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
@@ -588,8 +586,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null, onAdmitted = null } = {}) => {
-    // A slash command makes its card on the canvas: it does not open the chat window above the strip (owner 2026-11-15); only a chat question does.
-    if (stripMode && !commandName && !command) { setWindowSeen(true); setWinState(state => (state === 'min' ? 'normal' : state)); } // sent from the canvas strip: the window above it shows the conversation; the panel stays closed
+    if (stripMode) { setWindowSeen(true); setWinState(state => (state === 'min' ? 'normal' : state)); } // sent from the canvas strip: the window above it shows the conversation; the panel stays closed
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
@@ -607,8 +604,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const chips = keepDraft ? [] : mentions;
     const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return false;
-    // The Tutor's intake question is open on a repository canvas (TutorRehearsal.jsx; dev flag): a plain line is the reply to it, routed to one of the 14 uses, not sent as a turn.
-    if (chat && !tocView && !regenerate && !keepDraft && !prompted && !commandName && !file && !message.startsWith('/') && REHEARSAL && offerIntakeText(chat.canvas, message)) { setInput(''); return; }
     // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
     // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
     // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
@@ -819,8 +814,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
-        // Dev flag (rehearsal-flag.js): a repository chat names the canvas goal's use so the server composes its prompt overlay (codebase-use-route.js canvasUseId).
-        ...(REHEARSAL && chat && codebase && canvasUseId(chat.coaching?.state) ? { use: canvasUseId(chat.coaching.state) } : {}),
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // R2: the learner's Depth for this canvas (Balanced sends nothing).
         ...depthSnapshot,
@@ -856,13 +849,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
         // The router read the words as a request for a course (owner 2026-11-14): the canvas's Markdown file becomes a course through the same create the invitation's button runs; the plan arrives in Chat.
-        // The router read the words as "what can I do with this codebase?" (owner 2026-11-15): the Tutor offers its list again, the one dropdown, on a repository canvas; anywhere else it is an ordinary answer.
-        if (!outcome.send && outcome.direct?.command === 'codebase-options') {
-          const offer = { canvas: chat.canvas, handled: false }; // the Tutor's flow, where it is mounted, answers by setting handled
-          window.dispatchEvent(new CustomEvent(CODEBASE_OPTIONS_EVENT, { detail: offer }));
-          if (offer.handled) { setMsgs(m => m.slice(0, -2)); return; }
-          Object.assign(outcome, { send: true, token: null, answerOnly: false, direct: null }); // an ordinary turn with its tools: answer-only would strip the repository and paper tools from a plain question
-        }
         if (!outcome.send && outcome.direct?.command === 'course' && chat?.canvasOps?.startCourse) { const done = chat.canvasOps.startCourse(outcome.direct.args); setMsgs(m => m.slice(0, -2)); say(done?.notice?.text || 'Making the plan. It appears in Chat for you to review.'); return; }
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
         if (!outcome.send) {
@@ -1111,8 +1097,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
-        {/* The initial pipeline's Tutor messages after the thread's own (TutorRehearsal.jsx; dev flag VITE_REHEARSAL_TRIGGER=1). */}
-        {chat && !tocView && chat.coaching && REHEARSAL && <Suspense fallback={null}><TutorRehearsalFlow chat={chat} slash={slashRef} /></Suspense>}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
@@ -1409,8 +1393,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         <section data-chat-window data-chat-window-state={winState} aria-label="Chat" className={cn('mb-1.5 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-white shadow-pop', winState === 'normal' && 'h-80 max-h-[55vh]', winState === 'max' && 'h-[min(75vh,760px)]', winState === 'min' && 'hidden')}>
           <header className="flex h-9 shrink-0 items-center gap-0.5 pr-1.5 pl-3">
             <h2 data-chat-window-title className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{chatTitle(chat.thread)}</h2>
-            <button type="button" data-chat-window-clear aria-label="Clear the conversation" title="Clear the conversation" disabled={busy} onClick={newChat}
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={14} /></button>
             <button type="button" data-chat-window-minimize aria-label="Minimize chat" title="Minimize the chat: the chat button in the strip brings it back" onClick={() => setWinState('min')}
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"><Minus size={15} /></button>
             <button type="button" data-chat-window-maximize aria-label={winState === 'max' ? 'Restore chat size' : 'Maximize chat'} title={winState === 'max' ? 'Restore the chat size' : 'Maximize the chat'} onClick={() => setWinState(winState === 'max' ? 'normal' : 'max')}

@@ -211,7 +211,7 @@ test('released hold, charged credits and refunded credits are three facts: a ref
   const { sqlite, LEARN_DB, actor } = await run(t, { view: failedView({ cause: 'content', failure_code: undefined, failure: undefined, failure_reason: 'still blocking', spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 } }), artifacts: artifactsOf([], { cause: 'content', failure_code: undefined }) });
   let v = await video(actor);
   assert.deepEqual([v.recovery.accounting.chargedCredits, v.recovery.accounting.refundedCredits, v.hold.state], [80, 0, 'released']);
-  assert.equal(motionUsageLine(v.usage, v.hold, v.recovery.accounting), 'Charged 80 AI units · reservation released');
+  assert.equal(motionUsageLine(v.usage, v.hold, v.recovery.accounting), 'Charged 80 credits · reservation released');
   const attempt = rows(sqlite, 'usage_attempts').find(a => a.attempt_id.startsWith('motion-')).attempt_id;
   assert.equal(await refundAttempt(LEARN_DB, attempt, { reason: 'test: our failure' }), 800_000);
   assert.equal(await refundAttempt(LEARN_DB, attempt, { reason: 'again' }), 0, 'a second refund changes nothing');
@@ -219,8 +219,8 @@ test('released hold, charged credits and refunded credits are three facts: a ref
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
   v = await video(actor);
   assert.deepEqual([v.recovery.accounting.chargedCredits, v.recovery.accounting.refundedCredits, v.hold.state], [80, 80, 'released']);
-  assert.equal(motionUsageLine(v.usage, v.hold, v.recovery.accounting), 'Charged 80 AI units · 80 AI units refunded · reservation released');
-  assert.equal(motionUsageLine(null, { state: 'released' }, { chargedCredits: 0, refundedCredits: 0 }), 'No AI units charged · reservation released');
+  assert.equal(motionUsageLine(v.usage, v.hold, v.recovery.accounting), 'Charged 80 credits · 80 credits refunded · reservation released');
+  assert.equal(motionUsageLine(null, { state: 'released' }, { chargedCredits: 0, refundedCredits: 0 }), 'No credits charged · reservation released');
   assert.equal(motionUsageLine(null, { state: 'pending' }, { chargedCredits: 0, refundedCredits: 0, unknown: true }), 'Charge not confirmed yet · reservation pending');
 });
 

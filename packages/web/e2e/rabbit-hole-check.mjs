@@ -1364,7 +1364,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       if (owned) {
         await loaded(page, `/apps/${owned.name}`);
         await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-        must(await titles('wp6 owned') === 1 && await row.count() === 0, `the project canvas title shows ${await titles('wp6 owned')} times, or a parent row is back (owner 2026-11-15: the In <project> row is gone)`);
+        must(await titles('wp6 owned') === 1 && !(await row.innerText()).includes('wp6 owned'), `the project canvas title shows ${await titles('wp6 owned')} times`);
+        await row.getByRole('button', { name: `In ${ready.repo} →` }).click();
+        await page.waitForURL(`**/apps/${ready.name}`);
       }
       for (const q of ['', '?tab=learn']) {
         await loaded(page, `/apps/${away.name}${q}`);
@@ -1557,7 +1559,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await loaded(page, '/library');
     const c = await canvas6(page, { title: 'wp6 phone', ...(ready ? { project: ready.name } : {}) });
     try {
-      const stops = [...(ready ? ['', '?tab=map', '?tab=learn'].map((q) => [`/apps/${ready.name}${q}`, '[data-project-crumb]']) : []), [`/apps/${c.name}`, '[data-chat-composer]'], ...(plain ? [[`/apps/${plain.name}`, 'main h1']] : [])];
+      const stops = [...(ready ? ['', '?tab=map', '?tab=learn'].map((q) => [`/apps/${ready.name}${q}`, '[data-project-crumb]']) : []), [`/apps/${c.name}`, '[data-canvas-parent]'], ...(plain ? [[`/apps/${plain.name}`, 'main h1']] : [])];
       for (const [path, top] of stops) {
         await loaded(page, path);
         await page.locator(top).first().waitFor({ timeout: 30000 });

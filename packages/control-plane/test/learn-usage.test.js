@@ -370,7 +370,7 @@ test('GET /api/learn/usage: signed-in only, the session user\'s month, config an
   assert.equal(reply.headers.get('cache-control'), 'no-store');
   const body = await reply.json();
   // AI credits only (1 credit = 10,000 micros of the ledger): no dollar field, no micros, no currency.
-  assert.deepEqual(body, { enforced: true, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', compute: { unavailable: 'accounting' }, allowanceCredits: 5000,
+  assert.deepEqual(body, { enforced: true, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceCredits: 5000,
     usedCredits: 0.3, reservedCredits: 0.6, estimatedCredits: 2, remainingCredits: (50_000_000 - 9000) / 10_000, unknownAttempts: 2,
     byFeature: [{ feature: 'ask', usedCredits: 0.3, reservedCredits: 0.6, unknownAttempts: 2 }] });
   assert.deepEqual(moneyLeaks(body), []);

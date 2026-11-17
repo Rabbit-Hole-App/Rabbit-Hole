@@ -105,9 +105,10 @@ test('PV-1 gaps 2 and 3: the canvas opens a board with no card on its content, w
   assert.ok(wait > -1 && done > wait, 'the first view is marked done only once there is something to decide on');
 });
 
-test('PV-1: a published page has no saved camera and opens on the board the page was given (SharedBoardPage mounts it with no camera)', () => {
+test('PV-1: a published page has no saved camera and opens on the board the page was given (SharedBoardPage mounts it with docView canvas)', () => {
   const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8');
-  assert.ok(!page.includes('docView'), 'the single document and its view choice are gone (2026-11-15)');
+  assert.ok(page.includes("useState('canvas')"), 'the shared page starts on the canvas view, not the document');
+  assert.ok(page.includes("docView={hasDoc ? docView : 'canvas'}"));
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.ok(!/stored.current.(view|camera)/.test(canvas), 'a board state carries no camera for a view-only page to restore');
 });

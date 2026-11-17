@@ -129,22 +129,24 @@ check('unauthorized identity cannot retrieve owner board or comment content', as
   assert.ok([403, 404].includes(comments.status), `owner comment refusal: ${comments.status}`);
   assert.doesNotMatch(JSON.stringify([board.data, comments.data]), /OPEN commentword|hidden document zebra/);
 });
-check('a Document card result brings its card into view and Back restores the pre-jump camera', async () => {
-  await go(canvas.name); await page.locator('[data-doc-card]').waitFor({ timeout: 60000 });
+check('hidden BlockNote result reveals Editor and Back restores the pre-jump camera', async () => {
+  await go(canvas.name); assert.equal(await page.locator('[data-canvas-doc]').count(), 0, 'Canvas is initial view');
   await search('hidden document zebra'); await waitCount(1); const before = await camera(); assert.ok(before);
-  await activate('object:doc-card');
+  await activate('document:doc-p'); await page.locator('[data-doc-state="ready"]').waitFor({ timeout: 60000 });
   assert.equal(await panel().isVisible(), true); assert.equal(await input().inputValue(), 'hidden document zebra');
-  assert.match(await page.locator('[data-doc-card]').innerText(), /hidden document zebra/);
+  assert.match(await page.locator('[data-canvas-doc]').innerText(), /hidden document zebra/);
   await panel().getByRole('button', { name: 'Back to previous view', exact: true }).click();
   await until(async () => await camera() === before, 'Back did not restore original camera');
 });
-check('live unsaved Document card text updates Search before the editor loses focus', async () => {
-  await search('hidden document zebra'); await waitCount(1); await activate('object:doc-card');
+check('live unsaved document text updates Search before the editor loses focus', async () => {
+  await search('hidden document zebra'); await waitCount(1); await activate('document:doc-p');
   await search('DOC_UNSAVED_TOKEN'); await waitCount(0);
-  const editor = page.locator('[data-doc-card] [contenteditable="true"]').first(); await editor.click();
+  const editor = page.locator('[data-canvas-doc] [contenteditable="true"]').first(); await editor.click();
   await page.keyboard.press('Control+End'); await page.keyboard.type(' DOC_UNSAVED_TOKEN');
-  await waitCount(1); assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-doc-card]')), true);
-  assert.equal(await result('object:doc-card').count(), 1, 'the result is the Document card');
+  await waitCount(1); assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-canvas-doc]')), true);
+  const editedBlock = await page.locator('[data-canvas-doc] .bn-block-outer[data-id]').filter({ hasText: 'DOC_UNSAVED_TOKEN' }).last().getAttribute('data-id');
+  assert.ok(editedBlock, 'the live editor exposes the edited block identity');
+  assert.equal(await result(`document:${editedBlock}`).count(), 1, 'the result identifies the actual edited block, including an editor-created trailing paragraph');
 });
 check('long-card text beyond its initial visible region matches and navigation preserves geometry', async () => {
   await search('NEEDLE_AT_BOTTOM'); await waitCount(1);
@@ -255,7 +257,7 @@ try {
   state.items.push({ id: 'equation', kind: 'equation', x: 900, y: 450, latex: 'q+314159', size: 24 });
   state.shapes = [{ id: 'shape', kind: 'rect', x1: 1000, y1: 100, x2: 1200, y2: 200, text: 'shape zebra', color: '#37352f' }];
   state.sources = [{ id: 'web:global', kind: 'web', label: 'GLOBAL_CONTEXT_ONLY', attached: true }];
-  state.blocks.push({ id: 'doc-card', type: 'doc', title: 'Document', dx: 0, dy: 0, blocks: [{ id: 'doc-p', type: 'paragraph', content: [{ type: 'text', text: 'hidden document zebra', styles: {} }], children: [] }] }); // a Document card (the legacy single document is the viewers check's migration case)
+  state.doc = { v: 1, x: 1800, y: 200, w: 800, blocks: [{ id: 'doc-p', type: 'paragraph', content: [{ type: 'text', text: 'hidden document zebra', styles: {} }], children: [] }] };
   saved = await request(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state });
   await request(`/api/apps/${unavailable.name}/trash`, 'POST', {}); // Only the newly created fixture, to prove unavailable metadata.
   child = await request('/api/canvases/dives', 'POST', { name: `canvas-${randomUUID().replaceAll('-', '').slice(0, 8)}`, title: 'EXISTING_CHILD_TITLE', parent: { app: canvas.name, board: 'main' }, origin_block_id: 'alpha', dive: {} });

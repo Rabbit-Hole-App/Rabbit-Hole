@@ -31,12 +31,12 @@ test('the top-left corner goes Back (owner, 2026-10-04: no longer a jump to Home
 // "move the 3 hooks options window to the bottom right aligned with the lower of the chat composer".
 test('the bottom strip: the minimap above the zoom row at lower left, the hooks lower right beside the composer', () => {
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && !minimapFolded && <div data-canvas-minimap>\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap panel above the one pill (feedback | map | zoom), owner 2026-11-15');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && <div data-canvas-minimap>\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
-  assert.match(strip, /md:grid [\s\S]*?md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s; three grid columns, the two side ones equal, so the composer is centred (owner 2026-11-15)');
+  assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
   // On a phone the hooks sit above the composer, at the right.
-  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} style=\{\{ translate: '[^']*' \}\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
-  assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:col-start-3 max-md:order-1"/);
+  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:mx-0 md:shrink max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
+  assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1"/);
   assert.doesNotMatch(canvas.slice(0, canvas.indexOf('<div data-canvas-bottom')), /<CanvasMinimap boxes=\{minimapBoxes\} view=\{view\} onFit=\{zoomFit\}\n\s+surface=\{\{ w: surface\.current\?\.clientWidth \|\| 0, h: surface\.current\?\.clientHeight \|\| 0 \}\}\n\s+onView=\{next => setView\(v => \(\{ \.\.\.v, x: next\.x, y: next\.y \}\)\)\} \/>\}/, 'no second desktop minimap');
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
 });
@@ -74,8 +74,8 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
   assert.match(strip, /\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+\{composer\}/, 'the three Curious pills, then the composer');
-  // Minimize is the last button of the one tools pill inside the chat box (ChatComposer, owner 2026-11-15); it tells the canvas by an event.
-  assert.match(read('ChatComposer.jsx'), /\{onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{onMinimize\}\n\s+className=\{COMPOSER_TOOL\}><ChevronsDown/);
+  // The Minimize circle hangs on the pill's own top border (ChatComposer), never on the context chips above the pill; it tells the canvas by an event.
+  assert.match(read('ChatComposer.jsx'), /\{onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{onMinimize\}\n[^\n]*absolute -top-3 left-7[^\n]*h-6 w-6[^\n]*rounded-full/);
   assert.match(read('ask.jsx'), /onMinimize=\{stripMode \? \(\) => window\.dispatchEvent\(new Event\('rh-strip-minimize'\)\) : null\}/);
   assert.match(canvas, /window\.addEventListener\('rh-strip-minimize', hideComposer\)/);
   assert.match(read('ask.jsx'), /className=\{cn\('relative shrink-0', stripMode \? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2'\)\}/, 'in the strip nothing behind the pill is opaque: no sticky white band clipping the canvas');
@@ -95,27 +95,27 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /stacked=\{!!chat && !stripMode\} pill=\{stripMode\}/, 'a pill with the same tools, not the stacked box');
   // Owner 2026-11-13: Send from the strip no longer opens the panel; a small fixed-height window above the strip holds the conversation.
   assert.doesNotMatch(ask, /if \(stripMode\) chat\.panels\.openChat\(\);/, 'Send leaves the panel closed');
-  assert.match(ask, /if \(stripMode && !commandName && !command\) \{ setWindowSeen\(true\); setWinState\(state => \(state === 'min' \? 'normal' : state\)\); \}/, 'a chat question opens the window (and restores a minimized one); a slash command does not (owner 2026-11-15)');
+  assert.match(ask, /if \(stripMode\) \{ setWindowSeen\(true\); setWinState\(state => \(state === 'min' \? 'normal' : state\)\); \}/, 'Send opens the window (and restores a minimized one)');
   assert.match(ask, /const windowMode = stripMode && !!windowHost && windowSeen;/);
   assert.match(ask, /where\.appendChild\(convHost\)/);
   assert.match(ask, /\{createPortal\(conversationRegion, convHost\)\}/, 'the conversation moves into the window without remounting');
   assert.match(ask, /winState === 'normal' && 'h-80 max-h-\[55vh\]'/, 'fixed height');
   assert.match(ask, /data-chat-window-minimize aria-label="Minimize chat"/);
   assert.match(ask, /winState === 'min' && 'hidden'\)\}>/, 'minimized, the window is gone completely');
-  assert.match(ask, /data-chat-window-toggle label=\{winState === 'min' \? 'Show chat' : 'Hide chat'\}/, 'the strip\'s chat button brings it back');
-  assert.match(ask, /trailing=\{stripMode \? <>\{curiousButton\}\{chatWindowButton\}<\/> : dock \|\| chat \? null : chatControl\}/, 'the two view buttons are in the one tools pill inside the chat box');
-  assert.match(composer, /if \(pill\) return <form data-chat-composer data-composer-pill[\s\S]*?<div data-composer-tools className="flex shrink-0 items-center gap-0\.5 rounded-full border border-line bg-white p-0\.5 shadow-sm">\n\s+\{leading\}\s+\{trailing\}[\s\S]*?<\/div>\s+\{body\}\s+\{send\}\s+<\/form>/, 'the tools and Minimize are one white pill inside the chat box at its left, before the field and Send');
+  assert.match(ask, /data-chat-window-toggle aria-label=\{winState === 'min' \? 'Show chat' : 'Hide chat'\}/, 'the strip\'s chat button brings it back');
+  assert.match(ask, /trailing=\{stripMode \? <>\{curiousButton\}\{chatWindowButton\}<\/> : dock \|\| chat \? null : chatControl\}/, 'the two view buttons at the right end of the tool row under the pill');
+  assert.match(composer, /if \(pill\) return <div className="flex flex-col gap-1">[\s\S]*?\{body\}\n\s+\{send\}\n\s+<\/form>\n\s+\{\/\*[^\n]*\n\s+<div data-composer-toolbar className="flex min-w-0 items-center gap-1\.5 px-1">\n\s+<div data-composer-tools className="flex items-center gap-0\.5 rounded-full border border-line bg-white p-0\.5 shadow-sm empty:hidden">\{leading\}/, 'the pill holds the field and Send; the tools are one row below it, each group on its own white pill');
   assert.match(ask, /data-chat-window-maximize aria-label=\{winState === 'max' \? 'Restore chat size' : 'Maximize chat'\}/);
   assert.match(page, /chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
   assert.match(canvas, /\{chatWindow\}\n\s+\{\/\*[^\n]*\n\s+\{hooks && <div data-hooks-slot/, 'above the suggestions and the composer');
-  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-2.5/, 'round on both sides');
+  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-4/, 'round on both sides');
   assert.doesNotMatch(read('ChatComposer.jsx'), /data-canvas-strip-composer/, 'never a second composer element');
 });
 
 // Owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much". The canvas runs to the
 // bottom and the strip floats over it; chrome may float over the canvas but never hides what the learner cannot reach.
 test('the bottom strip floats: the canvas runs to the bottom, the strip lets the pointer through, only its controls take it', () => {
-  assert.match(canvas, /<div data-canvas-bottom ref=\{bottomStrip\} className=\{`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid \$\{chromeOff \? 'md:grid-cols-\[minmax\(0,1fr\)_minmax\(200px,780px\)_minmax\(0,1fr\)\]' : 'md:grid-cols-\[minmax\(min-content,1fr\)_minmax\(200px,780px\)_minmax\(min-content,1fr\)\]'\} md:items-end md:gap-3 \$\{DOCK_PAD\} \[&>\*>\*\]:pointer-events-auto`\}>/);
+  assert.match(canvas, /<div data-canvas-bottom ref=\{bottomStrip\} className=\{`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 \$\{DOCK_PAD\} \[&>\*>\*\]:pointer-events-auto`\}>/);
   assert.doesNotMatch(canvas, /data-canvas-bottom[^\n]*shrink-0/, 'no band of its own under the canvas');
   // The side columns' heights reach what must clear them: the Voice caption and the tools' gutter on that side.
   assert.match(canvas, /host\.style\.setProperty\('--chrome-left', `\$\{Math\.max\(0, bottom - strip\.firstElementChild\.getBoundingClientRect\(\)\.top\)\}px`\);/);
@@ -205,9 +205,9 @@ test('UI-19: one vertical tools column at every width, one minimap, no overview 
 test('UI-19: the minimap is floating chrome for fit, reveal and placement (a grandchild of the bottom strip)', () => {
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
   const column = strip.slice(strip.indexOf('\n') + 1, strip.indexOf('<div data-zoom-stack'));
-  assert.match(column, /^\s+<div className="flex items-end gap-2 md:col-start-1">\n/, 'the strip\'s first column opens first');
+  assert.match(column, /^\s+<div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">\n/, 'the strip\'s first column opens first');
   assert.equal((column.match(/<div\b/g) || []).length, 1, 'the zoom stack is a direct child of that column (a strip grandchild)');
-  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && !minimapFolded && <div data-canvas-minimap>/, 'the minimap is inside the zoom stack, so its box is the stack\'s');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && <div data-canvas-minimap>/, 'the minimap is inside the zoom stack, so its box is the stack\'s');
   assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\)/, 'fit, focus and reveal stop above every strip grandchild');
   assert.match(canvas, /const placementChrome = \(\) => \{[\s\S]*?strip\.querySelectorAll\(':scope > \* > \*'\)/, 'a card placed in view keeps clear of every strip grandchild');
 });

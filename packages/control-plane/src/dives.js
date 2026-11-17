@@ -6,7 +6,7 @@ import { canvasApp, purgeCommentRows } from './canvases.js';
 import { purgeCanvasAttachments } from './comment-attachments.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
-import { hasTable, purgeTutorRows } from './learn-coaching-store.js';
+import { purgeTutorRows } from './learn-coaching-store.js';
 import { purgeStars } from './canvas-stars.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -132,14 +132,13 @@ export async function divesFetch(req, env, user) {
     // Its boards go too (as a canvas delete's does, canvases.js): a board row kept would keep its share link alive with no
     // owner route left to revoke it.
     for (const name of names) await purgeCanvasAttachments(env, user.org, name); // comment files leave the bucket before their holes go
-    const sections = await hasTable(db, 'learn_sections');
     await db.batch(names.flatMap(name => [
       db.prepare('DELETE FROM canvas_dives WHERE org=? AND owner_email=? AND child=?').bind(user.org, user.email, name),
       db.prepare('DELETE FROM canvases WHERE org=? AND owner_email=? AND name=?').bind(user.org, user.email, name),
       dropRefs(db, user.org, user.email, name),
       dropFileRefs(db, user.org, user.email, name),
       db.prepare('DELETE FROM learn_boards WHERE org=? AND owner_email=? AND app=?').bind(user.org, user.email, name),
-      ...purgeTutorRows(db, user.org, name, { sections }), // ruling Q2, as a canvas delete's (canvases.js)
+      ...purgeTutorRows(db, user.org, name), // ruling Q2, as a canvas delete's (canvases.js)
       ...purgeStars(db, user.org, name, user.email), // stars on the hole, as a canvas delete's
       ...purgeCommentRows(db, user.org, name), // a hole has its own comments now (D2); deleted with it, as a canvas delete's
       // ponytail: the hole's canvas_members rows stay unreachable (every read joins canvases); delete them with the invitation tables' retention.
