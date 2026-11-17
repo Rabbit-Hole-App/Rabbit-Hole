@@ -24,6 +24,21 @@ export function planTree(ops) {
 }
 export const chapterCount = ops => planTree(ops).length;
 
+// Position (learn-position-spec.md section 4): each chapter ("1") and section ("1.1") of the accepted plan -> its contents entry id, matched in plan order by level and title (the
+// contents are the plan's ops applied, and read-only once it is accepted, so the match is the same every time; nothing is stored). outline: outlineFrom entries { id, level, label }.
+// An entry not found is left out (its cards are made, unlinked).
+export function sectionEntries(ops, outline) {
+  const rows = Array.isArray(outline) ? outline : [], out = {};
+  let at = 0;
+  const find = (level, title) => { for (let k = at; k < rows.length; k += 1) if (rows[k].level === level && cleanTitle(rows[k].label) === title) { at = k + 1; return rows[k].id; } return null; };
+  planTree(ops).forEach((chapter, i) => {
+    const id = find(1, chapter.title);
+    if (id) out[String(i + 1)] = id;
+    chapter.sections.forEach((section, j) => { const sid = find(2, section.title); if (sid) out[`${i + 1}.${j + 1}`] = sid; });
+  });
+  return out;
+}
+
 // The numbered nested list, as Markdown the chat message already renders: "1. Chapter" with its sections indented "   1. Section".
 export const planList = ops => planTree(ops).map((chapter, i) => [`${i + 1}. ${chapter.title}`, ...chapter.sections.map((section, j) => `   ${j + 1}. ${section.title}${section.background ? ' (background)' : ''}`)].join('\n')).join('\n');
 

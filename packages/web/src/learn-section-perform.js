@@ -4,8 +4,10 @@
 // performItem({ canvasApi, slash, perform, item, ctx }) -> Promise<{ cardId | jobId, highlight?, last }>; it throws when the card could not be made.
 //   canvasApi: the canvas's commands (LearnPage canvasOps.tutorCanvas()); slash: the composer's command ref (ask.jsx slashRef); perform: the server's; item: { itemId, command, lead, follow }.
 //   ctx: { sectionId, itemId, ops (LearnPage canvasOps), after (the card id of the compose item this one was made for), previous (the section's last card), repository ({ app, repo, commit }), report }.
-// Every item gets its `lead` before the card and its `follow` after it as Document cards; each card of the section is tagged block.learn = { sectionId, itemId, role } so the placement
-// slice can rearrange them. Until that slice, each lands beside the previous card (besideSpot, through the canvas's insertCodeExplain placement), so nothing overlaps.
+// Every item gets its `lead` before the card and its `follow` after it as Document cards; each card the section makes is tagged block.learn = { sectionId, itemId, role, slot, order,
+// part?, after? } and linked to its section's contents entry (block.tocLinks, ctx.entry). Position (learn-position.js, learn-position-spec.md): the canvas puts every slot card in the
+// plan's one column (AdaptiveCanvas.jsx); a card is hidden until it stands there, so where an insert first draws it does not matter. A card the canvas already held before this item
+// (a video, article or paper pointed at again) is tagged and linked but never moved (no slot).
 import { DOC_CARD_SIZE, newDocBlock } from './canvas-doc.js';
 import { placeCodeExplain } from './code-explain-insert.js';
 import { insertCodeCards, repoCodeCard } from './code-card.js';
@@ -18,28 +20,38 @@ async function drawn(canvasApi, id, tries = 120) {
   for (let k = 0; id && k < tries; k += 1) { if (canvasApi.measured?.(id)) return id; await frame(); }
   return id && canvasApi.measured?.(id) ? id : null;
 }
-export const learnTag = (ctx, role) => ({ sectionId: ctx.sectionId, itemId: ctx.itemId, role });
+export const learnTag = (ctx, role, part = 0) => ({ sectionId: ctx.sectionId, itemId: ctx.itemId, role, slot: true, order: Number.isFinite(ctx.order) ? ctx.order : null,
+  ...(part ? { part } : {}), ...(role === 'card' && ctx.afterItem ? { after: ctx.afterItem } : {}) });
+// The section's contents entry on a card (toc-links.js: block.tocLinks), written with the card so the item stays one undo step.
+const linkTo = (ctx, held = []) => (ctx.entry && !held.includes(ctx.entry) ? { tocLinks: [...held, ctx.entry] } : {});
+// The column has put a card on its slot (canvas learnPlaced), a few seconds at most; then the camera follows it (spec 3).
+async function placed(canvasApi, id, tries = 180) {
+  for (let k = 0; id && k < tries; k += 1) { if (canvasApi.learnPlaced?.(id)) return true; await frame(); }
+  return false;
+}
 // lead / follow: a string or a list of paragraphs -> one Markdown text ('' when there is none).
 export const flowText = text => (Array.isArray(text) ? text : [text]).map(part => String(part ?? '').trim()).filter(Boolean).join('\n\n');
 
 // Blocks placed together beside `beside` (or the selected card, or the view), one undo step: the code-explain insertion, which places with besideSpot then a row to the right.
 export async function placeBlocks(canvasApi, blocks, { beside = null, sizes = [], links = [] } = {}) {
   const near = await drawn(canvasApi, beside);
-  return canvasApi.insertCodeExplain({ blocks, links, beside: near, place: env => placeCodeExplain(env, sizes.length ? sizes : blocks.map(() => DOC_CARD_SIZE)) });
+  return canvasApi.insertCodeExplain({ blocks, links, beside: near, reveal: !blocks.some(block => block.learn?.slot), place: env => placeCodeExplain(env, sizes.length ? sizes : blocks.map(() => DOC_CARD_SIZE)) });
 }
 // A Document card from Markdown (canvas-doc.js newDocBlock, parsed by CanvasDoc.jsx markdownToDocBlocks), tagged with its role. -> its id, or null when there is no text.
 export async function placeDoc(canvasApi, markdown, ctx, role, beside) {
   const text = flowText(markdown);
   if (!text) return null;
   const { markdownToDocBlocks } = await import('./CanvasDoc.jsx');
-  return placeBlocks(canvasApi, [{ ...newDocBlock(), blocks: markdownToDocBlocks(text), learn: learnTag(ctx, role) }], { beside });
+  return placeBlocks(canvasApi, [{ ...newDocBlock(), blocks: markdownToDocBlocks(text), learn: learnTag(ctx, role), ...linkTo(ctx) }], { beside });
 }
 // A change to a card made by its own insert, once the canvas holds it (a card inserted this tick is in the board's blocks only after it renders).
 export async function changeCard(canvasApi, id, change) {
   if (id && (await drawn(canvasApi, id))) canvasApi.updateBlock?.(id, change);
 }
-// A card made by its own insert: tagged afterwards.
-export const tagCard = (canvasApi, id, ctx, role = 'card') => changeCard(canvasApi, id, block => (block.learn ? block : { ...block, learn: learnTag(ctx, role) }));
+// A card made by its own insert: tagged and linked afterwards. fresh: the canvas did not hold it before this item, so the column may place it.
+export const tagCard = (canvasApi, id, ctx, role = 'card', fresh = true) => changeCard(canvasApi, id, block => (block.learn ? block : { ...block, learn: { ...learnTag(ctx, role), slot: fresh }, ...linkTo(ctx, block.tocLinks) }));
+// A chapter's heading card (spec 1, 9): one Document card "n · title" above the chapter's first section, linked to the chapter's contents entry. ctx: { chapter, title, entry }.
+export const placeChapter = (canvasApi, { chapter, title, entry = null }) => placeDoc(canvasApi, `# ${chapter} · ${title}`, { sectionId: String(chapter), itemId: null, entry }, 'chapter', null);
 // A connector from one card to another once both are drawn (the code-explain satellites' shape).
 export async function linkCards(canvasApi, from, to, id = `learn-${from}-${to}`) {
   if (!from || !to || from === to || !(await drawn(canvasApi, from)) || !(await drawn(canvasApi, to))) return false;
@@ -63,7 +75,7 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
   if (op === 'codeCards') {
     const repo = ctx.repository, commit = perform.commit || repo?.commit;
     if (!repo?.repo || !commit || !Array.isArray(perform.cards) || !perform.cards.length) throw new Error('no_repository');
-    const blocks = perform.cards.map(card => ({ ...repoCodeCard({ app: repo.app, repo: repo.repo, commit, path: card.path, start: card.start || null, end: card.end || null, nodeId: card.nodeId || null, label: card.label || null, ranges: Array.isArray(card.ranges) ? card.ranges.map(({ id, start, end }) => ({ id, start, end })) : null }), learn: learnTag(ctx, 'card') }));
+    const blocks = perform.cards.map((card, part) => ({ ...repoCodeCard({ app: repo.app, repo: repo.repo, commit, path: card.path, start: card.start || null, end: card.end || null, nodeId: card.nodeId || null, label: card.label || null, ranges: Array.isArray(card.ranges) ? card.ranges.map(({ id, start, end }) => ({ id, start, end })) : null }), learn: learnTag(ctx, 'card', part), ...linkTo(ctx) }));
     const ids = [insertCodeCards(ctx.ops, blocks)].flat().map(out => (typeof out === 'string' ? out : out?.id)).filter(Boolean);
     if (!ids.length) throw new Error('no_card');
     for (let k = 1; k < ids.length; k += 1) await linkCards(canvasApi, ids[k - 1], ids[k]);
@@ -79,7 +91,7 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     const text = content => (typeof content === 'string' ? content : JSON.stringify(content ?? ''));
     const ipynb = typeof active.content === 'string' ? JSON.parse(active.content) : active.content;
     const seed = Object.fromEntries(files.filter(file => file !== active).map(file => [file.path, text(file.content)]));
-    const block = { ...newNotebookBlock(), active_path: active.path, ipynb_path: active.path, files: files.map(file => file.path), ipynb, ...(Object.keys(seed).length ? { seed_files: seed } : {}), learn: learnTag(ctx, 'card') };
+    const block = { ...newNotebookBlock(), active_path: active.path, ipynb_path: active.path, files: files.map(file => file.path), ipynb, ...(Object.keys(seed).length ? { seed_files: seed } : {}), learn: learnTag(ctx, 'card'), ...linkTo(ctx) };
     const id = canvasApi.insertNotebook?.(block);
     if (!id) throw new Error('no_card');
     return { cardId: id };
@@ -104,7 +116,7 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     for (const [index, entry] of pages.entries()) {
       const quotes = quoteOf(entry.quote, { page: entry.page });
       if (index === 0) { const id = canvasApi.addPaper({ id: perform.id, title: perform.title, page: entry.page }); await addQuotes(id, quotes); if (id) ids.push(id); continue; }
-      const id = await placeBlocks(canvasApi, [{ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: perform.title || `arXiv ${perform.id}`, paper: { id: perform.id, page: entry.page }, highlights: quotes, learn: learnTag(ctx, 'card') }], { beside: ids.at(-1) || beside, sizes: [{ w: 620, h: 560 }] });
+      const id = await placeBlocks(canvasApi, [{ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: perform.title || `arXiv ${perform.id}`, paper: { id: perform.id, page: entry.page }, highlights: quotes, learn: learnTag(ctx, 'card', index), ...linkTo(ctx) }], { beside: ids.at(-1) || beside, sizes: [{ w: 620, h: 560 }] });
       if (id) ids.push(id);
     }
     if (!ids.length) throw new Error('no_card');
@@ -133,11 +145,18 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
 
 export async function performItem({ canvasApi, slash, perform, item, ctx = {} }) {
   if (!canvasApi?.insertCodeExplain) throw new Error('no_canvas');
+  const held = new Set((canvasApi.blocks?.() || []).map(block => block.id)); // what the canvas holds before this item: never moved by the column
+  // The camera (spec 3): ctx.first (the first card of a Build this section press) is centred once; every later card is followed only while the one before it is on screen.
+  let shown = ctx.first ? null : ctx.previous || null;
+  const reveal = async id => { if (id && (await placed(canvasApi, id))) { canvasApi.learnReveal?.(id, shown); shown = id; } };
   const lead = await placeDoc(canvasApi, item?.lead, ctx, 'lead', ctx.previous || null);
+  await reveal(lead);
   const made = await makeCard({ canvasApi, slash, perform, ctx, beside: lead || ctx.previous || null });
-  if (made.cardId) await tagCard(canvasApi, made.cardId, ctx);
+  if (made.cardId) await tagCard(canvasApi, made.cardId, ctx, 'card', !held.has(made.cardId));
+  await reveal(made.cardId);
   if (ctx.after && made.cardId) await linkCards(canvasApi, ctx.after, made.cardId); // pairing: this item was made for the text of that earlier item
   const follow = await placeDoc(canvasApi, item?.follow, ctx, 'follow', made.last || made.cardId || lead || ctx.previous || null);
+  await reveal(follow);
   const { last, ...done } = made;
   return { ...done, last: follow || last || made.cardId || lead || ctx.previous || null };
 }

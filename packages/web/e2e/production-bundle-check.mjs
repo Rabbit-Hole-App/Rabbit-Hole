@@ -24,7 +24,7 @@ const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths a
   'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev',
   'Material plan ready for review', 'Draft material plan', 'Quiz answer key', 'Edit this section in chat', 'Edit and approve curriculum',
   'Finish up in Curriculum', '__voiceFake', 'failStt',
-  'Make section', 'REHEARSAL_PIN_COMMIT']; // the section row's old dev label (renamed Build this section for users) and the owner-stack commit pin (server only)
+  'Make section', 'REHEARSAL_PIN_COMMIT', 'Arrange section', 'Spacing: tight']; // the section row's old dev label (renamed Build this section for users) and the owner-stack commit pin (server only); Learn Position's dev controls, Arrange section and the spacing toggle (Reviewer 2026-11-17 10:20 A)
 // The retired CLI/BYOC Library empty state (App.jsx, behind !learnPreview): a Rabbit Hole build folds it away, so these strings must not
 // ship at all. A build without VITE_RABBIT_HOLE / VITE_COACHING_DEV (DIST=<that build>) must FAIL on them: it proves they are real.
 // ponytail: the Sidebar Developer tab / New app dialog and run.jsx copy stay in the bundle behind a runtime flag; e2e/legacy-copy-check.mjs
