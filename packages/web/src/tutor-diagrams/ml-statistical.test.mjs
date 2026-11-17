@@ -18,7 +18,7 @@ const shapes = createShapes({ z, text, numeric, id, unit,
   axes: z.strictObject({ label: text(36), min: numeric, max: numeric, unit }),
 });
 const schema = z.discriminatedUnion('kind', shapes).superRefine((d, ctx) =>
-  validate(d, (path, message) => ctx.addIssue({ code: 'custom', path, message })));
+  validate(d, (path, message, params) => ctx.addIssue({ code: 'custom', path, message, ...(params && { params }) })));
 const layouts = createLayouts({ legacy: {} });
 const parse = value => schema.parse(value);
 const copy = value => structuredClone(value);
@@ -196,16 +196,73 @@ test('box plots put quartiles, whiskers, fences and repeated outliers on the sam
   assert.match(rendered, /High reading: 10/);
 });
 
-test('box plots reject unordered summaries, invalid fences, false outliers and values outside the shared domain', () => {
+test('box plots reject unordered summaries, invalid fences, false outliers and an empty axis', () => {
   const invalid = [
     d => { d.boxes[0].q1 = 4; }, d => { d.boxes[0].median = 5; },
     d => { d.boxes[0].whiskerLow = 3; }, d => { d.boxes[0].whiskerHigh = 3; },
     d => { d.boxes[0].fences.lower = 1; }, d => { d.boxes[0].fences.upper = 5; },
-    d => { d.boxes[0].outliers[0].value = 7; }, d => { d.boxes[0].outliers[0].value = 13; },
-    d => { d.x.min = 2; }, d => { d.x.max = d.x.min; },
+    d => { d.boxes[0].outliers[0].value = 7; },
+    d => { d.x.max = d.x.min; },
     d => { d.boxes[0].median = NaN; },
   ];
   for (const change of invalid) { const d = copy(boxes); change(d); assert.equal(schema.safeParse(d).success, false); }
+});
+
+// Fences are recomputed from the quartiles: 1.5 x IQR past Q1 and Q3, within half a unit of the last decimal written.
+const fenceCard = (box, x = { label: 'Reading', min: 0, max: 20 }) => ({ kind: 'box-plot', title: 'IQR rule', x, boxes: [{ label: 'Trial', ...box }] });
+const trial = { whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14 };
+const problems = d => { const found = []; validate(d, (path, message, params) => found.push({ path: path.join('.'), message, params })); return found; };
+
+test('box plot fences that are not Q1 - 1.5 IQR and Q3 + 1.5 IQR are rejected with the numbers, tagged arithmetic', () => {
+  const wrong = fenceCard({ ...trial, fences: { lower: 2, upper: 16 }, outliers: [{ label: 'High', value: 18 }] }, { label: 'Reading', min: 0, max: 20 });
+  assert.equal(schema.safeParse(wrong).success, false);
+  const found = problems(wrong);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].message, 'Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.');
+  assert.deepEqual(found[0].params, { code: 'arithmetic' });
+  // The tag reaches the zod issue the repair path reads.
+  assert.deepEqual(schema.safeParse(wrong).error.issues.find(i => i.path.join('.') === 'boxes.0.fences').params, { code: 'arithmetic' });
+  // With the fences corrected, the outlier at 18 is inside 21 and fails the shape rule by itself.
+  const outlierInside = problems(fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'High', value: 18 }] }));
+  assert.deepEqual(outlierInside.map(i => i.message), ['An outlier must lie strictly outside the fences, or whiskers when no fences are supplied']);
+  assert.equal(outlierInside[0].params, undefined);
+});
+
+test('box plot with the true fences passes, with or without an outlier beyond them', () => {
+  const fences = { lower: -3, upper: 21 };
+  assert.deepEqual(problems(fenceCard({ ...trial, fences })), []);
+  assert.equal(schema.safeParse(fenceCard({ ...trial, fences, outliers: [{ label: 'High', value: 25 }] }, { label: 'Reading', min: 0, max: 20 })).success, true);
+});
+
+test('box plot without fences is unaffected by the fence arithmetic', () => {
+  assert.deepEqual(problems(fenceCard(trial)), []);
+  assert.deepEqual(problems(fenceCard({ ...trial, outliers: [{ label: 'High', value: 18 }] })), []);
+});
+
+test('box plot fence arithmetic keeps fractions exact and allows half a unit of the last decimal', () => {
+  const fractional = { whiskerLow: 1.25, q1: 1.25, median: 2, q3: 3.75, whiskerHigh: 3.75 };
+  assert.deepEqual(problems(fenceCard({ ...fractional, fences: { lower: -2.5, upper: 7.5 } })), []);
+  // q1 2.04, q3 5.65: the exact fences are -3.375 and 11.065; two decimals written may round them to -3.37 and 11.07.
+  const rounded = { whiskerLow: 2.04, q1: 2.04, median: 3, q3: 5.65, whiskerHigh: 5.65 };
+  assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.37, upper: 11.07 } })), []);
+  assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.39, upper: 11.07 } })).map(i => i.params), [{ code: 'arithmetic' }]);
+  assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.37, upper: 11.09 } })).map(i => i.params), [{ code: 'arithmetic' }]);
+});
+
+test('box plot axis widens to hold a computed fence and a far outlier instead of clipping or failing', () => {
+  const d = fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'Far reading', value: 25 }] });
+  assert.equal(schema.safeParse(d).success, true);
+  const { width, svg: rendered } = svg(d);
+  const fence = marks(rendered, 'data-tutor-box-fence'), outlier = marks(rendered, 'data-tutor-box-outlier');
+  const xs = [...fence.map(m => num(m.tag, 'x1')), ...outlier.map(m => num(m.tag, 'cx')), ...marks(rendered, 'data-tutor-box-whisker').flatMap(m => [num(m.tag, 'x1'), num(m.tag, 'x2')])];
+  const left = 12 + 10, right = width - 12 - 10; // PAD 12 plus the 10 px inset
+  for (const value of xs) assert.ok(value >= left - 1e-6 && value <= right + 1e-6, `${value} is outside the plot ${left} to ${right}`);
+  // The widened axis runs -3 to 25: the lower fence sits at the left edge and the outlier at the right.
+  close(num(fence[0].tag, 'x1'), left);
+  close(num(outlier[0].tag, 'cx'), right);
+  assert.match(rendered, /Lower fence: -3; Upper fence: 21/);
+  assert.match(rendered, />-3</);
+  assert.match(rendered, />25</);
 });
 
 test('constant quartiles remain a valid zero-width box with visible median and whiskers', () => {
