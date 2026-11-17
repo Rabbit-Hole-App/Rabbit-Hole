@@ -99,7 +99,8 @@ test('clicks: a generation action prepares command, subject and refs only; noteb
   notebook.onClick();
   assert.deepEqual(insertNotebook.calls, [[['from functools import lru_cache', 'print(1)'], 'python']]);
   assert.equal(prepare.calls.length, 2, 'the notebook action never prepares');
-  click('data-answer-followup')[1].onClick();
+  const list = find(tree, p => Array.isArray(p.items) && p.heading === 'Explore next' && typeof p.onPick === 'function')[0]; // the shared ChoiceList: its rows carry data-answer-followup, a pick prepares the question
+  list.onPick(list.items[1]);
   assert.deepEqual(prepare.calls[2], [{ text: 'What would LFU change here?' }]);
 });
 
@@ -143,5 +144,5 @@ test('ChatMessages mounts the suggestions under a Learn chat answer, as one stan
   const src = readFileSync(new URL('./ChatMessages.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(src, /import AnswerSuggestions from '\.\/AnswerSuggestions\.jsx';/);
   // Inside the Learn answer (data-answer, B2's wrapper), as the last line under the footer.
-  assert.match(src, /<div data-answer className[^\n]*\n(?: {12}[^\n]*\n)*? {12}<AnswerFooter [^\n]*\n(?: {14}[^\n]*\n)* {12}\{prepare && kind\.ordinary && <AnswerSuggestions message=\{m\} latest=\{i === msgs\.length - 1\} threadId=\{threadId\} prepare=\{prepare\} insertNotebook=\{insertNotebook\} \/>\}\n {10}<\/div>\n {10}<\/AnswerBoundary>\n {8}\) : <Md /);
+  assert.match(src, /<div data-answer className[^\n]*\n(?: {12}[^\n]*\n)*? {12}<AnswerFooter [^\n]*\n(?: {14}[^\n]*\n)* {12}\{prepare && kind\.ordinary && <AnswerSuggestions message=\{m\} latest=\{i === msgs\.length - 1\} threadId=\{threadId\} prepare=\{prepare\} insertNotebook=\{insertNotebook\}(?: question=\{asked\})? \/>\}\n {10}<\/div>\n {10}<\/AnswerBoundary>\n {8}\) : <Md /);
 });

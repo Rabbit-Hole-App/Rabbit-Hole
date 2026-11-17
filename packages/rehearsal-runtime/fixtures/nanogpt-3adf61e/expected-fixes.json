@@ -1,0 +1,25 @@
+{
+  "fixture": "nanogpt-3adf61e",
+  "rule": "record.fixes must be a subset of `allowed` (matched on kind + change, whitespace-collapsed); every entry in `required` must appear given the image assumption below; anything outside `allowed` fails the fixture and is a finding to report",
+  "imageAssumption": "sandbox image bakes only torch (CPU wheel) and numpy; requests and tiktoken are NOT baked (spec §3b)",
+  "required": [
+    { "kind": "install_package", "change": "pip install requests", "whereItFails": "prepare", "evidence": "data/shakespeare_char/prepare.py:9 `import requests`; README.md:22 install line omits it" },
+    { "kind": "install_package", "change": "pip install tiktoken", "whereItFails": "sample", "evidence": "sample.py:8 `import tiktoken` (unconditional; unused on the character route); README.md:22 lists it, but the route's install step may have trimmed it" }
+  ],
+  "allowed": [
+    { "kind": "install_package", "change": "pip install requests" },
+    { "kind": "install_package", "change": "pip install tiktoken" },
+    { "kind": "install_package", "change": "pip install requests tiktoken" },
+    { "kind": "add_flag", "step": "train", "change": "--device=cpu --compile=False", "note": "only if discovery took README.md:48 (the GPU line) instead of README.md:85" },
+    { "kind": "add_flag", "step": "sample", "change": "--device=cpu", "note": "only if discovery took README.md:54 instead of README.md:91" },
+    { "kind": "add_flag", "step": "train", "change": "--dtype=float32", "note": "optional; silences the CPU GradScaler warning, not required" },
+    { "kind": "set_env", "change": "OMP_NUM_THREADS=2", "note": "optional; harmless" }
+  ],
+  "notExpected": [
+    "any fix of kind edit_command that changes a step's script path",
+    "any fix that installs transformers, datasets, wandb or tqdm (the route does not import them)",
+    "any add_step_before (the README's three steps are complete)",
+    "more than 3 fixes in total on an honest run"
+  ],
+  "ifTheRequiredFixesDoNotAppear": "either the image baked requests/tiktoken (check record.image and record.environment.packagesAfter — then the fixture's imageAssumption is wrong, not the run), or discovery's install step already included them (check record.route.install — then it is a pass with zero fixes). Both are acceptable outcomes; record which."
+}

@@ -1,0 +1,35 @@
+{
+  "case": "nano",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "itemId": "i1",
+  "preReview": true,
+  "ms": 3842,
+  "out": {
+    "item": {
+      "itemId": "i1",
+      "command": "explanation",
+      "lead": "This script turns Shakespeare into numbers a model can train on. The docstring at the top of the file says what it does, so start there.",
+      "follow": "The script's job is to turn text into integer ids, and it can't do that until the text exists. Once the whole corpus sits in one string, the next step is finding which distinct characters it contains."
+    },
+    "perform": {
+      "op": "slash",
+      "line": "/explain Why does character-level tokenization, where each character becomes an integer instead of a GPT-2 byte-pair token, require the script to have all of Shakespeare as one raw text first? Show it on the script's stated outputs: files of ids for training and validation, plus a file holding the encoder, the decoder and related info. Do not cover how the file is downloaded or how the distinct characters are found. Afterwards the reader should be able to say in one sentence what the script produces and why getting the text comes first.",
+      "depth": "balanced",
+      "context": "data/shakespeare_char/prepare.py:1-6 @ 3adf61e154c3fe3fca428ad6bc3818b27a3b8291\n1: \"\"\"\n2: Prepare the Shakespeare dataset for character-level language modeling.\n3: So instead of encoding with GPT-2 BPE tokens, we just map characters to ints.\n4: Will save train.bin, val.bin containing the ids, and meta.pkl containing the\n5: encoder and decoder and some other related info.\n6: \"\"\""
+    },
+    "next": "i2"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 1,
+      "usd": 0.012671,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "case": "nano",
+  "section": "2.1",
+  "sectionId": "2.1",
+  "itemId": "i1",
+  "ms": 5299,
+  "out": {
+    "item": {
+      "itemId": "i1",
+      "command": "explanation",
+      "lead": "You now have a string of 1,115,394 characters and a way to turn it into ids. Before any learning, the script decides which part of that string the model may learn from and which part it only gets checked on. Look at lines 37-40: they make the cut.",
+      "follow": "The cut is one number, the length times 0.9 as a whole number. The first piece ends there and the second starts there. The recorded run shows 1,003,854 characters to train and 111,540 to check. Next: why that held-back tenth must never be seen during training."
+    },
+    "perform": {
+      "op": "slash",
+      "line": "/explain Why is a language model checked on text it was not trained on, and how do lines 37-40 cut one long string into a training piece and a held-back piece? Show it on the Shakespeare string of 1,115,394 characters: the first 90% to learn from, the last 10% to check. The reader already knows: the whole corpus is one string, its length, the 65-character vocabulary, encode and decode. Do not cover: why the held-back tenth must never be seen during training, or the next section. Afterwards the reader should be able to say: first 90% of characters train, last 10% validate.",
+      "depth": "balanced",
+      "context": "data/shakespeare_char/prepare.py:37-40 @ 3adf61e154c3fe3fca428ad6bc3818b27a3b8291\n37: # create the train and test splits\n38: n = len(data)\n39: train_data = data[:int(n*0.9)]\n40: val_data = data[int(n*0.9):]"
+    },
+    "next": "i2"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "2.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 1,
+      "usd": 0.016098,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

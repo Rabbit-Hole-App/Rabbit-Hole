@@ -11,6 +11,9 @@ import { useCardSource } from './use-card-source.js';
 import { loadAsset } from './learn-board-assets.js';
 import { repositoryUrl } from './card-sources.js';
 import { CitableLines } from './TutorCitations.jsx';
+import CodeLines, { lineRuns } from './CodeLines.jsx'; // lineRuns: shiki's runs (code-lang.js colorRuns) split back into lines; null while plain
+import { revealSentence, useLitRange } from './code-explain-link.js';
+import { Pill } from './ui.jsx';
 
 // A code card's body (repo-graph Release 2; brief "Code-card behaviour"), inside the shared CanvasNode frame, so it selects,
 // moves, resizes, deletes, saves and undoes like any card. It shows the file name, language, provenance (repository, path,
@@ -24,20 +27,16 @@ import { CitableLines } from './TutorCitations.jsx';
 const stop = event => event.stopPropagation();
 const BUTTON = 'pointer-events-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50';
 
-// shiki's runs (code-lang.js colorRuns) split back into lines; null while plain.
-const lineRuns = runs => {
-  if (!runs) return null;
-  const out = [[]];
-  for (const run of runs) run.t === '\n' ? out.push([]) : out[out.length - 1].push(run);
-  return out;
-};
-
 export default function CodeCard({ block }) {
   const chat = useChatWorkspace();
   const { status, lines, retry } = useCardSource(block);
   const searchSource = useMemo(() => searchSourceRecord({ sourceKey: JSON.stringify(block.source || {}), status, units: (lines || []).map(line => ({ text: line.text, loc: { start: line.n, end: line.n } })), retry }), [block.source, status, lines, retry]);
   useSearchContent(block.id, searchSource);
-  const view = status === 'ready' ? previewOf(lines, fullContent(block)) : null;
+  // A code-explain satellite (code-explain-card-spec.md 2b, 6): `ranges` highlights its lines and dims the rest over its whole stored span (the ranges' own hull, so bounded by them);
+  // `from` names the primary card, which the badge frames and whose sentence a pressed range scrolls to. Without them the card is exactly what it was.
+  const ranges = block.ranges?.length ? block.ranges : null, primary = typeof block.from === 'string' && block.from.startsWith('codeExplain:') ? block.from.slice('codeExplain:'.length) : null;
+  const lit = useLitRange(primary), view = status === 'ready' ? previewOf(lines, fullContent(block) || !!ranges) : null;
+  const parent = primary && chat?.canvasOps?.hasBlock?.(primary) ? chat.canvasOps.findCard?.(entry => entry.id === primary) : null;
   const code = view ? view.lines.map(line => line.text).join('\n') : '';
   const [runs, setRuns] = useState(null), [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -71,6 +70,7 @@ export default function CodeCard({ block }) {
         <button type="button" data-code-card-open className={BUTTON} disabled={status !== 'ready'} title={source.kind === 'repository' ? 'Open these lines in Files at this commit' : 'Open the stored file'} onClick={openSource}><ExternalLink size={13} aria-hidden />Open source</button>
         <button type="button" data-code-card-chat className={BUTTON} disabled={!chat || status !== 'ready'} title="Keep this code with the chat" onClick={addToChat}><MessageSquarePlus size={13} aria-hidden />Add to chat</button>
         <button type="button" data-code-card-copy className={BUTTON} disabled={!code} onClick={copy}>{copied ? <><Check size={13} aria-hidden />Copied</> : <><Copy size={13} aria-hidden />Copy</>}</button>
+        {parent && <button type="button" data-code-card-from className="pointer-events-auto ml-auto min-w-0 max-w-[50%]" title="Show the card this code was added from" onClick={() => chat.canvasOps.locate(primary)}><Pill className="max-w-full truncate">from: {parent.title || 'code explanation'}</Pill></button>}
       </div>
       {status === 'loading' && <p role="status" className="flex items-center gap-1.5 px-3 py-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" aria-hidden />Loading the code</p>}
       {status === 'unavailable' && <p data-code-card-unavailable className="px-3 py-2 text-xs text-ink-2">{source.kind === 'upload' ? 'This file is not available here.' : 'Repository content unavailable.'}</p>}
@@ -78,12 +78,8 @@ export default function CodeCard({ block }) {
         <button type="button" data-code-card-retry className={BUTTON} onClick={retry}>Retry</button></div>}
       {view && <>
         <CitableLines source={source.kind === 'repository' ? { repo: source.repo, commit: source.commit, path: source.path } : null} lineAttr="codeLine" className="flex min-h-0 flex-1 flex-col">
-        <pre data-scroll data-code-card-code className="pointer-events-auto min-h-0 flex-1 overflow-auto px-0 py-2 font-mono text-[12px] leading-5" onPointerDown={stop}>
-          {view.lines.map((line, i) => <div key={line.n} data-code-line={line.n} className="flex">
-            <span aria-hidden className="w-10 shrink-0 pr-2 text-right text-ink-3 select-none">{line.n}</span>
-            <span className="min-w-0 whitespace-pre">{runs?.[i] ? runs[i].map((run, j) => <span key={j} style={run.color ? { color: run.color, '--shiki-dark': run.dark || run.color } : undefined}>{run.t}</span>) : line.text}</span>
-          </div>)}
-        </pre>
+        <CodeLines data-scroll data-code-card-code className="pointer-events-auto min-h-0 flex-1 overflow-auto px-0 py-2 font-mono text-[12px] leading-5" onPointerDown={stop}
+          lines={view.lines} runs={runs} ranges={ranges} lit={ranges?.some(range => range.id === lit) ? lit : null} onRange={primary ? id => revealSentence(primary, id) : null} />
         </CitableLines>
         {view.excerpt && <p data-code-card-excerpt className="shrink-0 border-t border-line px-3 py-1 text-[11px] text-ink-3">Showing {view.shown} of {view.total} lines. Full content shows the rest.</p>}
       </>}

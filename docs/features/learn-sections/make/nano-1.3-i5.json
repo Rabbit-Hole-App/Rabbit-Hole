@@ -1,0 +1,16 @@
+{
+  "case": "nano",
+  "section": "1.3",
+  "sectionId": "1.3",
+  "itemId": "i5",
+  "preReview": true,
+  "ms": 53,
+  "out": {
+    "skipped": {
+      "itemId": "i5",
+      "note": "I skipped the quiz for this part."
+    },
+    "next": "notes"
+  },
+  "log": []
+}

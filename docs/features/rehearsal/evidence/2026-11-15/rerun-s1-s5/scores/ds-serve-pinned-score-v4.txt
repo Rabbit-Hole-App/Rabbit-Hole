@@ -1,0 +1,48 @@
+record ../../docs/features/rehearsal/evidence/2026-11-15/rerun-s1-s5/records/ds-serve-pinned-record.json
+fixture datasette-e9d45fe route serve
+
+PASS    [route.commit] commit e9d45fe40060 is the fixture's e9d45fe40060
+PASS    [route.hardware] hardware cpu
+PASS    [record.gaveUp (a FINDING when set)] the run did not give up
+PASS    [install includes 'pip install -e .'] install 'pip install -e .'
+PASS    [install source file one of ['pyproject.toml', 'README.md', 'docs/contributing.rst']] source pyproject.toml:1
+PASS    [steps fixtures cmd (whitespace collapsed, uv run dropped, --port free)] fixtures: 'python tests/fixtures.py fixtures.db'
+INFO    [ids model-chosen] step id make_fixtures_db is the fixture's fixtures (matched by command, not scored)
+PASS    [steps serve cmd (whitespace collapsed, uv run dropped, --port free)] serve: 'datasette fixtures.db'
+INFO    [ids model-chosen] step id serve_fixtures is the fixture's serve (matched by command, not scored)
+PASS    [steps same order] fixture steps found, in order
+PASS    [database-writing step before serve] a step running tests/fixtures.py precedes serve
+PASS    [fixtures checks: exit_zero + files_exist fixtures.db] declared
+PASS    [execution: rc 0 and every check passed] make_fixtures_db: rc 0, 2/2 checks passed
+PASS    [stdout contains (tests/fixtures.py:460)] 'Test tables written to fixtures.db'
+PASS    [timing fixtures <= fixturesSecMax] fixtures took 1.03 s (max 120)
+PASS    [files: fixtures.db in step files, bytesMin] fixtures.db 249856 bytes >= 50000
+PASS    [serve is longRunning] longRunning true
+PASS    [serve checks: port_listens + http_200 on its port] port_listens + 1 http_200 on 8001
+PASS    [execution: rc 0 and every check passed] serve_fixtures: rc 0, 2/2 checks passed
+PASS    [timing startedSec <= serveStartedSecMax] startedSec 0.73 (max 60)
+SKIPPED [http body /-/versions.json contains "datasette"] the record has no body for /-/versions.json (probed ['/']) and the log does not hold it
+SKIPPED [http body /-/versions.json contains "1.0a42"] the record has no body for /-/versions.json (probed ['/']) and the log does not hold it
+PASS    [notExpected: a second serve on the same port] serve ports [8001]
+PASS    [route.knobs listed with types, extras allowed] --port type int
+PASS    [route.knobs listed with types, extras allowed] --cors type bool
+PASS    [route.knobs listed with types (optional)] --memory not listed (optional)
+PASS    [route.knobs listed with types, extras allowed] --setting type string
+PASS    [route.knobs listed with types (optional)] --root not listed (optional)
+PASS    [knobVerification --port differs from the default 8001] knobsVerified[0] datasette fixtures.db --port=8011 --host=0.0.0.0 '--setting=default_page_size 20' --immutable=fixtures.db
+PASS    [knobVerification rc 0] rc 0
+PASS    [traps rc != 0] trap port_not_an_integer shape ('wrong_type', '--port') rc 2
+PASS    [traps output contains fragment] trap port_not_an_integer has 'is not a valid integer'
+SKIPPED [traps shape] trap fixtures_db_exists (python tests/fixtures.py fixtures.db): not derivable from knobs, the runner does not generate it
+SKIPPED [traps shape] trap fixtures_wrong_extension (python tests/fixtures.py data.sqlite): not derivable from knobs, the runner does not generate it
+INFO    [traps other] the record also ran host_with_equals_sign: rc 3, failsAsExpected True
+INFO    [traps other] the record also ran unknown_key: rc 2, failsAsExpected True
+INFO    [traps other] the record also ran extra-db-filename_with_equals_sign: rc 1, failsAsExpected True
+INFO    [traps other] the record also ran unknown_key_make_fixtures_db: rc 2, failsAsExpected True
+PASS    [allowedFixes (kind + change)] 1 fix(es), all allowed
+PASS    [allowedFixes: allow_domain not expected] no allow_domain
+PASS    [notExpected: a fix installing Docker or a browser] none
+PASS    [notExpected: editing repository files] no file edit
+PASS    [uv absent from the sandbox] no step needs uv
+
+SUMMARY 33 PASS, 0 FAIL, 4 SKIPPED (not scored)

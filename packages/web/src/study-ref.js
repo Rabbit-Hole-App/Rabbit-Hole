@@ -54,7 +54,8 @@ export function sourceOrigin(kind, ref) {
 
 // Where the pane, the Notebook / Canvas row and the canvas go, in the slot parent's pixels. top: below the frame's top and any
 // header floating over it; the working-view row has its own strip above the canvas, so it never lies over a card or a control.
-export const SWITCH_ROW = 36;
+// 42 px: the height of the reference pane's tab row and Release 1's header row, so the line under the work tabs meets theirs.
+export const SWITCH_ROW = 42;
 export function studyOffsets({ layout, frameTop, top }) {
   const below = top - frameTop;
   if (layout.stacked) {

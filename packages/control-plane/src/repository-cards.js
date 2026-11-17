@@ -8,8 +8,11 @@
 // they get its place on the board and nothing of the repository.
 import { readableVersion, repositorySnapshot } from './repositories.js';
 
-export const repositoryCard = block => (block?.type === 'repo-code' && block.source?.kind === 'repository') || block?.type === 'repo-graph';
+// A codeExplain card (code-explain-card-spec.md 2a) names its repository and commit, not an app: it is withheld by the same rule as a repo-code card
+// (readableVersion on its repo and commit), its prose and title with it.
+export const repositoryCard = block => (block?.type === 'repo-code' && block.source?.kind === 'repository') || block?.type === 'repo-graph' || block?.type === 'codeExplain';
 const cardApp = block => (block.type === 'repo-graph' ? block.repository?.app : block.source?.app);
+const explainKey = block => `${block.repo}@${block.commit}`;
 // What a redacted card keeps: where it sits and what kind it is. A whitelist, so a field a later card version adds is
 // withheld until someone decides it is safe to show.
 const LAYOUT = ['id', 'type', 'x', 'y', 'dx', 'dy', 'w', 'h', 'width', 'height', 'z', 'rotation', 'groupId', 'locked'];
@@ -30,7 +33,14 @@ export async function redactRepositoryCards(db, state, viewer) {
       .bind(...apps, ...own).all();
     for (const row of results) owned.add(row.name);
   }
-  return { ...state, blocks: blocks.map(block => (!repositoryCard(block) || owned.has(cardApp(block)) ? block : redact(block))) };
+  // ponytail: at most 20 distinct repository@commit pairs of codeExplain cards are checked; past that the extra cards stay redacted.
+  const readable = new Set();
+  for (const block of blocks.filter(b => b?.type === 'codeExplain')) {
+    const key = explainKey(block);
+    if (readable.size < 20 && !readable.has(key) && await readableVersion({ LEARN_DB: db }, viewer, block.repo, block.commit)) readable.add(key);
+  }
+  const whole = block => (block.type === 'codeExplain' ? readable.has(explainKey(block)) : owned.has(cardApp(block)));
+  return { ...state, blocks: blocks.map(block => (!repositoryCard(block) || whole(block) ? block : redact(block))) };
 }
 
 // A save never erases what a redacted copy withheld: a redacted card sent back for a card the stored board holds in full is
@@ -59,7 +69,7 @@ const notAvailable = () => Response.json({ error: 'Not available' }, { status: 4
 export async function sharedCardSource(env, state, cardId, viewer, admit = null) {
   const block = typeof cardId === 'string' ? (state?.blocks || []).find(b => b?.id === cardId) : null;
   if (!block || block.redacted || !repositoryCard(block)) return notAvailable();
-  const at = block.type === 'repo-graph' ? block.repository : block.source;
+  const at = block.type === 'repo-graph' ? block.repository : block.type === 'codeExplain' ? { repo: block.repo, commit: block.commit, path: block.files?.[0]?.path } : block.source; // a codeExplain card's primary code pane: its first file, whole
   const row = await readableVersion(env, viewer, at?.repo, at?.commit);
   if (!row) return notAvailable();
   const refused = admit && await admit();

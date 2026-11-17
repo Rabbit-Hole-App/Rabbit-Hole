@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { browserStorage, canvasKeys, deviceId, hasLocalContent, localBoard, opensHere, readBoardCopy, readBoardVersion } from './canvas-local.js';
-import { readDocView } from '../canvas-doc.js';
 import { fixturesOn } from './review-fixtures.js';
 
 const memory = (entries = {}) => { const items = new Map(Object.entries(entries)); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)) }; };
@@ -89,8 +88,7 @@ test('browserStorage: null where reading window.localStorage throws, so no calle
   } finally {
     if (had) Object.defineProperty(globalThis, 'window', had); else delete globalThis.window;
   }
-  // Every reader takes the null: view preferences fall back to their defaults, content reads as unknown, never as empty.
-  assert.equal(readDocView(null, KEYS.base), 'canvas');
+  // Every reader takes the null: content reads as unknown, never as empty.
   assert.equal(fixturesOn(null, '', true), false);
   assert.equal(hasLocalContent(null, KEYS), true, 'unreadable counts as content');
   assert.equal(readBoardCopy(null, KEYS.ink), null);

@@ -1,0 +1,13 @@
+{
+  "case": "data",
+  "section": "1.2",
+  "sectionId": "1.2",
+  "ms": 151,
+  "out": {
+    "httpError": "POST /api/learn/codebase: HTTP 409 no_brief",
+    "body": {
+      "error": "no_brief"
+    }
+  },
+  "log": []
+}
