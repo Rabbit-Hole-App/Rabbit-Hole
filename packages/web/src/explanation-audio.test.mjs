@@ -220,11 +220,15 @@ test('an audio error or a stall shows a button-local failure, no toast, and the 
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'failed');
 });
 
-test('a card this viewer cannot edit draws no pill (the audio route is owner-only)', async () => {
+// Owner 2026-11-17 (shared canvases): a published or shared canvas has the audio too. The file route admits a share or publication link whose board references the narration (file-access.js),
+// so a read-only card draws the pill like the owner's.
+test('a card this viewer cannot edit draws the pill, and reads nothing until it is pressed', async () => {
   reset();
   await mount(card('a'), { readOnly: true });
-  assert.equal($('[data-explanation-audio]'), null);
-  assert.equal(audios.length, 0);
+  assert.ok($('[data-explanation-audio]'), 'the pill is drawn');
+  assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'idle');
+  assert.equal(audios.every(a => a.plays === 0), true);
+  assert.equal(reads.length, 0);
 });
 
 test('a press on the pill never reaches the card (no drag, no selection)', async () => {

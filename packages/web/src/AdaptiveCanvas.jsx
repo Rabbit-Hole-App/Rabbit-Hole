@@ -1716,7 +1716,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null, onSuggestSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -6441,16 +6441,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const taken = destination === 'card' || destination === 'follow-up' || destination === 'explore' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
       return taken !== false && admitted;
     },
+    // A shared canvas (SharedBoardPage): an Explanation card's suggested question, asked by a visitor. Signed out, the page sends the visitor through sign-in and back to this canvas with the
+    // question and the card kept (shared-ask.js signInForAsk). Signed in it is Ask in Chat, as the card's menu does it: the card becomes the composer's pill, the question goes in the composer, nothing is sent.
+    visitorAsk: ({ id, question }) => {
+      const object = objectById(id), described = object && describeObject(object);
+      if (!described) return false;
+      if (permissionCtx.role === 'guest') return !!onSuggestSignIn(question, { id, kind: described.kind, title: objectName(object, described) });
+      askedId.current = id;
+      if (!armTarget(object)) return false;
+      askDraft(question);
+      return true;
+    },
   };
-  const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
+  const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy, canVisitorAsk = visiting && !!onSuggestSignIn;
   const canQuick = !!inlineAi && !readOnly && !localCopy && !visiting;
   const openInlineRef = useRef(null); openInlineRef.current = () => openInline(performance.now());
   const explanationHost = useMemo(() => ({
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
+    ...(canVisitorAsk ? { visitorAsk: request => hostRef.current.visitorAsk(request) } : {}),
     // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
-  }), [canAsk, canNote, canQuick]);
+  }), [canAsk, canNote, canQuick, canVisitorAsk]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // A written Explanation card keeps Focus in its context menu, not in the toolbar (the toolbar's Minimize that stood there is gone, owner 2026-11-17).
   const soleFocus = null; // the card toolbar draws no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard

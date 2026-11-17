@@ -159,3 +159,26 @@ test('a published canvas draws the Chat composer in a bottom strip while the rig
   assert.match(chat, /if \(stripHost\) onOpenPanel\?\.\(\);/, 'sending from the strip opens the panel');
   assert.match(chat, /<ChatComposer multiline dock=\{!!stripHost\} pill=\{!!stripHost\} onMinimize=\{stripHost \? \(\) => window\.dispatchEvent\(new Event\('rh-strip-minimize'\)\) : null\}/, 'in the strip it is the owner canvas strip\'s pill with its Minimize, not the panel\'s plain box');
 });
+
+// An Explanation card's suggested question on a shared canvas (explanation-host.js visitorAsk; owner 2026-11-17): the same sign-in round trip as Send, from a share link or a publication.
+test('a strip click signed out goes to sign-in and back to this same shared page, keeping the question as the unsent draft and the card as the pill, and creates nothing', () => {
+  const storage = memory();
+  const to = signInForAsk('tok', 'What happens when a tree gets too deep?', storage, '/e/tok', { id: 'card-1', kind: 'Explanation', title: 'Why trees' });
+  assert.equal(to, `/login?next=${encodeURIComponent('/e/tok?ask=1')}`, 'a publication comes back to /e/<token>');
+  assert.equal(signInForAsk('tok', 'q', memory(), '/b/tok'), `/login?next=${encodeURIComponent('/b/tok?ask=1')}`, 'a share link comes back to /b/<token>');
+  assert.deepEqual([...storage.map.keys()].sort(), ['small.shared-ask-draft:tok', 'small.shared-ask-target:tok'], 'only the draft and the pill are kept: no chat turn, no card, no request');
+  assert.equal(takeDraft('tok', storage), 'What happens when a tree gets too deep?');
+  assert.deepEqual(takeTarget('tok', storage), { id: 'card-1', kind: 'Explanation', title: 'Why trees' });
+});
+
+test('the page wires the strips: signed out through signInForAsk at the page\'s own path, never in an embed; signed in it is Ask in Chat (the card armed, the question in the composer, nothing sent)', () => {
+  assert.match(page, /onSuggestSignIn=\{embed \? undefined : \(question, card\) => \{ window\.location\.href = signInForAsk\(token, question, undefined, window\.location\.pathname, card\); return true; \}\}/);
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const at = canvas.indexOf('visitorAsk: ({ id, question }) => {');
+  const body = canvas.slice(at, canvas.indexOf('\n    },', at));
+  assert.match(body, /permissionCtx\.role === 'guest'\) return !!onSuggestSignIn\(/);
+  assert.match(body, /armTarget\(object\)/);
+  assert.match(body, /askDraft\(question\)/);
+  assert.doesNotMatch(body, /chatWorkspace|\.ask\(|fetch\(/, 'it sends nothing and creates nothing');
+  assert.match(canvas, /canVisitorAsk = visiting && !!onSuggestSignIn/);
+});
