@@ -1,0 +1,257 @@
+[
+ {
+  "n": 1,
+  "id": "precision-recall",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-overview/cards/",
+  "question": "what is the difference between precision and recall?",
+  "title": "Precision and Recall",
+  "depth": "overview",
+  "depthLabel": "Brief",
+  "body": "When we test a rule or a model, we often want to measure two different kinds of success. Precision tells us how trustworthy our positive guesses are. If the model says yes, precision asks how often it is actually right.\n\nRecall tells us how thorough our search is. Out of all the true items that exist in total, recall asks how many we managed to catch.",
+  "visualLabels": [
+   "Precision and Recall Focus",
+   "Precision checks your accuracy when you guess yes. Recall checks how many true items you managed to find."
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 2,
+  "id": "tcp-handshake",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-overview/cards/",
+  "question": "how does the TCP handshake work?",
+  "title": "The TCP Handshake",
+  "depth": "overview",
+  "depthLabel": "Brief",
+  "body": "Computers connect on the web using a friendly greeting called a handshake.\n\nFirst, your computer sends a polite hello message. The server replies with its own hello and a nod back.\n\nFinally, your computer acknowledges the server to open the line.",
+  "visualLabels": [
+   "Three-way handshake",
+   "Client",
+   "Server",
+   "SYN",
+   "SYN-ACK",
+   "ACK"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 3,
+  "id": "roman-empire",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-overview/cards/",
+  "question": "how did the Roman Empire rise and fall?",
+  "title": "Rise and Fall of the Roman Empire",
+  "depth": "overview",
+  "depthLabel": "Brief",
+  "body": "The Roman Empire started as a small city-state in Italy and grew through military strength and smart alliances. It eventually transformed from a republic led by elected officials into a massive empire ruled by emperors.\n\nAt its peak, Rome controlled the entire Mediterranean region, bringing peace, trade, and shared laws to millions of people.\n\nOver time, poor leadership, economic troubles, and constant invasions weakened the empire until it finally split and the western half collapsed.",
+  "visualLabels": [
+   "Roman Empire Milestones",
+   "Roman Republic begins",
+   "Roman Empire starts",
+   "Western Empire falls"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 4,
+  "id": "gradient-descent",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-overview/cards/",
+  "question": "what is gradient descent?",
+  "title": "What is gradient descent?",
+  "depth": "overview",
+  "depthLabel": "Brief",
+  "body": "Gradient descent is a way to find the best settings for a task by taking small steps downhill.\n\nImagine standing on a hilly landscape in the fog and wanting to reach the lowest valley.\n\nBy feeling which way slopes downward and taking a step, you eventually reach the bottom.",
+  "visualLabels": [
+   "Finding the lowest point",
+   "worked example",
+   "Position",
+   "Error",
+   "Error curve"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 5,
+  "id": "ml-trees-bootstrap-coverage",
+  "source": "2026-11-14T125715-145-smoke-rerun-71415b6b8/raw/smoke-r1/cards/",
+  "question": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+  "title": "Bootstrap Coverage Limit",
+  "depth": "balanced",
+  "depthLabel": "Balanced",
+  "body": "When we build a bootstrap sample of size $n$ from $n$ rows by drawing with replacement, any single row is left out with probability $(1 - 1/n)$ on one draw.\n\nAcross all $n$ independent draws, the chance that a specific row is never chosen is $(1 - 1/n)^n$.\n\nLook for the curve approaching the horizontal reference line in\n\n, showing how the omission chance stabilizes near $0.368$ as $n$ grows large.\n\nAs sample size $n$ increases, this expression approaches the limit $1/e \\approx 0.368$ using the standard definition of the exponential constant.\n\nBecause the omission probability is about $36.8\\%$, the expected proportion of unique training rows included in the sample is the complement, $1 - 0.368 = 0.632$ or about $63\\%$.",
+  "visualLabels": [
+   "Bootstrap omission by training set size",
+   "Worked example. Omission with replacement is $(1-1/n)^n$. Samples rounded. Limit $1/e\\approx 0.368$ gives expected coverage $1-0.368=0.632$.",
+   "Training rows n",
+   "Chance a row is omitted",
+   "Omission after n draws",
+   "Omission limit"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 6,
+  "id": "ref-box-plot-iqr-fences",
+  "source": "2026-11-14T125715-145-smoke-rerun-71415b6b8/raw/smoke-r1/cards/",
+  "question": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+  "title": "Quartiles, IQR, Whiskers & Outliers on One Scale",
+  "depth": "balanced",
+  "depthLabel": "Balanced",
+  "body": "Consider a small data set plotted on a single numeric axis. The box‑plot below shows the five‑number summary: minimum, Q1, median, Q3, and maximum (the whisker ends).\n\nThe inter‑quartile range (IQR) is Q3‑Q1, here $12-6=6$. Fences are placed 1.5 × IQR beyond each quartile, giving lower = 2 and upper = 16. Points beyond these fences are flagged as outliers, such as the value 18 shown.\n\nThis visual ties all concepts to one common scale.",
+  "visualLabels": [
+   "Illustrative box‑plot of a data set",
+   "Notice the quartiles, IQR‑based fences, whiskers and a single outlier.",
+   "Value",
+   "Sample",
+   "Extreme"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 7,
+  "id": "four-stroke",
+  "source": "2026-11-14T125715-145-smoke-rerun-71415b6b8/raw/smoke-r1/cards/",
+  "question": "how does a four-stroke car engine work?",
+  "title": "Four-Stroke Engine Mechanics",
+  "depth": "balanced",
+  "depthLabel": "Balanced",
+  "body": "A car engine converts chemical energy into mechanical motion through repeating cycles inside a cylinder. Each cycle uses four distinct piston movements called strokes to pull in fuel, burn it, and clear out exhaust.\n\nThe process begins with the intake stroke where the piston moves down, pulling an air and fuel mixture through an open valve.\n\nNext is the compression stroke, sealing the chamber and squeezing the mixture tight to prepare for ignition.\n\nA spark plug then fires during the power stroke, forcing the piston down and turning the crankshaft to drive the wheels.\n\nFinally, the exhaust stroke pushes the burned gases out through an open exhaust valve to restart the cycle.",
+  "visualLabels": [
+   "Piston motion inside the cylinder.",
+   "Four-stroke cycle"
+  ],
+  "visualCount": 2,
+  "visualKinds": [
+   "rh-illustration",
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 8,
+  "id": "public-key-encryption",
+  "source": "2026-11-14T125715-145-smoke-rerun-71415b6b8/raw/smoke-r1/cards/",
+  "question": "how does public-key encryption work?",
+  "title": "Public-Key Encryption Mechanism",
+  "depth": "balanced",
+  "depthLabel": "Balanced",
+  "body": "When Alice wants to send a secret message to Bob over an insecure channel, she uses Bob's public key to encrypt the data.\n\nThis key scrambles the message into ciphertext using a one-way mathematical trapdoor function that is easy to compute forward but hard to invert.\n\nOnly Bob possesses the corresponding private key required to reverse the operation and recover the original plaintext.\n\nThe security relies on computational asymmetry, such as the difficulty of factoring large prime numbers.\n\nBecause the public key cannot decrypt the ciphertext it generates, Bob can safely share it with anyone without compromising his private credentials.",
+  "visualLabels": [
+   "RSA Encryption Sequence",
+   "Alice",
+   "Bob",
+   "Send public key",
+   "Send ciphertext encrypted with public key"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 9,
+  "id": "softmax",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-deep/cards/",
+  "question": "what does softmax do?",
+  "title": "Softmax Transformation",
+  "depth": "deep",
+  "depthLabel": "Detailed",
+  "body": "The softmax function converts a vector of raw scores into a probability distribution. Each score $z_i$ is exponentized as $e^{z_i}$ to ensure all values are positive.\n\nThese exponentized values are then divided by the sum of all exponentized scores. This normalization guarantees that the resulting probabilities sum exactly to $1$.",
+  "visualLabels": [
+   "Softmax Transformation",
+   "Mapping raw scores to probabilities",
+   "Raw Scores ($z$)",
+   "Probabilities ($p$)",
+   "e^2.0",
+   "e^1.0",
+   "e^0.1"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 10,
+  "id": "bst",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-deep/cards/",
+  "question": "how does a binary search tree work?",
+  "title": "Binary Search Tree Operations",
+  "depth": "deep",
+  "depthLabel": "Detailed",
+  "body": "A binary search tree organizes keys hierarchically so that each node satisfies a strict ordering invariant. For any given node, all keys in its left subtree are smaller, and all keys in its right subtree are larger.\n\nSearch operations begin at the root node and compare the target key against the current value. If the target is smaller, the search proceeds down the left child edge; if larger, it moves to the right child.\n\nThis branching structure guarantees logarithmic time complexity $O(\\log n)$ for searches, insertions, and deletions in a balanced tree. Each comparison halves the remaining search space.",
+  "visualLabels": [
+   "Insert 7 into the binary search tree",
+   "7 < 8, 7 > 3, and 7 > 6. The empty right slot below 6 receives 7.",
+   "8",
+   "3",
+   "10",
+   "1",
+   "6",
+   "7"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 11,
+  "id": "water-cycle",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-deep/cards/",
+  "question": "how does the water cycle work?",
+  "title": "The Water Cycle",
+  "depth": "deep",
+  "depthLabel": "Detailed",
+  "body": "Solar energy drives the global water cycle by heating surface water and causing evaporation into vapor. This vapor rises, cools, and undergoes condensation to form clouds containing tiny droplets.\n\nEventually, precipitation returns the moisture to the earth as rain or snow.\n\nRunoff and groundwater flow collect this moisture into rivers and basins, completing the loop. The rate of evaporation $E$ depends on temperature and wind speed according to standard bulk aerodynamic formulas.\n\nWater constantly redistributes thermal energy and mass across the planet.",
+  "visualLabels": [
+   "Water moves continuously between Earth's surface and the atmosphere.",
+   "Water cycle process"
+  ],
+  "visualCount": 2,
+  "visualKinds": [
+   "rh-illustration",
+   "rh-diagram"
+  ]
+ },
+ {
+  "n": 12,
+  "id": "gradient-descent",
+  "source": "2026-11-08T205831-baseline-3x-on-shipped-116-9d645b8f6/raw/correct-svg-r1-deep/cards/",
+  "question": "what is gradient descent?",
+  "title": "Gradient Descent Optimization",
+  "depth": "deep",
+  "depthLabel": "Detailed",
+  "body": "Gradient descent is an iterative optimization algorithm used to find the minimum of a differentiable objective function $L(w)$.\n\nStarting from an initial parameter estimate $w_0$, the algorithm updates the weights by taking steps proportional to the negative of the gradient.\n\nThe update rule is defined as $w_{t+1} = w_t - \\eta \\nabla L(w_t)$, where $\\eta$ represents the learning rate.\n\nThe choice of the learning rate $\\eta$ governs how large each adjustment is during training. If $\\eta$ is too large, the updates may overshoot the minimum and diverge.\n\nIf $\\eta$ is too small, convergence requires excessive computational steps.",
+  "visualLabels": [
+   "Worked example of gradient descent steps",
+   "A descent path on a quadratic loss function.",
+   "Weight 1",
+   "Weight 2",
+   "Outer loss contour",
+   "Inner loss contour",
+   "Step 1",
+   "Step 2",
+   "Step 3"
+  ],
+  "visualCount": 1,
+  "visualKinds": [
+   "rh-diagram"
+  ]
+ }
+]

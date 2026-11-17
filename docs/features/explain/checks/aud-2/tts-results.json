@@ -1,0 +1,220 @@
+{
+ "samples": [
+  {
+   "voice": "Jessica",
+   "id": "cgSgspJ2msm6clMCkdW9",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1.1
+   },
+   "ttfbMs": 312,
+   "totalMs": 886,
+   "bytes": 235981,
+   "audioSeconds": 29.49,
+   "durationBy": "mp3 frames",
+   "chars": 477,
+   "words": 90,
+   "wpm": 183.1,
+   "usd": 0.01908
+  },
+  {
+   "voice": "Laura",
+   "id": "FGY2WhTYpPnrIDTdsKH5",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1.1
+   },
+   "ttfbMs": 254,
+   "totalMs": 880,
+   "bytes": 224070,
+   "audioSeconds": 28,
+   "durationBy": "mp3 frames",
+   "chars": 477,
+   "words": 90,
+   "wpm": 192.8,
+   "usd": 0.01908
+  },
+  {
+   "voice": "Matilda",
+   "id": "XrExE9yKIg1WjnnlVkGX",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1.1
+   },
+   "ttfbMs": 190,
+   "totalMs": 2849,
+   "bytes": 253745,
+   "audioSeconds": 31.71,
+   "durationBy": "mp3 frames",
+   "chars": 477,
+   "words": 90,
+   "wpm": 170.3,
+   "usd": 0.01908
+  },
+  {
+   "voice": "Jessica",
+   "id": "cgSgspJ2msm6clMCkdW9",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1
+   },
+   "ttfbMs": 331,
+   "totalMs": 923,
+   "bytes": 251864,
+   "audioSeconds": 31.48,
+   "durationBy": "mp3 frames",
+   "chars": 477,
+   "words": 90,
+   "wpm": 171.6,
+   "usd": 0.01908
+  }
+ ],
+ "full": [
+  {
+   "n": 4,
+   "id": "gradient-descent",
+   "depthLabel": "Brief",
+   "scriptWords": 170,
+   "voice": "Jessica",
+   "file": "samples/card-4-gradient-descent.mp3",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1.1
+   },
+   "ttfbMs": 241,
+   "totalMs": 1176,
+   "bytes": 407554,
+   "audioSeconds": 50.94,
+   "durationBy": "mp3 frames",
+   "chars": 918,
+   "words": 170,
+   "wpm": 200.2,
+   "usd": 0.03672
+  },
+  {
+   "n": 4,
+   "id": "gradient-descent",
+   "depthLabel": "Brief",
+   "scriptWords": 170,
+   "voice": "Jessica",
+   "file": "samples/card-4-gradient-descent-speed1.0.mp3",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1
+   },
+   "ttfbMs": 195,
+   "totalMs": 1244,
+   "bytes": 410061,
+   "audioSeconds": 51.25,
+   "durationBy": "mp3 frames",
+   "chars": 918,
+   "words": 170,
+   "wpm": 199,
+   "usd": 0.03672
+  },
+  {
+   "n": 5,
+   "id": "ml-trees-bootstrap-coverage",
+   "depthLabel": "Balanced",
+   "scriptWords": 310,
+   "voice": "Jessica",
+   "file": "samples/card-5-ml-trees-bootstrap-coverage.mp3",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1.1
+   },
+   "ttfbMs": 201,
+   "totalMs": 1861,
+   "bytes": 837425,
+   "audioSeconds": 104.67,
+   "durationBy": "mp3 frames",
+   "chars": 1835,
+   "words": 310,
+   "wpm": 177.7,
+   "usd": 0.0734
+  },
+  {
+   "n": 5,
+   "id": "ml-trees-bootstrap-coverage",
+   "depthLabel": "Balanced",
+   "scriptWords": 310,
+   "voice": "Jessica",
+   "file": "samples/card-5-ml-trees-bootstrap-coverage-speed1.0.mp3",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1
+   },
+   "ttfbMs": 201,
+   "totalMs": 2057,
+   "bytes": 914329,
+   "audioSeconds": 114.29,
+   "durationBy": "mp3 frames",
+   "chars": 1835,
+   "words": 310,
+   "wpm": 162.8,
+   "usd": 0.0734
+  },
+  {
+   "n": 10,
+   "id": "bst",
+   "depthLabel": "Detailed",
+   "scriptWords": 477,
+   "voice": "Jessica",
+   "file": "samples/card-10-bst.mp3",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1.1
+   },
+   "ttfbMs": 181,
+   "totalMs": 2652,
+   "bytes": 1267296,
+   "audioSeconds": 158.41,
+   "durationBy": "mp3 frames",
+   "chars": 2573,
+   "words": 477,
+   "wpm": 180.7,
+   "usd": 0.10292
+  },
+  {
+   "n": 10,
+   "id": "bst",
+   "depthLabel": "Detailed",
+   "scriptWords": 477,
+   "voice": "Jessica",
+   "file": "samples/card-10-bst-speed1.0.mp3",
+   "http": 200,
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.75,
+    "speed": 1
+   },
+   "ttfbMs": 210,
+   "totalMs": 2827,
+   "bytes": 1330408,
+   "audioSeconds": 166.3,
+   "durationBy": "mp3 frames",
+   "chars": 2573,
+   "words": 477,
+   "wpm": 172.1,
+   "usd": 0.10292
+  }
+ ]
+}
