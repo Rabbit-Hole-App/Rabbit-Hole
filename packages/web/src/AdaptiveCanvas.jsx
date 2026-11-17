@@ -472,7 +472,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {/* ONE component (owner 2026-11-13): Enter, Add to chat, Quick Edit and Minimize are one pill in one fixed place above the card's left edge, seen and not seen together. */}
       {(showEnter || showTools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex items-end justify-center after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-['']">
-          <PromptHold.Provider value={setPromptOpen}><div data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
+          <PromptHold.Provider value={setPromptOpen}><div data-card-actions className="pointer-events-auto flex w-max max-w-none shrink-0 items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
             {showEnter && (
               <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
                 onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
