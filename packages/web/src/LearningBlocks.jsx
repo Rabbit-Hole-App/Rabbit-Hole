@@ -152,6 +152,8 @@ export const BLOCK_TYPES = {
     width: 440,
     autoMax: 520,
     fitContent: true,
+    // Owner 2026-11-17 (no blank at the card's end): a saved or dragged height is only a ceiling (card-layout.js fitFrame set = false), never a floor, so the card ends right after its content as that shrinks (suggestions used) or grows.
+    fitCeiling: true,
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'explanation',

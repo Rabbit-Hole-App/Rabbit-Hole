@@ -1002,6 +1002,16 @@ html:is([data-card-size="0"], [data-card-size="1"]) .card-grid > li > [data-card
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line { animation: none; }
 }
+/* A card made from a card (Ask in a new card): the connector draws in from the source to the slot (300 ms; the path has pathLength 1), its head lands at the end, and only then does the
+   skeleton show (SlotCard data-slot-after-arrow, the same 300 ms as a delay). Reduced motion: no drawing, everything shows at once. */
+.arrow-draw { stroke-dasharray: 1; animation: arrow-draw 300ms ease-out both; }
+.arrow-head-in { animation: arrow-head-in 60ms linear 250ms both; }
+.slot-after-arrow { animation: arrow-head-in 120ms ease-out 300ms both; }
+@keyframes arrow-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes arrow-head-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .arrow-draw, .arrow-head-in, .slot-after-arrow { animation: none; }
+}
 
 /* Voice Mode's red mic breathes (VoiceMode.jsx): a ring swells out and fades while the icon softly
    pulses, 2s ease-in-out; a little quicker while listening. Reduced motion keeps a static ring - the

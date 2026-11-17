@@ -293,10 +293,10 @@ export function Suggestions({ layer }) {
   if (!suggestions.length || !host?.ask || !canEdit) return null;
   const busy = !!pending;
   return (
-    <ul data-explanation-suggestions aria-label="Suggested next questions" className="m-0 mt-3 -mx-2 grid list-none gap-1 p-0">
+    <ul data-explanation-suggestions aria-label="Suggested next questions" className="m-0 mt-4 -mx-3 grid list-none gap-2.5 p-0">
       {suggestions.map(question => (
         <li key={question.id} data-explanation-suggestion={question.id} className="m-0 p-0">
-          <button type="button" disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'card' ? 'true' : undefined}
+          <button type="button" title="Answer in a card" disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'card' ? 'true' : undefined}
             onPointerDown={event => event.stopPropagation()} onClick={() => layer.askSuggestion(question, 'card')}
             className="flex min-h-9 w-full cursor-pointer items-center rounded-md bg-hover px-2.5 py-0.5 text-left text-[13px] leading-snug text-ink hover:bg-active focus-visible:bg-active focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-45">
             <span className="min-w-0"><MdInline text={question.text} mathOnly /></span>
