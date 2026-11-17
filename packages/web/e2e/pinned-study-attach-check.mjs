@@ -261,7 +261,9 @@ await check('8. the Chat draft, mode and chips survive Canvas -> Study -> Canvas
   const before = await state();
   assert.equal(before.draft, 'my unsent question');
   for (const view of ['Canvas', 'Study']) {
-    await page.locator(`[data-study-toggle-option="${view === 'Canvas' ? 'canvas' : 'study'}"]`).click(); // the header pill, no View rows since 2026-11-15; UNRUN
+    const menu = await openMenu(page, 'View');
+    await menu.getByRole('menuitemradio', { name: view, exact: true }).click();
+    await closeMenus(page);
     await page.waitForTimeout(800);
     assert.deepEqual(await state(), before, `after View > ${view}`);
   }

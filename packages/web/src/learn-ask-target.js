@@ -41,7 +41,6 @@ export const TOC_VIEW = {
     'data-chat-window-state': "the canvas strip's chat window",
     'data-chat-window-title': "the canvas strip's chat window",
     'data-chat-window-minimize': "the canvas strip's chat window",
-    'data-chat-window-clear': "the canvas strip's chat window",
     'data-chat-window-maximize': "the canvas strip's chat window",
     'data-chat-window-toggle': "the canvas strip's chat button (the strip is never the contents view)",
     'data-curious-toggle': "the canvas strip's Curious toggle (the strip is never the contents view)",

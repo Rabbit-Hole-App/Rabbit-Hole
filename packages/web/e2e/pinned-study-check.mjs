@@ -118,8 +118,8 @@ const geometry = () => page.evaluate(key => { const board = JSON.parse(localStor
 const settle = async () => { let last = -1, still = 0; while (still < 30) { if (saves.length === last) still++; else { last = saves.length; still = 0; } await page.waitForTimeout(100); } };
 const quiet = async (label, before) => { await page.waitForTimeout(2000); assert.deepEqual([model.length, saves.length], before, `${label}: model ${model.join()} saves ${saves.slice(before[1]).join()}`); };
 const counts = () => [model.length, saves.length];
-const view = async label => { await page.locator(`[data-study-toggle-option="${label === 'Canvas' ? 'canvas' : 'study'}"]`).click(); }; // the header pill (Run | Canvas), no View rows since 2026-11-15; UNRUN
-const viewChecked = async () => [['Canvas', String(await page.locator('[data-study-toggle-option="canvas"]').getAttribute('aria-selected'))], ['Study', String(await page.locator('[data-study-toggle-option="study"]').getAttribute('aria-selected'))]];
+const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
+const viewChecked = async () => { const panel = await openMenu(page, 'View'); const out = await panel.locator(':scope > [role="menuitemradio"], :scope [role="menuitemradio"]').evaluateAll(rows => rows.filter(row => !row.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out.filter(([name]) => name === 'Canvas' || name === 'Study'); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
 // WP6: Change reference, Locate on canvas, Unpin and the version line are in the header's Reference options.
 const option = async name => { await page.locator('[data-study-options]').click(); return page.getByRole('dialog', { name: 'Reference options' }).getByRole('button', { name, exact: true }); };
@@ -476,13 +476,15 @@ await check('10 a narrow space stacks the reference above the work, from the rea
 
 await check('11 a failed preference save says Not saved, never Saved; the arrangement survives a reload when storage works', async () => {
   const before = counts();
+  await page.getByText('Saved on this browser', { exact: true }).waitFor();
   await page.evaluate(() => { const real = Storage.prototype.setItem; window.__realSet = real; Storage.prototype.setItem = function (key, value) { if (String(key).endsWith(':study')) throw new DOMException('blocked', 'QuotaExceededError'); return real.call(this, key, value); }; });
   await page.getByRole('separator', { name: 'Resize pinned reference' }).focus();
   await page.keyboard.press('ArrowLeft');
   await page.getByText('Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.', { exact: true }).waitFor({ timeout: 5000 });
+  assert.equal(await page.getByText('Saved on this browser', { exact: true }).count(), 0, 'never reported as saved');
   await page.evaluate(() => { Storage.prototype.setItem = window.__realSet; });
   await page.keyboard.press('ArrowRight');
-  await page.getByText('Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.', { exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+  await page.getByText('Saved on this browser', { exact: true }).waitFor({ timeout: 5000 });
   const stored = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), STUDY);
   assert.equal(stored.pin.cardId, 'ex');
   assert.equal(stored.mode, 'study');
@@ -498,6 +500,7 @@ await check('12 a reload restores Study: the same pin, split and working view, s
   assert.equal(await page.getByRole('separator', { name: 'Resize pinned reference' }).getAttribute('aria-valuenow'), split);
   assert.equal(await page.locator('[data-study-work]').getAttribute('data-study-work'), 'canvas');
   assert.deepEqual(await viewChecked(), [['Canvas', 'false'], ['Study', 'true']]);
+  await page.getByText('Saved on this browser', { exact: true }).waitFor();
   // The reload is a new page: mark its frame again for the steps after.
   await page.locator('[data-notebook-frame]').waitFor();
   await until(async () => loads.length === 2, 'the reload loads the notebook once');

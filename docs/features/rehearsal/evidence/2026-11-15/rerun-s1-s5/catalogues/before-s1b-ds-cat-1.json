@@ -1,9 +1,0 @@
-{
- "project": "repo-985a5c79-datasette",
- "canvas": "canvas-b51e24b7",
- "indexing": "failed",
- "catalogue": {
-  "status": "failed",
-  "error": "The repository could not be indexed."
- }
-}

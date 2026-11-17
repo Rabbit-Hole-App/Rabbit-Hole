@@ -13,7 +13,7 @@ export const searchDrag = {
   end: () => { const done = active; active = null; return done; },
 };
 
-// What a result carries when dragged, or null when it cannot be placed (a comment, an unavailable canvas).
+// What a result carries when dragged, or null when it cannot be placed (a comment, a document block, an unavailable canvas).
 export function searchDragPayload(result) {
   if (result?.kind === 'link') return !result.link?.unavailable && result.target?.id ? { kind: 'link', target: result.target.id, title: result.title } : null;
   if (['card', 'item', 'shape'].includes(result?.kind) && result.objectId) return { kind: 'object', id: result.objectId, title: result.title };

@@ -174,8 +174,7 @@ test('zero AI calls: scroll, lock, select, highlight and Add to chat reach only 
   const card = read('WebpageCard.jsx');
   assert.doesNotMatch(card, /fetch\(|\/api\//);
   const imports = [...card.matchAll(/from '\.\/([^']+)'/g)].map(match => match[1]).sort();
-  // learn-wiki-highlights.js (Learn sections, the Tutor's quotes): text location and a window event, no request.
-  assert.deepEqual(imports, ['CardHeader.jsx', 'card-rename.js', 'chat-workspace.jsx', 'content-gestures.js', 'explanation-host.js', 'file-source-client.js', 'learn-wiki-highlights.js', 'pdf-anchor.js', 'pdf-highlights.js', 'selection-ref.js', 'selection-toolbar.jsx', 'ui.jsx', 'webcard-api.js', 'webcard.js']);
+  assert.deepEqual(imports, ['CardHeader.jsx', 'card-rename.js', 'chat-workspace.jsx', 'content-gestures.js', 'explanation-host.js', 'file-source-client.js', 'pdf-anchor.js', 'pdf-highlights.js', 'selection-ref.js', 'selection-toolbar.jsx', 'ui.jsx', 'webcard-api.js', 'webcard.js']);
   const routes = [...read('webcard-api.js').matchAll(/`(\/api\/[^`$?]+)/g)].map(match => match[1]);
   assert.deepEqual(routes, ['/api/learn/webpages/', '/api/learn/webpages/', '/api/learn/files/']);
   assert.match(read('webcard-api.js'), /result\('\/api\/learn\/webpages', \{ method: 'POST'/);

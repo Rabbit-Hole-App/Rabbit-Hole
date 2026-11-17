@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp, Files, FolderTree, ListTree, MessageCircleMore, MessageSquareQuote, Network, PanelLeft, Pin, Search, TrendingUp, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Files, FolderTree, Gauge, ListTree, MessageCircleMore, MessageSquareQuote, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -15,7 +15,7 @@ export const PANEL_TABS = [
   { id: 'chat', label: 'Chat', Icon: MessageCircleMore },
   { id: 'toc', label: 'Table of contents', Icon: ListTree },
   // Progress (Tutor Task 09): a tab of this panel, never a column beside Chat.
-  { id: 'progress', label: 'Progress', Icon: TrendingUp },
+  { id: 'progress', label: 'Progress', Icon: Gauge },
   { id: 'comments', label: 'Comments', Icon: MessageSquareQuote },
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   // Links (canvas references, owner 2026-10-14 Q3) left the tray for Search's Links filter (owner UI brief 2026-10-20 section 7).

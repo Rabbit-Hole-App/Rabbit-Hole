@@ -1457,8 +1457,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
 
       {trashOpen && <TrashDialog trash={trash} onRestore={restore} onClose={() => setTrashOpen(false)} />}
       {tip && createPortal(
-        <div role="tooltip" data-sidebar-tip popover="manual" ref={el => { try { el?.showPopover(); } catch { /* shown already */ } }} style={{ left: tip.left, top: tip.top }}
-          className="pointer-events-none fixed inset-auto z-50 m-0 max-w-72 -translate-y-1/2 overflow-visible rounded-md border-0 bg-ink px-2 py-1 text-xs font-medium break-words text-white shadow-pop animate-[fade-in_100ms_ease-out]">
+        <div role="tooltip" data-sidebar-tip style={{ left: tip.left, top: tip.top }}
+          className="pointer-events-none fixed z-50 max-w-72 -translate-y-1/2 rounded-md bg-ink px-2 py-1 text-xs font-medium break-words text-white shadow-pop animate-[fade-in_100ms_ease-out]">
           {tip.label}
         </div>,
         document.body,

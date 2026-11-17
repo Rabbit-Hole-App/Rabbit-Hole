@@ -38,9 +38,9 @@ test('the conversation is kept per link and per viewer, and only answered pairs 
 test('Chat sits in the shared page\'s right panel (not over the canvas), with read-only context pills and the selected card', () => {
   assert.doesNotMatch(page, /composer=\{<Shared/, 'no floating answer window over the canvas composer slot');
   assert.match(page, /onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\} \/>/);
-  assert.match(page, /chat=\{<SharedChat token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askBack\?\.draft \?\? null\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\}( onAllowance=\{setGuestRemaining\})?(?: stripHost=\{panel\.open \? null : stripHost\} onOpenPanel=\{\(\) => panel\.show\('chat'\)\}(?: curiousToggle=\{\{ min: curiousMin, set: setCuriousMin \}\})?)? \/>/);
+  assert.match(page, /chat=\{<SharedChat token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askBack\?\.draft \?\? null\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\}( onAllowance=\{setGuestRemaining\})?(?: stripHost=\{panel\.open \? null : stripHost\} onOpenPanel=\{\(\) => panel\.show\('chat'\)\})? \/>/);
   // The normal Chat's transcript and composer components, not a second Chat design.
-  assert.match(composer, /import ChatComposer, \{ StripTool \} from '\.\/ChatComposer\.jsx';\nimport \{ ChatMessages \} from '\.\/ChatMessages\.jsx';/);
+  assert.match(composer, /import ChatComposer from '\.\/ChatComposer\.jsx';\nimport \{ ChatMessages \} from '\.\/ChatMessages\.jsx';/);
   assert.match(composer, /<ChatMessages msgs=\{msgs\} busy=\{busy\} learnChat /);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);
   assert.match(composer, /data-context-pill=\{source\.kind\}/);
@@ -142,9 +142,8 @@ test('D: over a limit, the message shows in the conversation and the question go
 });
 
 test('F: the shared composer is a plain Q&A box - no +, attachments, model picker or / commands', () => {
-  const call = composer.match(/<ChatComposer [\s\S]*?placeholder="Ask about this canvas" \/>/)[0];
-  // Owner 2026-11-15: the shared strip draws the same pill tools as the owner's canvas (StripTool: Add and Commands greyed, Curious, chat), so leading= and trailing= are allowed, only as StripTool buttons.
-  for (const prop of ['onKeyDown=', 'ready=', 'voice=', 'token=']) assert.ok(!call.includes(prop), prop);
+  const call = composer.match(/<ChatComposer [^\n]*\/>/)[0];
+  for (const prop of ['leading=', 'trailing=', 'onKeyDown=', 'ready=', 'voice=', 'token=']) assert.ok(!call.includes(prop), prop);
   assert.doesNotMatch(composer.replace(/^\s*\/\/.*$/gm, ''),/SlashCommands|CommandsSheet|ModelPicker|Paperclip|COMPOSER_ADD|type="file"|attachment/i);
   // The question, the history and the selected card's id: the server words the card from the board, never from the request.
   assert.match(composer, /body: \{ message, history, \.\.\.\(target \? \{ selected: target\.id \} : \{\}\) \}/);

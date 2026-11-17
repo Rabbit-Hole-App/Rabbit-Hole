@@ -1,39 +1,23 @@
-// The document card's page-side rules (docs/features/blocknote-canvas.md): the board size warning, the block types this
-// version edits, and the migration of a legacy single document into a Document card.
+// The canvas document's page-side rules (docs/features/blocknote-canvas.md): the view choice, the board size warning, the
+// block types this version edits, and what a newer server copy does to a document this browser still holds.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BOARD_LIMIT, DOC_BLOCK_TYPES, boardSizeWarning, docIsEmpty, migrateDocToCard, unknownDocBlock } from './canvas-doc.js';
+import { BOARD_LIMIT, DOC_BLOCK_TYPES, boardSizeWarning, docIsEmpty, docOnServerCopy, docViewKey, readDocView, unknownDocBlock, writeDocView } from './canvas-doc.js';
 
+const memory = () => { const items = new Map(); return { getItem: key => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)) }; };
+const KEY = 'small.adaptive-canvas:gmail-com:a@gmail.com:canvas-0f9e8d7c';
 const para = text => ({ id: text || 'p', type: 'paragraph', content: text ? [{ type: 'text', text, styles: {} }] : [], children: [] });
 
-test('migrateDocToCard: a legacy document becomes one Document card, blocks verbatim; nothing is dropped', () => {
-  const blocks = [para('Light reactions make ATP'), { id: 'x', type: 'futureWidget', props: {}, content: 'kept', children: [] }, { ...para(''), type: 'divider' }];
-  const state = { v: 1, blocks: [{ id: 'note', type: 'sticky', dx: 4, dy: 5 }], doc: { v: 1, x: 0, y: 0, w: 760, blocks } };
-  const next = migrateDocToCard(state);
-  assert.equal('doc' in next, false, 'the legacy key is gone');
-  assert.equal(next.blocks.length, 2);
-  assert.deepEqual(next.blocks[0], state.blocks[0], 'existing cards are untouched');
-  const card = next.blocks[1];
-  assert.deepEqual({ ...card, id: undefined }, { id: undefined, type: 'doc', dx: 0, dy: 0, title: 'Document', blocks });
-  assert.match(card.id, /^doc-[0-9a-f]{16}$/);
-  assert.equal(card.blocks, blocks, 'the blocks are passed through, unknown types included');
-  assert.equal(migrateDocToCard({ blocks: [], doc: { blocks } }).blocks.length, 1, 'a board with no cards gains the card');
-  assert.ok('doc' in state, 'the input is not mutated');
-});
-
-test('migrateDocToCard: same state, same id; idempotent; other content, other id; empty and absent doc add no card', () => {
-  const doc = { v: 1, blocks: [para('one')] };
-  const a = migrateDocToCard({ blocks: [], doc }), b = migrateDocToCard({ blocks: [], doc: JSON.parse(JSON.stringify(doc)) });
-  assert.equal(a.blocks[0].id, b.blocks[0].id, 'two clients make the same card');
-  const again = migrateDocToCard({ ...a, doc });
-  assert.equal(again.blocks.length, 1, 'a state that already holds the card (a second migration, a server state that kept doc) gains nothing');
-  assert.equal('doc' in again, false);
-  assert.notEqual(migrateDocToCard({ blocks: [], doc: { blocks: [para('two')] } }).blocks[0].id, a.blocks[0].id);
-  const empty = migrateDocToCard({ blocks: [{ id: 'n', type: 'sticky' }], doc: { v: 1, blocks: [para(''), para('')] } });
-  assert.deepEqual(empty, { blocks: [{ id: 'n', type: 'sticky' }] }, 'an empty sheet is dropped, no card');
-  const plain = { blocks: [{ id: 'n' }] };
-  assert.equal(migrateDocToCard(plain), plain, 'no doc is the same object');
-  assert.equal(migrateDocToCard(null), null);
+test('the view: Canvas until this person picks Editor here; the choice is per canvas key', () => {
+  const storage = memory();
+  assert.equal(docViewKey(KEY), `${KEY}:view`);
+  assert.equal(readDocView(storage, KEY), 'canvas');
+  writeDocView(storage, KEY, 'editor');
+  assert.equal(readDocView(storage, KEY), 'editor');
+  assert.equal(readDocView(storage, `${KEY}x`), 'canvas', 'another canvas keeps its own default');
+  writeDocView(storage, KEY, 'anything');
+  assert.equal(readDocView(storage, KEY), 'canvas');
+  assert.equal(readDocView({ getItem: () => { throw Error('blocked'); } }, KEY), 'canvas', 'blocked storage reads as Canvas');
 });
 
 test('the size warning starts at 85% of the server limit', () => {
@@ -48,6 +32,48 @@ test('block types: text only (no media); an unknown saved type is caught, also w
   assert.equal(unknownDocBlock([{ ...para('a'), children: [{ ...para('b'), type: 'image' }] }]), true);
   assert.equal(docIsEmpty({ blocks: [para(''), { ...para(''), type: 'heading' }] }), true);
   assert.equal(docIsEmpty({ blocks: [para('words')] }), false);
+});
+
+test('a newer server copy: a kept document goes over it and is pushed; a replaced one is offered back; nothing is dropped', () => {
+  const server = { blocks: [], doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('server')] } };
+  const mine = { v: 1, x: 0, y: 0, w: 760, blocks: [para('mine, unsaved')] };
+  const kept = docOnServerCopy(server, { kept: mine, replaced: { doc: mine } });
+  assert.deepEqual(kept.state.doc, mine, 'Reload and keep my document: mine goes over the server copy');
+  assert.equal(kept.push, true, 'and is saved as the newer edit');
+  assert.deepEqual(kept.offer, server.doc, 'the server document it replaced is offered back');
+  const plain = docOnServerCopy(server, { replaced: { doc: mine } });
+  assert.deepEqual(plain.state, server, 'a plain open shows the server copy');
+  assert.deepEqual(plain.offer, mine, 'and offers mine back');
+  assert.deepEqual(docOnServerCopy(server, { replaced: { doc: server.doc } }), { state: server, push: false, offer: null, replaced: { doc: server.doc } }, 'the same document is nothing to offer');
+  assert.deepEqual(docOnServerCopy(server, { kept: server.doc }), { state: server, push: false, offer: null, replaced: null }, 'keeping what the server has is no push');
+});
+
+// Lead 11:43 PM PT (owner decision A1): Reload and keep my document never loses the server's copy. On 8a478cab the server's
+// document was overwritten by the push with nothing kept and nothing offered.
+test('Reload and keep my document keeps the server document it replaces under :replaced and offers it back', () => {
+  const server = { blocks: [{ id: 'card' }], doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('written on the laptop')] } };
+  const mine = { v: 1, x: 0, y: 0, w: 760, blocks: [para('written here, refused with 409')] };
+  const local = { blocks: [{ id: 'local card' }], doc: mine };
+  const next = docOnServerCopy(server, { kept: mine, replaced: local });
+  assert.deepEqual(next.state, { ...server, doc: mine }, 'mine wins as the newer edit');
+  assert.equal(next.push, true);
+  assert.deepEqual(next.replaced, { blocks: [{ id: 'local card' }], doc: server.doc }, ':replaced holds every losing piece: this browser other content and the server document');
+  assert.deepEqual(next.offer, server.doc, 'Restore my unsaved document brings the server document back');
+  const emptyServer = docOnServerCopy({ blocks: [], doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('')] } }, { kept: mine });
+  assert.equal(emptyServer.offer, null, 'an empty server sheet is nothing to offer');
+  assert.equal(emptyServer.replaced, null);
+});
+
+// Lead 12:03 AM PT (owner decision A1, Toolbar canvas-doc-persist-check decision 3): Restore my unsaved document set the
+// canvas's document but the open editor kept showing the server text - CanvasDoc reads its blocks once, when the editor is
+// made, so a replaced document needs a new editor. And a reload within the save pause (500 ms + 400 ms) must not drop the
+// last words typed: the page's pagehide writes them to this browser's copy first.
+test('a replaced document remounts its editor; leaving the page writes pending words first', async () => {
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /replaceDoc: next => \{[^\n]*setDocEpoch\(epoch => epoch \+ 1\);[^\n]*\}/, 'replaceDoc gives the editor a new key');
+  assert.match(canvas, /<CanvasDoc key=\{docEpoch\} blocks=\{doc\.blocks\}/, 'the editor is keyed by that epoch');
+  assert.match(canvas, /window\.addEventListener\('pagehide', flushDoc\)/, 'leaving the page flushes the pending document');
 });
 
 // Home canvas-doc-check bug 2 (lead 12:08 AM PT): a click on a slash menu item did not apply it and dropped the focus to the
@@ -79,6 +105,22 @@ test('a scroll of the canvas surface becomes a camera move and the surface retur
   assert.match(canvas, /element\.addEventListener\('scroll', scrolled\);/);
 });
 
+// Home P0 (lead 12:23 AM PT, diagnosis C:/s/bn/saved-stale.md): every PUT answer set Saved, so words typed while a PUT was
+// in flight showed Saved for up to about 900 ms before the push that carries them. Saved only when the PUT carried the
+// document as shown (the editor's unsaved words included).
+test('docSaved: Saved only when the PUT carried the document as shown', async () => {
+  const { docSaved } = await import('./canvas-doc.js');
+  const run = (words, styles = {}) => ({ type: 'text', text: words, styles });
+  const sent = { v: 1, x: 0, y: 0, w: 760, blocks: [{ id: 'p', type: 'paragraph', props: {}, content: [run('Light reactions make ATP')], children: [] }] };
+  const shown = JSON.parse(JSON.stringify(sent));
+  assert.equal(docSaved(sent, shown), true, 'the server has what is shown');
+  shown.blocks[0].content = [run('Light reactions make '), run('ATP', { bold: true })];
+  assert.equal(docSaved(sent, shown), false, 'bold typed during the PUT is not saved yet');
+  assert.equal(docSaved(undefined, null), true, 'no document on either side');
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8'), /const shown = canvas\(\)\?\.liveBoard\?\.\(\);\s+setSaveState\(!shown \|\| docSaved\(state\.doc, shown\.doc\) \? \{ state: 'saved' \} : \{ state: 'saving' \}\);/);
+});
+
 // Lead 12:56 AM PT (block-drag diagnosis fix 1): the canvas's file drop acted on any drop that reached the surface, so an
 // editor drag (BlockNote's block drag carries blocknote/html, never Files) could be cancelled and sent as an empty upload.
 test('only a drag that carries files is a file drop', async () => {
@@ -97,6 +139,19 @@ test('only a drag that carries files is a file drop', async () => {
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   // A Files-browser code drag (code-card.js) is taken first; any other drop is a file drop only when it carries files.
   assert.match(canvas, /onDrop=\{event => \{[^\n]*if \(!onDropFiles \|\| !isFileDrag\(event\.dataTransfer\)\) return;/);
+});
+
+// Lead 1:02 AM PT, Home scenario 5: on an empty line the DOM caret sits beside the line's <br> and has no client rect, so
+// docCaret was never told about it and the camera did not follow new empty lines (only ProseMirror's own reveal, which
+// knows nothing of the composer and chrome over the canvas). The empty line's own box stands in for the caret.
+test('caretRect: the range rect when there is one, else the empty line box', async () => {
+  const { caretRect } = await import('./canvas-doc.js');
+  const zero = { x: 0, y: 0, width: 0, height: 0 }, line = { x: 40, y: 700, width: 600, height: 24 }, text = { x: 90, y: 300, width: 1, height: 21 };
+  assert.deepEqual(caretRect({ getClientRects: () => [text], getBoundingClientRect: () => text, startContainer: { nodeType: 3, parentElement: { getBoundingClientRect: () => line } } }), text);
+  assert.deepEqual(caretRect({ getClientRects: () => [], getBoundingClientRect: () => zero, startContainer: { nodeType: 1, getBoundingClientRect: () => line } }), line, 'an empty paragraph');
+  assert.equal(caretRect(null), null);
+  const { readFileSync } = await import('node:fs');
+  assert.match(readFileSync(new URL('./CanvasDoc.jsx', import.meta.url), 'utf8'), /const box = caretRect\(range\);/);
 });
 
 // Lead 1:14 AM PT (fast-e2e 38703004485, card-context-menu-check part 4): only the document's own caret reveal pans. A

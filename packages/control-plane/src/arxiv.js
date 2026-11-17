@@ -19,13 +19,11 @@ export function arxivId(value) {
   return id;
 }
 const decode = text => text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&(?:amp|lt|gt|quot|apos);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" })[entity]).replace(/\s+/g, ' ').trim();
-// The page count the authors give in the arXiv comment ("15 pages, 5 figures"); null when they give none (Reviewer 10:50: no PDF parsing in the Worker).
-const pageCountOf = comment => Number(comment.match(/(\d{1,4})\s*pages?\b/i)?.[1]) || null;
 export function parseArxiv(xml) {
   return [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/g)].slice(0, 3).map(([, entry]) => {
     const field = name => decode(entry.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`))?.[1] || '');
     let id; try { id = arxivId(field('id')); } catch { return null; }
-    return { id, title: field('title').slice(0, 500), abstract: field('summary').slice(0, 2500), authors: [...entry.matchAll(/<name>([\s\S]*?)<\/name>/g)].map(m => decode(m[1])).slice(0, 10), pageCount: pageCountOf(field('arxiv:comment')), url: `https://arxiv.org/abs/${id}`, pdfUrl: `https://arxiv.org/pdf/${id}` };
+    return { id, title: field('title').slice(0, 500), abstract: field('summary').slice(0, 2500), authors: [...entry.matchAll(/<name>([\s\S]*?)<\/name>/g)].map(m => decode(m[1])).slice(0, 10), url: `https://arxiv.org/abs/${id}`, pdfUrl: `https://arxiv.org/pdf/${id}` };
   }).filter(p => p?.title);
 }
 

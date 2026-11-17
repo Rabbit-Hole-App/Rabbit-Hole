@@ -57,8 +57,8 @@ test('an ungrounded Motion video is labelled on its card, never shown as sourced
 // with the server's three credit numbers apart (the estimate, the most it can cost, the temporary hold released unused), or PaidConfirm's default
 // when the server did not send both the estimate and the maximum: the estimate is never shown alone.
 test('the Motion confirmation: estimate, maximum and temporary hold in credits; else the plain paid-generation line', () => {
-  assert.equal(motionConfirm({ estimate: 100, max: 350, hold: 896 }), 'This uses paid generation · estimated 100 AI units, at most 350. 896 AI units are held while it runs; whatever is not used is released.');
-  assert.equal(motionConfirm({ estimate: 100, max: 350, hold: null }), 'This uses paid generation · estimated 100 AI units, at most 350.');
+  assert.equal(motionConfirm({ estimate: 100, max: 350, hold: 896 }), 'This uses paid generation · estimated 100 credits, at most 350. 896 credits are held while it runs; whatever is not used is released.');
+  assert.equal(motionConfirm({ estimate: 100, max: 350, hold: null }), 'This uses paid generation · estimated 100 credits, at most 350.');
   for (const none of [null, undefined, NaN, 0, -5, 8.96, 100, {}, { estimate: 100 }, { estimate: 100, hold: 896 }, { max: 350 }, { estimate: 0, max: 350 }]) assert.equal(motionConfirm(none), 'This uses paid generation.', JSON.stringify(none));
   assert.doesNotMatch(motionConfirm({ estimate: 100, max: 350, hold: 896 }), /\$|\.\.\.|…|about/);
 });
@@ -89,9 +89,9 @@ test('a failed /motion card offers only its recovery actions, named as the rulin
   assert.deepEqual(recoveryButtons({ actions: ['source', 'other'] }), [], 'an action the card cannot run is never offered');
   assert.equal(recoveryButtons(null), null);
   assert.ok(!Object.values(RECOVERY_BUTTONS).includes('Retry render'), 'paid regeneration is never Retry render');
-  assert.equal(motionUsageLine({ usedCredits: 77 }, { state: 'released' }), 'Used 77 AI units · reservation released');
-  assert.equal(motionUsageLine({ usedCredits: 0.4 }, null), 'Used less than 1 AI unit · reservation released');
-  assert.equal(motionUsageLine({ usedCredits: 1, unknown: true }, { state: 'pending' }), 'Used 1 AI unit so far · reservation pending');
+  assert.equal(motionUsageLine({ usedCredits: 77 }, { state: 'released' }), 'Used 77 credits · reservation released');
+  assert.equal(motionUsageLine({ usedCredits: 0.4 }, null), 'Used less than 1 credit · reservation released');
+  assert.equal(motionUsageLine({ usedCredits: 1, unknown: true }, { state: 'pending' }), 'Used 1 credit so far · reservation pending');
   assert.doesNotMatch(motionUsageLine({ usedCredits: 77 }, { state: 'reserved' }), /\$|8\.96/);
   assert.equal(motionUsageLine(null, null), null);
 });
@@ -100,14 +100,14 @@ test('a failed /motion card offers only its recovery actions, named as the rulin
 // keeps credits charged, credits refunded and the reservation apart.
 test('a failed /motion card tells credits charged, credits refunded and the released reservation apart, in credits only', () => {
   const line = (accounting, hold = { state: 'released' }) => motionUsageLine({ usedCredits: 127.8157 }, hold, accounting);
-  assert.equal(line({ chargedCredits: 0, refundedCredits: 0 }), 'No AI units charged · reservation released');
-  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 0 }), 'Charged 128 AI units · reservation released');
-  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 127.8157 }), 'Charged 128 AI units · 128 AI units refunded · reservation released');
-  assert.equal(line({ chargedCredits: 1, refundedCredits: 1 }), 'Charged 1 AI unit · 1 AI unit refunded · reservation released');
-  assert.equal(line({ chargedCredits: 0.4, refundedCredits: 0 }), 'Charged less than 1 AI unit · reservation released');
-  assert.equal(line({ chargedCredits: 10, refundedCredits: 99 }), 'Charged 10 AI units · 10 AI units refunded · reservation released', 'never more refunded than charged');
+  assert.equal(line({ chargedCredits: 0, refundedCredits: 0 }), 'No credits charged · reservation released');
+  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 0 }), 'Charged 128 credits · reservation released');
+  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 127.8157 }), 'Charged 128 credits · 128 credits refunded · reservation released');
+  assert.equal(line({ chargedCredits: 1, refundedCredits: 1 }), 'Charged 1 credit · 1 credit refunded · reservation released');
+  assert.equal(line({ chargedCredits: 0.4, refundedCredits: 0 }), 'Charged less than 1 credit · reservation released');
+  assert.equal(line({ chargedCredits: 10, refundedCredits: 99 }), 'Charged 10 credits · 10 credits refunded · reservation released', 'never more refunded than charged');
   assert.equal(line({ chargedCredits: 0, refundedCredits: 0, unknown: true }, { state: 'pending' }), 'Charge not confirmed yet · reservation pending');
-  assert.equal(line({ chargedCredits: 5, refundedCredits: 0, unknown: true }, { state: 'reserved' }), 'Charged 5 AI units so far · reservation held');
+  assert.equal(line({ chargedCredits: 5, refundedCredits: 0, unknown: true }, { state: 'reserved' }), 'Charged 5 credits so far · reservation held');
   for (const accounting of [{ chargedCredits: 127.8157, refundedCredits: 127.8157 }, { chargedCredits: 0, refundedCredits: 0 }]) assert.doesNotMatch(line(accounting), /\$|\.\.\.|…/);
 });
 

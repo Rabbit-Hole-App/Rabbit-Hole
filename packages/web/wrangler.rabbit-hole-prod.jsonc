@@ -39,11 +39,7 @@
       { "name": "WHITEBOARD_JOBS", "class_name": "WhiteboardJobs" },
       // Tutor R4 roadmap jobs, one object per learner and board (control-plane/src/roadmap/roadmap-jobs.js). Binding it enables NOTHING: every roadmap route
       // answers 404 unless ROADMAP_ENABLED is "true", which the owner's production GO sets in vars below (ON). Stays bound when switched off: accepted work finishes.
-      { "name": "ROADMAP_JOBS", "class_name": "RoadmapJobs" },
-      // Repository rehearsals and the Run card's sessions (control-plane/src/learn-rehearsal.js; owner decision (a), 2026-11-16 14:05): one object per rehearsal key.
-      // It talks to the production controller (Fly app rabbit-hole-rehearsal-prod) through the secrets REHEARSAL_WORKER_URL and REHEARSAL_WORKER_TOKEN, and writes
-      // records to REPOSITORY_SNAPSHOTS under learn-repositories-dev/<app>/<commit>/ (the key shape dev uses).
-      { "name": "REPOSITORY_REHEARSALS", "class_name": "RepositoryRehearsals" }
+      { "name": "ROADMAP_JOBS", "class_name": "RoadmapJobs" }
     ]
   },
   "migrations": [
@@ -59,9 +55,7 @@
     // Not yet applied by any release (the W0 binding commit, roadmap W0.4). Additive; never removed.
     { "tag": "whiteboard-jobs-1", "new_sqlite_classes": ["WhiteboardJobs"] },
     // Not yet applied by any release (the Tutor R4 roadmap). Additive; never removed.
-    { "tag": "roadmap-jobs-1", "new_sqlite_classes": ["RoadmapJobs"] },
-    // Not yet applied by any release (the rehearsal runtime, owner decision (a) 2026-11-16). Additive; never removed.
-    { "tag": "repository-rehearsals-1", "new_sqlite_classes": ["RepositoryRehearsals"] }
+    { "tag": "roadmap-jobs-1", "new_sqlite_classes": ["RoadmapJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -185,13 +179,6 @@
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev",
     // Monthly AI allowance per signed-in user (owner D3 2026-10-16; credits Phase 1 shows it, enforcement comes later).
     "AI_MONTHLY_ALLOWANCE_USD": "25",
-    // The code-explain chat route (chat-capability-route.js availability): ON in production (owner 2026-11-17: ship with every flag on). Set "false" to take the route dark again.
-    "CODE_EXPLAIN_ENABLED": "true",
-    // Compute usage (learn-compute.js; usage-limits spec): pinned in production, never the code defaults (Reviewer 2026-11-16 11:55). Rates are micro-USD per
-    // CPU core-second and per GiB-second, from Modal's non-preemptible Sandbox pricing (read 2026-11-15); the allowance is US$ per user per month.
-    "COMPUTE_MONTHLY_ALLOWANCE_USD": "10",
-    "COMPUTE_RATE_CPU_CORE_SEC_MICROS": "39.42",
-    "COMPUTE_RATE_MEM_GIB_SEC_MICROS": "6.67",
     // 2,500 AI credits every month (owner 2026-10-23). Accounts that already used AI keep AI_LEGACY_ALLOWANCE_USD through the
     // months before AI_ALLOWANCE_CUTOVER_PERIOD, then the default (learn-entitlement.js). Not a place to change a granted month.
     "AI_LEGACY_ALLOWANCE_USD": "50",

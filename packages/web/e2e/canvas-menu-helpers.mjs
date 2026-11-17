@@ -1,5 +1,5 @@
 // How browser checks drive the canvas menubar after the 2026-10-22 menu redesign (owner brief, src/CanvasMenubar.jsx, canvas-menus.js):
-// Insert, Edit, Arrange and View, with real submenus (Show / hide under View, Align, Distribute and Layer order under
+// Insert, Edit, Arrange and View, with real submenus (Workspace and Show / hide under View, Align, Distribute and Layer order under
 // Arrange, Section under Insert). A submenu is a role="menu" opened by a menuitem with aria-haspopup; its rows are menuitem,
 // menuitemradio or menuitemcheckbox. Opening a menu or a submenu makes no request.
 export const menubar = page => page.locator('[role="menubar"][aria-label="Canvas menu"]');
@@ -23,6 +23,18 @@ export async function openMenu(page, title, submenu = null) {
 export async function closeMenus(page) {
   for (let step = 0; step < 3 && (await menubar(page).getByRole('menu').count()); step++) await page.keyboard.press('Escape');
   await menubar(page).getByRole('menu').first().waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+}
+
+// View > Workspace: 'Canvas' or 'Editor' (the canvas's document, docs/features/blocknote-canvas.md). Closes the menu.
+export async function chooseWorkspace(page, label) {
+  const inner = await openMenu(page, 'View', 'Workspace');
+  await inner.getByRole('menuitemradio', { name: label, exact: true }).click();
+}
+export async function workspaceValue(page) {
+  const inner = await openMenu(page, 'View', 'Workspace');
+  const value = await inner.getByRole('menuitemradio').evaluateAll(rows => rows.find(row => row.getAttribute('aria-checked') === 'true')?.textContent.trim() ?? null);
+  await closeMenus(page);
+  return value;
 }
 
 // View > Show / hide: the labelled checked rows (Toolbar, Right panel, Minimap, Rabbit Hole Map, Comment pins, Learning suggestions).

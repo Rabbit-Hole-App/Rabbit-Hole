@@ -10,19 +10,16 @@ import './focus-adapter-image.js';
 import './focus-adapter-video.js';
 import './focus-adapter-model.js';
 import './focus-adapter-cad.js';
-import './focus-adapter-run.js';
-import './focus-adapter-doc.js';
 import { exitNavigation, focusAdapters, focusFrame } from './focus-controller.js';
 
 // FocusFrame's header row (44 px) and the gap under it (8 px), taken off the top of the working rectangle.
 export const FOCUS_BAR = 52;
 // The working rectangle for the focused content (surface px): the free area (chrome already out: { left, top, right, bottom })
-// less the controller's inset, less the header row above the content (bar: false when no header row is drawn: Study's Run and Runbook).
-export function workspaceFrame(area, { bar = true } = {}) {
+// less the controller's inset, less the header row above the content.
+export function workspaceFrame(area) {
   if (!area) return null;
   const frame = focusFrame({ pane: { left: area.left, top: area.top, width: area.right - area.left, height: area.bottom - area.top } });
-  const row = bar ? FOCUS_BAR : 0;
-  return frame && { ...frame, top: frame.top + row, height: Math.max(0, frame.height - row) };
+  return frame && { ...frame, top: frame.top + FOCUS_BAR, height: Math.max(0, frame.height - FOCUS_BAR) };
 }
 
 // Run after each commit with the focus state and the camera: enters, updates or exits the adapter of the focused card. The

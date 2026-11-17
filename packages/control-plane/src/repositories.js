@@ -6,8 +6,7 @@ import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
-import { startCatalogue } from './learn-rehearsal.js';
-import { REPOSITORY_TOOLS, repositoryTool, parseCodeRef, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
+import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool, parseCodeRef, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
 import { contextRefs, docIds, pageDocIds } from './chat-modes.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { readArxivPaper } from './arxiv.js';
@@ -21,7 +20,6 @@ import { emptyBoard } from './canvases.js';
 import { CANVAS_CONTEXT_RULES, CANVAS_PACKAGE_CHARS, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { chatFields } from './chat-modes.js';
 import { repositoryChatTurn, repositoryRegenerate } from './repository-chat.js';
-import { repositoryChatPrompt, tutorRecord, logTutorCall } from './tutor-prompt.js';
 // A Learn ask's JSON (repositoriesFetch): 64 KB of its own fields, plus the canvas_context package at its cap, plus context_refs at
 // their A2 worst case (20 refs x 2 KB without text + 32,000 characters of text, under 80,000 as JSON).
 const ASK_JSON=64000+CANVAS_PACKAGE_CHARS+80000;
@@ -39,7 +37,7 @@ export function parseRepository(value) {
 const unavailable=(message,status=503)=>Object.assign(Error(message),{status});
 const INDEXER_DOWN='Repository import is unavailable right now because the indexing service did not respond. Try again in a minute.';
 async function repositoryMetadata(env, repo, options={}) {
-  if(!/^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$))/i.test(env.SCENE_WORKER_URL||'')||!env.SCENE_WORKER_TOKEN)throw unavailable('Repository import is unavailable because the indexing service is not configured on this server.');
+  if(!/^https:\/\//i.test(env.SCENE_WORKER_URL||'')||!env.SCENE_WORKER_TOKEN)throw unavailable('Repository import is unavailable because the indexing service is not configured on this server.');
   const response=await workerRequest(env,'/repository-metadata',{repo,...options}).catch(()=>{throw unavailable(INDEXER_DOWN);});
   if([401,403].includes(response.status))throw unavailable('Repository import is unavailable because the indexing service rejected this server\'s credential.',502);
   if(response.status>=500)throw unavailable(INDEXER_DOWN);
@@ -145,17 +143,6 @@ export async function repositorySnapshot(env,app,commit=app.commit_sha) {
 // repository public now, and the indexer refusing it (private now, gone, or the branch gone) makes it unknown, which a
 // share treats as private. Best effort: a missing table leaves it unknown, never blocks an import.
 const markVisibility=(env,app,known)=>env.LEARN_DB.prepare(known?"INSERT OR REPLACE INTO repository_visibility(app_id,visibility,checked_at) VALUES(?,'public',datetime('now'))":'DELETE FROM repository_visibility WHERE app_id=?').bind(app.id).run().catch(()=>{});
-// Owner-stack rehearsal fixtures only: an import pinned to a commit instead of the branch head. Accepted only where REHEARSAL_PIN_COMMIT=1 (set by
-// the owner-local key helper; no wrangler config has it, so production and the shared dev Worker refuse it). A short hash is expanded by GitHub.
-async function pinnedCommit(env,repo,value){
-  if(env.REHEARSAL_PIN_COMMIT!=='1')throw Error('commit is not accepted by this server');
-  if(typeof value!=='string'||!/^[a-f0-9]{7,40}$/i.test(value))throw Error('commit must be 7 to 40 hexadecimal characters');
-  const sha=value.toLowerCase();if(sha.length===40)return sha;
-  const response=await fetch(`https://api.github.com/repos/${repo}/commits/${sha}`,{headers:{Accept:'application/vnd.github.sha','User-Agent':'Small-Learn'}}).catch(()=>null);
-  const full=response?.ok?(await response.text()).trim():'';
-  if(!/^[a-f0-9]{40}$/.test(full))throw Error('Commit not found in this repository');
-  return full;
-}
 async function enqueue(env,app,repo,branch,resolved=null) {
   const head=resolved||await repositoryMetadata(env,repo,{branch}).catch(async error=>{if(!error.status)await markVisibility(env,app,false);throw error;});
   await markVisibility(env,app,true);
@@ -165,9 +152,6 @@ async function enqueue(env,app,repo,branch,resolved=null) {
   if(!response.ok) throw Error((await response.json()).error);
   return response.json();
 }
-// The route catalogue (learn-rehearsal.js) starts itself when a snapshot turns ready, so the Tutor's first line already knows whether the repository can be run.
-// It is the same RepositoryRehearsals object class under the key app|commit|catalogue|cpu; a no-op where that binding or the controller is not configured (production), and it never fails or delays the import.
-const triggerCatalogue=(env,job)=>startCatalogue(env,{id:job.appId,repo:job.repo,commit:job.commit}).catch(error=>console.error('catalogue trigger',error.message));
 export class RepositoryImports {
   constructor(state,env){this.state=state;this.env=env;}
   async fetch(req){
@@ -175,7 +159,7 @@ export class RepositoryImports {
       const job=await req.json(), previous=await this.state.storage.get('job');
       if(previous&&['queued','indexing'].includes(previous.status)) return json({error:'An import is already running'},409);
       const cached=await this.env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(job.appId,job.commit).first();
-      if(cached){await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();await triggerCatalogue(this.env,job);return json({status:'ready',commit:job.commit,reused:true});}
+      if(cached){await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();return json({status:'ready',commit:job.commit,reused:true});}
       const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({...job,attempt:crypto.randomUUID()})));
       job.key=[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join(''); job.status='queued';job.started=Date.now();
       await this.state.storage.put('job',job);
@@ -202,7 +186,7 @@ export class RepositoryImports {
             const key=`learn-repositories-dev/${job.appId}/${job.commit}/graphify-0.9.63.json`;
             await this.env.REPOSITORY_SNAPSHOTS.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'}});
             await this.env.LEARN_DB.prepare('INSERT OR IGNORE INTO repository_versions(app_id,commit_sha,storage_key) VALUES(?,?,?)').bind(job.appId,job.commit,key).run();
-            await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();job.status='ready';await triggerCatalogue(this.env,job);
+            await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();job.status='ready';
           }
         }
       }
@@ -234,8 +218,7 @@ export async function repositoriesFetch(req,env,ctx){
       if(typeof body.branch!=='string'||!body.branch.trim()||body.branch.length>250)throw Error('Choose a branch');
       const name=`repo-${crypto.randomUUID().slice(0,8)}-${repo.split('/')[1].toLowerCase().replace(/[^a-z0-9-]/g,'-').slice(0,28)}`;
       // Confirm public visibility and branch before creating a project.
-      let head=await repositoryMetadata(env,repo,{branch:body.branch});
-      if(body.commit!==undefined)head={commit:await pinnedCommit(env,repo,body.commit)};
+      const head=await repositoryMetadata(env,repo,{branch:body.branch});
       const count=await db.prepare('SELECT COUNT(*) AS n FROM repository_apps WHERE org=? AND owner_email=?').bind(user.org,user.email).first();if(count.n>=25)throw Error('You have reached the 25 repository preview limit');
       // With its Learn main board (canvases.js emptyBoard), in one batch: a project is never without one.
       await db.batch([db.prepare('INSERT INTO repository_apps(org,name,owner_email,repo,branch) VALUES(?,?,?,?,?)').bind(user.org,name,user.email,repo,body.branch),emptyBoard(db,user.org,user.email,name)]);
@@ -455,14 +438,13 @@ async function repositoryAsk(req,env,user,app){
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,scopeRef,commit,body.message.slice(0,120)).run();
   const turn=await repositoryRegenerate(db,id,chat);
   const history=await threadTurns(db,id,seed,question,turn?.userMessageId);
-  const tutor=repositoryChatPrompt(body.use),record=tutorRecord(tutor,{model:askModel(body.model)});logTutorCall(record);
-  const chatTurn=await repositoryChatTurn(db,{chat,turn,threadId:id,history,message:body.message,readPaper:source?.paper?body.paper_context?.id:null,tutor:record});
+  const chatTurn=await repositoryChatTurn(db,{chat,turn,threadId:id,history,message:body.message,readPaper:source?.paper?body.paper_context?.id:null});
   // Whole-canvas context (canvas-context.js): the same block and rules as /api/learn/ask, on every ask that sends it.
   const board=(canvas?`\n\n${canvasContextText(canvas)}`:'')+(canvasRefs?.text?`\n\n${canvasRefs.text}`:'')+chatTurn.context,rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
   const saveGraph=async messageId=>{if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(messageId,JSON.stringify(graphView)).run();};
   return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),...(selectedEntities?{selectedEntities,selectedNote:SELECTED_NOTE}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline,body.outlineOmitted),settleAreaPicture(canvasTarget,body,source))+board,history,question,
     chatTurn.onDone(saveGraph)||(async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();await saveGraph(message.id);}),{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
-    chatTurn.system((body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules),{papers,system:[tutor.text,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org,...chatTurn.research});
+    chatTurn.system((body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules),{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org,...chatTurn.research});
 }
 
 export async function repositoryEvidence(env,app,input){

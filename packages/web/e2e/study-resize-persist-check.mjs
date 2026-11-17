@@ -65,7 +65,7 @@ const check = async (label, fn) => {
 const until = async (fn, what, ms = 15000) => { const end = Date.now() + ms; for (;;) { if (await fn()) return; if (Date.now() > end) throw Error(what); await page.waitForTimeout(100); } };
 // Two values compared in one line, so a failure prints both (assert.deepEqual's diff is cut to its first line by check()).
 const same = (actual, expected, what) => assert.ok(JSON.stringify(actual) === JSON.stringify(expected), `${what}: ${JSON.stringify(actual)} vs ${JSON.stringify(expected)}`);
-const view = async label => { await page.locator(`[data-study-toggle-option="${label === 'Canvas' ? 'canvas' : 'study'}"]`).click(); }; // the header pill (Run | Canvas), no View rows since 2026-11-15; UNRUN
+const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
 const TOOLS = '[role="toolbar"][aria-label="Canvas tools"]';
 const inWork = name => until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work').catch(() => null)) === name, `Study shows ${name} as the work`);

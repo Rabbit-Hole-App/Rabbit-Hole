@@ -7,6 +7,7 @@ import { can } from './canvas-permissions.js';
 import { PanelToggle, SharedPanel, useSharedPanel } from './SharedCanvasShell.jsx';
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
+import { docIsEmpty } from './canvas-doc.js';
 import { ChevronDown, Eye, GitFork, Menu as MenuIcon, MessageCircle, Shapes } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
@@ -32,7 +33,7 @@ import { BackToTop, DiveNavigator, DivePortals } from './Dive.jsx';
 import { sharedTree } from './shared-holes.js';
 import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
-import { saveUiPref, uiPrefs } from './ui-prefs.js';
+import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
 import { canvasOwnsWheel, focusAfter, leftoverZoom, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
 import { forkNumber } from './home/provenance.js';
@@ -82,9 +83,6 @@ function HandoffRefused({ reason, onRetry }) {
 
 function SharedBoard({ token, embed = null }) {
   const [shared, setShared] = useState(null);
-  // Curious folded or shown from the strip's ? button, this device's choice as on the owner's canvas (LearnPage curiousMin).
-  const [curiousMin, setCuriousMinNow] = useState(() => uiPrefs().curiousMin);
-  const setCuriousMin = on => { setCuriousMinNow(on); try { saveUiPref('curiousMin', on); } catch { /* storage refused: the choice holds until a reload */ } };
   // A share link and a publication alike (C:/s/spec/hdr-provenance.md C2), signed out too. Not in an embed.
   const provenance = useProvenance(embed ? null : `/api/learn/provenance/link/${encodeURIComponent(token)}`);
   const [problem, setProblem] = useState(null);
@@ -134,6 +132,8 @@ function SharedBoard({ token, embed = null }) {
   // (permanent-link-note.md), and Hidden answers 404, so the page shows none. Signed out reads; posting needs an account.
   // On a share link the owner and members (member_board_id) get the members panel.
   const [commentsInfo, setCommentsInfo] = useState(null);
+  // The canvas's document (docs/features/blocknote-canvas.md), read-only here: View > Mode shows it, the canvas first.
+  const [docView, setDocView] = useState('canvas');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
   useEffect(() => {
@@ -257,7 +257,7 @@ function SharedBoard({ token, embed = null }) {
   const searchChildren = useMemo(() => Object.entries(holes?.portals || {}).map(([origin_block_id, child]) => ({ ...child, origin_block_id })), [holes]);
   const search = useCanvasSearch({ scopeKey: `shared:${token}:${viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: panel.open && panel.tab === 'find',
     commentsBase: commentsInfo ? commentsBase : null, children: searchChildren,
-    onComment: result => { panel.setReturnToSearch(true); comments.openPin(result.target.id); } });
+    onComment: result => { panel.setReturnToSearch(true); comments.openPin(result.target.id); }, revealDocument: () => setDocView('editor') });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole' && searchChildren.some(child => child.name === action.rabbitHole?.name)) goTo(action.rabbitHole.name);
     else toast('This source cannot be opened from this shared view.');
@@ -280,21 +280,22 @@ function SharedBoard({ token, embed = null }) {
   // Loading: the surface's own shell (CanvasLoading.jsx, owner brief 2026-10-23), the embed's compact one with Open in Rabbit Hole.
   if (!shared) return embed ? <EmbedCanvasLoading embed={embed} href={openHref} /> : <SharedCanvasLoading />;
   const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
+  const hasDoc = !!board.doc && !docIsEmpty(board.doc);
   // The normal canvas's menubar (canvas-menus.js): View always; Insert's local rows, Edit and Arrange once the canvas is
   // editable here. No Files: a shared canvas's Materials are not shareable (panel.files).
   const menus = [
     ...(editable && can('canvas.local-edit', permissions).allowed ? [{ title: 'Insert', items: localInsertItems(canvas) }] : []),
-    ...canvasEditMenus({ canvas, canvasState, comments, drawing: editable, onShortcuts: () => setShortcutsOpen(true) })
+    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, drawing: editable, onShortcuts: () => setShortcutsOpen(true) })
       .filter(menu => editable || menu.title === 'View'),
   ];
   // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.
   const canvasEl = (
     <Suspense fallback={<CanvasChromeLoading tools={localCopy} />}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
-      <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
+      <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
         {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: saveGuest } : { readOnly: true, boardState: board })}
         composer={embed || panel.open ? null : <div ref={setStripHost} data-canvas-chat-strip />}
         gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
-        hooks={embed ? undefined : <SharedNextSteps curiousMin={curiousMin} setCuriousMin={setCuriousMin} token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} analytics={analytics} />}
+        hooks={embed ? undefined : <SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} analytics={analytics} />}
         onAskTarget={setTarget} askTargetId={target?.id ?? null} />
     </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
   );
@@ -387,7 +388,7 @@ function SharedBoard({ token, embed = null }) {
       </section>
       <SharedPanel keepMounted panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-shared-comments"
         outline={canvasState.outline} activeSection={canvasState.activeSection ?? null} canvasApi={canvasApi}
-        chat={<SharedChat token={token} viewer={shared.viewer} context={shared.context} draft={askBack?.draft ?? null} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining} stripHost={panel.open ? null : stripHost} onOpenPanel={() => panel.show('chat')} curiousToggle={{ min: curiousMin, set: setCuriousMin }} />} />
+        chat={<SharedChat token={token} viewer={shared.viewer} context={shared.context} draft={askBack?.draft ?? null} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining} stripHost={panel.open ? null : stripHost} onOpenPanel={() => panel.show('chat')} />} />
       {shortcutsOpen && <ShortcutsSheet omit={SHARED_OMIT} onClose={() => setShortcutsOpen(false)} />}
     </main>
   );
@@ -446,14 +447,14 @@ const describedCard = (state, cardId) => {
 
 // Professor Next Steps on a shared canvas (contract §1.3, §1.7): the hooks for the selected card (null: the canvas itself), in
 // the canvas's lower-left stack. A click starts the viewer's own private hole from that card through Start Rabbit Hole's run.
-function SharedNextSteps({ token, card, version, signedIn, startRef, analytics, curiousMin, setCuriousMin }) {
+function SharedNextSteps({ token, card, version, signedIn, startRef, analytics }) {
   // Curious hidden on this device (View menu, ui-prefs.js; owner brief 2026-10-21 message 25 item 2): nothing is asked. This page
   // has no View menu, so the choice is read once per page load.
   const [curious] = useState(() => uiPrefs().curious);
   const steps = useSharedNextSteps({ token: curious ? token : null, card, version, signedIn });
   // Impressions are the sets actually on screen; analytics never asks for one.
   useEffect(() => { if (steps.status === 'ready' && steps.options.length === 3) analytics.current?.stepsShown(steps.set_id, steps.options); }, [steps.status, steps.set_id]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => { analytics.current?.stepSelected(steps.options, hook); return startRef.current?.(card, step, hook.id); }} />;
+  return <NextStepsCard steps={steps} onPick={(step, hook) => { analytics.current?.stepSelected(steps.options, hook); return startRef.current?.(card, step, hook.id); }} />;
 }
 
 // A project's link (visibility-menu.md "Projects", owner 2026-10-09) is its Main canvas's: beside it, the project's canvases

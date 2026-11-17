@@ -280,7 +280,7 @@ export function applyTx(state, tx) {
   const has = (list, id) => (state[list] || []).some(entry => entry.id === id);
   if (tx.kind === 'edit'||tx.kind==='annotations') {
     for (const change of tx.changes) next[change.list] = (next[change.list] || state[change.list] || []).map(entry => (entry.id === change.id ? change.after : entry));
-    for(const removal of tx.removals||[])next[removal.list]=(next[removal.list]||[]).filter(entry=>entry.id!==removal.id||entry.generated);
+    for(const removal of tx.removals||[])next[removal.list]=(next[removal.list]||[]).filter(entry=>entry.id!==removal.id);
     for(const addition of tx.additions||[])if(!(next[addition.list]||[]).some(entry=>entry.id===addition.id))next[addition.list]=[...(next[addition.list]||[]),addition.after];
     return next;
   }

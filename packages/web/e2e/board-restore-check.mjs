@@ -18,8 +18,12 @@
 //   page's as a copy - with a note on screen, in this browser, on the server and after reopening;
 // 6 leaving the canvas less than 400 ms after an edit (Back): the edit is written and pushed on the way out - in this
 //   browser, on the server and in a fresh browser;
-// (The two single-document steps, 7 Reload and keep my document and 8 Restore my unsaved document, were retired with the single document, 2026-11-15:
-// a Document card is an ordinary card, and step 5 above covers a conflict on any card.)
+// 7 words typed in the document while a server copy loads (after Reload and keep my document, the reachable case: the
+//   editor waits for the first load only when this browser has no document): they are kept and saved, and the server's
+//   document is kept aside and offered back;
+// 8 words typed while the FIRST server load is still pending, in a browser holding an older copy with a document (the
+//   editor shows it at once): the server's document stays in place, the typed words are kept aside and offered back, and
+//   Restore brings them back - then in this browser, on the server and in a fresh browser.
 // Usage: BASE=http://127.0.0.1:8931 SMALL_CP=http://127.0.0.1:8933 node e2e/board-restore-check.mjs
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -87,11 +91,12 @@ const instrument = hold => {
 };
 // A browser for one canvas. held: the board GET's real answer waits until the canvas has mounted and window.releaseGet is
 // set. Every board PUT's card ids are recorded.
-const profile = async (name, { hold = false, held = false } = {}) => {
+const profile = async (name, { hold = false, held = false, editor = false } = {}) => {
   const gate = { held };
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(instrument, hold);
+  if (editor) await context.addInitScript(key => { if (localStorage.getItem(key) == null) localStorage.setItem(key, 'editor'); }, inkKey(name).replace(/:ink$/, ':view'));
   const puts = [];
   let page;
   await context.route(`**/api/learn/boards/${name}/main`, async route => {
@@ -306,6 +311,103 @@ await check('6 leaving the canvas less than 400 ms after an edit (Back): the edi
   await fresh.context.close();
 });
 
+await check('7 words typed while a server copy loads (Reload and keep my document): kept and saved; the server\'s document kept aside and offered back', async () => {
+  const para = (id, text) => ({ id, type: 'paragraph', props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' }, content: [{ type: 'text', text, styles: {} }], children: [] });
+  const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Restore doc ${run}` }) })).body, name = canvas.name;
+  assert.equal((await api(`/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...STATE, doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('base', `Base words ${run}`)] } } }) })).status, 200, 'seeding the board with a document');
+  const seven = await profile(name, { editor: true });
+  await seven.open();
+  const page = seven.page(), editor = page.locator('[data-canvas-doc-editor] .bn-editor');
+  await page.locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 30000 });
+  await settle(page);
+  // The document changes on the server meanwhile; typing here then meets a 409.
+  const board = (await api(`/api/learn/boards/${name}/main`)).body;
+  const theirs = { ...board.state, doc: { ...board.state.doc, blocks: [...board.state.doc.blocks, para('theirs', `Server words ${run}`)] } };
+  assert.equal((await api(`/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: theirs, version: board.version }) })).status, 200, 'the edit elsewhere');
+  const type = async text => { await editor.focus(); await page.keyboard.press('Control+End'); await page.keyboard.type(text); };
+  await type(` First words ${run}`);
+  const keep = page.getByRole('button', { name: 'Reload and keep my document' });
+  await keep.waitFor({ timeout: 20000 });
+  // Reload and keep my document, its GET held while more words are typed (inside the editor's 500 ms pause), then released.
+  seven.gate.held = true;
+  await page.evaluate(() => { window.releaseGet = false; });
+  await keep.click();
+  await type(` typed during restore ${run}`);
+  await page.evaluate(() => { window.releaseGet = true; });
+  await page.locator('[data-doc-restore]').waitFor({ timeout: 20000 });
+  seven.gate.held = false;
+  await page.waitForFunction(() => window.pushesSent() > 0, null, { timeout: 15000, polling: 100 });
+  await settle(page);
+  const has = (value, text) => JSON.stringify(value ?? null).includes(text);
+  const copy = await copyOf(page, name), aside = await page.evaluate(key => JSON.parse(localStorage.getItem(`${key}:replaced`) || 'null'), inkKey(name));
+  const saved = await server(name);
+  assert.ok(has(copy?.doc, `First words ${run}`) && has(copy?.doc, `typed during restore ${run}`), 'this browser\'s document keeps every word typed');
+  assert.ok(has(saved.doc, `typed during restore ${run}`), 'the words typed during the reload reached the server');
+  assert.ok(has(aside?.doc, `Server words ${run}`), 'the server\'s document is kept aside in this browser');
+  assert.ok(await page.getByRole('button', { name: 'Restore my unsaved document' }).count(), 'and offered back');
+  assert.ok(saved.blocks.some(block => block.id === 'c1'), 'the card is still on the server');
+  await seven.context.close();
+  // A fresh browser opens the saved document with every word typed (the server's version stays aside in the first browser).
+  const fresh = await profile(name, { editor: true });
+  await fresh.open();
+  await fresh.page().locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 30000 });
+  await fresh.page().waitForFunction(([key, words]) => words.every(word => JSON.stringify(JSON.parse(localStorage.getItem(key) || '{}').doc || null).includes(word)), [inkKey(name), [`First words ${run}`, `typed during restore ${run}`]], { timeout: 15000 });
+  assert.ok((await fresh.page().locator('[data-canvas-doc-editor] .bn-editor').innerText()).includes(`typed during restore ${run}`), 'a fresh browser shows the words typed during the reload');
+  await fresh.context.close();
+});
+
+await check('8 words typed while the first server load is pending, on an older copy with a document: the server\'s document stays, the words are offered back, and Restore keeps them in this browser, on the server and in a fresh browser', async () => {
+  const para = (id, text) => ({ id, type: 'paragraph', props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' }, content: [{ type: 'text', text, styles: {} }], children: [] });
+  const has = (value, text) => JSON.stringify(value ?? null).includes(text);
+  const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Restore first load ${run}` }) })).body, name = canvas.name;
+  assert.equal((await api(`/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...STATE, doc: { v: 1, x: 0, y: 0, w: 760, blocks: [para('base', `Base words ${run}`)] } } }) })).status, 200, 'seeding the board with a document');
+  // This browser's older copy, with the document: an ordinary open.
+  const eight = await profile(name, { editor: true });
+  await eight.open();
+  await eight.page().locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 30000 });
+  await settle(eight.page());
+  await eight.page().close();
+  // The document changes on the server meanwhile.
+  const board = (await api(`/api/learn/boards/${name}/main`)).body;
+  const theirs = { ...board.state, doc: { ...board.state.doc, blocks: [...board.state.doc.blocks, para('theirs', `Server words ${run}`)] } };
+  assert.equal((await api(`/api/learn/boards/${name}/main`, { method: 'PUT', body: JSON.stringify({ state: theirs, version: board.version }) })).status, 200, 'the edit elsewhere');
+  // Reopened on the older copy with its board GET held: the editor shows this browser's document at once; type into it.
+  eight.gate.held = true;
+  const page = await eight.context.newPage();
+  await eight.open(page);
+  const editor = page.locator('[data-canvas-doc-editor] .bn-editor');
+  await editor.waitFor({ timeout: 30000 });
+  await editor.focus(); await page.keyboard.press('Control+End'); await page.keyboard.type(` typed on open ${run}`);
+  assert.deepEqual([eight.gate.pending, eight.gate.answered], [true, false], 'the words were typed while the first server load was still unanswered');
+  await page.evaluate(() => { window.releaseGet = true; });
+  const restore = page.getByRole('button', { name: 'Restore my unsaved document' });
+  await restore.waitFor({ timeout: 20000 });
+  eight.gate.held = false;
+  await settle(page);
+  const aside = () => page.evaluate(key => JSON.parse(localStorage.getItem(`${key}:replaced`) || 'null'), inkKey(name));
+  let copy = await copyOf(page, name), saved = await server(name);
+  assert.ok(has(copy?.doc, `Server words ${run}`) && !has(copy?.doc, `typed on open ${run}`), 'the server\'s document is in place in this browser');
+  assert.ok(has(saved.doc, `Server words ${run}`), 'and on the server');
+  assert.ok(has((await aside())?.doc, `typed on open ${run}`), 'the typed words are kept aside (:replaced) and offered back');
+  // Restore brings them back, and they are saved.
+  const sentBefore = await page.evaluate(() => window.pushesSent());
+  await restore.click();
+  await page.waitForFunction(([key, word]) => JSON.stringify(JSON.parse(localStorage.getItem(key) || '{}').doc || null).includes(word), [inkKey(name), `typed on open ${run}`], { timeout: 15000 });
+  await page.waitForFunction(before => window.pushesSent() > before, sentBefore, { timeout: 15000, polling: 100 });
+  await settle(page);
+  copy = await copyOf(page, name); saved = await server(name);
+  assert.ok(has(copy?.doc, `typed on open ${run}`), 'after Restore the words are in this browser\'s copy');
+  assert.ok(has(saved.doc, `typed on open ${run}`), 'and on the server');
+  assert.ok(has((await aside())?.doc, `Server words ${run}`), 'and the server\'s document it replaced is kept aside in turn');
+  await eight.context.close();
+  const fresh = await profile(name, { editor: true });
+  await fresh.open();
+  await fresh.page().locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 30000 });
+  await fresh.page().waitForFunction(([key, word]) => JSON.stringify(JSON.parse(localStorage.getItem(key) || '{}').doc || null).includes(word), [inkKey(name), `typed on open ${run}`], { timeout: 15000 });
+  assert.ok((await fresh.page().locator('[data-canvas-doc-editor] .bn-editor').innerText()).includes(`typed on open ${run}`), 'a fresh browser shows the restored words');
+  await fresh.context.close();
+});
+
 await browser.close();
-console.log(`board-restore-check: ${results.length}/6 steps passed${errors.length ? `; page errors: ${errors.join(' | ').slice(0, 300)}` : ''}`);
+console.log(`board-restore-check: ${results.length}/8 steps passed${errors.length ? `; page errors: ${errors.join(' | ').slice(0, 300)}` : ''}`);
 process.exit(failures.length || errors.length ? 1 : 0);

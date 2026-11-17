@@ -1,10 +1,9 @@
-import { REHEARSAL } from './rehearsal-flag.js';
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Map as MapIcon, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
+import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, freshFitStep, cornerSlot } from './card-layout.js';
@@ -16,16 +15,12 @@ import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
-import { effectiveWidgets, focusWidgets, studyCardOnly, studyChromeOff, studyHides, toolbarDrawn, widgetToggle } from './widget-visibility.js';
-import { ownedId } from './study-state.js';
+import { effectiveWidgets, focusWidgets, toolbarDrawn, widgetToggle } from './widget-visibility.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
-import { DOC_CARD_SIZE, docIsEmpty, isFileDrag, migrateDocToCard, newDocBlock, pressKeepsDocFocus } from './canvas-doc.js';
-import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated } from './rehearsal-cards.js';
-import { ADD_KNOB_EVENT, applyKnobEvent } from './run-card-knobs.js';
-import { CODE_EXPLAIN_SIZE } from './code-explain-text.js';
+import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
@@ -144,13 +139,8 @@ import { loadMediaOriginal } from './media-storage.js';
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
 // The inline AI editor arrives with its first Ctrl/Cmd+K (docs/features/inline-ai-editor.md), never with the canvas.
 const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI editor');
-// A document as a card (DocNode below), loaded with the first such card, never with the canvas.
-const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor');
-// A Run card (RunCard.jsx; rehearsal-cards.js), loaded with the first such card.
-// The literal env test beside the import is what lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER (the form home/review-fixtures.js uses); it runs only when the card renders.
-const RunCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./RunCard.jsx') : Promise.reject(new Error('The run card is not part of this build'))), 'The run card');
-// A code-explain card (CodeExplainCard.jsx, code-explain-card-spec.md), loaded with the first such card; the same dev flag and literal env test as the Run card, so a production build drops the chunk.
-const CodeExplainCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./CodeExplainCard.jsx') : Promise.reject(new Error('The code explanation card is not part of this build'))), 'The code explanation card');
+// The canvas's document editor (BlockNote), loaded only when Editor view first shows it (docs/features/blocknote-canvas.md).
+const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
@@ -211,6 +201,8 @@ const DIVIDER_W = 1040;
 // at a glance; picking an ink colour first overrides this.
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
 const COLUMN = 560;
+// The document sheet: about 760 px across at 100% (brief section 4), and at least one screen tall before it holds much.
+const DOC_W = 760, DOC_MIN_H = 960;
 // A new card's one camera correction waits until its measured size has been still for SETTLE_MS (rows it
 // measures a frame or two after mount), REVEAL_MS after the insert at the latest (revealAfter).
 const SETTLE_MS = 200, REVEAL_MS = 1500;
@@ -934,81 +926,6 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-// A BlockNote document as a card (DocCard.jsx, docs/features/blocknote-canvas.md 2026-11-14): { blocks } on the block, like any card's content. Its words are saved quietly, as a
-// notebook's are (not canvas undo steps; BlockNote keeps its own history). The card is the Notebook card's shell at its own opening size; a view-only canvas, a copy and a locked card
-// show the editor read-only.
-function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
-  const edit = useContext(CanvasEdit);
-  return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={DOC_CARD_SIZE.w} height={block.h || DOC_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
-      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
-      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
-      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the document</p>}>
-        <DocCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)}
-          onBlocks={blocks => edit.patchBlock?.(block.id, { blocks }, true)} onLive={blocks => edit.docLive?.(block.id, blocks)} />
-      </Suspense>
-    </CanvasNode>
-  );
-}
-
-// A Run card (RunCard.jsx, rehearsal-runtime/RUN_CARD.md, owner 2026-11-14): the Notebook card's shell around the rehearsal's cells. What it keeps (block.run: the record reference,
-// cells, last outputs, typed flags; never a session) is saved quietly, as a notebook's words are. A viewer, a copy and a locked card see it with Run and Start disabled.
-function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
-  const edit = useContext(CanvasEdit);
-  // The Tutor's "Add --flag to the Run card" (tutor-knob-action.js) reaches the card as a cancelable event; the card of that repository, commit and route takes it (preventDefault) and adds the
-  // knob to its saved state (run-card-knobs.js addKnob: deduped by flag and step). A locked or view-only card answers 'locked' and changes nothing.
-  const latest = useRef({ block, edit });
-  latest.current = { block, edit };
-  useEffect(() => {
-    if (!REHEARSAL) return undefined;
-    const take = event => {
-      if (event.defaultPrevented) return;
-      const { block: card, edit: ctx } = latest.current, out = applyKnobEvent(card.run, card.generated, event.detail);
-      if (out.status === 'other') return;
-      event.preventDefault();
-      if (ctx.readOnly || ctx.localCopy || ctx.locked.has(card.id)) { event.detail.status = 'locked'; return; }
-      event.detail.status = out.status;
-      if (out.status === 'added') ctx.patchBlock?.(card.id, { run: out.run }, true);
-    };
-    window.addEventListener(ADD_KNOB_EVENT, take);
-    return () => window.removeEventListener(ADD_KNOB_EVENT, take);
-  }, []);
-  return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={RUN_CARD_SIZE.w} height={block.h || RUN_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
-      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
-      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
-      {REHEARSAL && (
-      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the run card</p>}>
-        <RunCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={run => edit.patchBlock?.(block.id, { run }, true)} />
-      </Suspense>
-      )}
-    </CanvasNode>
-  );
-}
-
-// A code-explain card (CodeExplainCard.jsx): the Notebook card's shell at its own opening size, around the answer's file, ranges and explanation. It is the learner's card, so it has no
-// `generated` mark and deletes like any card. The depth it shows is saved quietly (not a canvas undo step); a satellite code card (CodeCard.jsx `from`) and this card meet in code-explain-link.js.
-function CodeExplainNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
-  const edit = useContext(CanvasEdit);
-  return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={CODE_EXPLAIN_SIZE.w} height={block.h || CODE_EXPLAIN_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
-      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
-      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
-      {REHEARSAL && (
-      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the code explanation</p>}>
-        <CodeExplainCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={patch => edit.patchBlock?.(block.id, patch, true)} present={edit.hasBlock} frame={edit.frameBlock} />
-      </Suspense>
-      )}
-    </CanvasNode>
-  );
-}
-
 function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
@@ -1046,9 +963,6 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  if (block.type === 'doc') return <DocNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  if (block.type === 'run') return <RunNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  if (block.type === 'codeExplain') return <CodeExplainNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CardCustomTitle block={block} /><CanvasRefCard block={block} /></CanvasNode>;
@@ -1716,7 +1630,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1843,23 +1757,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const stored = useRef(null);
   // This browser's copy exactly as this canvas read it at mount, for the first save below.
   const readCopy = useRef(null);
-  // A legacy board's single document (state.doc) becomes a Document card at this one load path (canvas-doc.js migrateDocToCard), whether the
-  // state is this browser's copy, the server's, a shared, member or fork board's: a load-time transform that saves nothing by itself.
-  // migrated: the first save below is then a change, not the board as loaded. The old document is kept in this browser under
-  // :doc-premigration until the page's save has put the card on the server (LearnPage saveBoard); the server's doc goes with that PUT.
-  const migrated = useRef(false);
   if (stored.current === null) {
     // A shared board arrives as state from the server instead (SharedBoardPage).
-    try {
-      readCopy.current = storageKey ? localStorage.getItem(storageKey) : null;
-      const loaded = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {});
-      stored.current = migrateDocToCard(loaded);
-      // Only the owner's own copy (a storage key) saves the card; a read-only, shared, member or guest view just shows it.
-      if (stored.current !== loaded && storageKey && !readOnly && !localCopy && !docIsEmpty(loaded.doc)) {
-        migrated.current = true;
-        try { localStorage.setItem(`${storageKey}:doc-premigration`, JSON.stringify(loaded.doc)); } catch { /* the server's copy still holds the document */ }
-      }
-    } catch { stored.current = {}; }
+    try { readCopy.current = storageKey ? localStorage.getItem(storageKey) : null; stored.current = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {}); } catch { stored.current = {}; }
   }
   const [strokes, setStrokes] = useState(stored.current.strokes || []); // pen and highlighter ink, world coords
   const [live, setLive] = useState(null);
@@ -1966,23 +1866,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const areaById = id => areas.find(area => area.id === id);
   // The board an answer was asked about: the whiteboard itself, or the board a toolbar area was drawn on (EXP-T28).
   const boardOf = id => { const host = areaById(id)?.blockId || id; return blocks.find(block => block.id === host && block.type === 'whiteboard')?.id; };
+  // The canvas's one document (docs/features/blocknote-canvas.md): { v, x, y, w, blocks } in world units, saved with the
+  // board. Never part of the canvas's undo history (BlockNote keeps its own). docLive holds the editor's latest blocks at
+  // once, so a chat turn reads unsaved words; the board copy (doc) follows after a pause, so typing never re-renders the canvas.
+  const [doc, setDoc] = useState(() => (stored.current.doc && typeof stored.current.doc === 'object' ? stored.current.doc : null));
+  const docRef = useRef(doc);
+  docRef.current = doc;
+  const docLive = useRef(doc?.blocks || null), docTimer = useRef(null);
+  // The document as this canvas last wrote it to this browser's copy (JSON), so leaving can tell its own pending words from
+  // a copy someone else (the server's, on load) put there since.
+  const docWritten = useRef(JSON.stringify(doc ?? null));
+  const liveDoc = () => (docRef.current ? { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] } : null);
   const divePortals = useContext(DivePortals);
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
-  // Document cards' words typed in the last half second (DocCard): held here, not in `blocks`, so typing never re-renders the canvas, and read by every save path through the board
-  // below. The card patches its blocks after the pause and takes its entry back.
-  const docCardLive = useRef(new Map());
-  const withDocCardLive = list => (docCardLive.current.size ? list.map(block => (docCardLive.current.has(block.id) ? { ...block, blocks: docCardLive.current.get(block.id) } : block)) : list);
-  const docCardWords = (id, next) => {
-    if (!next) { docCardLive.current.delete(id); return; }
-    docCardLive.current.set(id, next);
-    boardRef.current = { ...boardRef.current, blocks: withDocCardLive(blocksRef.current) };
-    searchStore.current?.changed(); // Search reads the typed words at once, not after the card's pause
-  };
-  boardRef.current = { strokes, shapes, items, links, blocks: withDocCardLive(blocks), groups, areas, ...(toc ? { toc } : {}) };
+  boardRef.current = { strokes, shapes, items, links, blocks, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
   // The board as this canvas first showed it, which retire() compares the live board against (pendingWork).
   const mountedBoard = useRef(null);
   if (!mountedBoard.current) mountedBoard.current = boardRef.current;
@@ -1997,7 +1898,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const retired = useRef(false);
   // The board as this browser's copy holds it (the debounced save's shape), and the last such board this canvas wrote or
   // mounted with: the unmount flush below writes only a board that differs from it.
-  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}) });
+  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}), ...(board.doc ? { doc: board.doc } : {}) });
   const lastWritten = useRef(null);
   if (lastWritten.current === null) lastWritten.current = JSON.stringify(savedShape(mountedBoard.current));
   const storageKeyRef = useRef(storageKey);
@@ -2007,22 +1908,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!storageKey && !onSaveRef.current) return;
     // Oversized data URLs dropped (canvas-persist.js lightBlocks).
     const light = lightBlocks(blocks);
-    // The first run is the board as loaded, not a change - unless loading migrated a legacy document into a card (migrated): that save must reach the server.
+    // The first run is the board as loaded, not a change.
     const loaded = firstSave.current;
     firstSave.current = false;
-    const sendFirst = migrated.current;
     const timer = setTimeout(() => {
       if (retired.current) return;
       // The first run only writes back the board as loaded, so it never goes over a copy that changed since this canvas read
       // it: the server's copy the page put there on open, about to remount this canvas with it. Written over, the remounted
       // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
       if (loaded && storageKey) { try { if (localStorage.getItem(storageKey) !== readCopy.current) return; } catch { /* blocked storage: nothing to write over */ } }
-      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}) };
-      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
-      if (!loaded || sendFirst) { migrated.current = false; onSaveRef.current?.(state); }
+      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
+      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
+      if (!loaded) onSaveRef.current?.(state);
     }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, groups, areas, toc, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, areas, toc, doc, storageKey]);
   // Leaving the canvas (Home, the sidebar, a Rabbit Hole, a remount) cancels the pending save above, so an edit made less
   // than 400 ms before is written here instead, once, on unmount: this browser's copy, then the board's push at once
   // (owner: cancelling a pending save or remounting never discards work). Not for a retired canvas - the page has put its
@@ -2036,15 +1936,52 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // An Animation card's settled change still inside its own debounce rides along (animation3d/storage.js withFlushedAnimations).
       const state = savedShape({ ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) });
       const result = flushBoard({ state, lastWritten: lastWritten.current, storageKey: key, storage: () => localStorage, onSave: onSaveRef.current });
-      if (result?.wrote) lastWritten.current = result.text;
+      if (result?.wrote) { docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = result.text; }
     };
     window.addEventListener('pagehide', flushBoardNow);
     return () => { window.removeEventListener('pagehide', flushBoardNow); flushBoardNow(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const searchRead = useRef(null), searchStore = useRef(null);
+  // Typing goes to docLive at once and into the board after a pause (one canvas render per pause, not per key).
+  const onDocDirtyRef = useRef(onDocDirty);
+  onDocDirtyRef.current = onDocDirty;
+  const searchRead = useRef(null), searchStore = useRef(null), docSearchApi = useRef(null);
   const searchJump = useRef(0), searchPaint = useRef(null), equationSearchDrafts = useRef(null);
   if (!equationSearchDrafts.current) equationSearchDrafts.current = createEquationSearchDrafts(() => searchStore.current.changed());
   if (!searchStore.current) searchStore.current = createSearchSnapshotStore(() => searchRead.current());
+  const docChanged = next => {
+    docLive.current = next;
+    searchStore.current.changed();
+    // The page says Saving… from the first key, not once the pause is over: Saved only ever means the server has it.
+    if (!docTimer.current) onDocDirtyRef.current?.();
+    clearTimeout(docTimer.current);
+    docTimer.current = setTimeout(() => { docTimer.current = null; setDoc(previous => previous && { ...previous, blocks: docLive.current }); }, 500);
+  };
+  // Leaving the canvas (another canvas, a Rabbit Hole, Home) or a save asked for now never drops the last words typed: a
+  // pending edit is written through the normal save path at once (this browser's copy, then onSave, the board's server push).
+  // Only the document is merged into this browser's copy, and only while that copy still holds what this canvas last wrote:
+  // a server copy that replaced it on open (the page remounts the canvas) is never overwritten from here.
+  const flushDoc = () => {
+    clearTimeout(docTimer.current);
+    docTimer.current = null;
+    if (retired.current) return false;
+    const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
+    if (!live || !storageKey || JSON.stringify(live) === docWritten.current) return false;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { return false; }
+    if (JSON.stringify(saved.doc ?? null) !== docWritten.current) return false;
+    const state = { ...saved, doc: live };
+    try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { return false; }
+    docWritten.current = JSON.stringify(live);
+    if (alive.current) setDoc(live);
+    onSaveRef.current?.(state);
+    return true;
+  };
+  // A reload or a closed tab runs no unmount: pagehide writes the pending words too (owner decision A1 - after a 409 this
+  // browser's copy is the only place they live until Reload and keep my document or Restore my unsaved document).
+  useEffect(() => {
+    window.addEventListener('pagehide', flushDoc);
+    return () => { window.removeEventListener('pagehide', flushDoc); flushDoc(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   // Where an asked-about area is now: on its host card when it has one, else where it was drawn.
@@ -2070,21 +2007,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
   const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
-  // study.repository: a repository canvas, where Study hides the toolbar and both maps outright (widget-visibility.js studyHides).
-  const studyRepository = !!study?.repository;
-  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps, repository: studyRepository });
+  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
   // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
   // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
   const [focus, dispatchFocus] = useReducer(focusReducer, null);
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
-  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
-  // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
-  // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
-  const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
-  const chromeOff = studyChromeOff({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }); // no zoom controls, no feedback button
+  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind });
   const showWidget = (name, on) => {
-    const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
+    const route = widgetToggle({ mode: widgetMode, name, on });
     if (!route) return;
     if (route.store === 'study') { study?.setMap(name, on); return; }
     ({ minimap: setMinimapPref, holeMap: setHoleMapPref, curious: setCurious, toolbar: setToolbar })[name](on);
@@ -2223,10 +2154,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // never drift apart.
   // What is drawn: while a card is focused the minimap, the Rabbit Hole map and Curious stand down (focusWidgets); the widget choices
   // are untouched, so Back to canvas shows exactly what was shown before. The toolbar stays (except toolbarShown above).
-  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus, { keepCurious: studyHides({ mode: widgetMode, repository: studyRepository }) });
+  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus);
   const focusRef = useRef(null), focusShown = useRef(null);
   focusRef.current = focus;
-  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }, { bar: !cardOnly }); };
+  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }); };
   useLayoutEffect(() => { focusShown.current = syncFocus(focusShown.current, focus, { view, readOnly, find: id => surface.current?.querySelector(`[data-block][data-block-id="${CSS.escape(id)}"],[data-item-id="${CSS.escape(id)}"]`), restore: saved => commandsRef.current.restoreNavigation(saved), gone: id => dispatchFocus({ type: 'content-gone', id }) }); }, [focus, view, readOnly]);
   useLayoutEffect(() => () => { syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current }); }, []);
   // The pane measured again when a panel opens, the Study divider moves, the window or the bottom chrome resizes.
@@ -2242,7 +2173,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them before the first paint,
   // so the focused card never changes size a frame after entering (focus-chrome-check step 4 compares two entries). So for the
   // toolbar standing down or coming back while focused (pinned Study notebook, unpin).
-  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown, cardOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
@@ -2296,13 +2227,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       semantic: () => semanticRef.current.value(),
       // Whole-canvas context (chat-canvas-context.js), read when a chat turn is sent: the live lists with the open editor's
       // unsaved words, the freehand strokes, every object's measured box in world units, and the ids selected now.
-      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with a Document card's unsaved
-      // words (boardRef): what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
+      // doc: the document with the editor's unsaved words (docLive), in both views; boxes.doc its measured sheet in Editor view.
+      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with the document's unsaved
+      // words: what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
       boardNow: () => {
-        const b = boardRef.current;
-        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas };
+        const b = boardRef.current, doc = liveDoc();
+        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas, ...(doc ? { doc } : {}) };
       },
-      liveBoard: () => ({ ...semanticBoard(), strokes: present.current.strokes, boxes: inlineCanvas.layout() }),
+      liveBoard: () => {
+        const doc = liveDoc(), box = docBoxRef.current;
+        return { ...semanticBoard(), strokes: present.current.strokes, boxes: { ...inlineCanvas.layout(), ...(box ? { doc: box } : {}) }, doc };
+      },
+      // The document (blocknote-canvas.md): its box, framing its start, and a whole replacement (Restore my unsaved document).
+      goToDoc: () => goToDoc(),
+      flushDoc: () => flushDoc(),
+      // The editor reads its blocks once, when it is made (CanvasDoc), so a replaced document gets a new editor (docEpoch).
+      replaceDoc: next => { clearTimeout(docTimer.current); docTimer.current = null; docLive.current = next?.blocks || null; setDoc(next && typeof next === 'object' ? next : null); setDocEpoch(epoch => epoch + 1); },
       selection: () => selectedRef.current,
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
@@ -2387,56 +2327,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         return insertAtView({ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: title || `arXiv ${id}`, paper: { id, page } }, into);
       },
-      // block (DECISIONS Q, Learn sections): a notebook built elsewhere (learn-notebook.js newNotebookBlock with its files), else an empty one.
-      insertNotebook: (block = null) => {
+      insertNotebook: () => {
         snapshot();
-        return insertAtView(block?.type === 'notebook' ? { ...block, dx: 0, dy: 0 } : newNotebookBlock());
+        return insertAtView(newNotebookBlock());
       },
-      // Insert > Document: an empty BlockNote document card (DocCard.jsx), beside the one selected card or object in free space, else where the learner is looking.
-      insertDocument: () => {
-        if (readOnlyRef.current || localCopyRef.current) return null;
-        const only = selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
-        snapshot();
-        return target ? placeBeside(newDocBlock(), DOC_CARD_SIZE, target, only) : insertAtView(newDocBlock());
-      },
-      // A card the rehearsal flow made (rehearsal-cards.js: the Run card, the Runbook): beside `beside` (its sibling) when that card is here, else beside the one selected card or
-      // object, else where the learner is looking. No undo step of its own: undo never removes a generated card (keepGenerated). -> its id, or null on a board that cannot be edited.
-      insertGenerated: (block, { beside = null } = {}) => {
-        if (readOnlyRef.current || localCopyRef.current || !alive.current) return null;
-        const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
-        const size = block.type === 'run' ? RUN_CARD_SIZE : DOC_CARD_SIZE;
-        return target ? placeBeside(block, size, target, only) : insertAtView(block);
-      },
-      // A code-explain answer's Add as card (code-explain-insert.js addCodeExplain): the primary card, its satellite code cards and the numbered connectors, in ONE undo step. `place(env)` (the
-      // lazily loaded insertion module) returns each card's column offsets from the free place beside `beside` (a card id), else the one selected card, else the view; the camera follows the primary
-      // only if it landed off screen. Idempotent on the primary's id: a card already here is located (never doubled; a satellite the learner deleted is not put back). -> the primary's id, or null.
-      insertCodeExplain: ({ blocks: made, links: joined = [], beside = null, place }) => {
-        const primary = made?.[0];
-        if (!alive.current || readOnlyRef.current || localCopyRef.current || !primary?.id || typeof place !== 'function') return null;
-        if (blocksRef.current.some(block => block.id === primary.id)) { commandsRef.current.focusBlock(primary.id); return primary.id; }
-        const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
-        const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
-        const offsets = place({ source: target || null, obstacles: [...inlineCanvas.obstacles(only ? [only] : []), ...placementChrome()], visible: inlineCanvas.visibleWorld(), point: viewCenter(), column: COLUMN, flowY });
-        const added = made.map((block, index) => ({ ...block, ...offsets[index] }));
-        snapshot();
-        blocksRef.current = [...blocksRef.current, ...added];
-        setBlocks(previous => [...previous, ...added]);
-        if (joined.length) setLinks(previous => [...previous, ...joined.filter(link => !previous.some(entry => entry.id === link.id))]);
-        setSelection([primary.id]);
-        revealAfter(primary.id);
-        return primary.id;
-      },
-      // Connectors between cards already on the board (learn-section-perform.js: an item made for an earlier item's text, consecutive code cards), the same shape the code-explain
-      // satellites' connectors have; a link id already here is not added twice. -> whether any was added.
-      linkCards: links => {
-        if (!alive.current || readOnlyRef.current || localCopyRef.current) return false;
-        const here = new Set(blocksRef.current.map(block => block.id)), fresh = (links || []).filter(link => link?.id && here.has(link.from) && here.has(link.to));
-        if (!fresh.length) return false;
-        setLinks(previous => [...previous, ...fresh.filter(link => !previous.some(entry => entry.id === link.id))]);
-        return true;
-      },
-      // Whether a card has been drawn and measured (insertCodeExplain's `beside` needs its box).
-      measured: id => !!boundsRef.current[id],
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
       insertImported: (block, at = null) => {
@@ -2711,7 +2605,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return hit.length;
       },
       removeBlock: async id => {
-        if (blocksRef.current.some(block => block.id === id && isGenerated(block))) { toast(GENERATED_NOTE); return; }
         const cad=blocksRef.current.find(block=>block.id===id && block.type==='cad' && block.jobId && !block.cadDetached);
         if(cad){if(cadRunning(cad.status) && !window.confirm('Removing this CAD card cancels its running job. Undo does not restart generation. Remove it?'))return;try{await cadClient(api,appName).action(cad.jobId,'placement',{hidden:true});}catch(problem){toast(problem.message);return;}}
         if (!blocksRef.current.some(block => block.id === id)) return;
@@ -2916,15 +2809,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The board saved now, a shared board's push awaited (canvas-persist.js; architecture §6.5.5, LP1 Task 15): a
       // journey section is recorded only once this resolves ok. It reads boardRef, so a call after a paint that follows
       // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
+      // The document's words typed in the last half second ride too (liveDoc), not only its last board copy.
       persist: () => {
         if (!alive.current) return Promise.resolve({ ok: false });
-        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
+        const live = liveDoc();
+        clearTimeout(docTimer.current); docTimer.current = null;
+        if (live) { docWritten.current = JSON.stringify(live); setDoc(live); }
+        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks), ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
       // `base`: the board the work is counted from - the server's copy before a 409 (conflictBaseKey), else the mounted one.
       retire: (base = mountedBoard.current) => {
         retired.current = true;
-        return pendingWork(base, boardRef.current);
+        const work = pendingWork(base, boardRef.current);
+        // The document as typed, its words still in the editor's pause included: the page offers it back, never drops it.
+        const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
+        return live && JSON.stringify(live) !== JSON.stringify(base.doc ?? null) ? { ...work, doc: live } : work;
       },
       // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
       // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.
@@ -3010,7 +2910,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
     const drawn = { ...(saved.bounds || {}), ...boundsRef.current }; // a live box wins; a cut card's is the one kept at copy
     const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: drawn, index: flowIndexAt(at.y) }) : null;
-    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, generated: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(node => copyNode(node, target?.shift || undefined));
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
@@ -3421,8 +3321,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     const element = surface.current;
     if (!element) return undefined;
-    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret is
-    // the editor's own to reveal; moving the camera under a learner's typing is not this rule's job.
+    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret has
+    // its own reveal (docCaret); moving the camera under a learner's typing is not this rule's job.
     const typing = target => target.isContentEditable || target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(target.type));
     const focused = event => { const target = event.target; if (!focusRef.current && target?.matches?.(':focus-visible') && !typing(target) && target.closest('[data-block]')) revealFocusRef.current(target); };
     element.addEventListener('focusin', focused);
@@ -3532,7 +3432,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     searchPaint.current?.(); searchPaint.current = null;
     if (!target || !surface.current) return { found: false, reason: 'missing-target' };
     let element, range = null, box;
-    if (target.anchor?.kind === 'point') {
+    if (target.kind === 'document') {
+      if (!liveDoc()) return { found: false, reason: 'missing-target' };
+      if (docView !== 'editor') return { found: false, reason: 'document-hidden' };
+      if (!docSearchApi.current) return { found: false, reason: 'document-loading' };
+      const result = docSearchApi.current.reveal(target.docBlockId || target.id, target.quote);
+      if (!result.found) return result;
+      ({ element, range } = result);
+    } else if (target.anchor?.kind === 'point') {
       box = { x: target.anchor.x, y: target.anchor.y, w: 24, h: 24 };
     } else {
       const id = target.anchor?.kind === 'object' ? target.anchor.object_id : target.id;
@@ -3552,7 +3459,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     await new Promise(resolve => requestAnimationFrame(resolve));
     if (jump !== searchJump.current || !surface.current || (element && !element.isConnected)) return { found: false, reason: 'superseded' };
     // A matching paragraph within a Full-content card is its own camera target; an internally scrolled match is now visible.
-    if (element && range) {
+    if (element && (range || target.kind === 'document')) {
       const hit = range?.getBoundingClientRect() || element.getBoundingClientRect(), at = surface.current.getBoundingClientRect(), current = viewRef.current;
       if (hit.width || hit.height) box = { x: (hit.left - at.left - current.x) / current.z, y: (hit.top - at.top - current.y) / current.z,
         w: Math.max(1, hit.width / current.z), h: Math.max(1, hit.height / current.z) };
@@ -3607,11 +3514,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
     // A locked object is never deleted by accident: it stays, selected, and says so.
-    const unlocked = selectedRef.current.filter(id => !lockedRef.current.has(id));
-    if (unlocked.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
-    // A generated card (the Run card, the Runbook) is never deleted, alone or in a selection: the rest goes and these stay (rehearsal-cards.js).
-    const { ids, refused } = deletableIds(unlocked, blocksRef.current);
-    if (refused) toast(GENERATED_NOTE);
+    const ids = selectedRef.current.filter(id => !lockedRef.current.has(id));
+    if (ids.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
     if (!ids.length) return;
     const cad = blocksRef.current.filter(block=>ids.includes(block.id) && block.type==='cad' && block.jobId && !block.cadDetached);
     if(cad.some(block=>cadRunning(block.status)) && !window.confirm('Removing this CAD card cancels its running job. Undo restores the card but does not restart generation. Remove it?'))return;
@@ -3633,7 +3537,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A webpage card's Remove (a capture that was refused): the card and its connections, one undo step.
   const removeBlock = id => {
     if (readOnlyRef.current || !blocksRef.current.some(block => block.id === id)) return;
-    if (blocksRef.current.some(block => block.id === id && isGenerated(block))) { toast(GENERATED_NOTE); return; }
     snapshot();
     setBlocks(previous => previous.filter(block => block.id !== id));
     setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
@@ -3668,8 +3571,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Cut: the copy machinery first; only a copy that succeeded deletes anything (and never a locked object).
   const cutSelection = () => {
-    // Only generated cards selected: nothing to cut, so nothing is copied either (a mixed selection cuts the rest; deleteSelection leaves these).
-    if (selectedRef.current.length && !deletableIds(selectedRef.current, blocksRef.current).ids.length) { toast(GENERATED_NOTE); return false; }
     if (!copySelection()) return false;
     deleteSelection();
     return true;
@@ -3774,7 +3675,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const entry = history.current[history.current.length - 1];
     if (!entry) return;
     history.current.pop();
-    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(keepGenerated(entry.blocks, blocksRef.current));
+    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(entry.blocks);
     if (entry.exchanges) onRestoreRef.current?.(entry.exchanges);
   };
   // A text edit is one undo step: opened when typing starts, dropped at the end if the edit changed nothing.
@@ -3797,7 +3698,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before = blocksRef.current.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached), after = state.blocks.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached);
     for(const block of before.filter(block=>!after.some(next=>next.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:true}).catch(problem=>toast(problem.message));
     for(const block of after.filter(block=>!before.some(old=>old.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:false}).catch(problem=>toast(problem.message));
-    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(keepGenerated(state.blocks, blocksRef.current)); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
+    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
   const travelHistory = (from,to) => {
@@ -3885,9 +3786,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rail?.addEventListener('wheel', railWheel, { passive: false });
     return () => { element.removeEventListener('wheel', wheel); rail?.removeEventListener('wheel', railWheel); };
   }, [presenting === null]);
-  // The surface clips (overflow hidden) but a Document card's caret reveal (the browser's and ProseMirror's scrollRectIntoView)
-  // can still scroll it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
-  // goes back to 0 (blocknote-canvas.md section 6).
+  // The surface clips (overflow hidden) but the document caret's reveal (the browser's and ProseMirror's scrollRectIntoView)
+  // still scrolls it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
+  // goes back to 0, so the camera follows the document's caret (blocknote-canvas.md section 6). flushSync:
+  // docCaret measures in the next frame, after the move, so it never pans a second time.
   useEffect(() => {
     const element = surface.current;
     const scrolled = () => {
@@ -3906,7 +3808,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, []);
   // ---------- Inline AI editor hooks (docs/features/inline-ai-editor.md) ----------
   // The live lists, never the last saved copy (§4). Layout comes separately (layout()), so content stays cheap to read.
-  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: withDocCardLive(blocksRef.current), groups: groupsRef.current, exchanges: exchangesRef.current });
+  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current });
   // The live lists with the open text editor's words on its object, read without committing or closing it (the shared
   // snapshot's board; agent-coordination 2026-10-13-shared-canvas-semantics.md, decision 3).
   const editorWords = () => {
@@ -3920,8 +3822,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
   // Search reads these unbudgeted live lists, independently of model context and camera/layout state.
-  searchRead.current = () => equationSearchDrafts.current.apply(semanticBoard());
-  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick]);
+  searchRead.current = () => ({ ...equationSearchDrafts.current.apply(semanticBoard()), doc: liveDoc() });
+  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick, doc]);
   useEffect(() => () => { searchJump.current++; searchPaint.current?.(); searchStore.current.dispose(); }, []);
   // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
   // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
@@ -4703,8 +4605,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { x: cx - (cx - v.x) * f, y: cy - (cy - v.y) * f, z };
   });
   // One click moves roughly one screenful, so the canvas reads like a page.
-  const [minimapFolded, setMinimapFolded] = useState(() => { try { return localStorage.getItem('rh-minimap-folded') === '1'; } catch { return false; } });
-  const foldMinimap = next => { setMinimapFolded(next); try { localStorage.setItem('rh-minimap-folded', next ? '1' : '0'); } catch { /* storage off: it still folds for this visit */ } };
   const scrollBy = direction => setView(v => ({ ...v, y: v.y - direction * (surface.current.clientHeight * 0.7) }));
   const zoomCenter = factor => { const element = surface.current; zoomAt(element.clientWidth / 2, element.clientHeight / 2, factor); };
   const local = event => {
@@ -5805,15 +5705,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const made = notebookFromCode(code || itemsRef.current.find(entry => entry.id === id))?.block;
     const target = boxesOf([id])[0];
     if (!made || !target || readOnlyRef.current) return null;
-    snapshot();
-    return placeBeside(made, { w: 640, h: 540 }, target, id); // NotebookCard's opening size
-  };
-  // A new card beside `target` (a measured box; `id` its object) in free space - placeNote and its obstacles - selected, and panned to when the spot is off-screen. The card
-  // joins the end of the column (gap-5, a wide card centred on it, as insertBlock's) and is drawn at the placed spot by its offset from there. The caller snapshots (one undo step).
-  const placeBeside = (made, size, target, id) => {
+    // NotebookCard's opening size. It joins the end of the column (gap-5, a wide card centred on it, as insertBlock's)
+    // and is drawn at the placed spot by its offset from there.
+    const size = { w: 640, h: 540 };
     const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
     const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
     const added = { ...made, dx: Math.round(spot.x - (COLUMN - size.w) / 2), dy: Math.round(spot.y - flowY) };
+    snapshot();
     perfMark(added.id, 'insert');
     setBlocks(previous => [...previous, added]);
     setSelection([added.id]);
@@ -5838,6 +5736,76 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...itemsRef.current.map(item => ({ id: item.id, ...(boxesOf([item.id])[0] || { x: item.x, y: item.y, w: item.w || 0, h: item.h || 0 }) })),
     ...present.current.strokes.map(inkBox).filter(Boolean),
   ];
+  // The document (docs/features/blocknote-canvas.md): a portrait sheet in world units on the canvas, framed at its start.
+  // Framing reads the free part of the surface (visibleArea: less the chat sheet and the contents rail) and keeps a zoom that
+  // reads well - 100%, less only when the sheet would not fit across - never a zoom-out to fit a long document's height.
+  const docFrame = target => {
+    const element = surface.current;
+    if (!element || !target) return;
+    const area = visibleArea(), span = Math.max(240, area.right - area.left);
+    const z = Math.max(0.3, Math.min(1, (span - 48) / target.w));
+    glideTo({ x: area.left + (span - target.w * z) / 2 - target.x * z, y: area.top + 32 - target.y * z, z }, true);
+  };
+  const goToDoc = () => docFrame(docRef.current);
+  // First opening: the sheet goes where the learner is looking, across the middle of the free view, its top just below the
+  // top edge; when cards, shapes, notes or ink already sit there, beside them to the right instead - nothing existing moves.
+  const placeDoc = () => {
+    const element = surface.current;
+    if (!element) return null;
+    const area = visibleArea(), v = viewRef.current;
+    const left = (area.left - v.x) / v.z, top = (area.top - v.y) / v.z, span = (area.right - area.left) / v.z, tall = (area.bottom - area.top) / v.z;
+    const sheet = { x: Math.round(left + span / 2 - DOC_W / 2), y: Math.round(top + 32 / v.z), w: DOC_W, h: Math.max(DOC_MIN_H, tall) };
+    const hits = box => box.w > 0 && box.h > 0 && box.x < sheet.x + sheet.w && box.x + box.w > sheet.x && box.y < sheet.y + sheet.h && box.y + box.h > sheet.y;
+    for (let i = 0; i < 50; i += 1) {
+      const blocking = contentBoxes().filter(hits);
+      if (!blocking.length) break;
+      sheet.x = Math.round(Math.max(...blocking.map(box => box.x + box.w)) + 80);
+    }
+    return { v: 1, x: sheet.x, y: sheet.y, w: DOC_W, blocks: [] };
+  };
+  // Editor view on a canvas with no document yet: one empty sheet, placed once (its world position is saved), then framed.
+  // Only after the page has the board's saved copy (docReady), so an empty sheet is never made over one still loading.
+  useEffect(() => {
+    if (docView !== 'editor' || doc || readOnly || localCopy || !docReady || docError) return;
+    const fresh = placeDoc();
+    if (!fresh) return;
+    docLive.current = fresh.blocks;
+    setDoc(fresh);
+    requestAnimationFrame(() => docFrame(fresh));
+  }, [docView, doc, readOnly, docReady, docError]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Typing near the bottom (or the top) of the view keeps the caret on screen, through the canvas camera.
+  const docCaret = box => {
+    const element = surface.current;
+    if (!element || !document.activeElement?.closest?.('[data-canvas-doc]')) return;
+    // A reveal scroll of the surface not yet turned into a camera move (its scroll event can come after this frame) is taken
+    // first: the pan keeps the caret where it is on screen, so box still holds, and the late scroll event finds nothing to do.
+    if (element.scrollLeft || element.scrollTop) {
+      const dx = element.scrollLeft, dy = element.scrollTop;
+      element.scrollLeft = 0; element.scrollTop = 0;
+      flushSync(() => setView(v => (autoView.current = { ...v, x: v.x - dx, y: v.y - dy })));
+    }
+    const frame = element.getBoundingClientRect(), bottom = Math.min(frame.bottom, frame.top + chromeTop(0, frame.width)) - 48, top = frame.top + controlArea().top + 48;
+    const by = box.bottom > bottom ? bottom - box.bottom : box.top < top ? top - box.top : 0;
+    if (by) setView(v => (autoView.current = { ...v, y: v.y + by }));
+  };
+  const paperRef = useRef(null);
+  // The document's box in world units, the one source for its footprint (blocknote-layers-minimap.md section 3): its saved
+  // x, y and width, and the paper's measured height (at least DOC_MIN_H, empty or not), in Editor view only. The height comes
+  // from one ResizeObserver, set only when it changes (a new line, not a key), and is never saved with the board.
+  const [docH, setDocH] = useState(DOC_MIN_H);
+  const docBox = doc && docView === 'editor' ? { x: doc.x, y: doc.y, w: doc.w, h: docH } : null;
+  const docBoxRef = useRef(docBox);
+  docBoxRef.current = docBox;
+  const docShown = !!doc && docView === 'editor';
+  useEffect(() => {
+    const paper = paperRef.current;
+    if (!paper) return undefined;
+    const observer = new ResizeObserver(() => setDocH(Math.max(DOC_MIN_H, paper.offsetHeight)));
+    observer.observe(paper);
+    return () => observer.disconnect();
+  }, [docShown]);
+  const [docMounted, setDocMounted] = useState(false);
+  const [docEpoch, setDocEpoch] = useState(0);
   // [+] pushes everything below the line down; [-] pulls it up, stopping short
   // of closing the gap. Cards, chat cards, shapes, notes and ink all move.
   const nudgeGap = (gap, delta) => {
@@ -6160,6 +6128,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (last) roomAfter[last.id] = groupRoom[group.id];
   }
   const minimapBoxes = [
+    ...(docBox ? [{ ...docBox, doc: true }] : []),
     ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
@@ -6359,8 +6328,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const keyAction = id => {
     const done = runAction(id, selectionTarget(menuModel()), actionCtxRef.current);
     if (!done.ran && done.reason) toast(id === 'delete' && done.reason === 'Locked' ? 'Locked objects stay. Unlock them to delete.' : done.reason);
-    // Delete hides its row on generated cards alone (canvas-actions.js), so the key says why nothing happened.
-    else if (!done.ran && id === 'delete' && selectedRef.current.length && !deletableIds(selectedRef.current, blocksRef.current).ids.length) toast(GENERATED_NOTE);
     return done;
   };
   const keyActionRef = useRef(keyAction);
@@ -6379,8 +6346,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ask: async ({ id, revision, question, destination, actionId }, { onAdmitted } = {}) => {
       const card = blocksRef.current.find(entry => entry.id === id);
       if (!card || !chatWorkspace?.ask) return false;
-      // Ask in a new card (and a follow-up or explore card) makes a card: the right panel stays as it is (owner 2026-11-15). Only Ask in chat opens the Chat.
-      if (destination === 'here') chatWorkspace.panels?.openChat?.();
+      chatWorkspace.panels?.openChat?.();
       const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
       // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
       const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}), ...(destination === 'card' || destination === 'follow-up' || destination === 'explore' ? { beside: true } : {}) }; // 'follow-up' (the bottom field) and 'explore' (a term's new card, owner 2026-11-09) run the same /explain with no parentLink, so no connector joins the new card (owner 2026-11-08)
@@ -6403,7 +6369,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }), [canAsk, canNote, canQuick]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
-  const soleFocus = null; // the card toolbar draws no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard
+  const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
   const soleMinimize = soleObject && minimizable(soleObject) && !soleObject.minimized && !readOnly && !localCopy && !lockedRef.current.has(soleObject.id) ? () => minimizeCard(soleObject.id) : null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
@@ -6417,11 +6383,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
-    <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
       onClickCapture={event => {
@@ -6497,7 +6463,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
-        {focus && !cardOnly && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
+        {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
         {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
@@ -6524,7 +6490,40 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset} highlight={inline.highlight || null}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
+        {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
+          <div data-canvas-doc data-doc-state={docError ? 'error' : 'loading'} className="absolute top-[calc(var(--canvas-top,0px)+3rem)] left-1/2 z-40 w-80 -translate-x-1/2 rounded-md border border-line bg-white p-4 text-sm text-ink-2 shadow-md dark:bg-side">
+            {docError ? <>
+              <p role="alert">Couldn&apos;t load this canvas&apos;s document. Your saved document is unchanged.</p>
+              {onDocRetry && <button type="button" onClick={onDocRetry} className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-ink hover:bg-hover">Retry</button>}
+            </> : <p>Loading the document</p>}
+          </div>
+        )}
         <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-300 ease-in-out motion-reduce:transition-none' : ''}`}>
+        {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
+            (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
+            connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own
+            order, and focus or a menu never raises it. Its editor menus keep their own z-index in this layer, above the cards.
+            Editor view only - in
+            Canvas view it is not drawn at all, so nothing invisible catches the canvas's input. The hand tool and Space pan
+            through it; a press inside it is the editor's, never a marquee, pan or card drag. Files dropped on it do nothing
+            (no media in this MVP) rather than becoming a canvas card behind it. */}
+        {doc && docView === 'editor' && (
+          <div ref={paperRef} data-canvas-doc data-doc-state={docError || unknownDocBlock(doc.blocks) ? 'error' : docMounted ? 'ready' : 'loading'}
+            style={{ left: doc.x, top: doc.y, width: doc.w, minHeight: DOC_MIN_H }}
+            onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
+            onContextMenu={event => event.stopPropagation()}
+            onDragOver={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
+            onDrop={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
+            className={`absolute flex flex-col rounded-md border border-line bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] dark:bg-side ${(tool === 'hand' && !readOnly) || spacePan ? 'pointer-events-none' : ''}`}>
+            <div data-canvas-doc-editor className="flex-1 px-4 py-14 [&_.bn-editor]:px-10">
+              {unknownDocBlock(doc.blocks)
+                ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
+                : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document</p>}>
+                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly && !localCopy} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
+                </Suspense>}
+            </div>
+          </div>
+        )}
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
         {pages && (
@@ -6916,33 +6915,34 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
-      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(min-content,1fr)_minmax(200px,780px)_minmax(min-content,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
-        <div className="flex items-end gap-2 md:col-start-1">
+      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
+        <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
-        {/* Owner 2026-11-15: ONE pill, its parts separated by dividers: the page's lower-left control (feedback), the map, then zoom out, the percentage and zoom in. No scroll arrows.
-            The minimap panel opens above the pill when shown; the map button is its switch. */}
-        {!chromeOff && <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
-        {drawnWidgets.minimap && !minimapFolded && <div data-canvas-minimap>
-          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit} onFold={foldMinimap}
+        {bottomLeft}
+        {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
+            row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
+            the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
+        <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
+        {drawnWidgets.minimap && <div data-canvas-minimap>
+          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
         </div>}
         <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2">
-          {bottomLeft && <><span data-zoom-lower-left className="flex items-center [&_button]:rounded-md [&_button]:border-0 [&_button]:shadow-none">{bottomLeft}</span><span className="mx-0.5 h-5 w-px bg-line" /></>}
-          {drawnWidgets.minimap && <><IconBtn data-minimap-toggle title={minimapFolded ? 'Show minimap' : 'Hide minimap'} aria-pressed={!minimapFolded} onClick={() => foldMinimap(!minimapFolded)}><MapIcon size={14} /></IconBtn><span className="mx-0.5 h-5 w-px bg-line" /></>}
+          <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
+          <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
+          <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
-          <span className="mx-0.5 h-5 w-px bg-line" />
           <button type="button" title="Reset zoom" onClick={() => setView(homeView(controlArea(), COLUMN))} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
-          <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
-        </div>}
+        </div>
         </div>
         {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
         {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
-        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} style={{ translate: 'var(--study-shift)' }} className={`${DOCK_WIDTH} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
+        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
           {/* The chat window (owner 2026-11-13): sending from the strip opens the conversation here, above the suggestions and the composer. */}
           {chatWindow}
           {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
@@ -6951,7 +6951,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
-        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:col-start-3 max-md:order-1">
+        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
           {hooks && !composer && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
           {/* The minimized chat strip: the Rabbit Hole mark on black (owner 2026-11-13), at the lower right, beside the Curious icon. */}
           {composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"

@@ -54,9 +54,6 @@ import PaidConfirm from './PaidConfirm.jsx';
 import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, readsAgain, recoveryButtons, resumesJob, videoLabel, withoutEnd } from './learn-video-label.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
-import { docText } from './doc-text.js';
-import { runText } from './rehearsal-cards.js';
-import { codeExplainText } from './code-explain-text.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { hasMarks, sketchText } from './explain-sketch.js';
@@ -1979,7 +1976,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   {label.stoppable && placement && askStop && (
                     <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"
                       onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keepGoing(); } }}>
-                      <span>Stop this video? AI units already used won't be refunded.</span>
+                      <span>Stop this video? Credits already used won't be refunded.</span>
                       <Button type="button" variant="secondary" size="sm" data-stop-cancel autoFocus onClick={keepGoing}>Cancel</Button>
                       <Button type="button" variant="danger" size="sm" data-stop-confirmed onClick={() => { setAskStop(false); stop(); }}>Stop</Button>
                     </div>
@@ -2347,12 +2344,6 @@ function describeBlockOwn(block) {
   if (block.type === 'animation3d') return { kind: 'Animation', title: block.title, text: [`3D animation on the canvas: ${block.title}`, block.fixtureId ? 'A built-in example scene, not generated from a request.' : '', block.animation3dJob ? `Generation status: ${block.animation3dJob.stage}` : ''].filter(Boolean).join(NEWLINE) };
   if (block.type === 'whiteboardVideo') return describeWhiteboard(block);
   if (block.type === 'notebook') return describeNotebook(block);
-  // A document card (DocCard.jsx): its words as plain text, bounded like any card's description.
-  // A Run card (RunCard.jsx): its commands and last outputs, bounded like any card's description.
-  if (block.type === 'run') return { kind: 'Run card', title: block.title || '', text: runText(block) };
-  if (block.type === 'doc') return { kind: 'Document', title: block.title || '', text: ['Document on the canvas:', docText(block.blocks).slice(0, 12000)].join(NEWLINE) };
-  // A code-explain card (CodeExplainCard.jsx): the answer to one question about the repository's code, at the depth it shows.
-  if (block.type === 'codeExplain') return { kind: 'Code explanation', title: block.title || '', text: ['Code explanation on the canvas:', codeExplainText(block).slice(0, 12000)].join(NEWLINE) };
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
   if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };

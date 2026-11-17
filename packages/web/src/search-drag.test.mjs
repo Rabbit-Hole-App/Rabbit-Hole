@@ -13,6 +13,7 @@ test('only objects on this canvas and available linked canvases can be dragged',
   assert.deepEqual(searchDragPayload({ kind: 'link', title: 'Graphs', target: { kind: 'link', id: 'board-x' }, link: { href: '/apps/g' } }), { kind: 'link', target: 'board-x', title: 'Graphs' });
   assert.equal(searchDragPayload({ kind: 'link', title: 'Unavailable canvas', target: { id: 'x' }, link: { unavailable: true } }), null);
   assert.equal(searchDragPayload({ kind: 'comment', objectId: 'card' }), null, 'a comment is not a card');
+  assert.equal(searchDragPayload({ kind: 'document', objectId: 'doc' }), null, 'a document block stays in the document');
 });
 test('an existing card is repositioned, never copied; the drop point is its top centre at any zoom', () => {
   const plan = searchDropPlan({ kind: 'object', id: 'card' }, canvas());

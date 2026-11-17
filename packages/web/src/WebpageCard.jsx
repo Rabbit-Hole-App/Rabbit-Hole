@@ -7,7 +7,6 @@ import { Boxes, SelectionToolbar, placeNear } from './selection-toolbar.jsx';
 import { ExplanationHost } from './explanation-host.js';
 import { EXCERPT_LIMIT, textAnchor, toViewport } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
-import { locateLoose, locateQuote, rangeFromOffsets, reportLearnHighlight } from './learn-wiki-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
@@ -246,33 +245,6 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     };
     put();
   };
-  // Learn sections (C section 10c, DECISIONS S): the Tutor's quotes for this page (block.learnQuotes, learn-section-perform.js), placed as the author's own highlights, owner only.
-  // One at a time: found in the capture's text, the page scrolls to it so its tiles draw their text, it is anchored there (textAnchor) and saved once (highlight -> putHighlight);
-  // one not on the page is reported (learn-wiki-highlights.js reportLearnHighlight). When the last is placed the page rests at the first.
-  const learnFirst = useRef(null), learnAt = useRef(null);
-  useEffect(() => {
-    const pending = block.learnQuotes, quote = pending?.quotes?.[0];
-    if (!quote || !owner || !source || !shown || !runs.length || !layer.current) return;
-    const ordered = runsByTile(runs, tiles).flat(), starts = [];
-    let all = '';
-    for (const run of ordered) { starts.push(all.length); all += `${run.text}
-`; }
-    const find = text => locateQuote(text, { exact: quote, prefix: '', suffix: '' }) || locateLoose(text, quote);
-    const next = () => { const quotes = pending.quotes.slice(1); save({ ...latest.current, learnQuotes: quotes.length ? { ...pending, quotes } : null }); if (!quotes.length && learnFirst.current != null) setTop(learnFirst.current); };
-    const missed = () => { reportLearnHighlight({ sectionId: pending.sectionId, itemId: pending.itemId }, 'not_found', block.id); next(); };
-    const whole = find(all);
-    if (!whole) { missed(); return; }
-    let k = starts.length - 1;
-    while (k > 0 && starts[k] > whole.start) k -= 1;
-    const y = Math.max(0, ordered[k].y - 40);
-    learnFirst.current ??= y;
-    const root = layer.current, span = find(root.textContent || '');
-    if (!span) { if (learnAt.current !== quote) { learnAt.current = quote; setTop(y); } return; } // drawn once its tiles are on screen
-    const range = rangeFromOffsets(root, span.start, span.end), found = range ? textAnchor(range, root, viewport, column.current) : { error: 'empty' };
-    if (found.error) { missed(); return; }
-    highlight(found);
-    next();
-  }, [block.learnQuotes, owner, !!source, shown?.sha256, runs, visible]); // eslint-disable-line react-hooks/exhaustive-deps
   // UX-1: the Ctrl+K button opens the inline editor over the selected words (the page's own selection, as the key does); Create note puts a sticky note beside the card, quoting them.
   const canvasHost = useContext(ExplanationHost);
   const quickAsk = () => { if (canvasHost?.quickAsk?.()) setBar(null); };
