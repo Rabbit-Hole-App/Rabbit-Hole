@@ -6,7 +6,6 @@ import { lazyFeature } from './lazy-feature.jsx';
 import { useRepository } from './use-repository.js';
 import { contextOf, fileObject, objectOf } from './inspector.js';
 import { learnAction } from './agent/learn-hook.js';
-import { answersOpenCode } from './learn-runbook.js';
 import { askDraft, askQuestion, wireContext } from './agent/scope.js';
 
 // The graph view's code loads when Explore codebase first shows it (brief section 13), never with the canvas.
@@ -27,9 +26,8 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
   // at its lines; any other card is left to the card (GitHub at its commit), never shown against a different revision.
   useEffect(() => {
     const open = event => {
-      const { path, start, end } = event.detail || {};
-      if (!repository || !snapshot || !answersOpenCode(event.detail, { appName: app?.name, repo: app?.repo, commit: snapshot.commit })) return;
-      if (event.detail.sameRepo && !snapshot.files?.some(file => file.path === path)) return; // a file the snapshot lacks: left to GitHub at the card's commit
+      const { app: name, commit, path, start, end } = event.detail || {};
+      if (!repository || name !== app?.name || commit !== snapshot?.commit || !path) return;
       event.preventDefault();
       repository.files.setOpen(path);
       if (start) repository.files.setJump({ path, start, end: end || start, at: Date.now() });
@@ -59,9 +57,8 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
     const learnThis = object => { setContext(ground(object)); learnAction('teach', { app: app.name, prompt: `Teach me ${wireContext(ground(object)).label}` }, {}).then(r => { if (r.status !== 'fallback' && r.message) toast(r.message); }); };
     // Ask in chat on lines also puts them on the canvas as a Code card (LearnPage small:code-card; owner, 2026-10-08).
     const codeCard = range => window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: range.text, path: range.path, start: range.start, end: range.end, commit: range.commit, repo: app.repo } }));
-    const closeFiles = () => files.setOpen(null); // the Files X: the open file (the bottom panel) closes, nothing else
     const filesView = snapshot
-      ? <CodeReader app={app} snapshot={snapshot} open={files.open} context={context} query="" pick={files.jump} stacked place="panel" onCloseAll={closeFiles}
+      ? <CodeReader app={app} snapshot={snapshot} open={files.open} context={context} query="" pick={files.jump} stacked place="panel"
           onFile={p => attach(fileObject(snapshot.graph, p))} onSymbol={n => attach(objectOf(snapshot.graph, n))}
           onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); if (codeCards) codeCard(range); } }} />
       : <RepositoryState repository={repository} what="files" />;

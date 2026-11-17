@@ -131,7 +131,7 @@ test('a plan waiting on a change says so; a change says what it costs; no words 
   assert.equal(animationStage({ stage: 'awaiting_approval', choiceOpen: false }), 'Review the scene plan above the chat box');
   assert.equal(animationAsks({ stage: 'failed', stopReason: 'needs_clarification' }), true);
   assert.equal(animationAsks({ stage: 'failed', stopReason: 'rounds' }), false);
-  assert.deepEqual(choiceAction({ id: 'watch', credits: 56 }), { label: 'Plan this', cost: 'Uses up to 56 AI units to write the plan. Nothing is built until you press Generate.' });
-  assert.deepEqual(choiceAction({ id: 'fewer_markers' }), { label: 'Use this plan', cost: 'Uses no AI units. Nothing is built until you press Generate.' });
+  assert.deepEqual(choiceAction({ id: 'watch', credits: 56 }), { label: 'Plan this', cost: 'Uses up to 56 AI credits to write the plan. Nothing is built until you press Generate.' });
+  assert.deepEqual(choiceAction({ id: 'fewer_markers' }), { label: 'Use this plan', cost: 'Uses no AI credits. Nothing is built until you press Generate.' });
   assert.equal(choiceAction({ id: 'keep' }).label, 'Keep my plan');
 });

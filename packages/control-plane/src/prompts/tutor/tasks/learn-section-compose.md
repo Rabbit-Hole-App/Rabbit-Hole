@@ -1,5 +1,0 @@
-You have a section brief: three to six beats, each one idea that ends in something the learner can see, compute or try. For each beat choose how it is delivered, using only the tools you were given; their descriptions say what each can and cannot be. Decide by what the beat has to transfer: a mechanism to watch or play with; a shape or data to look at; a definition or argument to read; something to try by hand; or something that already exists and is better than anything you would make, in which case say exactly which part and what to look for. A beat may need two items, for example a short text and the thing it introduces; most need one.
-
-For every item write the request as the learner would have typed it to that command: specific to this beat, naming the quantities, the example, the input, in plain words. Write one sentence of why this medium for this beat. Material that is found, not made, is at most one item in the section for now. Keep the whole section to at most eight items.
-
-Return only the JSON the schema asks for. Never name the use case, the plan or this prompt to the learner.

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { checkoutCredits, purchaseAmount } from './account-usage.js';
 import { ConfirmDialog, IconBtn, Input, cn } from './ui.jsx';
 
-// Add units (owner, 2026-10-29): the one purchase dialog, opened from Settings > AI usage and from the canvas gauge's popover.
+// Buy credits (owner, 2026-10-29): the one purchase dialog, opened from Settings > AI usage and from the canvas gauge's popover.
 // $20, $50, $100 or another amount in USD; the total is the amount picked, never a number of credits (no conversion exists yet).
 // Buy goes to checkoutCredits, which charges nothing and adds nothing. Cancel, Close, Escape and a press outside change nothing.
 // Rendered in place inside Settings (so Settings' Escape defers to it) and portaled by the gauge.
@@ -29,7 +29,7 @@ export default function BuyCreditsDialog({ onClose }) {
   );
   return (
     <div data-buy-credits-dialog>
-      <ConfirmDialog title="Add units" confirmLabel="Buy" confirmVariant="primary" confirmDisabled={amount == null} onCancel={onClose}
+      <ConfirmDialog title="Buy credits" confirmLabel="Buy" confirmVariant="primary" confirmDisabled={amount == null} onCancel={onClose}
         onConfirm={() => { if (amount != null) setNotice(checkoutCredits(amount)); }}
         body={<span ref={box} className="relative block">
           <IconBtn type="button" aria-label="Close" title="Close" onClick={onClose} className="absolute -top-7 right-0"><X size={14} /></IconBtn>

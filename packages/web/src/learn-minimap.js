@@ -25,7 +25,7 @@ export function minimapLayout(boxes, view, surface, size) {
   const offsetX = (size.w - (right - left) * scale) / 2 - left * scale;
   const offsetY = windowTop === null ? (size.h - (bottom - top) * scale) / 2 - top * scale : PAD - windowTop * scale;
   // A card with a Rabbit Hole keeps its flag, so the minimap can draw it in the hole colour (--color-hole).
-  const project = box => ({ x: box.x * scale + offsetX, y: box.y * scale + offsetY, w: box.w * scale, h: box.h * scale, ...(box.hole ? { hole: true } : {}) });
+  const project = box => ({ x: box.x * scale + offsetX, y: box.y * scale + offsetY, w: box.w * scale, h: box.h * scale, ...(box.hole ? { hole: true } : {}), ...(box.doc ? { doc: true } : {}) });
   return { scale, offsetX, offsetY, boxes: boxes.map(project), view: project(port) };
 }
 

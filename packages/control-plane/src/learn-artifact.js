@@ -17,7 +17,7 @@ import { consumeProposal, releaseProposal, verifyProposal } from './generation-p
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -119,8 +119,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const explanationTail = `\n\n${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE}\n\nBased on the rules above, this card:\n\n# Depth\n${explanationTarget(input.depth)}\n\n${visualsStatement(input.plan, resolved) ?? EXPLANATION_VISUAL_RULES}${formulaSamplerEnabled(env) ? FORMULA_SERIES_GUIDANCE : ''}${interactionsEnabled(env) ? `\n\n# Output format\n${INTERACTION_GUIDANCE}` : ''}`;
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(primitiveFor(id, input.madeBy).schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
-    input_schema: id === 'explanation' ? authorSchema(env) : primitiveFor(id, input.madeBy).schema, // O: a section item's code sample is 100 lines / 4000 characters
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    input_schema: id === 'explanation' ? authorSchema(env) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Balanced sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
@@ -251,7 +251,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       } else if (id === 'explanation' && interactionsEnabled(env)) {
         const { questions: q, terms: t, ...card } = call.input ?? {};
         questions = q; terms = t; block = artifactBlock(id, card);
-      } else block = artifactBlock(id, call.input, { madeBy: input.madeBy, context: input.context });
+      } else block = artifactBlock(id, call.input);
       if (title && typeof block.title === 'string') block = { ...block, title };
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
       // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
@@ -381,7 +381,6 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     body = JSON.parse(raw);
     if (!body || typeof body.command !== 'string' || typeof (body.args ?? '') !== 'string' || (body.args || '').length > 1000 || (body.context != null && (typeof body.context !== 'string' || body.context.length > 8000))) throw new Error('Invalid artifact request');
     artifactPlan(body.command, body); // unknown command or selection: 400 before auth or model
-    if (body.madeBy !== undefined && body.madeBy !== 'learn-section') throw new Error('madeBy must be learn-section'); // CONTRACT: it unlocks only the larger code sample (DECISIONS O)
     if (body.depth !== undefined && !validDepth(body.depth)) throw new Error('depth must be brief, balanced or detailed'); // R2: an explicit Depth the server does not know is refused, never normalized
     if (body.image_context !== undefined && body.command !== 'explain') throw new Error('Only /explain takes an attached image');
     if ((body.image_role ?? 'layout_reference') !== 'layout_reference' || (body.image_role !== undefined && body.image_context === undefined)) throw new Error('image_role must be layout_reference, with an image_context');
@@ -451,7 +450,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
       return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(body.madeBy ? { madeBy: body.madeBy } : {}), ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });

@@ -23,7 +23,7 @@ test('Minimize replaces the Focus icon on an Explanation as its own pill (the En
 
 test('the canvas offers Minimize on a card that can be minimized and is not, never on a view-only canvas, a locked card or a tile; Focus is the context menu\'s', () => {
   const canvas = read('./AdaptiveCanvas.jsx'), menu = read('./canvas-actions-types.js');
-  assert.match(canvas, /const soleFocus = null;/, 'no card toolbar draws a Focus icon (owner 2026-11-15); Focus stays the context menu\'s row and the keyboard');
+  assert.match(canvas, /const soleFocus = soleObject && !minimizable\(soleObject\) \? adapterFor\(/, 'no toolbar Focus on an Explanation');
   assert.match(canvas, /const soleMinimize = soleObject && minimizable\(soleObject\) && !soleObject\.minimized && !readOnly && !localCopy && !lockedRef\.current\.has\(soleObject\.id\) \? \(\) => minimizeCard\(soleObject\.id\) : null;/);
   assert.match(canvas, /onFocus=\{focusSole\} onMinimize=\{soleMinimize\}/);
   assert.match(canvas, /focusable: object => !!object && object\.id !== focusRef\.current\?\.id && !isMinimized\(object\) && !!adapterFor\(/, 'an Explanation keeps its Focus row; its tile has none');

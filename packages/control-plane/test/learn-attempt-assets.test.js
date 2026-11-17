@@ -10,7 +10,7 @@ import { attemptRoute } from '../src/learn-attempt-routes.js';
 import { readAttempt } from '../src/learn-attempt-store.js';
 import { readAttemptAsset, readFrozenSnapshot, putAttemptAsset, transcriptStore, transcriptsOf } from '../src/learn-attempt-assets.js';
 import { canonical } from '../src/learn-attempt-store.js';
-import { hasTable, purgeTutorRows } from '../src/learn-coaching-store.js';
+import { purgeTutorRows } from '../src/learn-coaching-store.js';
 import { ANA, BEN, call, never, world } from './learn-attempt-fixture.js';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -175,16 +175,6 @@ test('a permanent canvas delete takes its answer media rows, transcripts and dra
   await route(w.env, ANA, 'PUT', '/api/learn/tutor/attempts/drafts', { json: { cardId: 'card-1', expectedRevision: 0, answer: { v: 1, kind: 'explain_back', text: 'd', voice: [], resources: [], assistance: [] } } });
   await w.env.LEARN_DB.batch(purgeTutorRows(w.env.LEARN_DB, ANA.org, ANA.app));
   for (const table of ['learn_attempt_assets', 'learn_attempt_transcripts', 'learn_explain_drafts']) assert.equal(w.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
-});
-
-test('a permanent canvas delete takes its learn_sections rows where the table exists, and still runs where it does not (Reviewer 10:50)', async t => {
-  const w = setup(t), db = w.env.LEARN_DB;
-  w.sqlite.prepare("INSERT INTO learn_sections (org, owner_user_id, app, board, section_id, updated_at) VALUES (?, 'u', ?, 'main', '1.1', 'now')").run(ANA.org, ANA.app);
-  await db.batch(purgeTutorRows(db, ANA.org, ANA.app, { sections: await hasTable(db, 'learn_sections') }));
-  assert.equal(w.sqlite.prepare('SELECT count(*) AS n FROM learn_sections').get().n, 0);
-  w.sqlite.exec('DROP TABLE learn_sections');
-  assert.equal(await hasTable(db, 'learn_sections'), false);
-  await db.batch(purgeTutorRows(db, ANA.org, ANA.app, { sections: await hasTable(db, 'learn_sections') }));
 });
 
 test('putAttemptAsset seeds a fixture asset with the upload checks, and assessment reads it back', async t => {

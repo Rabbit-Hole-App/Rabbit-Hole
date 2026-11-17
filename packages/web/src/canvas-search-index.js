@@ -1,6 +1,7 @@
 // Current-canvas Search. Pure and unbudgeted: callers supply only already-authorized live data.
 // No fetch, model, OCR, persisted mutation, or inference from URL-looking prose.
 import { cardText } from './canvas-semantics.js';
+import { docText } from './doc-text.js';
 import { pdfRef } from './pdf-source.js';
 import { validSources } from './card-sources.js';
 import { cadArtifact } from './cad-client.js';
@@ -14,7 +15,7 @@ export const SEARCH_TYPE_CATEGORY = { video: 'video', videoGenerate: 'video', 'f
   quiz: 'quiz', flashcards: 'flashcards', challenge: 'challenge', explainBack: 'challenge', explanation: 'explanation', walkthrough: 'explanation',
   table: 'table', 'file:table': 'table', 'file:workbook': 'table', cad: 'cad', model3d: 'cad', scene: 'cad', 'file:model': 'cad',
   animation: 'animation', mathAnimation: 'animation', audio: 'audio', 'file:audio': 'audio', slide: 'slides', 'file:presentation': 'slides',
-  doc: 'document', 'file:document': 'document', 'file:markdown': 'document', 'file:text': 'document' };
+  'file:document': 'document', 'file:markdown': 'document', 'file:text': 'document' };
 const string = value => typeof value === 'string' ? value : '';
 const at = (collection, id) => collection instanceof Map ? collection.get(id) : collection?.[id];
 const array = value => Array.isArray(value) ? value : [];
@@ -127,7 +128,7 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
   const referenceFields = references.filter(ref => !ref.unavailable).flatMap((ref, i) => fields(`reference:${i}`, [object.type === 'canvas-ref' && ref.title === title ? '' : ref.title, ref.name, ref.path, ref.symbol, ref.page ? `page ${ref.page}` : '', ref.lines ? `lines ${ref.lines.join('-')}` : ''].filter(Boolean).join('\n'), 'reference'));
   const sourceName = object.type === 'repo-code' && object.source?.kind === 'upload' && object.source.name !== title ? fields('name:source', string(object.source.name), 'metadata', { path: object.source.name }) : [];
   const sourceFields = loaded && ['ready', 'partial'].includes(loaded.status) ? array(loaded.units).flatMap((unit, i) => fields(`source:${i}`, unit.text, 'source', unit.loc)) : [];
-  return { id: `object:${object.id}`, objectId: object.id, kind, preview: searchPreviewOf(object, kind, references), title: title || (object.type === 'notebook' ? 'Notebook' : object.type === 'doc' ? 'Document' : object.type === 'run' ? 'Run card' : object.type === 'codeExplain' ? 'Code explanation' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
+  return { id: `object:${object.id}`, objectId: object.id, kind, preview: searchPreviewOf(object, kind, references), title: title || (object.type === 'notebook' ? 'Notebook' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
     target: { kind: 'object', id: object.id }, fields: [...fields('title', title), ...sourceName, ...content, ...referenceFields, ...rabbitHoles.flatMap((child, i) => fields(`child:${i}`, child.title, 'reference')), ...sourceFields] };
 }
 // Links (the former Links tab, brief section 7): one result per destination canvas, as the server grouped them (GET
@@ -165,6 +166,12 @@ export function updateSearchIndex(previous, input) {
       return entry;
     });
   }
+  const walk = (blocks, path = []) => array(blocks).forEach((block, position) => {
+    const id = block.id || `position:${[...path, position].join('.')}`;
+    if (docText([{ ...block, children: [] }]).trim()) put(`document:${id}`, [block], () => ({ id: `document:${id}`, objectId: 'doc', kind: 'document', title: block.type === 'heading' ? docText([{ ...block, children: [] }]).replace(/^#+\s*/, '') : 'Canvas document', categories: ['text', ...(block.type === 'codeBlock' ? ['code'] : [])], references: [], rabbitHoles: [], availability: { status: 'ready' }, target: { kind: 'document', id: 'doc', docBlockId: id }, location: { blockId: id }, fields: fields('body', docText([{ ...block, children: [] }]), 'card', { blockId: id }) }));
+    walk(block.children, [...path, position]);
+  });
+  walk(board.doc?.blocks);
   for (const [direction, groups] of [['from', input.links?.from], ['to', input.links?.to]]) for (const group of array(groups)) {
     const key = direction === 'from' ? group.target : group.source;
     if (key) put(`link:${direction}:${key}`, [group], () => linkEntry(direction, key, group));

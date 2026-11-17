@@ -306,7 +306,7 @@ test('the canvas uses the registry: one CanvasMenu, keyboard shortcuts through r
 
 test("a card's own ⋮ menu draws the same rows and runs them through runAction (NotebookCard)", () => {
   const card = readFileSync(new URL('./NotebookCard.jsx', import.meta.url), 'utf8'), canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(card, /CardActionRows|More notebook actions/, 'no three-dot menu on a card (owner 2026-11-15): the same rows are the right-click menu');
+  assert.match(card, /<CardActionRows id=\{block\.id\} groups=\{\['type', 'content'\]\}/);
   assert.match(canvas, /run: \(id, actionId\) => \{ const done = runAction\(actionId, cardTarget\(id\), actionCtx\);/);
   const { ctx, calls } = fakeCtx();
   ctx.canvas.downloadText = (...args) => { calls.push(['downloadText', args[0], args[2]]); };

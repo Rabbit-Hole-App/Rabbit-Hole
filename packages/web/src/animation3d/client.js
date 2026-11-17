@@ -43,8 +43,8 @@ export const animationStage = job => (job?.stage === 'failed' ? job.failure?.mes
 export const animationAsks = job => job?.stopReason === 'needs_clarification';
 // What a change offered in Chat does when pressed and what it costs (AnimationChoices.jsx). credits: it needs a plan call, up to that many.
 export const choiceAction = alternative => (alternative.credits
-  ? { label: 'Plan this', cost: `Uses up to ${alternative.credits} AI units to write the plan. Nothing is built until you press Generate.` }
-  : { label: alternative.id === 'keep' ? 'Keep my plan' : 'Use this plan', cost: 'Uses no AI units. Nothing is built until you press Generate.' });
+  ? { label: 'Plan this', cost: `Uses up to ${alternative.credits} AI credits to write the plan. Nothing is built until you press Generate.` }
+  : { label: alternative.id === 'keep' ? 'Keep my plan' : 'Use this plan', cost: 'Uses no AI credits. Nothing is built until you press Generate.' });
 // Polled while the server works on it; a plan awaiting review waits on the learner, not a timer.
 export const animationRunning = job => !!job && !job.terminal && !['awaiting_approval', 'ready', 'failed', 'cancelled'].includes(job.stage);
 // The bar a pending card shows once the plan is approved and the scene is being made: Generate is behind it, these four are ahead.

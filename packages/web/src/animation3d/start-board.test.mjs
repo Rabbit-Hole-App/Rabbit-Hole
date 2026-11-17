@@ -7,7 +7,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { submitCadOnce } from '../cad-client.js';
 import { boardFromText, boardText, conflictBaseKey, serial, sharingOf } from '../canvas-persist.js';
-import { docCardId } from '../canvas-doc.js';
 
 const page = readFileSync(new URL('../LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const between = (from, to) => {
@@ -18,7 +17,7 @@ const between = (from, to) => {
 const SOURCE = [
   between('const startAnimation = async', '// EXP-T21'),
   `const hydrate = () => {\n${between('    let live = true;\n    boardLoaded.current = false;', '  }, [boardPath, boardLoad]);')}};`,
-  between('  const pushTimer = useRef(null);', '  // Offline queue:'),
+  between('  const pushTimer = useRef(null);', '  // Reload and keep my document'),
 ].join('\n');
 
 const later = () => { let done; const promise = new Promise(resolve => { done = resolve; }); return { promise, done }; };
@@ -50,18 +49,18 @@ function mount(s, { local = { blocks: [{ id: 'kept-card' }] } } = {}) {
   const env = {
     api: s.api, board: null, boardPath: '/api/learn/boards/canvas/main', boardStorageKey: 'ink', versionKey: 'ink:version', chatKey: 'ink:chat',
     useRef: ref, useCallback: fn => fn, useEffect: () => {}, useState: init => [typeof init === 'function' ? init() : init],
-    serial, sharingOf, boardText, boardFromText, conflictBaseKey, docCardId, submitCadOnce,
+    serial, sharingOf, boardText, boardFromText, conflictBaseKey, submitCadOnce,
     boardLoaded: ref(false), boardSynced: ref(null), boardUnsynced: ref(false), boardStopped: ref(false), boardRefused: ref(null),
     boardVersion: ref(null), conflictBase: ref(null), recoveries: ref(0), boardReady: ref(null), saveError: ref(null),
     commentBoardRef: ref(null), commentBoard: null, sharingRef: ref({ shared: false }), thumbs: ref(null), canvasApi: ref({ placeAnimation: card => card.id }),
     animationRequests: ref(new Map()), exchangesRef: ref([]), chat: null,
     boardSnapshot: () => local, browserStorage: () => ({}), readBoardCopy: () => local, readBoardVersion: () => null,
-    hasLocalContent: () => (local.blocks || []).length > 0, blockedStorage: [], canvas: () => null,
+    hasLocalContent: () => (local.blocks || []).length > 0, blockedStorage: [], canvas: () => null, docSaved: () => true,
     unsavedKey: () => 'ink:unsaved', localStorage: { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value), removeItem: key => store.delete(key) },
     window: { dispatchEvent: () => {} }, syncAssets: async () => true, requestWorkspaceExports: () => {},
     setSharing: () => {}, setCommentBoard: id => { env.commentBoard = id; }, setCanvasVersion: () => {}, setBoardChars: () => {}, setSaveState: () => {},
     markStart: () => {}, markEnd: () => {}, // client-timing.js, which the extracted load code now calls
-    setRestoredBoard: () => {}, setBoardLoad: () => {}, toast: () => {}, UNKEPT: 'not kept',
+    setRestoredBoard: () => {}, setBoardLoad: () => {}, setDocConflict: () => {}, toast: () => {}, UNKEPT: 'not kept',
     animationClient: (_api, board) => ({ create: async body => { creates.push({ board, body }); await settle(); return { job: { id: `job-${creates.length}`, cardId: body.cardId } }; } }),
     withPrompt: card => card, withJob: (card, job) => ({ ...card, animation3dJob: job }), requestRef: async () => 'ref',
     // Real timers, 100x shorter: the 1.5 s autosave and the 10 s load wait keep their order against the GET below.

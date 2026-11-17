@@ -1,8 +1,0 @@
-{
-  "cellId": "knobs",
-  "flags": {
-    "--start": "JULIET:",
-    "--temperature": "0.5",
-    "--num_samples": "1"
-  }
-}

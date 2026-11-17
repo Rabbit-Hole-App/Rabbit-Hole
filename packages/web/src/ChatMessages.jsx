@@ -28,9 +28,6 @@ import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, proposalAccepted, p
 import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
-import { REHEARSAL } from './rehearsal-flag.js';
-// The code-explain insertion (code-explain-insert.js, with the contract's validators) loads with the first such Add as card. The literal env test beside the import is what lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER (the same form as AdaptiveCanvas RunCard).
-const loadCodeExplainInsert = () => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./code-explain-insert.js') : Promise.reject(new Error('The code explanation card is not part of this build')));
 import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runImageJob } from './generate-image.js';
 import { sameFileCard } from './file-to-canvas.js';
 import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
@@ -397,13 +394,8 @@ const Waiting = ({ text, className = '', ...rest }) => <span {...rest} className
 export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onCreateExplainCard = null, checkKeep = null, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, outputOps = null }) {
   // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
   // learner deleted it) instead of adding a second one.
-  // A code-explain answer (its message meta carries a codeExplain payload, code-explain-card-spec.md section 3 step 4) adds the primary card with its satellites and connectors instead; a payload
-  // the contract's validator refuses, or a canvas that cannot take it, falls back to this chat card.
   const addAsCard = card => {
-    const chatCard = () => onAddToCanvas({ ...card, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '' });
-    const payload = REHEARSAL && m.meta?.codeExplain && outputOps?.insertCodeExplain ? m.meta.codeExplain : null;
-    if (payload) loadCodeExplainInsert().then(mod => mod.addCodeExplain(outputOps, { id: card.id, payload }), () => ({ ok: false })).then(out => { if (!out.ok) { if (out.errors) console.warn('[code explain] not added as a card:', out.errors); chatCard(); } });
-    else chatCard();
+    onAddToCanvas({ ...card, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '' });
     setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
   };
   // Bugs 1 and 3: a slash command's response, and one that makes something on the canvas, uses the generation and card workflow - it gets no
@@ -461,7 +453,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onCreateExplainCard={explainable ? () => onCreateExplainCard(asked) : null} checkKeep={explainable && checkKeep ? () => checkKeep({ id: m.messageId ?? m.id ?? null, question: asked, reply: m.content }) : null} onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
               onRegenerate={kind.ordinary ? onRegenerate : null} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
-            {prepare && kind.ordinary && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} question={asked} />}
+            {prepare && kind.ordinary && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
           </div>
           </AnswerBoundary>
         ) : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}

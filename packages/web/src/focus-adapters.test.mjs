@@ -31,11 +31,6 @@ test('workspaceFrame: the controller inset, then the header row taken off the to
   assert.equal(workspaceFrame(null), null);
 });
 
-test('workspaceFrame: bar false (Study Run and Runbook draw no header row) leaves the whole inset rectangle to the card', () => {
-  assert.deepEqual(workspaceFrame({ left: 0, top: 40, right: 1000, bottom: 800 }, { bar: false }), { left: 16, top: 56, width: 968, height: 728 });
-  assert.equal(workspaceFrame({ left: 0, top: 0, right: 100, bottom: 40 }, { bar: false }).height, 16, 'only the inset comes off');
-});
-
 test('syncFocus: enter once, update on a new frame or camera, exit then restore once without the focused card scroll', () => {
   calls.length = 0;
   const hosts = { a: host('a'), b: host('b') }, restored = [], gone = [];
@@ -157,11 +152,4 @@ test('the Focus pane leaves room for the toolbar on the left and an open chat pa
   assert.ok(pane.top >= FOCUS_BAR && pane.height > 0);
   const closed = workspaceFrame({ ...area, right: Math.min(area.right, surface.w), bottom: 900 });
   assert.ok(closed.width > pane.width, 'closing the panel gives the content its room back');
-});
-
-// Pinned Study for a codebase canvas (pinned-study-codebase-spec.md 2c): the Run card and the Document card (the Runbook) take Focus in place.
-test('Run card and Document card are focusable through the index, with the labels the spec names', async () => {
-  const { adapterFor } = await import('./focus-controller.js');
-  assert.equal(adapterFor({ id: 'r', type: 'run' })?.label, 'Focus run card');
-  assert.equal(adapterFor({ id: 'd', type: 'doc' })?.label, 'Focus document');
 });

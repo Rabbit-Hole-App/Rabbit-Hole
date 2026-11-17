@@ -16,8 +16,7 @@ export const sceneFetch = (req, env) => privateLessonAssetFetch(req, env, env.LE
 export async function workerRequest(env, path, body) {
   if (!env.SCENE_WORKER_URL || !env.SCENE_WORKER_TOKEN) throw new Error('The scene worker is not configured');
   const base = new URL(env.SCENE_WORKER_URL);
-  // HTTPS only, except a loopback address: the owner's local stack runs the indexer as a local process (owner-local/local-indexer.py); production URLs are never loopback.
-  if (base.protocol !== 'https:' && !(base.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname))) throw new Error('Scene worker requires HTTPS');
+  if (base.protocol !== 'https:') throw new Error('Scene worker requires HTTPS');
   return fetch(new URL(path, base), { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${env.SCENE_WORKER_TOKEN}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
 }
 async function assetBytes(response) {

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CircleHelp, FolderGit2, Lock, MessageSquare, Plus, X } from 'lucide-react';
-import ChatComposer, { StripTool } from './ChatComposer.jsx';
+import { FolderGit2, Lock, Plus, X } from 'lucide-react';
+import ChatComposer from './ChatComposer.jsx';
 import { ChatMessages } from './ChatMessages.jsx';
 import { MaterialIcon } from './ask.jsx';
 import { Button } from './ui.jsx';
@@ -23,7 +23,7 @@ import { GUEST, adoptGuestChat, askHistory, askPath, loadChat, readGuestAllowanc
 // embed (SHARE-04, embed-api.js): { openFull({ draft, target }) } when this Chat is framed by another site. Send waits for the
 // partitioned guest session (init, then a probe that the cookie came back); where this browser keeps none, Send and the
 // "Open Chat in Rabbit Hole" button open the full site in a new tab with the draft, and nothing is sent.
-export default function SharedChat({ token, viewer, context = null, draft = null, target = null, onClearTarget = null, onAllowance = null, embed = null, stripHost = null, onOpenPanel = null, curiousToggle = null }) {
+export default function SharedChat({ token, viewer, context = null, draft = null, target = null, onClearTarget = null, onAllowance = null, embed = null, stripHost = null, onOpenPanel = null }) {
   const who = viewer || GUEST;
   const [input, setInput] = useState(draft || '');
   const [turns, setTurns] = useState(() => { adoptGuestChat(token, viewer); return loadChat(token, who); });
@@ -126,16 +126,7 @@ export default function SharedChat({ token, viewer, context = null, draft = null
         <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
       </div>}
       <div className={stripHost ? '' : 'mt-2 shrink-0'}>
-        <ChatComposer multiline dock={!!stripHost} pill={!!stripHost} onMinimize={stripHost ? () => window.dispatchEvent(new Event('rh-strip-minimize')) : null}
-          leading={stripHost ? <>
-            <StripTool label="Add" title="Adding context is not available on a shared canvas" disabled><Plus size={16} strokeWidth={1.5} /></StripTool>
-            <StripTool label="Commands" title="Commands are not available on a shared canvas" disabled className="font-mono text-[15px]"><span aria-hidden>/</span></StripTool>
-          </> : null}
-          trailing={stripHost ? <>
-            {curiousToggle && <StripTool data-curious-toggle label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} on={!curiousToggle.min} onClick={() => curiousToggle.set(!curiousToggle.min)}><CircleHelp size={16} strokeWidth={1.7} /></StripTool>}
-            <StripTool data-chat-window-toggle label="Show chat" title="Open the chat" onClick={() => onOpenPanel?.()}><MessageSquare size={16} strokeWidth={1.7} /></StripTool>
-          </> : null}
-          value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} disabled={embed && session === 'checking'} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
+        <ChatComposer multiline dock={!!stripHost} pill={!!stripHost} onMinimize={stripHost ? () => window.dispatchEvent(new Event('rh-strip-minimize')) : null} value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} disabled={embed && session === 'checking'} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
       </div>
       </>, regionHost)}
       {embed && session === 'blocked' && (

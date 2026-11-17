@@ -7,7 +7,7 @@ import { ownControlPlane } from '../control-plane/src/dev-forwarding.js';
 import { cadJobDiagnostic } from '../control-plane/src/cad-job-diagnostic.js';
 import { withFraming } from '../control-plane/src/framing-headers.js';
 import { captureServerError } from '../control-plane/src/crash-report.js';
-export { RepositoryImports, RepositoryRehearsals, LearnScenes, LearnVideos, CadJobs, ExplainJobs, AnimationJobs, ImageJobs, FileJobs, WhiteboardJobs, RoadmapJobs } from './dev-worker.js';
+export { RepositoryImports, LearnScenes, LearnVideos, CadJobs, ExplainJobs, AnimationJobs, ImageJobs, FileJobs, WhiteboardJobs, RoadmapJobs } from './dev-worker.js';
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),

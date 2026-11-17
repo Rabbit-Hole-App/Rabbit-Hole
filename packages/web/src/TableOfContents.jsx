@@ -382,7 +382,6 @@ function ProposalCard({ proposal, outline, canvasApi, onDone }) {
     const result = canvasApi.current?.applyOutline(ops, { base: proposal.base, source: proposal.source });
     if (!result?.ok) { setRefused(result?.message || 'This proposal cannot be applied.'); return; }
     if (result.skipped) toast(result.applied ? `${result.skipped} of these ${result.skipped === 1 ? 'was' : 'were'} already in the contents.` : 'Everything in this proposal is already in the contents.');
-    if (proposal.source === 'learn-plan') window.dispatchEvent(new CustomEvent('rh:learn-plan-applied')); // the Tutor's plan message takes this as Accept
     onDone();
   };
   return (
