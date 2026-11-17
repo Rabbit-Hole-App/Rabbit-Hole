@@ -1,6 +1,6 @@
 // The 'fast-chain' adapter of the written /explain model profiles (explanation-models.js fireworks-* and cerebras-*, owner 2026-11-08): a written card must
-// not fail, and it must be fast. Production (fireworks-low) runs the author call on Fireworks gpt-oss-120b; when that step fails (HTTP 429 or 5xx, a
-// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on Gemini gemini-3.5-flash-lite. Cerebras is
+// not fail, and it must be fast. Production (google-low) runs the author call on Gemini gemini-3.5-flash-lite, with Fireworks gpt-oss-120b as the fallback; a fireworks-low profile runs them the other way round. When a step fails (HTTP 429 or 5xx, a
+// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on the next step. Cerebras is
 // never a fallback step (owner, 2026-11-08); a cerebras-* profile, chosen on its own, runs Cerebras, then Fireworks, then Gemini. Never the plan model (Opus). A step whose credential is not set on this server is skipped. Each step is the real generateArtifact (validation, the one repair,
 // the saved card) with this step's transport injected, so every step's calls are admitted, priced and settled by spendTransport like any paid call.
 // EXPLANATION_FALLBACK=off (benchmarks: a fallback is a failure) runs the profile's own provider only, and its failure is reported as one.
