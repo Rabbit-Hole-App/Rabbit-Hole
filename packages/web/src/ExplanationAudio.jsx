@@ -19,7 +19,8 @@ function AudioPill({ narration, cardId }) {
   const [phase, setPhase] = useState('idle'); // idle | loading | playing | paused
   const [failed, setFailed] = useState(false), [url, setUrl] = useState(''), [wanted, setWanted] = useState(false);
   const audio = () => ref.current || (ref.current = new Audio());
-  const live = useRef({}); live.current = { cardId, script: narration.script }; // the transcript window's owner and text (audio-playing.js), read by the element's events
+  const shown = typeof narration.transcript === 'string' && narration.transcript.trim() ? narration.transcript : narration.script; // the window shows the LaTeX form when there is one; the voice only ever got the script
+  const live = useRef({}); live.current = { cardId, script: shown }; // the transcript window's owner and displayed text (audio-playing.js), read by the element's events
   const fail = () => { want.current = null; halted.current = true; audio().pause(); setPhase('idle'); setFailed(true); if (cardId) closeTranscript(cardId); };
   const failRef = useRef(fail); failRef.current = fail;
 
