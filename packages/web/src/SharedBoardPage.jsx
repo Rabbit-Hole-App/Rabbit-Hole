@@ -26,7 +26,7 @@ import { describeBlock } from './LearningBlocks.jsx';
 import { creatorLabel } from './home/provenance.js';
 import { NextStepsCard } from './ask.jsx';
 import SharedChat from './SharedChat.jsx';
-import { takeDraft, takeTarget } from './shared-ask.js';
+import { signInForAsk, takeDraft, takeTarget } from './shared-ask.js';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase, publicBase } from './comments/comments-api.js';
 import { BackToTop, DiveNavigator, DivePortals } from './Dive.jsx';
@@ -296,6 +296,8 @@ function SharedBoard({ token, embed = null }) {
         composer={embed || panel.open ? null : <div ref={setStripHost} data-canvas-chat-strip />}
         gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
         hooks={embed ? undefined : <SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} analytics={analytics} />}
+        // A signed-out click on an Explanation card's suggested question goes to sign-in and back to this page with the question as the unsent draft and the card as the pill (shared-ask.js, as Send does). ponytail: no strips in an embed, which has no sign-in of its own.
+        onSuggestSignIn={embed ? undefined : (question, card) => { window.location.href = signInForAsk(token, question, undefined, window.location.pathname, card); return true; }}
         onAskTarget={setTarget} askTargetId={target?.id ?? null} />
     </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
   );

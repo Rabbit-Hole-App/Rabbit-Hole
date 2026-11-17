@@ -163,7 +163,8 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     if (now.revision !== captured.revision) return; // the text changed meanwhile: these are not that set
     (now.onChangeQuiet || now.onChange)?.(withConsumed(now.block, captured.revision, { id: captured.actionId, question: captured.question, destination: captured.destination }));
   };
-  const askSuggestion = (question, destination) => send({ text: question.text, qid: question.id, destination, afterAdmit: consume });
+  const visitor = !!host?.visitorAsk; // a shared canvas's viewer: the strips go to sign-in or Ask in Chat and write nothing to the card
+  const askSuggestion = (question, destination) => (visitor ? host.visitorAsk({ id: latest.current.block.id, question: collapse(question.text) }) : send({ text: question.text, qid: question.id, destination, afterAdmit: consume }));
   // Owner 2026-11-08: a follow-up typed under the card makes a new written /explain card (the same route as a suggested question's "Ask in a new card" but with no
   // arrow to this card): the Chat shows the question and its progress, the camera frames the new card (insertBlock fit), and the Depth is the Chat composer's.
   const askFollowUp = text => send({ text, destination: 'follow-up' });
@@ -221,7 +222,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
 
   if (!enabled) return null;
   return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, explore, holdTerm, leaveTerm, quickAsk, highlight, createNote, addToChat, menu, menuEl, setMenu, removeHighlight, passageIcon, setPassageIcon, iconEl, iconTimer, explained: explainedIds(block, revision),
-    terms: termsFor(block, revision), suggestions: suggestionsFor(block, revision), highlights: highlightsFor(block, revision) };
+    terms: termsFor(block, revision), suggestions: suggestionsFor(block, revision, visitor), highlights: highlightsFor(block, revision) };
 }
 
 // One Markdown field of the card, the unit terms and highlights are anchored to. Decorates after every render: unwrap, align with the canonical text,
@@ -290,7 +291,7 @@ export function TermNote({ layer }) {
 // The three suggested questions below the reading flow (approved card 07 .suggestions). A row is one button: pressing it asks the question in a new card.
 export function Suggestions({ layer }) {
   const { suggestions, pending, host, canEdit } = layer;
-  if (!suggestions.length || !host?.ask || !canEdit) return null;
+  if (!suggestions.length || !(host?.visitorAsk || (host?.ask && canEdit))) return null; // visitorAsk: a shared canvas's viewer, who cannot edit the card
   const busy = !!pending;
   return (
     <ul data-explanation-suggestions aria-label="Suggested next questions" className="m-0 mt-4 -mx-3 grid list-none gap-2.5 p-0">

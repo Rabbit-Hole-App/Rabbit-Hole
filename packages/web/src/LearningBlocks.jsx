@@ -2067,7 +2067,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
       <div data-explanation-head data-focus-hide className="shrink-0">
         {block.anchor
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
-          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={<>{headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : block.fromPassage ? <PassageHeader block={block} /> : null}<ExplanationAudio narration={block.narration} canEdit={!readOnly} cardId={block.id} /></>}>Explanation</Kicker>}
+          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={<>{headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : block.fromPassage ? <PassageHeader block={block} /> : null}<ExplanationAudio narration={block.narration} cardId={block.id} /></>}>Explanation</Kicker>}
       </div>
       {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
       <div ref={layer?.flowRef} data-scroll data-explanation-flow {...layer?.flowProps} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">

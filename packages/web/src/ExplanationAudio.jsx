@@ -1,6 +1,6 @@
 // The Explanation card's audio control (docs/features/explain.md, the "Audio control" row): the spoken 60 to 90 second version of the card, one compact pill in the
 // card header's trailing slot (LearningBlocks Kicker `action`, CardHeader `trailing`): [ play / pause | replay ] (no time shown). It reads `block.narration`
-// = { status: 'preparing' | 'ready' | 'failed', fileRef, seconds, ... } and nothing else; generating it is a later task. No narration, a failed one, or a viewer who cannot edit: nothing is drawn.
+// = { status: 'preparing' | 'ready' | 'failed', fileRef, seconds, ... } and nothing else; generating it is a later task. No narration or a failed one: nothing is drawn.
 // The file is read like the card's figures (IllustrationFigure.jsx followSource: file-source-client loadSource, so the same scope, headers and retries) but only on the first press, so a board of
 // cards downloads no audio until one is played. One audio element per card; one card plays at a time (`playing`); never autoplay.
 import { useEffect, useRef, useState } from 'react';
@@ -76,9 +76,9 @@ function AudioPill({ narration, cardId }) {
   );
 }
 
-// canEdit: the audio route is owner-only (file-access.js: a signed-out viewer gets 404), so a card this viewer cannot edit draws nothing.
-export function ExplanationAudio({ narration, canEdit, cardId }) {
-  if (!canEdit || !narration) return null;
+// Every viewer of the card gets the pill: the file route admits a share or publication link whose board references the narration (file-access.js authorizeFileSource, file-refs.js), and the page reads it through that scope (file-source-client.js).
+export function ExplanationAudio({ narration, cardId }) {
+  if (!narration) return null;
   if (narration.status === 'preparing') {
     return (
       <span data-explanation-audio data-audio-state="preparing" onPointerDown={stop} className={PILL}>

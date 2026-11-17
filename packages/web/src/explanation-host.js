@@ -7,6 +7,8 @@
 //        onAdmitted fires once, when the Chat or command dispatcher has taken the turn; the promise answers false when it was refused
 //   note({ id, quote })                              one Sticky note beside the card, no connector (quote only for Create note: it opens the note's text, in italics) -> note id, or null
 //   quickAsk()                                       the selection toolbar's Ctrl+K button: opens Ctrl+K over the highlighted words, as the key does -> boolean
+//   visitorAsk({ id, question })                     a shared canvas only (SharedBoardPage), in place of ask: the card's suggested question as a visitor asks it. Signed out it goes through sign-in and
+//                                                    back to the same canvas; signed in it is Ask in Chat (the card as the pill, the question in the composer, nothing sent) -> boolean. Nothing is written to the card.
 import { createContext } from 'react';
 
 export const ExplanationHost = createContext(null);
