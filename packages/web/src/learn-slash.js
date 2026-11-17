@@ -362,6 +362,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${typed} ${args}`, notice: { tone: 'error',
     text: 'The interactive explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.',
     detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${typedOf('explanation')} ${args}` }] } };
+  // A diagram whose numbers stayed wrong after the repair and every provider (learn-artifact.js numbersIssue, explanation_bad_numbers) is never shown, dropped or simplified: say so plainly, keep the line, show no numbers.
+  if (result.result === 'validation_error' && /explanation_bad_numbers/.test(result.error || '')) return { keep: `/${typed} ${args}`, notice: { tone: 'error', text: "Couldn't make a reliable card. Try again." } };
   // Any other card the model could not make valid, even after its one repair: say so in plain words and keep the validator's
   // words as the detail (a contract violation, with no primitive, keeps its message).
   if (result.result === 'validation_error' && result.primitive) return { keep: `/${typed} ${args}`, notice: { tone: 'error', text: `${NAMES[result.primitive] ? NAMES[result.primitive][0].toUpperCase() + NAMES[result.primitive].slice(1) : 'The card'} could not be made: it failed its checks, so nothing was added. Send the line again to retry.`, detail: failedCheck(result.error) } };
