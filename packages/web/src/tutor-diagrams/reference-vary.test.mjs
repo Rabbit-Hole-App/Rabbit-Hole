@@ -11,6 +11,12 @@ import { varySpec } from './vary.js';
 const at = (root, path) => path.split('.').reduce((node, key) => node?.[key], root);
 const SEEDS = Array.from({ length: 20 }, (_, i) => `request-${i}`);
 const varied = diagramReferences.filter(ref => ref.vary);
+// The pattern a reference teaches that its bands must keep, for the references where the bands alone do not say it (hand-written from the reference's text; not product code).
+const vals = (d, s) => d.series[s].values;
+const patterns = {
+  'boosting-signed-corrections': d => { const i = vals(d, 0), f = vals(d, 1), s = vals(d, 2); return i.every(x => x === 3) && f[0] > 0 && f[1] < 0 && f[2] > 0 && s[0] < 0 && s[1] < 0 && s[2] > 0 && s.every((x, k) => Math.abs(x) <= Math.abs(f[k]) + 1e-9); }, // signs hold; |second| <= |first| per sample
+  'ensemble-votes': d => { const h = vals(d, 0), w = vals(d, 1); return h.every(Number.isInteger) && h[0] > h[1] && h[1] > h[2] && w[0] > w[1] && w[1] > w[2] && w[0] <= h[0] + 1e-9 && w[2] <= h[2] + 1e-9; }, // whole hard votes A > B > C; weighted A > B > C; weighted <= hard for A and C
+};
 
 for (const ref of varied) {
   const variants = [[ref.id, ref], ...Object.entries(ref.depths ?? {}).map(([depth, entry]) => [`${ref.id} (${depth})`, { ...ref, ...entry }])];
@@ -23,6 +29,7 @@ for (const ref of varied) {
       for (const seed of SEEDS) {
         const spec = varySpec(variant.spec, variant.vary, seed, variant.id);
         parseTutorDiagram(spec);
+        if (patterns[ref.id]) assert.ok(patterns[ref.id](spec.diagram), `${name}, ${seed}: the reference's pattern broke`);
         for (const [path, [min, max]] of Object.entries(variant.vary)) {
           const value = at(spec.diagram, path);
           assert.ok(value >= min - 1e-9 && value <= max + 1e-9, `${name}, ${seed}: ${path} = ${value} outside [${min}, ${max}]`);
