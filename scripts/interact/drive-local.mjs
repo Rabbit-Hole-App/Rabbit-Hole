@@ -101,6 +101,8 @@ page.on('response', async r => { if (/\/api\//.test(r.url()) && !/\/(profile|pre
 let approveFailed = null;
 page.on('response', async r => { if (/\/explain\/jobs\/[^/]+\/approve/.test(r.url()) && r.status() >= 400) approveFailed = `approve ${r.status()}: ${(await r.text().catch(() => '')).slice(0, 200)}`; });
 await page.goto(url);
+// brief 35: the right panel starts closed on every page (owner 2026-11-18); the run needs the Chat composer in it.
+{ const show = page.locator('[data-panel-toggle][aria-label="Show the right panel"]').first(); await show.waitFor({ timeout: 20000 }).catch(() => {}); if (await show.count()) await show.click().catch(() => {}); }
 await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ timeout: 90000 }).catch(async error => {
   await page.screenshot({ path: `${OUT}/no-composer.png` }).catch(() => {});
   const seen = await page.evaluate(() => ({ url: location.href, panes: document.querySelectorAll('[data-chat-pane]').length, composers: document.querySelectorAll('[data-chat-composer]').length, text: document.body.innerText.slice(0, 400) })).catch(() => null);
