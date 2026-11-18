@@ -21,7 +21,7 @@ export function source(ctx) {
   const tree = ctx.geometry?.tree;
   if (!tree) { const e = new Error('tree-trace requires its validated tree'); e.code = 'part_binding'; e.path = 'geometry.tree'; throw e; }
   return `const T=${JSON.stringify(tree)};
-const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
+const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
 export function evaluate({inputs}){
   const i=inputs.step===undefined?0:inputs.step;
   if(!Number.isInteger(i)||i<0||i>=T.steps.length)throw new RangeError('step outside the trace');
