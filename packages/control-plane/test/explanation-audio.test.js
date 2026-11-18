@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
-import { AUDIO_LIMITS, SCRIPT_PATH, VOICE_PATH, VOICE_ID, VOICE_SETTINGS, VOICE_URL, explanationAudioRoute, scriptRequest } from '../src/explanation-audio.js';
+import { AUDIO_LIMITS, SCRIPT_PATH, VOICE_PATH, VOICE_ID, VOICE_SETTINGS, VOICE_URL, explanationAudioRoute, scriptInputOf, scriptRequest } from '../src/explanation-audio.js';
 import { FLOOR_WORDS, LENGTH_TARGET_WORDS, cardDataNumbers, cardNumbers, dataNumbers, lengthLine, scriptSystem, scriptUser, secondsEstimate, spokenNumbers, splitCard, stripUnsafe, verdict } from '../src/explanation-audio-script.js';
 import { withUsage, noteUsageIdentity, usageFeature, FEATURES } from '../src/learn-usage.js';
 import { rateOf, priceUsage } from '../src/pricing-registry.js';
@@ -343,6 +343,24 @@ test('the example rule reads the numbers the prose and the question state, not a
   const asked = providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(220))] });
   await (await script(withDepth('balanced'))).json();
   assert.equal(asked.models().length, 2, 'a card whose prose states numbers still asks for one to be spoken');
+});
+
+test('scriptInputOf is the one builder of the script input: the route, the measurement and the live check all use it; no prose numbers means no card data, whatever the diagram holds', () => {
+  const diagramOnly = { title: 'Four strokes', body: `${longScript(40, { card: false })}
+
+\`\`\`rh-diagram
+{"version":1,"diagram":{"title":"Cycle","series":[{"label":"Stroke","points":[{"x":1,"y":0.25}]}]}}
+\`\`\``, depth: 'deep' };
+  const input = scriptInputOf(diagramOnly);
+  assert.equal(input.cardData.size, 0, 'a card with no prose numbers has no card data to speak');
+  assert.ok(input.allowed.has(0.25), 'the strip still allows a diagram value');
+  assert.equal(input.depth, 'detailed', 'a depth alias is read as the route reads it');
+  const bootstrap = scriptInputOf({ title: 'Bootstrap', body: BODY, depth: 'balanced', question: 'why 63 percent?' });
+  assert.ok(bootstrap.cardData.has(0.368) && bootstrap.cardData.has(63));
+  assert.ok(!bootstrap.cardData.has(0.349) && bootstrap.allowed.has(0.349), 'a value only inside the diagram is allowed, not asked for');
+  assert.deepEqual(bootstrap.labels, ['Omission by size', 'Training rows n', 'Omission after n draws']);
+  assert.match(scriptInputOf({ ...diagramOnly, more: 'Extra section says 12 rows.' }).prose, /12 rows/, 'the other sections are part of the card');
+  assert.match(readFileSync(new URL('../src/explanation-audio.js', import.meta.url), 'utf8'), /const input = scriptInputOf\(body\);/, 'the route builds its input through it');
 });
 
 test('a provider failing on the re-ask hands the card to the next provider, which has no re-ask left: a short answer there is an error', async t => {
