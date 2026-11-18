@@ -3,10 +3,13 @@
 // = { status: 'preparing' | 'ready' | 'failed', fileRef, seconds, ... } and nothing else; generating it is a later task. No narration or a failed one: nothing is drawn.
 // The file is read like the card's figures (IllustrationFigure.jsx followSource: file-source-client loadSource, so the same scope, headers and retries) but only on the first press, so a board of
 // cards downloads no audio until one is played. One audio element per card; one card plays at a time (`playing`); never autoplay.
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play, RotateCcw } from 'lucide-react';
 import { followSource } from './IllustrationFigure.jsx';
 import { clearPlayingCard, closeTranscript, openTranscript, restartTranscript, setPlayingCard, updateTranscript } from './audio-playing.js';
+import { ExplanationHost } from './explanation-host.js';
+import { wantPlay } from './explanation-audio.js';
+import { toast } from './ui.jsx';
 
 let playing = null; // the audio element that is playing now; starting another pauses it
 
@@ -56,6 +59,7 @@ function AudioPill({ narration, cardId }) {
     if (url) { run(restart); return; }
     want.current = restart ? 'restart' : 'play'; setPhase('loading'); setWanted(true);
   };
+  useEffect(() => { if (cardId && wantPlay.delete(cardId)) press(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- the Play that made this voice also asks to hear it
 
   const active = phase === 'playing', loading = phase === 'loading';
   // The canvas card's green frame and the minimap's mark follow `phase === 'playing'` (audio-playing.js); a pause, the end, a failure or unmounting clears it.
@@ -76,9 +80,35 @@ function AudioPill({ narration, cardId }) {
   );
 }
 
+// The Play button of a card whose voice is not made yet ('script') or whose last step failed ('error'): its press makes what is missing (host.narrate, a paid step the press confirms), then the
+// ready pill takes its place and starts. A failure says why in a notice and leaves the button to press again.
+function GeneratePill({ narration, cardId, narrate }) {
+  const [busy, setBusy] = useState(false), alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const failed = narration.status === 'error';
+  const label = busy ? 'Preparing audio' : failed ? 'Audio could not play. Try again.' : 'Play explanation';
+  const press = async () => {
+    if (busy) return;
+    setBusy(true); wantPlay.add(cardId);
+    let made = null;
+    try { made = await narrate(cardId); } catch { /* the notice below says it */ }
+    if (made?.status !== 'ready') { wantPlay.delete(cardId); toast(made?.reason || 'The audio could not be made. Try again.'); }
+    if (alive.current) setBusy(false);
+  };
+  return (
+    <span data-explanation-audio data-audio-state={busy ? 'preparing' : failed ? 'failed' : 'script'} onPointerDown={stop} className={PILL}>
+      <button type="button" data-audio-play title={label} aria-label={label} aria-busy={busy || undefined} disabled={busy} onClick={press} className={BUTTON}>
+        {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+      </button>
+    </span>
+  );
+}
+
 // Every viewer of the card gets the pill: the file route admits a share or publication link whose board references the narration (file-access.js authorizeFileSource, file-refs.js), and the page reads it through that scope (file-source-client.js).
 export function ExplanationAudio({ narration, cardId }) {
+  const narrate = useContext(ExplanationHost)?.narrate;
   if (!narration) return null;
+  if (narrate && cardId && (narration.status === 'script' || narration.status === 'error')) return <GeneratePill key={cardId} narration={narration} cardId={cardId} narrate={narrate} />;
   if (narration.status === 'preparing') {
     return (
       <span data-explanation-audio data-audio-state="preparing" onPointerDown={stop} className={PILL}>
