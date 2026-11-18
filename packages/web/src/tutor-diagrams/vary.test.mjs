@@ -4,6 +4,7 @@ import { seededRandom } from './random.js';
 import { varyProblems, varySpec, resolveTokens } from './vary.js';
 import { fillAllDerived, parseTutorDiagram } from './spec.js';
 import { diagramReferences } from './reference-library.js';
+import { referenceVary } from './reference-vary.js';
 
 // Test fixtures only: no reference of the library carries `vary` in step 3.
 const plot = (extra = {}) => ({
@@ -123,8 +124,8 @@ test('the lint names a bad range, a missing path and an order path that tops the
   assert.deepEqual(varyProblems(box()), []);
 });
 
-test('the library: every reference with vary passes the lint (none carries one in step 3)', () => {
+test('the library: every reference with vary passes the lint, and referenceVary names only library references', () => {
   const failing = diagramReferences.flatMap(ref => varyProblems(ref));
   assert.deepEqual(failing, []);
-  assert.equal(diagramReferences.filter(ref => ref.vary).length, 0);
+  assert.deepEqual(diagramReferences.filter(ref => ref.vary).map(ref => ref.id).sort(), Object.keys(referenceVary).sort());
 });

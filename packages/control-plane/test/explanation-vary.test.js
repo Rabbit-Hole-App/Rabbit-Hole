@@ -1,4 +1,4 @@
-// VAR-1 step 3: the request seed, and `vary` on a reference sampled where a selected reference reaches the author. No reference of the library carries `vary` yet: the fixture below is test-only.
+// VAR-1 step 3: the request seed, and `vary` on a reference sampled where a selected reference reaches the author. From step 4 the library's references carry `vary` (reference-vary.js); the fixture below stays test-only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
@@ -56,17 +56,29 @@ test('a part of a composed reference is never varied by the whole reference\'s p
   assert.ok(!logs.some(l => l.includes('explanation_vary_failed')), 'no draw was attempted on a part');
 });
 
-test('the library is untouched by a seed: every reference prompt selects byte-identical references with and without one', () => {
+test('the library is untouched by a seed except where a reference carries vary: other prompts select byte-identical references with and without one', () => {
   let compared = 0;
   for (const [i, ref] of diagramReferences.entries()) {
     if (i % 4) continue; // every fourth reference here (about 15 s for all of them: the evidence script compares the whole library)
     const prompt = ref.prompts?.[0] ?? ref.keywords?.[0];
     if (!prompt) continue;
     const plain = selectDiagramReferences({ prompt, depth: 'standard' }), seeded = selectDiagramReferences({ prompt, depth: 'standard', seed: 'any-seed' });
+    if (plain.some(r => diagramReferences.find(l => l.id === r.id)?.vary)) continue; // a varied reference is drawn from its bands (the next test)
     assert.equal(JSON.stringify(seeded), JSON.stringify(plain), ref.id);
     compared++;
   }
   assert.ok(compared > 100, `compared ${compared} references`);
+});
+
+test('a reference with vary is drawn from its bands under a seed, repeats for the same seed, and goes out as written without one', () => {
+  const library = diagramReferences.find(r => r.id === 'learning-curves'), prompt = library.prompts[0];
+  const plain = selectDiagramReferences({ prompt, depth: 'standard' }).find(r => r.id === 'learning-curves');
+  const a = selectDiagramReferences({ prompt, depth: 'standard', seed: 'seed-a' }).find(r => r.id === 'learning-curves');
+  const again = selectDiagramReferences({ prompt, depth: 'standard', seed: 'seed-a' }).find(r => r.id === 'learning-curves');
+  assert.equal(JSON.stringify(plain.spec.diagram.series), JSON.stringify(library.spec.diagram.series), 'no seed: as written');
+  assert.deepEqual(a.spec, again.spec);
+  assert.notEqual(JSON.stringify(a.spec.diagram.series), JSON.stringify(plain.spec.diagram.series), 'a seed draws other inputs');
+  assert.deepEqual(a.spec.diagram.x, plain.spec.diagram.x);
 });
 
 test('the author request is byte-identical with and without a seed (no reference carries vary), and reports its seed', () => {
