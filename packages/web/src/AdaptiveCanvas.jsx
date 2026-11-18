@@ -5842,7 +5842,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Clear of the pill above and of the canvas's bottom strip (the composer and its suggestions), which float over the surface.
     const area = controlArea(), clear = spot ? spot.y + WALK_PILL_H + 8 - frame.top : area.top, strip = bottomStrip.current?.getBoundingClientRect();
     const floor = strip?.height ? strip.top - frame.top : area.bottom;
-    glideTo({ ...viewRef.current, ...walkCamera(walkBox(card, texts), { ...area, top: Math.max(area.top, clear), bottom: Math.min(area.bottom, floor) }, SPACING.card) }, true);
+    const composer = shell.current?.querySelector('[data-canvas-composer]')?.getBoundingClientRect(), centreX = composer?.width ? composer.left + composer.width / 2 - frame.left : null; // owner 14:40: in line with the composer
+    glideTo({ ...viewRef.current, ...walkCamera(walkBox(card, texts), { ...area, top: Math.max(area.top, clear), bottom: Math.min(area.bottom, floor) }, SPACING.card, centreX) }, true);
     setSelection([id]);
   };
   const walkApi = {
