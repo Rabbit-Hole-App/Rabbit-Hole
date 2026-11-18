@@ -368,11 +368,9 @@ function validateDiagram(diagram, issue) {
       for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
         if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
       });
-      // SAME-1 b: a list transformation of one item to one item is a box pointing at a box; the author names the concrete items before and after. Tensor items are exempt.
-      if (diagram.before.items.length < 2 || diagram.after.items.length < 2) {
-        if (![...diagram.before.items, ...diagram.after.items].some(item => typeof item !== 'string')) {
-          issue(['before', 'items'], `A transformation needs at least 2 items before and 2 after (this one has ${diagram.before.items.length} before and ${diagram.after.items.length} after): write the concrete items before and after the operation, with their values.`);
-        }
+      // SAME-1 b (Reviewer, narrowed): exactly one text item before and one after shows nothing (a box pointing at a box); tensor items are exempt, and 2 -> 1, 1 -> 3, 1 -> 2 pass.
+      if (diagram.before.items.length === 1 && diagram.after.items.length === 1 && typeof diagram.before.items[0] === 'string' && typeof diagram.after.items[0] === 'string') {
+        issue(['before', 'items'], 'A transformation of one item into one item shows nothing: write the concrete items before and after the operation, with their values, or use the kind the plan names.');
       }
       diagram.links?.forEach(({ from, to }, index) => {
         if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
