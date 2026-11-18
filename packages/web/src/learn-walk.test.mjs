@@ -1,7 +1,7 @@
 // Learn Walk (learn-walk-spec.md §1): stops, the contents button, start / continue / again, the last-stop rollover, the camera rule.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { walkButton, walkCamera, walkNext, walkPrev, walkProgress, walkSections, walkStart, walkStops } from './learn-walk.js';
+import { walkButton, walkNext, walkPrev, walkProgress, walkSections, walkStart, walkStops } from './learn-walk.js';
 
 const card = (id, sectionId, order, extra = {}) => ({ id, type: 'doc', learn: { sectionId, itemId: `i${order}`, role: 'card', slot: true, order, ...extra } });
 const blocks = [
@@ -39,11 +39,6 @@ test('walkNext: marks the card done and advances; past the last stop the section
   assert.equal(walkPrev(last).at, 2);
 });
 
-test('walkCamera: the card alone, fitted to the width with the zoom in [0.85, 1], centred on the composer, its top a margin under the pill; walkProgress per card', () => {
-  const area = { left: 0, right: 1000, top: 150, bottom: 700 };
-  assert.deepEqual(walkCamera({ x: 200, y: 300, w: 600, h: 1200 }, area, 40), { x: 0, y: -110, z: 1 }, 'fits at 1: top-aligned, never zoomed out for its height');
-  assert.deepEqual(walkCamera({ x: 200, y: 300, w: 600, h: 200 }, area, 40, 600), { x: 100, y: -110, z: 1 }, 'its middle on the composer middle');
-  assert.equal(walkCamera({ x: 0, y: 0, w: 1000, h: 100 }, area, 40).z, 0.92, 'a wide card is fitted to the width');
-  assert.equal(walkCamera({ x: 0, y: 0, w: 3000, h: 100 }, area, 40).z, 0.85, 'never below the reading size');
-  assert.deepEqual([walkProgress({ at: 0, stops: [1, 2, 3, 4] }), walkProgress({ at: 3, stops: [1, 2, 3, 4] }), walkProgress(null)], [0.25, 1, 0]);
+test('walkProgress: per card, from the stop and the count', () => {
+  assert.deepEqual([walkProgress({ at: 0, total: 4 }), walkProgress({ at: 3, total: 4 }), walkProgress(null)], [0.25, 1, 0]);
 });

@@ -94,6 +94,10 @@ import { MessageCircle, RotateCw } from 'lucide-react';
 import { boardSizeWarning, BOARD_LIMIT, docCardId } from './canvas-doc.js';
 import { StudyPane, useStudy } from './StudyPane.jsx';
 import { studyPill } from './study-work.js';
+import LearnPane from './LearnPane.jsx';
+import { LEARN_TOP, learnEnter, learnLeave, learnSection, learnView } from './learn-mode.js';
+import { walkButton, walkSections } from './learn-walk.js';
+import { SWITCH_ROW } from './study-ref.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { badgeText, useCanvasComments } from './comments/useCanvasComments.js';
@@ -1453,7 +1457,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   // Learn Walk Start / Continue (Reviewer 2026-11-18 13:32 §2): the right panel closes first, then the camera centres the stop in the view it leaves. The panel's width eases over
   // 320 ms (ResizableSidePanel), so the walk starts once it has. Next and Prev leave a reopened panel as it is.
-  const startWalk = id => { const wasOpen = panelOpen; setPanelOpen(false); setTimeout(() => canvasApi.current?.walk?.start(id), wasOpen ? 360 : 0); };
+  const startWalk = id => canvasApi.current?.walk?.start(id);
   const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: (isCanvas || isRepository) && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, editor: true, shown: panelOpen && panelTab === 'comments' });
   // Explain-on-canvas roadmap (R4): server-owned state, rendered in Chat, the ToC and over the canvas. The roadmap's source key is the
@@ -1573,6 +1577,46 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Pinned Study (UI-27, StudyPane.jsx): this canvas's Canvas / Study layout and its pinned reference, this browser only.
   const study = useStudy(canvasKey, board, canvasApi, { repository: !!(files || graph) });
   studyNow.current = study;
+  // Learn mode (learn-mode-spec.md, learn-mode.js): on while a walk runs. Entering holds the right panel (open and tab) and the camera; the page header,
+  // the toolbar and the maps stand down (AdaptiveCanvas reads the walk); leaving ends the Focus (camera and selection back) and gives the panel back.
+  const learning = !!canvasState.walk, stopId = canvasState.walk?.cardId ?? null;
+  const [learnTab, setLearnTab] = useState('cards');
+  const [learnGeo, setLearnGeo] = useState(null);
+  const learnHeld = useRef(null);
+  useEffect(() => {
+    const canvas = canvasApi.current;
+    if (learning) { learnHeld.current = { ...learnEnter({ open: panelOpen, tab: panelTab }), view: canvas?.getView?.() || null }; return; }
+    const held = learnHeld.current, was = learnLeave(held);
+    learnHeld.current = null;
+    setLearnTab('cards');
+    if (!was) return;
+    canvas?.exitFocus?.();
+    if (held.view) canvas?.setView?.(held.view);
+    setPanelOpen(was.open);
+    if (was.tab) setPanelTab(was.tab);
+  }, [learning]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Each stop in the tab shown: Cards is the card in Focus (scrolled to its top), Canvas the stop centred at zoom 1, TOC and Chat the right panel's tab.
+  useEffect(() => {
+    const canvas = canvasApi.current;
+    if (!learning || !stopId || !canvas) return;
+    const view = learnView(learnTab);
+    setPanelOpen(view.panel.open);
+    if (view.panel.tab) setPanelTab(view.panel.tab);
+    if (view.focus) {
+      canvas.enterFocus?.(stopId);
+      requestAnimationFrame(() => { const host = document.querySelector('[data-focus-host]'); if (host) { host.scrollTop = 0; host.querySelectorAll('[data-scroll]').forEach(node => { node.scrollTop = 0; }); } });
+    } else if (view.focus === false) { canvas.exitFocus?.(); canvas.walk?.centre(stopId); }
+    if (view.select) canvas.select?.(stopId);
+  }, [learning, learnTab, stopId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Learn | Canvas (learn-mode-spec §2): Study's toggle, labelled Learn on a canvas with built sections. Learn starts the first section not finished.
+  const learnBlocks = canvasApi.current?.blocks?.() || [];
+  const startLearn = () => { const blocks = canvasApi.current?.blocks?.() || [], id = learnSection(walkSections(blocks), section => walkButton(blocks, section)); if (id) canvasApi.current?.walk?.start(id); };
+  const learnToggle = walkSections(learnBlocks).length > 0 && <Tabs value={learning ? 'learn' : 'canvas'} onValueChange={value => { if (value === 'learn') startLearn(); else canvasApi.current?.walk?.exit(); }}>
+    <TabsList square data-study-toggle data-learn-toggle aria-label="Learn or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
+      <TabsTrigger square value="learn" data-learn-toggle-option="learn" className="h-5 px-2.5 text-xs">Learn</TabsTrigger>
+      <TabsTrigger square value="canvas" data-learn-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
+    </TabsList>
+  </Tabs>;
   // A repository canvas in Study (spec 2b): the right panel closes (its Files and Graph are the reference pane's, Chat is the centred bar) and is put back,
   // open or not, when Study ends. panelWas is kept with the arrangement, so a reload in Study still returns it.
   const wasStudying = useRef(study.open);
@@ -2485,15 +2529,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             canvas area's centre (owner header correction, 2026-10-16). */}
         {/* Over the canvas (headerOver) it is an opaque band that takes the pointer (owner, 2026-10-29: no card shows between
             the title and the menus; supersedes 2026-10-22's see-through row). */}
-        {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
+        {!canvasState.presenting && !learning && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
           {/* Study | Canvas (pinned-study-codebase-spec.md 2f, owner 2026-11-15): small, at the far right end of the header row (the header is positioned), not in the centred group. Only when this
               canvas has a generated Run card or Runbook, or a pinned card. Drives the same mode View > Canvas / Study set. */}
-          {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
+          {learnToggle || (studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
             <TabsList square data-study-toggle aria-label="Study or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
               <TabsTrigger square value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Run</TabsTrigger>
               <TabsTrigger square value="canvas" data-study-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
             </TabsList>
-          </Tabs>}
+          </Tabs>)}
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
@@ -2596,9 +2640,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         {/* Study's reference pane: a sibling placed beside the frame (the frame only gets a margin), so the canvas and its notebook
             iframe never move to another parent. */}
-        {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} files={files} graph={graph} />}
+        {learning && <LearnPane walk={canvasState.walk} tab={learnTab} onTab={setLearnTab} canvasApi={canvasApi} canvasFrame={canvasFrame} split={study.state.split} panelOpen={panelOpen} toggle={learnToggle} onGeometry={setLearnGeo} />}
+        {study.open && !learning && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} files={files} graph={graph} />}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere && !roadmap.active} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><CardFeedbackScope.Provider value={feedbackScope}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
-          composer={panelOpen ? null : <div ref={setStripHost} data-canvas-chat-strip />} chatWindow={panelOpen ? null : <div ref={setWindowHost} data-canvas-chat-window className="empty:hidden" />} hooks={steps && !panelOpen ? <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => nextStepSend.current?.(step, hook.hook)} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
+          composer={panelOpen ? null : <div ref={setStripHost} data-canvas-chat-strip />} chatWindow={panelOpen ? null : <div ref={setWindowHost} data-canvas-chat-window className="empty:hidden" />} hooks={steps && !panelOpen ? <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => nextStepSend.current?.(step, hook.hook)} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && !learning && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
   onChoose={kind => { const arg = addLink; setAddLink(null); if (kind === 'canvas') setRefPick(arg); else setTocPick(arg); }} />}
 {tocPick && <ItemPicker title="Link to TOC" searchLabel="Search sections" items={canvasApi.current?.tocSections?.() || []} emptyText="No sections in the table of contents yet."
   linked={tocPick.blockId ? (canvasApi.current?.linkableCards?.().find(card => card.id === tocPick.blockId)?.tocLinks || []) : []} onClose={() => setTocPick(null)}
@@ -2655,16 +2700,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         Context (Sources: Materials and the reader), Files and Graph, one view at a time; every view and every Chat tab stays
         mounted while hidden, so the draft, the reader's page and the graph survive a switch or a hide. Below lg one column
         shows at a time: the companion in Chat's place, with Back to chat. */}
-    <ResizableSidePanel aria-label="Viewer" data-companion phoneHeight="max-lg:h-[60%] max-lg:min-h-[28rem]" resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
+    <ResizableSidePanel aria-label="Viewer" data-companion phoneHeight="max-lg:h-[60%] max-lg:min-h-[28rem]" resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open || learning} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
       <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} actions={companionView === 'context' ? <ContextUpload /> : null} />
       <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane onSwitchOff={ref => { releaseCodeRef(repository, ref); if (askTarget?.ref && sameRef(askTarget.ref, ref)) clearAskTarget(); }} /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" {...CHAT_PANEL} keepMounted collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
-      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open, onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
-        onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" {...CHAT_PANEL} keepMounted collapsed={!panelOpen} fill={learning && panelOpen && learnGeo ? learnGeo.width - learnGeo.guide : null} reserve={panelOpen && companion.open && !learning ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
+      {/* Learn mode: LearnPane's rows lie over the panel's top (its own tabs are Cards | Canvas | TOC | Chat), so the panel starts under them. */}
+      {learning ? <div aria-hidden className="shrink-0" style={{ height: LEARN_TOP + SWITCH_ROW }} /> : <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open, onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+        onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />}
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />
       {panelTab === 'comments' && searchThread?.scope === searchScope && <button type="button" data-search-return onClick={() => setPanelTab('find')} className="mb-2 self-start rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover">Back to Search</button>}
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
@@ -2704,7 +2750,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         contents - hover opens it, a click frames that section, and the panel
         stays closed. A canvas with no sections shows no rail (user, 2026-09-29).
         */}
-    {!panelOpen && <ContentsRail entries={canvasOutline.map((entry, index) => ({ n: index + 1, label: entry.label, available: true, active: false, section: entry.id }))}
+    {!panelOpen && !learning && <ContentsRail entries={canvasOutline.map((entry, index) => ({ n: index + 1, label: entry.label, available: true, active: false, section: entry.id }))}
       onOpen={entry => { if (entry.section) { canvasApi.current?.showSection(entry.section); return; } setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
   </main>;
 }

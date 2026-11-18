@@ -44,14 +44,5 @@ export function walkNext(state, blocks) {
 }
 export const walkPrev = state => (state && state.at > 0 ? { ...state, at: state.at - 1 } : state);
 
-// The camera for a stop (owner 2026-11-18 15:05, decision B): the pill carries the stop's lead and follow, so the camera shows the card alone: fitted to the view's width with
-// the zoom held in [READ_ZOOM, 1], centred on `centreX` (the chat composer's middle; else the view's), its top `margin` below the area's top (the pill's bottom). A card taller
-// than the view runs on below it, scrolled as any canvas is. area: { left, right, top, bottom } in screen pixels. -> { x, y, z } (screen = world * z + view).
-export const READ_ZOOM = 0.85;
-export function walkCamera(card, area, margin, centreX = null) {
-  const z = Math.min(1, Math.max(READ_ZOOM, (area.right - area.left - 2 * margin) / card.w));
-  const x = (centreX ?? (area.left + area.right) / 2) - (card.x + card.w / 2) * z, y = area.top + margin - card.y * z;
-  return { x: Math.round(x), y: Math.round(y), z: Math.round(z * 1000) / 1000 };
-}
-// The green bar (0..1): this card and the ones before it.
-export const walkProgress = state => (state ? Math.min(1, (state.at + 1) / state.stops.length) : 0);
+// The green bar (0..1): this card and the ones before it. walk: { at, total } (AdaptiveCanvas onState walk) | null.
+export const walkProgress = walk => (walk?.total ? Math.min(1, (walk.at + 1) / walk.total) : 0);

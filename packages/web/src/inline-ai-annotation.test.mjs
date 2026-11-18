@@ -91,6 +91,7 @@ const READERS = {
   'web/src/canvas-persist.js': 'saves them as one of the board lists',
   'web/src/explain-inputs.js': 'Explain-back resource inputs: only kind explain-input links (edge, pill, frozen evidence); annotations and other connectors ignored',
   'web/src/learn-style-panel.js': 'styles selected links',
+  'web/src/learn-position.js': 'Learn sections: a connector touching the plan belongs to the column, never an obstacle (columnOwnIds); no annotation reading',
   'web/src/learn-section-perform.js': 'Learn sections: adds connectors between the cards of a section (canvas linkCards, insertCodeExplain links); no reading',
   'control-plane/src/learn-boards.js': 'copies the list on fork; no reading',
   'control-plane/src/shared-privacy.js': 'keeps the list on what a link shows (sharedState); no reading',

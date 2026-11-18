@@ -207,10 +207,10 @@ memory only (`focus-controller.js` `readyToReveal`), so a reload, another canvas
 | `wiki` | `WikiCard` > `LearnWiki.jsx` | `[data-scroll]` article | section, highlights, scroll | UNSUPPORTED (not in the brief); reading placement would work, follow-up |
 | `webpage` | `WebpageCard.jsx` | captured tiles scrolled by a CSS transform | scroll, highlights, lock | UNSUPPORTED (not in the brief); its own transform scroll needs checking first |
 | file document kinds (text, Markdown, table, workbook, Word, presentation) | `FileDocCard.jsx` | `[data-scroll]` bodies | slide index, scroll | UNSUPPORTED (not in the brief); reading or fill would work, follow-up |
-| `repo-code` | `CodeCard.jsx` | `pre[data-scroll]` | scroll | UNSUPPORTED (not in the brief) |
+| `repo-code`, `snippet` | `CodeCard.jsx`, `SnippetBody` | `pre[data-scroll]` | scroll | **SUPPORTED** "Focus code" (Learn mode, learn-mode-spec.md §5): pane-wide up to `WIDE_MAX` at its own height, scrolling inside when cut to the pane (`focus-adapter-learn.js`) |
 | `repo-graph` | `GraphCard.jsx` | own graph viewport | pan, zoom, selection | UNSUPPORTED (not in the brief) |
-| `graph` (Desmos / Plotly) | `GraphBody` | renderer in a fixed box | sliders, pan, zoom | UNSUPPORTED (not in the brief; third-party renderers need their own resize check) |
-| `flow`, `mermaid`, `knowledge` | `FlowBody` (React Flow), `MermaidBody`, `KnowledgeBody` (RepositoryGraph) | fixed height, own viewport or `overflow-auto` | pan, zoom, selected node | UNSUPPORTED (not in the brief) |
+| `graph`, `plot` (Desmos / Plotly) | `GraphBody` | renderer in a fixed box | sliders, pan, zoom | **SUPPORTED** "Focus graph" (Learn mode): as code; the renderer keeps its own box |
+| `flow`, `mermaid`, `knowledge` | `FlowBody` (React Flow), `MermaidBody`, `KnowledgeBody` (RepositoryGraph) | fixed height, own viewport or `overflow-auto` | pan, zoom, selected node | `flow`, `mermaid`: **SUPPORTED** "Focus diagram" (Learn mode), as code. `knowledge`: UNSUPPORTED. Any other card in Learn mode only: "Focus card", natural size, centred |
 | `whiteboard` | `WhiteboardBlock.jsx` (tldraw) | fixed height | tldraw camera, drawing | UNSUPPORTED (an embedded canvas inside the canvas; needs its own check) |
 | `quiz`, `flashcards`, `challenge`, `code`, `snippet`, `audio` | `QuizBody`, `FlashcardsBody`, `ChallengeBody`, `CodeBody`, `SnippetBody`, `AudioBody` | `[data-scroll]` or auto height | choice, card side, typed answer, editor draft, audio playback | UNSUPPORTED (not in the brief; short practice cards that already fit) |
 | chat exchanges | `ChatCard` | `[data-scroll]` answer | reply composer | UNSUPPORTED (not a block; not in the brief) |

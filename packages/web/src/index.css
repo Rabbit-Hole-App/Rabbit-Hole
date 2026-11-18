@@ -1095,6 +1095,8 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-study-card] [data-canvas-world] { visibility: hidden; }
 [data-study-card] [data-canvas-world] [data-focus-host] { visibility: visible; }
 [data-focus-host]:has([data-program-viewport]) { overflow: auto !important; overscroll-behavior: contain; }
+/* Learn mode's Cards tab (focus-adapter-learn.js): a code, diagram, graph or other card cut to the pane's height scrolls as one surface. */
+[data-focus-natural] { overflow: auto !important; overscroll-behavior: contain; }
 /* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
    the height. Play, the scrubber and the inputs keep their 32 px targets; Interact's label sits beside its inputs. The Slash
    Commands window's /explain example (data-slash-card) closes up the same way. */
