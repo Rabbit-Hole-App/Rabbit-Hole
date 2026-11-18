@@ -779,8 +779,9 @@ export function panelBoxOk(layoutId, [x, y, w, h]) {
 
 // Section 7 point 5: the panel's picture is measured at build time (its natural size from the renderer, read only) and drawn at the width where its height fits the panel box. The frame's scale for a diagram is
 // min(1, w / natural width, (frame height - y) / natural height), so the width alone sets it. clearRight: the picture keeps left of this x (the reset cell). Centred in what is left of the box.
-export function fitPanel(natural, box, { clearRight = Infinity } = {}) {
+// amendment F: align 'left' puts the picture at the box's left edge instead of centring it.
+export function fitPanel(natural, box, { clearRight = Infinity, align = 'centre' } = {}) {
   const [bx, by, bw, bh] = box, room = Math.min(bw, clearRight - bx);
   const w = Math.floor(Math.min(natural.width, room, natural.width * bh / natural.height) * 100) / 100, h = natural.height * w / natural.width;
-  return { x: Math.round((bx + (room - w) / 2) * 100) / 100, y: Math.round((by + (bh - h) / 2) * 100) / 100, w, drawn: { w, h: Math.round(h * 100) / 100 } };
+  return { x: Math.round((bx + (align === 'left' ? 0 : (room - w) / 2)) * 100) / 100, y: Math.round((by + (bh - h) / 2) * 100) / 100, w, drawn: { w, h: Math.round(h * 100) / 100 } };
 }
