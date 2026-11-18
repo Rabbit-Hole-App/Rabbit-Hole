@@ -1,14 +1,14 @@
 // SAME-1 measurement (NOT RUN by the author: real provider calls; the lead runs it, owner cap US$1, stop line US$0.90). In-process harness derived from var-1-bench/run.mjs (generateArtifact + the fast chain,
-// planner jev, sampler off, no pictures). Arms (git archive trees under C:/s/same1-measure-trees): before = main 2aeca536d; after = feat/same-1 a1452a98c (planner text); afterb = feat/same-1-validator bcf038ac1
+// planner jev, sampler off, no pictures). Arms (git archive trees under C:/s/same1-measure-trees): before = main 2aeca536d; after = feat/same-1 a1452a98c (planner text); everything = feat/same-1 + feat/same-1-validator (narrowed, a26f8b173) + Codex's explain/same-1-data when pushed; built by build-trees.mjs from a ref list
 // (planner text + the 2-items-per-side transformation rule). The model profile is a PROPERTY OF THE ITEM (EXPLANATION_MODEL_PROFILE = google-low: Gemini flash-lite, then Fireworks gpt-oss-120b; fireworks-low: Fireworks
 // gpt-oss-120b at low effort, then Gemini; see explanation-models.js and the explanation-fast-chain.js header). Context is null: the archive keeps only hasContext, so the parent card's text is not reproduced (B keeps its wrapper in the args).
 //   node run.mjs --dry-run                              plan, key NAMES, every import; NO provider call
-//   node run.mjs --out results.jsonl [--cap 0.90] [--arms before,after,afterb] [--limit N] [--only i,j]   resumable; stops at the stop line (exit 3)
+//   node run.mjs --out results.jsonl [--cap 0.90] [--arms before,after,everything] [--limit N] [--only i,j]   resumable; stops at the stop line (exit 3)
 import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-const { values: a } = parseArgs({ options: { plan: { type: 'string', default: 'C:/s/film-evidence/docs/features/explain/checks/same-1/measure/plan.json' }, out: { type: 'string', default: 'results.jsonl' }, cap: { type: 'string', default: '0.90' }, limit: { type: 'string' }, only: { type: 'string' }, trees: { type: 'string', default: 'C:/s/same1-measure-trees' }, arms: { type: 'string', default: 'before,after,afterb' }, 'dry-run': { type: 'boolean', default: false } } });
+const { values: a } = parseArgs({ options: { plan: { type: 'string', default: 'C:/s/film-evidence/docs/features/explain/checks/same-1/measure/plan.json' }, out: { type: 'string', default: 'results.jsonl' }, cap: { type: 'string', default: '0.90' }, limit: { type: 'string' }, only: { type: 'string' }, trees: { type: 'string', default: 'C:/s/same1-measure-trees' }, arms: { type: 'string', default: 'before,after,everything' }, 'dry-run': { type: 'boolean', default: false } } });
 const ENV_FILE = 'C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', NAMES = ['GEMINI_API_KEY', 'FIREWORKS_API_KEY', 'TYPESAFE_API_KEY'];
 const keys = {};
 for (const line of fs.readFileSync(ENV_FILE, 'utf8').split(/\r?\n/)) { const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)$/); if (m && NAMES.includes(m[1])) keys[m[1]] = m[2].trim().replace(/^(['"])(.*)\1$/, '$2'); }
@@ -37,6 +37,7 @@ function ledger(arm) {
 }
 const parseDiagrams = body => [...String(body).matchAll(/```rh-diagram\n([\s\S]*?)```/g)].map(m => { try { const j = JSON.parse(m[1]); return j.diagram ?? j; } catch { return null; } }).filter(Boolean);
 
+const counts = d => Object.fromEntries(Object.entries(d).flatMap(([k, v]) => (Array.isArray(v) ? [[k, v.length]] : v && typeof v === 'object' && Array.isArray(v.items) ? [[k, v.items.length]] : [])));
 const sameDiagram = d => JSON.stringify(d, (k, v) => (k === 'title' || k === 'caption' ? undefined : v));
 async function runOne(arm, item) {
   const T = trees[arm], { sqlite, LEARN_DB } = ledger(arm);
@@ -65,6 +66,7 @@ async function runOne(arm, item) {
     result: delivered ? 'artifact' : (res.result ?? 'error'), honestFailure: !delivered, errorCode: delivered ? null : (thrown?.code ?? res.reason ?? res.code ?? null), failureMessage: delivered ? null : String(res.error ?? res.message ?? thrown?.message ?? '').slice(0, 300),
     plannedKind: trace.plan?.kind ?? null, plannerKind: trace.plannerKind ?? null, kindSource: trace.plan?.kindSource ?? null, references: trace.references ?? null, shapeId: trace.shapeId ?? null,
     deliveredKinds: diagrams.map(d => d.kind), deliveredAsPlanned: delivered && Boolean(trace.plan?.kind) && diagrams.some(d => d.kind === trace.plan.kind), pictureKey: diagrams.length ? sameDiagram(diagrams[0]) : null,
+    cards: diagrams.map(d => ({ kind: d.kind, counts: counts(d) })),
     transformationSizes: diagrams.filter(d => d.kind === 'transformation').map(d => [d.before?.items?.length ?? null, d.after?.items?.length ?? null]),
     repairs: invalid.length, invalidErrors: invalid.map(e => String(e.error ?? '').slice(0, 160)), authoredBy: res.block?.authoredBy ?? null, attempts, ledger: rows, costMicros, costMicrosUpper, title: delivered ? res.block.title : null };
 }

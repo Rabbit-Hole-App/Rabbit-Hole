@@ -1,8 +1,9 @@
 // Offline count: which library references and gallery specs carry a list-form transformation with fewer than 2 items on a side.
-// usage: node validator-count.mjs <treeRoot>   (a checkout of main / feat/same-1)
+// usage: node validator-count.mjs <treeRoot> [broad|narrow]   (a checkout of main / feat/same-1). narrow (default, Reviewer's rule): rejected only when exactly ONE text item before and ONE text item after.
+// broad (v1, validator-count-v1-broad.md): fewer than 2 items on a side, unless any item is a tensor.
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-const root = process.argv[2];
+const root = process.argv[2], mode = process.argv[3] ?? 'narrow';
 const { diagramReferences } = await import(pathToFileURL(`${root}/packages/web/src/tutor-diagrams/reference-library.js`).href);
 const td = `${root}/packages/web/src/tutor-diagrams`;
 const gallery = JSON.parse(fs.readFileSync(`${td}/kind-gallery.json`, 'utf8'));
@@ -18,7 +19,7 @@ const walk = (node, path, onHit) => {
 const check = (source, id, root_) => walk(root_, '', (d, path) => {
   const tensor = [...d.before.items, ...d.after.items].some(i => typeof i !== 'string');
   const b = d.before.items.length, a = d.after.items.length;
-  found.push({ source, id, path, before: b, after: a, tensorExempt: tensor, rejected: !tensor && (b < 2 || a < 2) });
+  found.push({ source, id, path, before: b, after: a, tensorExempt: tensor, rejected: mode === 'broad' ? !tensor && (b < 2 || a < 2) : b === 1 && a === 1 && !tensor });
 });
 for (const r of diagramReferences) check('reference', r.id, r);
 gallery.forEach((s, i) => check('gallery', `kind-gallery[${i}] ${s.diagram?.kind}`, s));

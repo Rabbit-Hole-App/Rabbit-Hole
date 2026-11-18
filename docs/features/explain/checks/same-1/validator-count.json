@@ -2,67 +2,13 @@
  "references": 469,
  "transformationListDiagramsFound": 53,
  "tensorExempt": 33,
- "rejected": 10,
+ "rejected": 4,
  "rejectedBy": {
-  "reference": 6,
+  "reference": 0,
   "gallery": 1,
   "gallery-depths": 3
  },
  "list": [
-  {
-   "source": "reference",
-   "id": "ml-gpt2-learned-position-lookup",
-   "path": ".depths.overview.spec.diagram",
-   "before": 2,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "reference",
-   "id": "ml-gpt2-fused-qkv-slices",
-   "path": ".depths.overview.spec.diagram",
-   "before": 1,
-   "after": 3,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "reference",
-   "id": "figure-retro-chunk-embedding",
-   "path": ".depths.overview.spec.diagram",
-   "before": 2,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "reference",
-   "id": "figure-gpt2-learned-position-decoder",
-   "path": ".depths.overview.spec.diagram",
-   "before": 2,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "reference",
-   "id": "figure-recurrent-decoder-matrix-memory",
-   "path": ".depths.overview.spec.diagram",
-   "before": 2,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "reference",
-   "id": "figure-gallery-latent-query-and-kv",
-   "path": ".depths.overview.spec.diagram",
-   "before": 1,
-   "after": 2,
-   "tensorExempt": false,
-   "rejected": true
-  },
   {
    "source": "gallery",
    "id": "kind-gallery[10] transformation",
