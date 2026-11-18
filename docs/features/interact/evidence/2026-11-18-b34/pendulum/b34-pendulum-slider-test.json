@@ -1,0 +1,18 @@
+{
+  "before": {
+    "time": "0",
+    "x": "0.5",
+    "text": "Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Press play, then change the mass and the length of B. A: 1 kg, 1 m B: 1 kg, 0.5 m Faster: a shorter string swings quicker. Angle against time Angle (°) -25 0 25 0 2 4 6 8 Time (s) Pendulum A, the reference: 1 kg and 1 m Pendulum B, set with the two sliders Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 1.42 s per swing Play 0.00s B mass: 1.0 kg B length: 0.5 m"
+  },
+  "playing": {
+    "time": "1.502"
+  },
+  "afterMove": {
+    "time": "1.518",
+    "x": "1.5",
+    "text": "Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Press play, then change the mass and the length of B. A: 1 kg, 1 m B: 1 kg, 1.5 m Slower: a longer string takes longer. Angle against time Angle (°) -25 0 25 0 2 4 6 8 Time (s) Pendulum A, the reference: 1 kg and 1 m Pendulum B, set with the two sliders Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.46 s per swing Play 1.52s B mass: 1.0 kg B length: 1.5 m"
+  },
+  "later": {
+    "time": "1.518"
+  }
+}
