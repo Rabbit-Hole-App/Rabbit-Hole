@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, DOC_TEXT_SIZES, DRAWN_TEXT_SIZES, LayoutError, checkText, fitPanel, fitValues, layoutById, pickLayout, valueBoxes } from './interact-layout.js';
+import { LAYOUTS, DOC_TEXT_SIZES, DRAWN_TEXT_SIZES, VALUE_DOT, LayoutError, checkText, fitPanel, fitValues, layoutById, pickLayout, valueBoxes } from './interact-layout.js';
 import { textWidth } from './tutor-diagrams/primitives.js';
 
 // Brief 35: docs/features/interact/layout.md is the spec. DOC_BOXES is section 5's JSON boxes typed out of it; the grid test derives each again from section 1's column and row edges.
@@ -65,12 +65,13 @@ test('a value under 64 px tall is one line; layout 5 keeps its top value left of
   assert.equal(valueBoxes('tall', 2)[0].maxRight, 583); assert.equal(valueBoxes('tall', 2)[1].maxRight, 628);
 });
 
-test('a value is one box with its own text "Label: value unit": the whole text is measured against the box width less 16 px', () => {
+test('a value is one box with its own centred text "Label: value unit": the whole text is measured against the box width less the dot room (50 px)', () => {
   const text = 'Period B: 2.01 s', width = textWidth(text, DRAWN_TEXT_SIZES.value);
   assert.equal(Math.round(width * 10) / 10, 136.2); // 15 px body text, the size a frame text draws
-  assert.equal(fitValues('wide', Array(3).fill({ text }), DRAWN_TEXT_SIZES).dropped, 0); // 189 px of room at three values
-  assert.equal(fitValues('wide', Array(4).fill({ text }), DRAWN_TEXT_SIZES).dropped, 1); // 136 px of room at four: 136.2 does not fit, the last is dropped and the box divided again
-  assert.equal(fitValues('wide', Array(4).fill({ text: 'Angle B: 19°' }), DRAWN_TEXT_SIZES).dropped, 0);
+  assert.equal(VALUE_DOT.diameter, 10); assert.equal(VALUE_DOT.centreX, 14); assert.equal(VALUE_DOT.textClear, 6);
+  assert.equal(fitValues('wide', Array(3).fill({ text }), DRAWN_TEXT_SIZES).dropped, 0); // 155 px of room at three values (205 less 50)
+  assert.equal(fitValues('wide', Array(4).fill({ text }), DRAWN_TEXT_SIZES).dropped, 1); // 102 px of room at four (152 less 50): the last is dropped and the box divided again
+  assert.equal(fitValues('wide', Array(4).fill({ text: 'Mass: 1 kg' }), DRAWN_TEXT_SIZES).dropped, 0);
 });
 
 test('a long label with a long number at four values is dropped to three, in list order', () => {

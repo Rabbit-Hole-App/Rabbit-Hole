@@ -58,10 +58,15 @@ if (process.argv.includes('--measure')) {
   console.log(`panel box ${JSON.stringify(panel)}; picture drawn at x ${rows[0].parsed ? run(1, 0).diagram.args[1].x : ''} y ${run(1, 0).diagram.args[1].y}, ${r2(rows[0].drawn.w)} x ${r2(rows[0].drawn.h)}; the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
   // every text in the frame against its box, at the size a frame text draws (the width model of the renderer)
   const objects = run(2, 3).objects, size = DRAWN_TEXT_SIZES.value, lines = [];
-  // amendment C: every value, the formula and the note is one box with its own text (or math run); the text against the box's width less 16 px
-  const boxText = id => { const o = objects.find(x => x.fn === 'box' && x.args[0] === id), opts = o.args[5] ?? {}; return { w: o.args[3], text: opts.text ?? `$${opts.runs[0].tex}$`, math: Boolean(opts.runs) }; };
-  for (const id of ['value.0', 'value.1', 'value.2', 'formula', 'note']) { const b = boxText(id); lines.push(`${id}${b.math ? ' (math run)' : ''}: "${b.text}" ${r2(textWidth(b.text, size))} of ${b.w - 16} (box ${b.w})`); }
-  for (const [name, sentence] of Object.entries(base.notes)) lines.push(`note ${name}: ${r2(textWidth(sentence, size))} of ${boxText('note').w - 16}`);
+  // amendments C and D: a value and the note are one box with its own text; the formula is a math run with no box, centred in its slot
+  const boxText = id => { const o = objects.find(x => x.fn === 'box' && x.args[0] === id), opts = o.args[5] ?? {}; return { w: o.args[3], h: o.args[4], text: opts.text }; };
+  for (const id of ['value.0', 'value.1', 'value.2']) { const b = boxText(id); lines.push(`${id}: "${b.text}" ${r2(textWidth(b.text, size))} of ${r2(b.w - 50)} (box ${b.w} x ${b.h}; the text keeps 25 px clear of each side for the dot)`); }
+  const math = objects.find(x => x.fn === 'math' && x.args[0] === 'formula'), slot = layoutById('side-by-side').slots.formula.box;
+  lines.push(`formula (math run, no box): "$${math.args[3]}$" ${r2(textWidth(`$${math.args[3]}$`, size))} of ${slot[2] - 16} (slot ${slot[2]} x ${slot[3]}); centre x ${math.args[1]} (slot ${slot[0] + slot[2] / 2}), row centre y ${r2(math.args[2] - 5.25)} (slot ${slot[1] + slot[3] / 2})`);
+  const note = boxText('note'); lines.push(`note box ${note.w} x ${note.h}`);
+  const dot = objects.find(x => x.fn === 'circle' && x.args[0] === 'chip.0'), v0 = objects.find(x => x.fn === 'box' && x.args[0] === 'value.0');
+  lines.push(`dot 0: diameter ${dot.args[3]}, centre ${dot.args[1] - v0.args[1]} px from the box's left edge, ${r2(dot.args[2] - (v0.args[2] + v0.args[4] / 2))} px from its vertical centre`);
+  for (const [name, sentence] of Object.entries(base.notes)) lines.push(`note ${name}: ${r2(textWidth(sentence, size))} of ${note.w - 16}`);
   // the stage: every ball of both pendulums over the whole 8 s at the extreme settings, against the stage box
   const stage = layoutById('side-by-side').slots.stage.box; let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
   for (const [mass, length] of [[3, 2], [0.5, 0.5], [3, 0.5], [0.5, 2]]) for (let t = 0; t <= 8; t += 0.05) for (const o of run(length, t, mass).objects) if (o.fn === 'circle' && o.args[0].startsWith('ball.')) {
