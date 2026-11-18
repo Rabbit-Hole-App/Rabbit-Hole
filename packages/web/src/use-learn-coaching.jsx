@@ -8,7 +8,7 @@ import { api } from './api.js';
 import { Toggle } from './ui.jsx';
 import { controlsNote, createCoachingSync, effectiveControls } from './learn-coaching-client.js';
 import { checkpointOf, entryAction, entryCopy, resolveTutorEntry } from './learn-coaching-entry.js';
-import { shownActivity } from './TutorActivity.jsx';
+import { learnPlanActive, shownActivity } from './TutorActivity.jsx';
 import { useTutorCodebase } from './TutorCodebase.jsx';
 
 const CHANNEL = 'rh.learn-coaching';
@@ -108,7 +108,7 @@ export function TutorCoaching({ chat, send, messages = 0, busy = false }) {
     </p>}
     {codebase.view}
     {/* The activity card (TutorActivity.jsx) wins: Continue's saved prompt shows only where that card does not. */}
-    {shown && engaged === chat.canvas && !shownActivity(coaching.state) && <p data-tutor-activity className="mb-2 rounded-xl border border-line bg-white p-2.5 text-sm text-ink">{shown}</p>}
+    {shown && engaged === chat.canvas && !shownActivity(coaching.state) && !learnPlanActive(coaching.state) && <p data-tutor-activity className="mb-2 rounded-xl border border-line bg-white p-2.5 text-sm text-ink">{shown}</p>}
     {offer && <section data-tutor-entry={entry.kind} aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
       <p className="text-sm text-ink">{entryCopy(entry, checkpoint)}</p>
       <div className="flex flex-wrap gap-1.5">
