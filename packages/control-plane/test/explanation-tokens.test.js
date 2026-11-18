@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { fillTokens, leftoverToken } from '../src/explanation-tokens.js';
-import { EXPLANATION_VISUAL_RULES } from '../src/learn-primitives.js';
+import { EXPLANATION_VISUAL_RULES, TOKEN_RULE } from '../src/learn-primitives.js';
+import { visualsStatement } from '../src/explanation-planner.js';
+import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { withVisual, diagramFence } from './explanation-layout-fixture.js';
 
 const scripted = (...inputs) => {
@@ -101,4 +103,20 @@ test("a token whose diagram does not parse is left for that diagram's own proble
 
 test('the author is told to write computed numbers as tokens (the shared visual rule)', () => {
   assert.match(EXPLANATION_VISUAL_RULES, /A number the figure computes from others \(fences, means, normalised weights, softmax outputs\) is written as \{\{d:N\.path\}\}, never typed/);
+});
+
+// Reviewer 2026-11-18: the token sentence enters the prompt only when the card has a diagram; a prose-only card (a plan of pictures only or of nothing) never reads it.
+test('the token sentence is in the prompt of a card with a diagram and absent from a prose-only card', () => {
+  const diagram = visualsStatement({ planner: 'jev' }, { source: 'plan', visuals: [{ type: 'diagram', kind: 'box-plot' }] });
+  const mixed = visualsStatement({ planner: 'jev' }, { source: 'plan', visuals: [{ type: 'picture' }, { type: 'diagram', kind: 'flow' }] });
+  const pictures = visualsStatement({ planner: 'jev' }, { source: 'plan', visuals: [{ type: 'picture' }] });
+  const none = visualsStatement({ planner: 'jev' }, { source: 'plan', visuals: [] });
+  assert.ok(diagram.includes(TOKEN_RULE.trim()) && mixed.includes(TOKEN_RULE.trim()));
+  assert.ok(!pictures.includes('{{d:') && !none.includes('{{d:'), 'no token sentence without a diagram in the plan');
+  assert.ok(pictures.endsWith('incomplete.') && pictures.includes('(no diagram)'), 'the rest of the statement is the shipped text');
+  // an unplanned card may still draw a diagram, so its rules block keeps the sentence (the whole request, not only the statement)
+  const request = plan => prepareArtifactAuthorRequest({}, { command: 'explanation', args: 'how does public-key encryption work?', ...(plan ? { plan } : {}) });
+  const text = prepared => [prepared.body.system, ...prepared.body.tools.map(tool => tool.description)].join(' ');
+  assert.ok(text(request(null)).includes('{{d:N.path}}'));
+  assert.ok(!text(request({ planner: 'jev', visuals: [{ type: 'picture' }], kind: null })).includes('{{d:N.path}}'), 'a picture-only plan: the author request carries no token sentence');
 });
