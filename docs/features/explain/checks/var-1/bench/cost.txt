@@ -1,0 +1,1 @@
+running total upper bound US$5.8145 after 534 runs (settled ledger cost + reservations of unknown-cost calls + US$0.0002 planner estimate per run); stop line US$5.80; arms before,after
