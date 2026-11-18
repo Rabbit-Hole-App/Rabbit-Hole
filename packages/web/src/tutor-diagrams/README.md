@@ -71,6 +71,26 @@ Plots accept point, segment, vector, reference-line, rectangle, polygon, circle,
 
 A highlighted tree path is root-to-descendant, not an arbitrary traversal order. Inorder traversal uses visit annotations on the actual structure. A family descendant hierarchy has one root and one parent per child; a multiple-parent pedigree needs a relationship graph.
 
+## Derived fields (VAR-1, `derived.js`)
+
+A number that is a function of other numbers is derived: the server computes it, the validator checks a written one against it, and the figure prints it. `derived.js` is the closed table (one row per definition: kind, path, inputs, compute, tolerance). A written derived field must equal its computation within half a unit of the decimals written on it, else the issue is tagged `code: 'arithmetic'` and names the correct numbers (the release 154 route); an absent one is filled by `parseTutorDiagram` before any layout reads the diagram, so the renderer prints the computed value wherever it prints the field. Decimals of a computed value: box-derived fences keep the most decimals among q1 and q3; a statistic (mean, median, centroid, y on a series) keeps one more than its inputs, capped at 3; a proportion (softmax output, normalised weight, histogram proportion) keeps 2.
+
+| Kind | Derived field | Computed from | Rule |
+| --- | --- | --- | --- |
+| `box-plot` | `boxes[].fences` (optional) | `q1`, `q3` | Absent: filled with Q1 - 1.5 IQR and Q3 + 1.5 IQR. Written: must equal them and enclose both whiskers (release 154's messages). A box without fences keeps 154's outlier rule (read against the whiskers) |
+| `transformation` (list) | `after.items` (optional with `op`) | `before.items`, `op`, `t` | `op: 'softmax'` recomputes whatever the words say; `t` (optional, positive) divides the before items. The gate words (temperature, `T =`, scaled, masked, causal, log-softmax) switch off only the word trigger kept from 154, never `op` |
+| `token-links` | `queries[].weights` | raw weights | With `normalized`, weights summing to 0.98 to 1.02 (each at most 1) stay as written; any other nonnegative weights are raw scores, replaced by their shares (2 decimals, summing to 1). A zero total is rejected |
+| `histogram` | `series[].values` | counts | `measure: 'proportion'` with whole-number values that are not already proportions: read as counts, replaced by proportions (2 decimals, summing to 1) |
+| `heatmap` | `range` (optional) | `rows[].cells` | Absent: the smallest and largest numeric cell. A written range is kept and still bounds every cell |
+| `sample-set` | out-of-bag `members` (optional), `omitted` | `members`, `outOfBagFor` | Set differences. An out-of-bag set may leave its members out (filled); a written `omitted` or out-of-bag member list must equal the set difference (arithmetic, naming the ids). `omitted` is a display choice and is never filled |
+| `coordinate-plot` | annotation numbers, through `derive` | a series | `derive: 'series.<i>:on'` (point, segment ends, vector ends: x given, y optional, from the series with its own interpolation: monotone curve unless `smooth: false`, held value for a step, own x for a scatter or stem); `:mean`, `:median`, `:min`, `:max` (reference-line, `value` optional, over the series coordinate on the line's axis); `:centroid` (point, x and y optional) |
+
+Schema cost: `derive` is one string property on four annotation kinds (point, segment, vector, reference-line) and `op` (+ `t`) are on the list transformation; they are withheld from Gemini's schema bundle (`explanation-fast-chain.js forGemini`), which stays byte-identical to before. `derived.js` holds kinds only: no subject-matter words.
+
+### Varied inputs on references (VAR-1 step 3, `vary.js`)
+
+A reference may carry `vary` (on the reference object, never in `spec.diagram`): `{ path: [min, max, step] }`, optionally a 4th element naming a path the value may not fall below. `varySpec(spec, vary, seed, id)` redraws those numbers on the grid of min and step, sets every derived field from the new inputs, prints `{{d:path}}` tokens in the reference's text, and `explanation-references.js` calls it for the selected reference of a seeded request before `parseTutorDiagram`. `varyProblems(ref)` is the lint: a number that varies, or a number a derived field computes from it, must not be typed in the reference's text (write a token). No reference has `vary` in step 3.
+
 ## Static illustration kinds
 
 | Kind | Schema and layout modules | Supported structure |
