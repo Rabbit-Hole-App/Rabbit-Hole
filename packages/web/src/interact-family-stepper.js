@@ -6,6 +6,9 @@ import { STEPPER_PLANS } from './interact-stepper-plans.js';
 import { TREE_TRACE_PLAN } from './interact-tree-trace-plan.js';
 import * as stepperScene from './interact-templates/stepper-scene.js';
 import * as treeTrace from './interact-templates/tree-trace.js';
+import * as treeMotion from './interact-templates/tree-motion.js';
+import * as voteMotion from './interact-templates/vote-motion.js';
+import { MOTION_PLANS } from './interact-motion-plans.js';
 import {
   canonicalIds, DEPTH_LIMITS, WORDS, compositionSchemaFor, fillCompositionSchemaFor, parseComposition, plainText, schemaFailures, wordsSchema,
 } from './interact-stepper-schema.js';
@@ -310,6 +313,8 @@ export function extractBrief(plan) {
   return parsed.value;
 }
 export function context({ scene }) {
+  if (scene.template === 'stepper-tree-motion') return { range: { tree: treeMotion.treeMotionSchema.parse(scene.data) }, units: {} };
+  if (scene.template === 'stepper-vote-motion') return { range: { vote: voteMotion.voteMotionSchema.parse(scene.data) }, units: {} };
   if (scene.template === 'stepper-tree-trace') return { range: { tree: treeTrace.treeTraceSchema.parse(scene.data) }, units: {} };
   return { range: { composition: requireComposition(scene.data), words: wordsSchema.parse(scene.words) }, units: {} };
 }
@@ -331,15 +336,15 @@ const freezeData = value => {
 export const compositions = freezeData(Object.fromEntries(canonicalIds.map(canonical => [canonical,
   Object.fromEntries(depthNames.map(depth => [depth, referenceComposition(canonical, depth)])),
 ])));
-export const templateModules = Object.freeze(Object.fromEntries(templates.map(name => [name, name === 'stepper-tree-trace' ? treeTrace : stepperScene])));
-export const fixtureGroups = catalogueHash => ({ stepperPlans: Object.fromEntries(Object.entries({ ...STEPPER_PLANS, 'stepper-tree-trace-brief': TREE_TRACE_PLAN }).map(([name, stored]) => {
+export const templateModules = Object.freeze(Object.fromEntries(templates.map(name => [name, ({ 'stepper-tree-trace': treeTrace, 'stepper-tree-motion': treeMotion, 'stepper-vote-motion': voteMotion })[name] ?? stepperScene])));
+export const fixtureGroups = catalogueHash => ({ stepperPlans: Object.fromEntries(Object.entries({ ...STEPPER_PLANS, 'stepper-tree-trace-brief': TREE_TRACE_PLAN, ...MOTION_PLANS }).map(([name, stored]) => {
   const plan = structuredClone(stored);
   plan.scene.runtime.catalogueHash = catalogueHash;
   return [name, plan];
 })) });
 export const pins = Object.freeze({
-  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }), 'tree-trace': Object.freeze({ brief: 'stepper-tree-trace-brief' }) }),
-  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']), 'stepper-tree-trace-brief': Object.freeze(['stepper-tree-trace-brief', 'brief', 'stepperPlans']) }),
+  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }), 'tree-trace': Object.freeze({ brief: 'stepper-tree-trace-brief' }), motion: Object.freeze({ brief: 'stepper-tree-motion-brief', balanced: 'stepper-vote-motion-balanced' }) }),
+  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']), 'stepper-tree-trace-brief': Object.freeze(['stepper-tree-trace-brief', 'brief', 'stepperPlans']), 'stepper-tree-motion-brief': Object.freeze(['stepper-tree-motion-brief', 'brief', 'stepperPlans']), 'stepper-vote-motion-balanced': Object.freeze(['stepper-vote-motion-balanced', 'balanced', 'stepperPlans']) }),
 });
 export const checkMap = Object.freeze({
   'packages/web/src/interact-family-stepper.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],

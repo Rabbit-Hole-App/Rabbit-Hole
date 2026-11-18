@@ -22,7 +22,9 @@ if (flag('help')) { console.log(USAGE); process.exit(0); }
 const check = flag('check') || flag('check-browser'), promptsFile = opt('prompts'), depth = opt('depth', 'brief');
 const BASE = opt('base', 'http://127.0.0.1:8878').replace(/\/$/, ''), EMAIL = opt('email', 'owner-interact-ml@example.com');
 const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b27')), CANVAS_FILE = opt('canvas-file', `${SPEC_DIR}/ml-canvas.json`);
-const WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
+// brief 31: --steps <n> advances the card's step slider n-1 times after the card screenshot, saving <id>-stateK.png per state and every flow node's rendered box in <id>-nodes.json.
+// brief 32: --times 0.6,1.8,3 sets the card's time scrubber to each moment (a timed card), saving <id>-t<k>.png, the diagram's SVG and every flow node's box in <id>-times.json; --slider-test plays the card, then moves its x slider to 2 and records what changed.
+const TIMES = opt('times', '').split(',').filter(Boolean).map(Number), SLIDER_TEST = flag('slider-test'), STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
 if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
 if (!check && !promptsFile) fail(`--prompts <list.json> is required (or --check). ${USAGE}`, 2);
 if (!(stopUsd > 0)) fail(`--stop-usd is a positive number. ${USAGE}`, 2);
@@ -104,20 +106,25 @@ await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ ti
 });
 await page.waitForTimeout(2000);
 const depthButton = page.locator('[data-depth-menu] [data-depth]').first();
-if (await depthButton.getAttribute('data-depth').catch(() => null) !== depth) {
-  await depthButton.click(); await page.locator(`[data-depth-option="${depth}"]`).click(); await page.waitForTimeout(300);
-  if (await depthButton.getAttribute('data-depth') !== depth) fail(`could not set Depth to ${depth}`);
-}
+// brief 32: a prompt entry may carry its own "depth" (two cards of different Depths on one canvas); the run's --depth is the default.
+const setDepth = async want => {
+  if (await depthButton.getAttribute('data-depth').catch(() => null) !== want) {
+    await depthButton.click(); await page.locator(`[data-depth-option="${want}"]`).click(); await page.waitForTimeout(300);
+    if (await depthButton.getAttribute('data-depth') !== want) fail(`could not set Depth to ${want}`);
+  }
+};
+await setDepth(depth);
 const box = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const detailOf = async (id, version) => (await api('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1${version ? `&version=${version}` : ''}`)).data;
 const save = (name, value) => { if (value == null) return null; writeFileSync(`${OUT}/${name}`, JSON.stringify(value, null, 2)); return name; };
 
 const results = []; let spent = 0, stopped = null;
-for (const { id, prompt, expect } of PROMPTS) {
+for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
+  await setDepth(promptDepth ?? depth);
   const tag = String(id), known = new Set((await jobsOf()).map(j => j.id)), plans0 = await page.locator('[data-generation-proposal] [data-proposal-generate]').count();
   await box.click(); await box.fill(`/interactive ${prompt}`); await page.waitForTimeout(200);
   const tSent = Date.now(); await box.press('Enter'); log(tag, 'sent');
-  const r = { id: tag, prompt, expect: expect ?? 'fit', depth, jobId: null, stage: null, stopReason: null, pick: null, fill: null, build: null, promptToCardMs: null, usd: null, files: {} };
+  const r = { id: tag, prompt, expect: expect ?? 'fit', depth: promptDepth ?? depth, jobId: null, stage: null, stopReason: null, pick: null, fill: null, build: null, promptToCardMs: null, usd: null, files: {} };
   let job = null, shown = false;
   const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: WAIT_MS, polling: 'raf' }).then(() => { shown = true; }, () => {});
   // a fast pass builds straight through (ready with no proposal); a job that ends first (failed, cancelled) ends the wait too
@@ -137,7 +144,38 @@ for (const { id, prompt, expect } of PROMPTS) {
   Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s'), network: end ? undefined : net.splice(0) });
   if (end?.stage === 'ready') {
     const card = page.locator('[data-program-card]').last();
-    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`; } catch (e) { r.files.screenshot = `not taken: ${firstLine(e.message)}`; }
+    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`;
+      if (STEPS > 1) {
+        const slider = card.locator('input[type="range"]').first(), states = [];
+        for (let k = 1; k <= STEPS; k++) {
+          if (k > 1) { await slider.focus(); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(600); }
+          await card.screenshot({ path: `${OUT}/${tag}-state${k}.png` }); await page.screenshot({ path: `${OUT}/${tag}-page${k}.png` }); const cardBox = await card.boundingBox();
+          states.push({ state: k, cardBox, viewport: page.viewportSize(), nodes: await card.locator('[data-tutor-node]').evaluateAll(els => els.map(e => { const b = e.getBoundingClientRect(); return { id: e.getAttribute('data-tutor-node'), onPath: e.hasAttribute('data-tutor-path'), x: b.x, y: b.y, w: b.width, h: b.height }; })), edges: await card.locator('[data-tutor-edge]').evaluateAll(els => els.map(e => ({ id: e.getAttribute('data-tutor-edge'), onPath: e.hasAttribute('data-tutor-path') }))) });
+        }
+        r.files.nodes = save(`${tag}-nodes.json`, states);
+      }
+      if (TIMES.length) {
+        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), moments = [];
+        for (const [k, t] of TIMES.entries()) {
+          await scrub.fill(String(t)); await page.waitForTimeout(700);
+          await card.screenshot({ path: `${OUT}/${tag}-t${k + 1}.png` });
+          moments.push({ time: t, scrub: await scrub.inputValue(), box: await card.boundingBox(), nodes: await card.locator('[data-tutor-node]').evaluateAll(els => els.map(e => { const b = e.getBoundingClientRect(); return { id: e.getAttribute('data-tutor-node'), onPath: e.hasAttribute('data-tutor-path'), cx: b.x + b.width / 2, cy: b.y + b.height / 2, x: b.x, y: b.y, w: b.width, h: b.height }; })),
+            svg: await card.locator('[data-tutor-diagram]').first().evaluate(e => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, texts: [...e.querySelectorAll('text')].map(x => x.textContent), rects: [...e.querySelectorAll('rect')].map(x => ({ x: +x.getAttribute('x'), y: +x.getAttribute('y'), w: +x.getAttribute('width'), h: +x.getAttribute('height') })) }; }).catch(() => null),
+            dot: await card.evaluate(c => [...c.querySelectorAll('*')].filter(e => [...e.attributes].some(a => /(^|[^a-z])dot($|[^a-z])/.test(a.value))).slice(0, 6).map(e => { const b = e.getBoundingClientRect(); return { tag: e.tagName, attrs: Object.fromEntries([...e.attributes].map(a => [a.name, String(a.value).slice(0, 60)])), cx: b.x + b.width / 2, cy: b.y + b.height / 2, w: b.width, h: b.height }; })) });
+        }
+        r.files.times = save(`${tag}-times.json`, moments);
+      }
+      if (SLIDER_TEST) {
+        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), x = card.locator('input[type="range"][aria-label="x"]').first();
+        await scrub.fill('0'); await page.waitForTimeout(400);
+        const callout = async () => (await card.innerText().catch(() => '')).replace(/\s+/g, ' ');
+        const before = { time: await scrub.inputValue(), x: await x.inputValue(), text: await callout() };
+        await card.getByRole('button', { name: /^Play$/ }).first().click().catch(() => {}); await page.waitForTimeout(1500);
+        const playing = { time: await scrub.inputValue() }; await x.fill('2'); await page.waitForTimeout(800);
+        const after = { time: await scrub.inputValue(), x: await x.inputValue(), text: await callout() }; await page.waitForTimeout(1500);
+        r.files.sliderTest = save(`${tag}-slider-test.json`, { before, playing, afterMove: after, later: { time: await scrub.inputValue() } });
+      }
+    } catch (e) { r.files.screenshot = `not taken: ${firstLine(e.message)}`; }
   } else await page.screenshot({ path: `${OUT}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
   if (r.jobId) {
     const full = await detailOf(r.jobId), d = full?.diagnostics ?? null, row = d?.ledger ?? null, fast = d?.designFast ?? null;
