@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { DERIVED_ROWS, normalise } from './derived.js';
-import { describeTutorDiagram, parseTutorDiagram, tutorDiagramSchema } from './spec.js';
+import { describeTutorDiagram, fillAllDerived, parseTutorDiagram, tutorDiagramSchema } from './spec.js';
 
 const wrap = diagram => ({ version: 1, diagram });
 const issues = diagram => { const r = tutorDiagramSchema.safeParse(wrap(diagram)); return r.success ? [] : r.error.issues.map(i => ({ path: i.path.slice(1).join('.'), message: i.message, code: i.params?.code })); };
 const filled = diagram => parseTutorDiagram(wrap(diagram)).diagram;
+const everything = diagram => fillAllDerived(filled(diagram)); // silent derived values too (what a prose token reads)
 const arithmetic = list => list.filter(i => i.code === 'arithmetic');
 
 // ---- the table ----
@@ -29,19 +30,23 @@ test('grep gate: derived.js holds kinds, not subject matter', () => {
 const box = (extra = {}, x = { label: 'Reading', min: 0, max: 25 }) => ({ kind: 'box-plot', title: 'IQR rule', x, boxes: [{ label: 'Trial', whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14, ...extra }] });
 const FENCE_154 = 'Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.';
 
-test('acceptance 1: the trial box card with fences 2/16 fails with release 154\'s message; with the fences left out it is filled with -3 and 21 and prints them', () => {
+test('acceptance 1: the trial box card with fences 2/16 fails with release 154\'s message; fences left out are filled and drawn only with outliers; a plain box draws none (Reviewer 2026-11-18)', () => {
   const wrong = issues(box({ fences: { lower: 2, upper: 16 } }));
   assert.deepEqual(wrong, [{ path: 'boxes.0.fences', message: FENCE_154, code: 'arithmetic' }]);
-  const d = filled(box());
-  assert.deepEqual(d.boxes[0].fences, { lower: -3, upper: 21 });
-  assert.match(describeTutorDiagram(wrap(d)), /Lower fence: -3; Upper fence: 21/);
+  const withOutlier = filled(box({ outliers: [{ label: 'Late', value: 22 }] }));
+  assert.deepEqual(withOutlier.boxes[0].fences, { lower: -3, upper: 21 });
+  assert.match(describeTutorDiagram(wrap(withOutlier)), /Lower fence: -3; Upper fence: 21/);
+  const plain = filled(box());
+  assert.equal(plain.boxes[0].fences, undefined, 'a plain box is not given fences: nothing on the card depends on them');
+  assert.doesNotMatch(describeTutorDiagram(wrap(plain)), /fence/i);
+  assert.deepEqual(everything(box()).boxes[0].fences, { lower: -3, upper: 21 }, 'but the computed fences exist for a prose token');
   assert.deepEqual(issues(box({ fences: { lower: -3, upper: 21 } })), [], 'present and correct');
 });
 
 test('box fence decimals: the most decimals among q1 and q3 (min 0, a tie rounds away from zero); a written fence is allowed half a unit of its own decimals', () => {
   // [q1, q3, lower, upper]
   for (const [q1, q3, lower, upper] of [[6, 12, -3, 21], [5, 8, 1, 13], [1.5, 3.5, -1.5, 6.5], [2, 5.5, -3.3, 10.8], [1.25, 2.75, -1, 5]]) {
-    const d = filled(box({ whiskerLow: q1, q1, median: q1, q3, whiskerHigh: q3 }, { label: 'Reading', min: 0, max: 40 }));
+    const d = everything(box({ whiskerLow: q1, q1, median: q1, q3, whiskerHigh: q3 }, { label: 'Reading', min: 0, max: 40 }));
     assert.deepEqual([d.boxes[0].fences.lower, d.boxes[0].fences.upper], [lower, upper], `${q1} ${q3}`);
   }
   const rounded = { whiskerLow: 2.04, q1: 2.04, median: 3, q3: 5.65, whiskerHigh: 5.65 };
@@ -119,6 +124,17 @@ test('a filled card is valid input again (idempotent), and the fill reaches a ch
     assert.deepEqual(filled(once), once, card.kind);
   }
   const panels = { kind: 'comparison', variant: 'panels', title: 'Two boxes', panels: [{ heading: 'A', diagram: box() }, { heading: 'B', diagram: box({ q1: 5, q3: 9, whiskerLow: 5, whiskerHigh: 9, median: 7 }) }] };
-  const d = filled(panels);
+  const d = everything(panels);
   assert.deepEqual([d.panels[0].diagram.boxes[0].fences, d.panels[1].diagram.boxes[0].fences], [{ lower: -3, upper: 21 }, { lower: -1, upper: 15 }]);
+});
+
+// ---- the silent-fill rule (Reviewer 2026-11-18): a derived field the author left out is computed for the validator and for tokens, but put on the card only when the author stated
+// something that depends on it. Audit of every row: only the box-plot fences are silent; each other row fills because what the author wrote depends on the value.
+test('silent fill audit: box fences are silent without outliers; every other row fills because the card depends on it', () => {
+  const put = { 'plain box': d => d.boxes[0].fences, 'box with an outlier': d => d.boxes[0].fences, heatmap: d => d.range, links: d => d.queries[0].weights, histogram: d => d.series[0].values };
+  const diagrams = { 'plain box': box(), 'box with an outlier': box({ outliers: [{ label: 'Late', value: 22 }] }), heatmap: heatmap(), links: links([3, 1, 0]), histogram: histogram([2, 6, 2]) };
+  const outcome = Object.fromEntries(Object.entries(diagrams).map(([name, d]) => [name, JSON.stringify(put[name](filled(d))) === JSON.stringify(put[name](d)) ? 'unchanged' : 'filled']));
+  assert.deepEqual(outcome, { 'plain box': 'unchanged', 'box with an outlier': 'filled', heatmap: 'filled', links: 'filled', histogram: 'filled' });
+  // the heatmap's colour scale needs its range; raw weights and counts are what the author wrote, shown as shares; a softmax list is the `after` card itself (derived-schema.test.mjs);
+  // a `derive` annotation is the author's own annotation (derived-schema.test.mjs); an out-of-bag group is declared by outOfBagFor (the sample-set tests).
 });

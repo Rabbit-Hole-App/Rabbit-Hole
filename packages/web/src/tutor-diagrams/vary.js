@@ -14,7 +14,7 @@ import { childDiagrams } from './spec.js';
 
 const at = (root, path) => path.split('.').reduce((node, key) => (node !== null && typeof node === 'object' ? node[key] : undefined), root);
 const setAt = (root, path, value) => { const keys = path.split('.'); keys.slice(0, -1).reduce((node, key) => node[key], root)[keys.at(-1)] = value; };
-const refreshAll = d => { refreshDerived(d); for (const child of childDiagrams(d)) refreshAll(child.diagram); return d; };
+const refreshAll = (d, options) => { refreshDerived(d, options); for (const child of childDiagrams(d)) refreshAll(child.diagram, options); return d; };
 
 // -> an error message, or null, for one vary entry against the diagram it varies.
 function entryProblem(diagram, path, entry) {
@@ -87,7 +87,7 @@ export function varyProblems(ref) {
   if (problems.length) return problems.map(p => `${ref.id}: vary ${p}`);
   const text = [...strings(ref.spec), ref.useWhen ?? ''].join('\n').replace(TOKEN, ' ');
   const cited = Object.keys(ref.vary).map(path => [path, at(diagram, path)]);
-  const derived = refreshAll(structuredClone(diagram));
+  const derived = refreshAll(structuredClone(diagram), { all: true }); // silent derived values too: a typed fence is as stale as a typed mean
   for (const path of derivedPaths(derived)) cited.push([`${path} (derived)`, at(derived, path)]);
   for (const [path, number] of cited) if (Number.isFinite(number) && cites(text, number)) out.push(`${ref.id}: ${path} holds ${number}, and ${number} is typed in the reference's text; write it as a {{d:path}} token or do not vary it`);
   return out;

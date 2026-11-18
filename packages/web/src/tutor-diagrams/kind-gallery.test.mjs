@@ -4,12 +4,8 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseTutorDiagram, tutorDiagramJsonSchema } from './spec.js';
-import { boxFences } from './derived.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 
-// Fences left out of a box are filled by the parser (VAR-1): the parsed spec is the written one plus the computed fences.
-const withComputedFences = spec => spec.diagram.kind !== 'box-plot' ? spec
-  : { ...spec, diagram: { ...spec.diagram, boxes: spec.diagram.boxes.map(box => box.fences ? box : { ...box, fences: { lower: boxFences(box).lower, upper: boxFences(box).upper } }) } };
 const gallery = JSON.parse(readFileSync(new URL('./kind-gallery.json', import.meta.url), 'utf8'));
 const budget = JSON.parse(readFileSync(new URL('./kind-gallery.token-budget.json', import.meta.url), 'utf8'));
 
@@ -37,7 +33,7 @@ for (const spec of gallery) {
   const { kind, title } = spec.diagram;
   test(`${kind} gallery spec parses and renders at narrow, card and wide widths`, () => {
     const saved = JSON.stringify(spec);
-    assert.deepEqual(parseTutorDiagram(saved), withComputedFences(spec));
+    assert.deepEqual(parseTutorDiagram(saved), spec);
     for (const available of [320, 408, 720]) {
       const { element, width, height } = renderTutorDiagram(saved, available);
       const svg = renderToStaticMarkup(element);

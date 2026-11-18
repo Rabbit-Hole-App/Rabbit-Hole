@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { seededRandom } from './random.js';
 import { varyProblems, varySpec, resolveTokens } from './vary.js';
-import { parseTutorDiagram } from './spec.js';
+import { fillAllDerived, parseTutorDiagram } from './spec.js';
 import { diagramReferences } from './reference-library.js';
 
 // Test fixtures only: no reference of the library carries `vary` in step 3.
@@ -71,7 +71,8 @@ test('a box plot keeps q1 <= median <= q3 by construction and its fences are rec
   // with whiskers kept inside the fences by the fixture's own ranges the card parses
   const spec = varySpec(box().spec, { 'boxes.0.q1': [5, 7, 1] }, 'f', 'x');
   const { q1, q3 } = spec.diagram.boxes[0];
-  assert.equal(parseTutorDiagram(spec).diagram.boxes[0].fences.lower, Number((q1 - 1.5 * (q3 - q1)).toFixed(0))); // the decimals of the quartiles (whole numbers here)
+  assert.equal(parseTutorDiagram(spec).diagram.boxes[0].fences, undefined, 'a plain box carries no fences (silent), so none is drawn');
+  assert.equal(fillAllDerived(parseTutorDiagram(spec).diagram).boxes[0].fences.lower, Number((q1 - 1.5 * (q3 - q1)).toFixed(0))); // the decimals of the quartiles (whole numbers here)
   // a stale written fence is replaced, not kept
   const stale = { ...box().spec, diagram: { ...box().spec.diagram, boxes: [{ ...box().spec.diagram.boxes[0], fences: { lower: -3, upper: 21 } }] } };
   const next = varySpec(stale, { 'boxes.0.q1': [7, 7, 1] }, 's', 'x').diagram.boxes[0];

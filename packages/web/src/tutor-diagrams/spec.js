@@ -387,6 +387,13 @@ authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properti
 })(authorOnlyFree);
 export const tutorDiagramAuthorJsonSchema = authorOnlyFree;
 
+// A parsed diagram with EVERY derived value on it, silent ones too (derived.js): what a prose token reads and what the reference lint compares against. Not for drawing.
+export function fillAllDerived(diagram) {
+  fillDerived(diagram, { all: true });
+  for (const child of childDiagrams(diagram)) fillAllDerived(child.diagram);
+  return diagram;
+}
+
 export function parseTutorDiagram(value) {
   if (typeof value === 'string') {
     if (value.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');

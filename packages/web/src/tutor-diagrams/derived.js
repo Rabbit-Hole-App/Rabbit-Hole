@@ -51,7 +51,8 @@ function boxFenceInstance(box, i) {
     const round = value => Number(value.toFixed(places + 1));
     problems.push({ message: `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.` });
   }
-  return { at, written, computed: { lower: computed.lower, upper: computed.upper }, problems };
+  // Silent (Reviewer 2026-11-18): fences the author did not write are computed for a token to read, but not drawn unless the box has outliers (a fence only matters there).
+  return { at, written, computed: { lower: computed.lower, upper: computed.upper }, silent: !written && !box.outliers?.length, problems };
 }
 
 // ---- transformation (list): softmax of the before items ----
@@ -238,13 +239,15 @@ export function checkDerived(d, issue) {
 }
 const setAt = (root, path, value) => { const last = path.at(-1); path.slice(0, -1).reduce((node, key) => node[key], root)[last] = value; };
 // Fills absent derived fields (and replaces raw ones) in place; the diagram has already passed the validator, so every instance here computed.
-export function fillDerived(d) {
-  for (const inst of instancesOf(d)) if (inst.computed !== undefined && (inst.written === undefined || inst.replace)) setAt(d, inst.at, inst.computed);
+// A SILENT instance (an absent value nothing on the card depends on: a box plot's fences when it has no outliers) is computed for the validator and for prose tokens, never put on the
+// diagram, so the figure draws only what the author put on the card; `all: true` fills those too (tokens, the reference lint).
+export function fillDerived(d, { all = false } = {}) {
+  for (const inst of instancesOf(d)) if (inst.computed !== undefined && (inst.written === undefined || inst.replace) && (all || !inst.silent)) setAt(d, inst.at, inst.computed);
   return d;
 }
 // Varied inputs (vary.js): every derived field of this diagram is set to the value its inputs give NOW, written or not, so a reference whose inputs were just resampled carries no stale derived literal.
-export function refreshDerived(d) {
-  for (const inst of instancesOf(d)) if (inst.computed !== undefined) setAt(d, inst.at, inst.computed);
+export function refreshDerived(d, { all = false } = {}) {
+  for (const inst of instancesOf(d)) if (inst.computed !== undefined && (all || !inst.silent)) setAt(d, inst.at, inst.computed);
   return d;
 }
 // The paths (inside the diagram) of every number a derived field holds, for the diagram itself (not its child diagrams): what a prose token may name, listed when one names a path that is not there.

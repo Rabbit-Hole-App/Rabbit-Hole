@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
-import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { deriveVisualRequirements } from '../src/explanation-visuals.js';
 import { diagramReferenceContext, selectDiagramReferences } from '../src/explanation-references.js';
@@ -13,7 +12,7 @@ test('each known required kind can use its compact shape when the topic is unmat
     const selected = selectDiagramReferences({ prompt: 'Explain parcel handoff.', requiredKinds: [kind] });
     assert.equal(selected.length, 1, kind);
     assert.equal(selected[0].id, `shape-${kind}`);
-    assert.deepEqual(selected[0].spec, parseTutorDiagram(spec)); // the parser fills derived fields (a box plot's computed fences), so the reference is the parsed gallery spec
+    assert.deepEqual(selected[0].spec, spec);
     assert.ok(diagramReferenceContext(selected).includes(JSON.stringify(selected[0].spec)));
   }
   assert.equal(selectDiagramReferences({ prompt: 'Explain parcel handoff.', requiredKinds: ['flow', 'tree', 'matrix'] }).length, 2);

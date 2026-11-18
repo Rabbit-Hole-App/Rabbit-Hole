@@ -1,7 +1,7 @@
 // VAR-1 step 2: a number the figure computes is written in the prose as {{d:path}}, never typed. The server reads it from the card's own diagram (after the derived fields are
 // filled) and prints it, so a varied or recomputed input moves every sentence that states it. Form: {{d:N.path}} (N = the card's Nth closed rh-diagram fence, from 1, body first then
 // the folded sections) or {{d:path}} on a card with one diagram; {{d:path|1}} forces that many decimals. The path walks the parsed diagram, keys and array positions joined by dots.
-import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import { fillAllDerived, parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { derivedPaths } from '../../web/src/tutor-diagrams/derived.js';
 import { markdownFences } from './learn-primitives.js';
 
@@ -14,7 +14,7 @@ function diagramsOf(block) {
   const out = [];
   for (const md of textsOf(block)) for (const fence of markdownFences(md).fences) {
     if (fence.lang !== 'rh-diagram' || !fence.closed) continue;
-    try { out.push(parseTutorDiagram(fence.lines.join('\n')).diagram); } catch { out.push(null); }
+    try { out.push(fillAllDerived(parseTutorDiagram(fence.lines.join('\n')).diagram)); } catch { out.push(null); } // every derived value, silent ones too: the prose may name a fence the figure does not draw
   }
   return out;
 }
