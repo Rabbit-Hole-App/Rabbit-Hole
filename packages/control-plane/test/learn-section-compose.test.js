@@ -45,24 +45,14 @@ test('validateComposition: a planted motion item and an unknown command are refu
 });
 
 // Reviewer 19:55 (section-run-fixes-spec.md §4): the brief's rule against the covering beat. A code name the beat spells may appear in backticks, exactly as the beat spells it.
-test('validateComposition code expressions (Reviewer 20:30 §6): code the beat shows in backticks passes verbatim in backticks; one character changed is refused and named; bare is refused', () => {
-  const shown = { ...brief, beats: [{ ...brief.beats[0], shows: 'Line 190: `logits[:, -1, :]` keeps the last position.' }, brief.beats[1]] };
-  const o = { ...opts, brief: shown }, rest = [item('i2', 'b2', 'document')];
-  const errors = request => validateComposition({ items: [item('i1', 'b1', 'explanation', { request }), ...rest] }, o).errors || [];
-  assert.deepEqual(errors('Show why `logits[:, -1, :]` keeps only the last position, with 3 tokens and a vocabulary of 5.'), []);
-  assert.deepEqual(errors('Show why `logits[:, -2, :]` keeps a position.'), ['item i1: the request for explanation names `logits[:, -2, :]`, which the anchored lines do not']);
-  assert.deepEqual(errors('Show why logits[:, -1, :] keeps only the last position.'), ['item i1: the request for explanation must put code in backticks, exactly as the beat spells it (found "logits[:, -1, :]" bare)']);
-});
-
-test('validateComposition code names: `n_embd` spelled by the beat passes in backticks; bare it is refused by name; a name the beat does not spell and a path are refused; a code request is as before', () => {
-  const named = { ...brief, beats: [{ ...brief.beats[0], shows: 'Shapes stay (b, t, n_embd) through the blocks.' }, brief.beats[1]] };
-  const o = { ...opts, brief: named }, rest = [item('i2', 'b2', 'document')];
-  const errors = request => validateComposition({ items: [item('i1', 'b1', 'diagram', { request }), ...rest] }, o).errors || [];
-  assert.deepEqual(errors('A flow of token ids to embeddings; every box is labelled (b, t, `n_embd`).'), []);
-  assert.deepEqual(errors('A flow of token ids to embeddings; every box is labelled (b, t, n_embd).'), ['item i1: the request for diagram must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "n_embd")']);
-  assert.deepEqual(errors('A flow through `n_layer` blocks.'), ['item i1: the request for diagram names `n_layer`, which the anchored lines do not']);
-  assert.match(errors('A flow of the code in src/progress.js.').join(), /must have no path, file name or flag \(found "src\/progress\.js"\)/);
-  assert.deepEqual(validateComposition({ items: [item('i1', 'b1', 'code', { request: 'Show progress_share(done, total) with n_layer.', source: 'example' }), ...rest] }, o).errors || [], [], 'a code request may name code');
+test('validateComposition, the one rule (Reviewer 20:35): a request names code as it likes (`n_embd`, bare n_embd, `GPT.forward`, `logits[:, -1, :]`); a path, a file name or a flag is refused', () => {
+  const rest = [item('i2', 'b2', 'document')];
+  const errors = request => validateComposition({ items: [item('i1', 'b1', 'diagram', { request }), ...rest] }, opts).errors || [];
+  for (const ok of ['Every box is labelled (b, t, `n_embd`).', 'Every box is labelled (b, t, n_embd).', 'Start at `GPT.forward`.', 'Keep `logits[:, -1, :]` only.']) assert.deepEqual(errors(ok), [], ok);
+  assert.deepEqual(errors('A flow of the code in src/progress.js.'), ['item i1: the request for diagram must have no path, file name or flag (found "src/progress.js")']);
+  assert.deepEqual(errors('A flow of model.py.'), ['item i1: the request for diagram must have no path, file name or flag (found "model.py")']);
+  assert.deepEqual(errors('Run it with --max-iters.'), ['item i1: the request for diagram must have no path, file name or flag (found "--m")']);
+  assert.deepEqual(validateComposition({ items: [item('i1', 'b1', 'code', { request: 'Show progress_share(done, total) in src/progress.js.', source: 'example' }), ...rest] }, opts).errors || [], [], 'a code request is code');
 });
 
 test('validateComposition: D fields, F caps, pairing, item count and coverage', () => {

@@ -48,7 +48,12 @@ try {
   const option = (await msg('learn-options').locator('[data-choice-list] button').allInnerTexts())[0];
   await msg('learn-options').locator('[data-choice-list] button').first().click(); mark('learn option', { option });
   await row('learn-depth', 'Standard').waitFor({ timeout: 60000 }); await row('learn-depth', 'Standard').click(); mark('depth Standard (balanced)');
-  await waitFor(() => enabled('learn-plan', 'Accept'), 'the plan draft', 5 * 60000); mark('plan drafted');
+  const TRY = 'Try again'; // SENTENCES.planTryAgain
+  const planState = async () => (await enabled('learn-plan', 'Accept')) ? 'draft' : (await enabled('learn-plan', TRY)) ? 'refused' : null;
+  let plan = await waitFor(planState, 'the plan draft', 5 * 60000);
+  if (plan === 'refused') { mark('plan refused: Try again'); await row('learn-plan', TRY).click(); await sleep(1500); plan = await waitFor(planState, 'the plan draft after Try again', 5 * 60000); }
+  if (plan !== 'draft') throw Error('the plan was refused again after one Try again');
+  mark('plan drafted');
   await page.screenshot({ path: `${OUT}/plan.png` });
   await row('learn-plan', 'Accept').click(); mark('accept');
   }
