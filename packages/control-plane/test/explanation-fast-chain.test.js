@@ -19,6 +19,7 @@ import { noteUsageIdentity, toMicros, withUsage } from '../src/learn-usage.js';
 import { diagramFence, withVisual } from './explanation-layout-fixture.js';
 import { artifactFetch } from '../src/learn-artifact.js';
 import { OWNER } from './explain-fixture.js';
+import { planFromAnswers } from '../src/explanation-planner.js';
 
 const URL_OF = { fireworks: CHAIN_ENDPOINTS.fireworks.url, cerebras: CHAIN_ENDPOINTS.cerebras.url, google: CHAIN_ENDPOINTS.google.url };
 const FW = 'accounts/fireworks/models/gpt-oss-120b';
@@ -488,4 +489,40 @@ test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs a
   assert.match(puts[0].error, /^explanation_bad_numbers: /);
   assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues, a.failedOn]), [['google', 'arithmetic', 1, [FENCE_ISSUE], ['arithmetic', 'arithmetic']], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE], ['arithmetic', 'arithmetic', 'arithmetic']]]);
   assert.ok(!JSON.stringify(puts[0]).includes('private@example.test'));
+});
+
+// SIMP-1 (Reviewer 2026-11-17): a diagram that cannot be rebuilt in its own kind (a matrix here, standing for the heatmap the prose points at) fails the step with explanation_missing_visual,
+// so the next provider runs; it is never redrawn as a flow. When every step fails that way the failure is delivered as it is (learn-slash.js shows its plain failure line).
+const maskCard = visual => ({ title: 'Causal mask', body: withVisual('The causal mask on decoder scores hides every later word from an earlier one.', { after: 'Each word then attends only to itself and the words before it.', visual: diagramFence(visual) }) });
+// a matrix with one row stays invalid (two to six rows); object columns alone are coerced by the server (matrix_coerced)
+const maskMatrix = rows => ({ version: 1, diagram: { kind: 'matrix', title: 'Causal mask on decoder scores', columns: ['the', 'cat'], rows } });
+const row = (heading, cells) => ({ heading, cells }), badMask = maskCard(maskMatrix([row('cat', ['1', '1'])])), goodMask = maskCard(maskMatrix([row('the', ['1', '0']), row('cat', ['1', '1'])]));
+const maskPlan = () => ({ planned: true, plan: planFromAnswers({
+  visualType: { choice: 'diagram', confidence: 0.95, probabilities: {} }, kind: { choice: 'token-links', confidence: 0.7, probabilities: { 'token-links': 0.7, flow: 0.3 } },
+  depthTreatment: { choice: 'mechanism' }, needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 }, secondVisual: { noul: 0.94 } }) });
+const maskQuestion = 'How does the transformer decoder avoid looking ahead at later words?';
+
+test('SIMP-1: an invalid matrix after the repair fails the step (explanation_missing_visual) and the next provider writes the card; no flow stands in', async t => {
+  quiet(t);
+  const sent = providers(t, ok(badMask), ok(badMask), ok(goodMask));
+  const out = await ask(offline('fireworks-low'), maskQuestion, maskPlan());
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google'], 'the step\'s call and its repair, then the next provider');
+  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['google', 'artifact']]);
+  assert.match(out.attempts[0].issues[0], /^explanation_missing_visual/);
+  assert.deepEqual(out.block.authoredBy, { provider: 'google', model: 'gemini-3.5-flash-lite' });
+  assert.ok(!out.block.visualFallback);
+  assert.match(out.block.body, /"kind":"matrix"/);
+  assert.doesNotMatch(out.block.body, /"kind":"flow"/);
+});
+
+test('SIMP-1: every provider failing that way delivers the failure: explanation_missing_visual, no card, each step\'s issue kept', async t => {
+  quiet(t);
+  const sent = providers(t, ok(badMask));
+  const out = await ask(offline('fireworks-low'), maskQuestion, maskPlan());
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google', 'google']);
+  assert.equal(out.result, 'validation_error');
+  assert.match(out.error, /^explanation_missing_visual/);
+  assert.equal(out.block, undefined);
+  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['google', 'validation_error']]);
+  assert.ok(out.attempts.every(a => /^explanation_missing_visual/.test(a.issues[0])));
 });
