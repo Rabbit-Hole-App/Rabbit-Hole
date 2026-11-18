@@ -302,6 +302,33 @@ test('the production card path: Gemini Flash by the fast chain under the hold, w
   assert.equal(h.rows('SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = \'generate\' AND payer = \'learner\' AND result_id = (SELECT id FROM learn_step_results ORDER BY created_at LIMIT 1)')[0].n, 1, 'exactly one author operation for the card');
 });
 
+test('GEN-1 G6: with planned: true gone the planner runs once per card, outside the hold and the meter: no call row, no usage row, one author call; and the plan reaches the author body', async t => {
+  const h = await workflow(t);
+  Object.assign(h.env, { ROADMAP_CARD_PROFILE: undefined, GEMINI_API_KEY: 'test-key', EXPLANATION_PLANNER: 'jev', TYPESAFE_API_KEY: 'test-key' });
+  const sent = [], planner = [], denied = globalThis.fetch;
+  const card = (await (await explanation()('gemini-3.5-flash-lite', {})).json()).content[0].input;
+  const answers = { visualType: { choice: 'diagram', confidence: 0.95, probabilities: { diagram: 0.95, picture: 0.03, both: 0.02 } }, kind: { choice: 'flow', confidence: 0.9, probabilities: { flow: 0.9, sequence: 0.1 } }, depthTreatment: { choice: 'mechanism', confidence: 0.8, probabilities: {} }, needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 } };
+  globalThis.fetch = async (input, init) => {
+    const url = String(input?.url || input);
+    if (url.includes('typesafe')) { planner.push(JSON.parse(init.body)); return Response.json({ answers, usage: { input_tokens: 120 } }); }
+    if (!url.includes('generativelanguage')) return denied(input, init);
+    sent.push(JSON.parse(init.body));
+    return Response.json({ model: 'gemini-3.5-flash-lite', choices: [{ message: { role: 'assistant', content: JSON.stringify(card) }, finish_reason: 'stop' }], usage: { prompt_tokens: 900, completion_tokens: 400, total_tokens: 1300 } });
+  };
+  try {
+    const view = await started(h);
+    assert.equal((await start(h, view)).status, 200);
+    for (let i = 0; i < 4; i += 1) await h.run();
+  } finally { globalThis.fetch = denied; }
+  const calls = h.rows("SELECT provider, stage FROM learn_roadmap_calls WHERE stage = 'generate' ORDER BY rowid");
+  assert.ok(planner.length >= 1, 'the planner ran');
+  assert.equal(planner.length, calls.length, 'one planner call per card dispatched: the author is one call per card, and a fast-chain step or repair never plans again');
+  assert.ok(calls.every(row => row.provider === 'google'), 'the call rows are the author calls only (no planner row)');
+  assert.equal(h.rows("SELECT COUNT(*) AS n FROM usage_attempts WHERE provider NOT IN ('google','anthropic','openai','fireworks')")[0].n, 0, 'the planner is in no usage row: it is a bounded side call (1.2 s timeout, at most 4,000 characters in), not a metered author call');
+  assert.ok(planner[0].state.question.length <= 2000 && (planner[0].state.context ?? '').length <= 2000, 'what leaves for the planner is capped at 2,000 + 2,000 characters');
+  assert.ok(JSON.stringify(sent[0]).length > 0 && /Based on the rules above, this card:/.test(JSON.stringify(sent[0])), 'the author request was built (with the plan: its statement replaces the rules block)');
+});
+
 test('the facts call has a valid operation identity and its facts reach the view (found live: a made-up anchor was refused and the wait had no facts)', async t => {
   const h = await workflow(t);
   h.script.push(explanation(), table(), explanation(), explanation(), explanation());
