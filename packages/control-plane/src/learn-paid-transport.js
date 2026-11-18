@@ -53,6 +53,29 @@ export async function fishSpendTransport(env, text, transport) {
   return response;
 }
 
+// ElevenLabs Flash v2.5 text to speech for a card's audio (explanation-audio.js): billed per input character (pricing-registry.js input_chars). Admitted before the call at the characters it
+// sends, so the learner's allowance and the platform guard both see it; a delivered response settles at the reservation, a failed one keeps it as unknown cost (no refund assumed).
+export const ELEVEN_MODEL = 'eleven_flash_v2_5';
+export async function elevenSpendTransport(env, text, transport) {
+  if (!spendEnforced(env)) return transport();
+  const price = priceUsage({ provider: 'elevenlabs', model: ELEVEN_MODEL, quantities: { input_chars: text.length } });
+  if (!price) return paidSpendReply('spend_bound_unavailable');
+  const reservedUsd = price.micros / 1e6;
+  const opId = operationId('explanation_audio');
+  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'explanation_audio', reservedUsd, kind: 'media', provider: 'elevenlabs', model: ELEVEN_MODEL });
+  if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
+  let response;
+  try { response = await transport(); }
+  catch (error) {
+    await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'elevenlabs', model: ELEVEN_MODEL, error: 'transport' });
+    await settleAttempt(env, gate.attemptId, { status: 'failed' });
+    throw error;
+  }
+  await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'elevenlabs', model: ELEVEN_MODEL, error: response.ok ? null : `http_${response.status}` });
+  await settleAttempt(env, gate.attemptId, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? price.micros : null, price: response.ok ? price : null });
+  return response;
+}
+
 // A priced tool call outside spendTransport (Exa search): admitted before the call like any provider call, then settled once
 // with the provider's reported cost, or held as unknown when it reports none or fails. Null where spend is not enforced
 // (SMALL_ENV=test). A refusal throws before the call, its message the person's explanation.
