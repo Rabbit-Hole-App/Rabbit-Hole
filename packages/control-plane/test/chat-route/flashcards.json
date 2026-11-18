@@ -1,0 +1,42 @@
+{
+  "command": "flashcards",
+  "typed": "flashcards",
+  "about": "A deck of flashcards to study.",
+  "cases": [
+    {
+      "text": "Help me memorise the capitals of the European countries.",
+      "expect": "flashcards"
+    },
+    {
+      "text": "I need to learn the twenty amino acids by heart.",
+      "expect": "flashcards"
+    },
+    {
+      "text": "Make something I can flip through to drill French irregular verbs.",
+      "expect": "flashcards"
+    },
+    {
+      "text": "Prepare question and answer cards for tomorrow's biology revision.",
+      "expect": "flashcards"
+    },
+    {
+      "text": "I keep forgetting these formulas: can you set up a deck to review them?",
+      "expect": "flashcards"
+    },
+    {
+      "text": "Turn these definitions into a set I can study on my phone.",
+      "expect": "flashcards"
+    },
+    {
+      "text": "now turn that into cards I can memorise",
+      "history": [
+        {
+          "user": "Explain the stages of mitosis",
+          "reply": "Mitosis has prophase, metaphase, anaphase and telophase.",
+          "command": null
+        }
+      ],
+      "expect": "flashcards"
+    }
+  ]
+}

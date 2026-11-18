@@ -351,9 +351,16 @@ function validateDiagram(diagram, issue) {
       break;
   }
   for (const domain of domains) domain.validate(diagram, issue);
-  for (const child of childDiagrams(diagram)) validateDiagram(child.diagram, (path, message) => issue([...child.path, ...path], message));
+  // A child's title may be left out only inside panels of round-and-square trees: the panel label is their title.
+  const labelledTrees = diagram.kind === 'panels' && diagram.panels.every(panel => topology.isDotTree(panel.diagram));
+  for (const child of childDiagrams(diagram)) {
+    const at = (path, message) => issue([...child.path, ...path], message);
+    if (child.diagram.title === undefined && !labelledTrees) at(['title'], 'A diagram needs a title');
+    validateDiagram(child.diagram, at);
+  }
 }
 export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
+  if (diagram.title === undefined) ctx.addIssue({ code: 'custom', path: ['diagram', 'title'], message: 'A diagram needs a title' });
   validateDiagram(diagram, (path, message) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message }));
 });
 
@@ -385,6 +392,26 @@ export function parseTutorDiagram(value) {
   }
   if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
   return tutorDiagramSchema.parse(value);
+}
+
+// BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read
+// "1" and "0.33", not "1 value". A real unit (%, ms, kg, ...) stays. Returns the same object when no unit is generic.
+const GENERIC_UNIT = /^(?:values?|numbers?|amounts?|scores?)$/iu;
+export function dropGenericUnits(value) {
+  if (Array.isArray(value)) {
+    const entries = value.map(dropGenericUnits);
+    return entries.some((entry, index) => entry !== value[index]) ? entries : value;
+  }
+  if (!value || typeof value !== 'object') return value;
+  let changed = false;
+  const next = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === 'unit' && typeof entry === 'string' && GENERIC_UNIT.test(entry.trim())) { changed = true; continue; }
+    const inner = dropGenericUnits(entry);
+    if (inner !== entry) changed = true;
+    next[key] = inner;
+  }
+  return changed ? next : value;
 }
 
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;

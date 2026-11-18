@@ -93,7 +93,14 @@ test('embedding strips use one consistent value treatment at every depth', () =>
   }
 });
 
-test('the walkthrough token, value and vocabulary sequences use one row at every depth', () => {
+// TOK-W: the cells keep their natural width, so a row of six blocks that passes the budget (the request, at least 720, at most 960) wraps at a block boundary: blocks per row at a 320 and at a 960 request.
+const blockRows = { 'ml-transformer-token-embeddings': ['3+3', '5+1'], 'ml-transformer-weighted-values': ['4+2', '6'], 'ml-transformer-vocabulary-softmax': ['6', '6'] };
+const rowsOf = (spec, width) => {
+  const counts = new Map();
+  for (const [, y] of renderToStaticMarkup(renderTutorDiagram(spec, width).element).matchAll(/data-block-stack-node="[^"]+"[^>]*><rect[^>]*? y="([\d.]+)"/g)) counts.set(y, (counts.get(y) ?? 0) + 1);
+  return [...counts.values()].join('+');
+};
+test('the walkthrough token, value and vocabulary sequences keep native cells and wrap at block boundaries at every depth', () => {
   const ids = ['ml-transformer-token-embeddings', 'ml-transformer-weighted-values', 'ml-transformer-vocabulary-softmax'];
   for (const id of ids) {
     const ref = transformerWalkthroughReferences.find(reference => reference.id === id);
@@ -102,8 +109,13 @@ test('the walkthrough token, value and vocabulary sequences use one row at every
       assert.ok(spec, id);
       const { diagram } = spec;
       assert.equal(diagram.blocks.length, 6, id);
-      const { width, height } = renderTutorDiagram(spec, 320);
-      assert.ok(width > 320 && width <= 960 && height < 280, id);
+      const { width } = renderTutorDiagram(spec, 320);
+      assert.ok(width > 320 && width <= 960, id);
+      const [narrow, wide] = blockRows[id];
+      // The vocabulary overview is the one figure that still fits one row at 320; its balanced and deep depths take five and one.
+      const expectedNarrow = id === 'ml-transformer-vocabulary-softmax' && variant !== ref.depths.overview ? '5+1' : narrow;
+      assert.equal(rowsOf(spec, 320), expectedNarrow, `${id} rows at 320`);
+      assert.equal(rowsOf(spec, 960), wide, `${id} rows at 960`);
       if (id !== 'ml-transformer-vocabulary-softmax') continue;
       assert.deepEqual(diagram.blocks.map(block => block.label), vocabulary);
       assert.deepEqual(diagram.blocks.map(block => block.diagram.tensor.values[0]), vocabularyWeights);
@@ -112,15 +124,16 @@ test('the walkthrough token, value and vocabulary sequences use one row at every
   }
 });
 
-test('the detailed Gemma uses numbered notes at 320 and four margin leaders at 960', () => {
+// GEM-1: the nested-flow node minimum (180) is below what the Gemma stack needs, so the diagram is wider than a card and scrolls; owner accepted that for this release (18:55), the node minimum is recorded for after it.
+test('the detailed Gemma uses numbered notes at 320 and four margin leaders at 960; in the 440 card (408 of room) it is 598 wide and scrolls', () => {
   const gemma = illustrationReferences.find(ref => ref.id === 'ml-gemma-decoder-stack').depths.deep;
   const small = renderTutorDiagram(gemma.spec, 320);
-  assert.equal(small.width, 320);
+  assert.equal(small.width, 418, 'drawn at 418 for a 320 room: it scrolls');
   const ledger = renderToStaticMarkup(small.element);
   assert.equal((ledger.match(/data-block-stack-callout-row=/g) ?? []).length, 4);
   assert.doesNotMatch(ledger, /data-block-stack-callout-leader/);
   const card = renderTutorDiagram(gemma.spec, 408);
-  assert.ok(card.width > 408 && card.width <= 960);
+  assert.equal(card.width, 598, 'the drawn width at the 408 of room of a card: wider than the room, so it scrolls');
   assert.equal((renderToStaticMarkup(card.element).match(/data-block-stack-callout-leader=/g) ?? []).length, 4);
   const wide = renderTutorDiagram(gemma.spec, 960);
   assert.equal(wide.width, 960);

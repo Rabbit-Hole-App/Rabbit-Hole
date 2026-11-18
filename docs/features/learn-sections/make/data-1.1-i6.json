@@ -1,0 +1,35 @@
+{
+  "case": "data",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "itemId": "i6",
+  "preReview": true,
+  "ms": 4122,
+  "out": {
+    "item": {
+      "itemId": "i6",
+      "command": "code",
+      "lead": "The module's first shared configuration is a plain table: a tuple of small records, each holding a name, a default value and a line of help text. Each record is a named tuple, so you read its parts by name instead of by position.\n\nLook at how one record is built, then at a few entries: a page size of 100 and a query time limit of 1000 milliseconds. Then see how a loop reads every default.",
+      "follow": ""
+    },
+    "perform": {
+      "op": "slash",
+      "line": "/code Write a Python example that mirrors a settings table built from named tuples and prints each default.\nUse these sizes and values: a namedtuple called Setting with fields name, default and help; a tuple SETTINGS with entries default_page_size = 100 (\"Default page size for the table view\"), max_returned_rows = 1000 (\"Maximum rows that can be returned from a table or custom query\"), num_sql_threads = 3 (\"Number of threads in the thread pool for executing SQLite queries\"), sql_time_limit_ms = 1000 (\"Time limit for a SQL query in milliseconds\"), facet_time_limit_ms = 200 (\"Time limit for calculating a requested facet\"). Standard library and numpy only; nothing imported from the source.\nOne comment per step, in the words the reader already knows: named tuple, table, default, help text.\nDo not print or state any output.",
+      "madeBy": "learn-section",
+      "context": "Source modules, never imported: datasette, demos, docs, tests"
+    },
+    "next": "notes"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i6",
+      "command": "code",
+      "calls": 1,
+      "usd": 0.007258,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

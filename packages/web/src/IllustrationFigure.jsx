@@ -3,6 +3,7 @@ import { loadAsset } from './learn-board-assets.js';
 import { readOriginal } from './media-storage.js';
 import { parseIllustrationFence } from './explanation-lead.js';
 import { PICTURE_DISPLAY_WIDTH } from './explanation-card-width.js';
+import { INK } from './tutor-diagrams/theme/palette.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
 // Layout follows the approved Image mockup (handoff/ui/07-explanation-card-approved.html on chatgpt/tutor, .picture-figure): margin 13px 0 11px, the picture full width with 9px corners,
@@ -56,13 +57,13 @@ export default function IllustrationFigure({ illustration, className = '' }) {
   if (state === 'failed') return null; // a learner never sees a failed picture (owner 2026-11-08): no frame, no gap, no message
   return (
     <figure data-illustration data-illustration-state={state} style={{ maxWidth: PICTURE_DISPLAY_WIDTH }} className={`mx-auto mt-[13px] mb-[11px] ${className}`}>
-      <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#fbfbfa)]">
+      <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface)]">
         {state !== 'ready' && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-hover" />}
         {url && <img src={url} alt={illustration?.alt || ''} draggable={false} ref={el => { if (el && el.complete && el.naturalWidth > 0 && !(done.url === url && done.ok)) setDone({ url, ok: true }); }} onLoad={() => setDone({ url, ok: true })} onError={() => setDone({ url, ok: false })} className={`absolute inset-0 block h-full w-full object-contain transition-opacity ${state === 'ready' ? 'opacity-100' : 'opacity-0'}`} />}
         {callouts.length > 0 && (
           <div data-illustration-callouts className="pointer-events-none absolute inset-0">
             <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-              {callouts.map((c, i) => <line key={i} x1={c.lx} y1={c.ly} x2={c.px} y2={c.py} stroke="#1f2937" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+              {callouts.map((c, i) => <line key={i} x1={c.lx} y1={c.ly} x2={c.px} y2={c.py} stroke={INK} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
             </svg>
             {callouts.map((c, i) => (
               <span key={i} data-callout-dot style={{ left: `${c.px}%`, top: `${c.py}%` }} className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-accent" />

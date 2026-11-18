@@ -1,3 +1,5 @@
+import { FILLS } from '../tutor-diagrams/theme/palette.js';
+
 // Bounded raw pixels and segmentation overlays. Both helpers emit one raster
 // object for the existing scene card; no guest URL, markup or image decoder.
 export const RASTER_SOURCE = String.raw`
@@ -25,7 +27,7 @@ export const RASTER_SOURCE = String.raw`
     return { ...object, pixels:copy };
   };
   sdk.mask = function (id, options) {
-    const object = layout(id, options), { values, color='#E5AA46', opacity=1 } = options;
+    const object = layout(id, options), { values, color='${FILLS.mustard}', opacity=1 } = options;
     if (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color)) fail('color must be a six-digit hex RGB color');
     if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) fail('opacity must be between 0 and 1');
     if (!Array.isArray(values) || values.length !== object.rows*object.cols) fail('values must contain exactly rows × cols mask weights');

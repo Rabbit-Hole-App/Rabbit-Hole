@@ -1,0 +1,19 @@
+{
+  "command": "codebase-options",
+  "typed": "codebase-options",
+  "about": "The learner asks what they can do with a code repository on the canvas: what is possible, what the options are, how it can be used, or where to start. The Tutor shows the list of things to do with it.",
+  "cases": [
+    { "text": "What can I do with this repo?", "expect": "codebase-options" },
+    { "text": "What are my options here?", "expect": "codebase-options" },
+    { "text": "How can I use this project?", "expect": "codebase-options" },
+    { "text": "Where should I start with this code?", "expect": "codebase-options" },
+    { "text": "Show me what is possible with this repository.", "expect": "codebase-options" },
+    { "text": "What are the different ways to work with this?", "expect": "codebase-options" },
+    { "text": "I just added this repo. What now?", "expect": "codebase-options" },
+    { "text": "Remind me what I can do with the code I imported.", "expect": "codebase-options" },
+    { "text": "How does the attention mask work in model.py?", "expect": "answer" },
+    { "text": "What does this function return?", "expect": "answer" },
+    { "text": "Explain the training loop in this file.", "expect": "answer" },
+    { "text": "Why is the learning rate decayed?", "expect": "answer" }
+  ]
+}

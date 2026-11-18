@@ -1,0 +1,30 @@
+{
+  "case": "data",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "itemId": "i5",
+  "preReview": true,
+  "ms": 11129,
+  "out": {
+    "skipped": {
+      "itemId": "i5",
+      "note": "I skipped the diagram for this part."
+    },
+    "next": "i6"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i5",
+      "command": "diagram",
+      "calls": 2,
+      "usd": 0.033749,
+      "cap_usd": 0.1,
+      "outcome": "invalid",
+      "errors": [
+        "The node \"App (hub)\" maps to no anchor of this beat (datasette/app.py:49, datasette/app.py:118-165) and no term taught so far; draw only what the source shows"
+      ]
+    }
+  ]
+}

@@ -56,9 +56,10 @@ test('panels render equal-width panels inside the 680 budget, one arrow and a wh
     assert.ok(width <= 680, `${count} panels: ${width}`);
     const markup = renderToStaticMarkup(element);
     assert.equal((markup.match(/data-tutor-composition-child=/g) ?? []).length, count);
-    const frames = [...markup.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/g)].filter(m => Number(m[2]) > 100 && Number(m[2]) < 400);
+    const frames = [...markup.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"[^>]*>/g)].filter(m => Number(m[2]) > 100 && Number(m[2]) < 400 && !/data-tutor-/.test(m[0]));
     for (const operation of spec.diagram.links.map(link => link.operation)) assert.ok(markup.includes(`>${operation}</`) || markup.includes(operation), operation);
-    assert.ok(frames.length >= count);
+    // plain panels draw no inner border any more (ground only, owner amendment), so there is no panel frame to count; each panel is still one composition child
+    assert.equal(frames.length, 0, `${count} panels: no panel border`);
   }
 });
 
@@ -88,10 +89,13 @@ test('values print at one precision per chart inside panels: 3.00 beside 20.09, 
   const shares = { ...probs, variant: 'stacked', total: 1 };
   const text = markup => [...markup.matchAll(/>([^<>]*)<\/(?:text|tspan)>/g)].map(m => m[1]);
   const inPanels = text(svg(panels({ panels: [{ diagram: scores }, { diagram: powers }, { diagram: shares }], links: [{ from: 0, to: 1, operation: 'a' }, { from: 1, to: 2, operation: 'b' }] })));
-  for (const want of ['3.0 value', '2.0 value', '1.1 value', '20.09 value', '7.39 value', '3.00 value', 'Class 0: 0.66', 'Class 1: 0.24', 'Class 2: 0.10']) assert.ok(inPanels.join(' ').includes(want), want);
+  // BAR-U: a generic unit such as 'value' is not printed after a number, so each bar's label is the bare number, at its chart's one precision.
+  for (const want of ['3.0', '2.0', '1.1', '20.09', '7.39', '3.00']) assert.ok(inPanels.includes(want), want);
+  for (const want of ['Class 0: 0.66', 'Class 1: 0.24', 'Class 2: 0.10']) assert.ok(inPanels.join(' ').includes(want), want);
+  assert.ok(!inPanels.some(item => item.includes('value')), 'the generic unit is not printed');
   // outside a panel a plain bar chart prints as written
   const alone = text(svg({ version: 1, diagram: powers }));
-  assert.ok(alone.join(' ').includes('3 value') && !alone.join(' ').includes('3.00'), 'a stand-alone chart is unchanged');
+  assert.ok(alone.includes('3') && !alone.includes('3.00'), 'a stand-alone chart is unchanged');
 });
 
 test('shared classes also colour the parts of a stacked bar like the plain bars of the other panel', () => {

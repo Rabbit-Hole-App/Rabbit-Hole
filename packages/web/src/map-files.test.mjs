@@ -61,17 +61,20 @@ test('the paste popup offers exactly Code card and Jupyter notebook; a choice ma
   assert.throws(() => pasteBlock({ text: 'a', choice: 'attachment', assetKey: 'k' }), /choose how to add it/);
 });
 
-test('the panel\'s selection offers Ask in chat, Add code card beside a canvas, and Copy; the Map keeps Ask and Learn; Copy answers on the button', () => {
+test('the panel\'s selection offers Ask in chat, Add to chat, Add to canvas beside a canvas, and Copy as icons (one vocabulary); the Map keeps Ask and Learn; Copy answers on the icon', () => {
   const reader = read('CodeReader.jsx'), repo = read('repository-canvas.jsx');
   assert.match(repo, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{files\.open\} context=\{context\} query="" pick=\{files\.jump\} stacked place="panel"/, 'the panel is the place that gets the two actions');
   const toolbar = reader.slice(reader.indexOf('{panel ? <>'), reader.indexOf('</div>} />'));
   const [panel, map] = toolbar.split(/<\/> : <>\n/); // the place switch, not the Copied ternary inside it
-  assert.equal(panel.match(/<Button /g).length, 3, 'three actions');
-  // Add code card (repo-graph Release 2) shows only where the canvas takes cards, and puts exactly the selected lines on it.
-  // Owner review UI-10 (2026-10-21): labelled Add to canvas, the shared inverse Button, as in Context and Graph.
-  assert.match(panel, /\{cards && <Button size="sm" variant="inverse" data-range-card onClick=\{\(\) => \{ setPending\(null\); addCard\(r\.path, \{ start: r\.start, end: r\.end \}\); \}\}>/);
-  assert.match(panel, /data-range-ask onClick=\{\(\) => act\('ask', r\)\}><MessageSquare size=\{13\} \/>Ask in chat<\/Button>/);
-  assert.match(panel, /data-range-copy onClick=\{\(\) => copy\(r\)\}>\{copied === `\$\{r\.path\}:\$\{r\.start\}-\$\{r\.end\}` \? <><Check size=\{13\} \/>Copied<\/> : <><Copy size=\{13\} \/>Copy<\/>\}/);
+  assert.equal(panel.match(/<Button /g), null, 'no text buttons next to the icons: the four actions are ActionBar icons');
+  assert.deepEqual([...panel.matchAll(/id: '(\w+)'/g)].map(m => m[1]), ['ask', 'chat', 'canvas', 'copy'], 'Ask in chat, Add to chat, Add to canvas, Copy, in that order');
+  // Add to chat (owner 2026-11-15): the selected lines as a context chip through chat.addToChat; asks and sends nothing.
+  assert.match(panel, /inChat && \{ id: 'chat'[^\n]*addInChat\(r\.path, \{ start: r\.start, end: r\.end \}\)[^\n]*data-range-add-chat/);
+  assert.match(reader, /inChat && \{ id: 'chat', onClick: \(\) => addInChat\(open\)[^\n]*data-file-add-chat/, 'and the open file');
+  // Add to canvas (one name for what was Add code card): shows only where the canvas takes cards, and puts exactly the selected lines on it.
+  assert.match(panel, /cards && \{ id: 'canvas'[^\n]*addCard\(r\.path, \{ start: r\.start, end: r\.end \}\)[^\n]*data-range-card/);
+  assert.match(panel, /\{ id: 'ask', onClick: \(\) => act\('ask', r\), data: \{ 'data-range-ask'/);
+  assert.match(panel, /\{ id: 'copy', \.\.\.\(copied === `\$\{r\.path\}:\$\{r\.start\}-\$\{r\.end\}` \? \{ label: 'Copied', Icon: Check \} : \{\}\), onClick: \(\) => copy\(r\)/);
   assert.doesNotMatch(panel, /Learn/);
   assert.match(map, /act\('ask', r\)\}>Ask<\/Button>[\s\S]*act\('learn', r\)\}>Learn<\/Button>/);
   assert.doesNotMatch(reader, /toast\(/, 'no corner toast for Copy');
@@ -87,9 +90,10 @@ test('the panel\'s selection offers Ask in chat, Add code card beside a canvas, 
 test('a code paste opens the Add to canvas dialog with the paste choices, before anything is placed', () => {
   const canvas = read('AdaptiveCanvas.jsx'), page = read('LearnPage.jsx');
   assert.match(canvas, /const code = !!pasteCodeRef\.current && \(!!copiedCode\(\(\) => sessionStorage, text\) \|\| looksLikeCode\(text\)\);/);
-  assert.match(canvas, /if \(kind === 'code'\) \{ event\.preventDefault\(\); pasteCodeRef\.current\(text\); return; \}/);
+  // The paste carries the pointer's point (owner 2026-11-14: a paste lands where the cursor is).
+  assert.match(canvas, /if \(kind === 'code'\) \{ event\.preventDefault\(\); pasteCodeRef\.current\(text, cursorAt\(\)\); return; \}/);
   assert.match(page, /onDropFiles=\{takeDrop\} onPasteCode=\{pasteCode\}/);
-  assert.match(page, /setImports\(queue => \[\.\.\.queue, \{ id: crypto\.randomUUID\(\), file: new File\(\[text\], pasteName\(copy\), \{ type: 'text\/plain' \}\), kind: 'paste', at: null, copy \}\]\);/);
+  assert.match(page, /setImports\(queue => \[\.\.\.queue, \{ id: crypto\.randomUUID\(\), file: new File\(\[text\], pasteName\(copy\), \{ type: 'text\/plain' \}\), kind: 'paste', at, copy \}\]\);/);
   // The dialog is the file-drop one: Cancel (or Escape) is nextImport, which places nothing.
   assert.match(page, /<FileImportDialog key=\{imports\[0\]\.id\} file=\{imports\[0\]\.file\} kind=\{imports\[0\]\.kind\}[^\n]*\n\s+onCancel=\{nextImport\} onConfirm=\{addImport\} \/>/);
 });

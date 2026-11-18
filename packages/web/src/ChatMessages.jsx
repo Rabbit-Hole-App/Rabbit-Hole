@@ -14,6 +14,7 @@ import { ArrowDown, Copy, CornerDownRight, Loader2, Network, X } from 'lucide-re
 import CommandPill from './CommandPill.jsx';
 import { sentCommand } from './command-token.js';
 import { typedOf } from './agent/slash.js';
+import { keepAsCard } from './chat-keep.js';
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
@@ -27,6 +28,9 @@ import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, proposalAccepted, p
 import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
+import { REHEARSAL } from './rehearsal-flag.js';
+// The code-explain insertion (code-explain-insert.js, with the contract's validators) loads with the first such Add as card. The literal env test beside the import is what lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER (the same form as AdaptiveCanvas RunCard).
+const loadCodeExplainInsert = () => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./code-explain-insert.js') : Promise.reject(new Error('The code explanation card is not part of this build')));
 import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runImageJob } from './generate-image.js';
 import { sameFileCard } from './file-to-canvas.js';
 import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
@@ -390,17 +394,26 @@ const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error']
 const Waiting = ({ text, className = '', ...rest }) => <span {...rest} className={cn('flex items-center gap-2 text-xs text-ink-2', className)}><Loader2 size={14} className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
 
 // One message. Everything it reads from AskPanel comes in as a prop.
-export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, outputOps = null }) {
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onCreateExplainCard = null, checkKeep = null, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, outputOps = null }) {
   // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
   // learner deleted it) instead of adding a second one.
+  // A code-explain answer (its message meta carries a codeExplain payload, code-explain-card-spec.md section 3 step 4) adds the primary card with its satellites and connectors instead; a payload
+  // the contract's validator refuses, or a canvas that cannot take it, falls back to this chat card.
   const addAsCard = card => {
-    onAddToCanvas({ ...card, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '' });
+    const chatCard = () => onAddToCanvas({ ...card, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '' });
+    const payload = REHEARSAL && m.meta?.codeExplain && outputOps?.insertCodeExplain ? m.meta.codeExplain : null;
+    if (payload) loadCodeExplainInsert().then(mod => mod.addCodeExplain(outputOps, { id: card.id, payload }), () => ({ ok: false })).then(out => { if (!out.ok) { if (out.errors) console.warn('[code explain] not added as a card:', out.errors); chatCard(); } });
+    else chatCard();
     setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
   };
   // Bugs 1 and 3: a slash command's response, and one that makes something on the canvas, uses the generation and card workflow - it gets no
   // Explore next, no Add as card (the generated output is reached by its own card, Go to card) and no generic Regenerate (a command
   // turn re-sent as plain words would answer in prose, skipping the command's own confirmation). Ordinary answers keep all three.
   const kind = responseKind(m, msgs[turnIndex(msgs, i)] ?? null);
+  // Create as card (owner 2026-11-13): an ordinary reply can be turned into a written /explain card on the learner's own question, offered only where JEV judges the reply
+  // worth keeping (AnswerFooter checkKeep; chat-keep.js). Here only the cheap pre-conditions: an ordinary reply to a question.
+  const asked = [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '';
+  const explainable = !!onCreateExplainCard && kind.ordinary && !!asked.trim();
   // An accepted review card is gone from the Chat (generation-proposal-chat.js proposalAccepted); a plan message that was only that card goes with it.
   const accepted = m.role !== 'user' && proposalAccepted(m, msgs);
   if (accepted && proposalOnly(m)) return null;
@@ -446,9 +459,9 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             {m.meta?.proposal?.proposal_id && !accepted && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
             {m.meta?.animationChoice?.alternatives?.length > 0 && <AnimationChoices choice={m.meta.animationChoice} ops={outputOps} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
-              onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
+              onCreateExplainCard={explainable ? () => onCreateExplainCard(asked) : null} checkKeep={explainable && checkKeep ? () => checkKeep({ id: m.messageId ?? m.id ?? null, question: asked, reply: m.content }) : null} onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
               onRegenerate={kind.ordinary ? onRegenerate : null} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
-            {prepare && kind.ordinary && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
+            {prepare && kind.ordinary && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} question={asked} />}
           </div>
           </AnswerBoundary>
         ) : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
@@ -479,6 +492,8 @@ ${line}` : line));
   const props = { ...given,
     prepare: chat?.composer?.prepare ?? given.prepare ?? typeIn, onRegenerate: chat?.regenerate ?? given.onRegenerate ?? null,
     threadId: chat?.thread?.id ?? given.threadId ?? null, insertNotebook: ops?.insertNotebook ?? given.insertNotebook,
+    checkKeep: chat?.ask && chat?.canvas ? (item => keepAsCard({ app: chat.canvas, ...item })) : null,
+    onCreateExplainCard: chat?.ask ? (question => chat.ask({ line: `/${typedOf('explanation')} ${question}` })) : null,
     onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null, outputOps: ops ?? null };
   const { msgs, sheetMode } = props;
   return msgs.map((m, i) => (sheetMode && m.card) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />);

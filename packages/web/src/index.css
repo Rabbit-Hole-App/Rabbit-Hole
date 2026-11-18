@@ -9,6 +9,8 @@
    review captures and every learner's OS draw the same digits (EXP-T18 render parity; system mono stacks differ by OS).
    JetBrains Mono 2.304 Regular, SIL OFL 1.1 (fonts/JetBrainsMono-OFL.txt; the same file as packages/learn-render). */
 @font-face { font-family: 'JetBrains Mono'; src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+/* SH-1: Space Grotesk 5.3.0 Medium (500), latin subset, SIL OFL 1.1 (fonts/SpaceGrotesk-OFL.txt; @fontsource/space-grotesk, no dependency), the landing's display family for the shared page's product title. */
+@font-face { font-family: 'Space Grotesk'; src: url('./fonts/SpaceGrotesk-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
 :root { --font-scene-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /* BlockNote's shadcn components rely on the host app's Tailwind generating their utilities */
 @source '../../../node_modules/@blocknote/shadcn';
@@ -18,6 +20,9 @@
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* SH-1: the landing's display family (design/rabbit-hole.css --display, the footer wordmark), self-hosted below (the landing itself loads it from Google Fonts in design/rabbit-hole-hero.html);
+     used only by SharedBrand. */
+  --font-display: 'Space Grotesk', 'Inter Variable', 'Inter', sans-serif;
   --color-ink: #37352f; /* text */
   /* text-secondary. Darker than Notion's #787774 (4.32:1 on the scene surface,
      3.37:1 on a soft cell tint): secondary text is learner-facing and clears
@@ -46,6 +51,8 @@
   --color-select: #2383e2;
   /* The inline AI editor's target and accent: the product's purple (--tok-k, --viz-prediction), flipped in .dark. */
   --color-ai: #9065b0;
+  /* HL-1: a passage explained through Ctrl+K or linked to an explanation card, pink, apart from the Highlight yellow (owner 2026-11-14). */
+  --color-explained: #ec4899;
   /* Claude orange (owner 2026-11-07, #C15F3C): intensity and in-progress only (the Depth icon, spinners, the waiting shimmer); never a button,
      a link, a warning or an error. Blue stays the action colour. -deep is the stronger step of the same orange. claude-orange.test.mjs. */
   --color-claude: #c15f3c;
@@ -102,6 +109,7 @@ html {
   --viz-input: #2383e2;
   --viz-output: #2f855a;
   --viz-prediction: #9065b0;
+  --viz-operator: var(--viz-prediction);
   --viz-observed: #37352f;
   --viz-learner: #d9730d;
   --viz-tutor: #0e7490;
@@ -118,10 +126,12 @@ html {
   --viz-input-text: #1b6fc2; /* the app's own --color-accent-hover */
   --viz-output-text: #2e8157;
   --viz-prediction-text: #8c60ad;
+  --viz-operator-text: var(--viz-prediction-text);
   --viz-learner-text: #af5d0a;
   --viz-code-text: var(--color-ink-2);
   --viz-identity-2-text: #867033;
-  --viz-surface: #fbfbfa;
+  --viz-surface: #FFFCF0;
+  --viz-fill-slate: #A8BBD0;
   /* A solid-filled role carries its own readable ink, because the fill is the
      background at that point and which ink reads on it flips with the theme:
      observed is near-black in light and near-white in dark. */
@@ -348,6 +358,7 @@ html {
   --tok-s: #6fbf8e;
   --tok-k: #b79ae3;
   --color-ai: #b79ae3;
+  --color-explained: #f472b6;
   --color-claude: #e2825d;
   --color-warn: #e5b13a;
   --color-claude-deep: #f09a76;
@@ -451,6 +462,7 @@ html {
   --viz-input: #5ba3f5;
   --viz-output: #5fc08a;
   --viz-prediction: #b79ae3;
+  --viz-operator: var(--viz-prediction);
   --viz-observed: #e4e4e4;
   --viz-learner: #f2b06a;
   --viz-tutor: #2fc4b8;
@@ -461,10 +473,12 @@ html {
   --viz-input-text: var(--viz-input);
   --viz-output-text: var(--viz-output);
   --viz-prediction-text: var(--viz-prediction);
+  --viz-operator-text: var(--viz-prediction-text);
   --viz-learner-text: var(--viz-learner);
   --viz-identity-2-text: var(--viz-identity-2);
   --viz-identity-3-text: #9c6aff;
   --viz-surface: #1f1f1f;
+  --viz-fill-slate: #A8BBD0;
   --viz-on-observed: #1f1f1f;
   --viz-on-success: #1f1f1f;
   /* Heat diverging scale, dark - each clears 3:1 against --viz-surface:
@@ -836,8 +850,8 @@ tr.cursor-pointer:active > td {
 /* Learner highlights on a Wikipedia card (learn-wiki-highlights.js). The
    Custom Highlight API paints ranges without touching the article's DOM. Dark
    text on the yellow in both themes, or dark mode's light text would vanish. */
-/* Ctrl+K over highlighted words (owner 2026-11-09): the words stay marked in the Highlight colour (the card Highlight is bg-yellow-300/40) while the window is open; never saved. */
-::highlight(inline-target) { background-color: color-mix(in oklab, var(--color-yellow-300, #fde047) 40%, transparent); }
+/* Ctrl+K over highlighted words (owner 2026-11-09): the words stay marked while the window is open; never saved. HL-1: pink, not the Highlight yellow, as the passage will stay once explained. */
+::highlight(inline-target) { background-color: color-mix(in oklab, var(--color-explained) 42%, transparent); }
 ::highlight(wiki-highlight) {
   background-color: #fde047;
   color: #1f1f1f;
@@ -1061,6 +1075,13 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
    Explanation program sizes its drawing to the pane (ProgramScene focusFrameBox); when the pane is under its legible box, the
    whole focused card scrolls, never the drawing alone. */
 [data-focus-host] [data-focus-hide] { display: none; }
+/* The Study | Canvas pill sits at the header row's right end (LearnPage); the centred group keeps clear of it. */
+@media (min-width: 768px) { [data-canvas-header]:has([data-study-toggle]) { padding-right: 8rem; } }
+/* Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly, owner 2026-11-15): the card alone fills the right pane. The dotted surface and
+   every other card are not drawn (visibility, never display: nothing unmounts, so a Run card's session and the Runbook editor live on); the focused host is. */
+[data-study-card] [data-canvas-surface] { background-image: none !important; }
+[data-study-card] [data-canvas-world] { visibility: hidden; }
+[data-study-card] [data-canvas-world] [data-focus-host] { visibility: visible; }
 [data-focus-host]:has([data-program-viewport]) { overflow: auto !important; overscroll-behavior: contain; }
 /* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
    the height. Play, the scrubber and the inputs keep their 32 px targets; Interact's label sits beside its inputs. The Slash
@@ -1091,7 +1112,20 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-explain-table] table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; color: var(--color-ink); }
 [data-explain-table] th,
 [data-explain-table] td { min-width: 5.5rem; padding: 8px 12px; text-align: left; vertical-align: top; overflow-wrap: break-word; border-bottom: 1px solid var(--color-line); }
-[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, #a8bbd0 24%, var(--viz-surface)); }
+[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, var(--viz-fill-slate) 24%, var(--viz-surface)); }
 [data-explain-table] tbody tr:last-child td { border-bottom: 0; }
 /* The minimized Explanation tile (LearningBlocks ExplanationTile): its one visual is drawn at its full size, as in the card (explanation-card-width.js sets the tile's width from it); only the picture's own margin is dropped. */
 [data-explanation-tile] [data-illustration] { margin: 0 auto; }
+
+/* The top of a card, the thin grip strip and the header under it, is ONE drag region (owner 2026-11-13): the pointer anywhere on the card lights one tint layer as tall as both together
+   (CanvasNode measures it into --top-h), so it can never read as two parts. A tint over the content, not a fill behind it, so nothing is hidden or restacked. */
+[data-block]:hover::before {
+  content: ''; position: absolute; top: 0; right: 0; left: 0; z-index: 12; height: var(--top-h, 24px); border-radius: 0.75rem 0.75rem 0 0;
+  background-color: color-mix(in srgb, currentColor 7%, transparent); pointer-events: none;
+}
+
+/* The tool buttons on the canvas strip's pills are round on hover and press, not square (owner 2026-11-13). Only the buttons themselves: a menu's items are deeper and keep their shape. */
+[data-composer-tools] > button, [data-composer-tools] > * > button { border-radius: 9999px; }
+
+/* While a card or the canvas is being dragged the card action pill (Enter, Add to chat, Quick Edit, Minimize) is hidden (owner 2026-11-13). */
+body.canvas-dragging [data-card-chrome-row] { display: none; }

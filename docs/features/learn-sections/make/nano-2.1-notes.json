@@ -1,0 +1,33 @@
+{
+  "case": "nano",
+  "section": "2.1",
+  "sectionId": "2.1",
+  "itemId": "notes",
+  "preReview": true,
+  "ms": 8165,
+  "out": {
+    "item": {
+      "itemId": "notes",
+      "command": "document",
+      "lead": "Here is what the section settled: how the one long string becomes two pieces, and why the numbers come out as they do.",
+      "follow": ""
+    },
+    "perform": {
+      "op": "doc",
+      "markdown": "**The idea.** A language model is judged on text it was not trained on. So the single string is cut into two pieces: a large one to learn from and a small one held back. The first 90% of the characters train. The last 10% validate.\n\n**The cut.** It is plain string slicing at one index. The same `int(n*0.9)` ends the first slice and starts the second. The pieces share no character and miss none.\n\n**The real numbers.** The corpus has n = 1,115,394 characters.\n- $n \\times 0.9 = 1{,}003{,}854.6$, and `int` drops the fraction, giving 1,003,854.\n- Train is therefore 1,003,854 characters.\n- Validation is $1{,}115{,}394 - 1{,}003{,}854 = 111{,}540$ characters, matching the comments.\n\n**Order of steps.** The cut is made on the raw text, before encoding. Each piece is then encoded. At character level, one character gives one id, so the id counts equal the slice lengths: 1,003,854 and 111,540.\n\n**Same cut, other encoder.** The GPT-2 BPE script uses the same two slicing lines. Only the encoder differs. Its pieces hold fewer ids, 301,966 and 36,059, because one token covers several characters. The 90/10 cut is unchanged.\n\n**Terms from this section.**\n- *Train piece*: the first 90%, used to learn.\n- *Validation piece*: the last 10%, held back.\n- *Split index*: `int(n*0.9)`, the single number that divides the string.\n\n**Hand-over.** Next: why the held-back tenth must never be seen during training."
+    },
+    "next": null
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "2.1",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "usd": 0.019958,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

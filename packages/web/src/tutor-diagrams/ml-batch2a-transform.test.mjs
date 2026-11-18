@@ -5,7 +5,10 @@ import { references } from './ml-batch2a-transform-references.js';
 import { describeTutorDiagram, parseTutorDiagram, tutorDiagramSchema, tutorDiagramVisibleText } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 import { lineHeight, textWidth } from './primitives.js';
-import { TEACHING, TEACHING_STYLE } from './teaching-theme.js';
+import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_STYLE, TEACHING_ZERO, mixHex } from './teaching-theme.js';
+
+// Sprint default: the approved colours are the palette, the grid and zero-line guide colours, the series inks (an end label) and the legend pills' 18% tints of the series fills.
+const APPROVED = new Set([...Object.values(TEACHING), TEACHING_GRID, TEACHING_ZERO, ...TEACHING_SERIES_INK, ...TEACHING_SERIES.map(fill => mixHex(fill, TEACHING.ground, 0.18))]);
 
 const ids = ['ml-feature-interaction', 'ml-raw-log-distributions'];
 const record = id => {
@@ -136,16 +139,25 @@ test('the reference boundary rejects broken row identities, ragged tables, inval
 function verifyFrame(element, width, height, offset = [0, 0]) {
   const props = element.props ?? {};
   let [dx, dy] = offset;
-  if (props.transform) {
-    const match = props.transform.match(/^translate\(([-.\d]+)[ ,]([-.\d]+)\)$/);
-    assert.ok(match, `unexpected scaling or transform: ${props.transform}`);
-    dx += Number(match[1]); dy += Number(match[2]);
-  }
   const within = (x, y) => {
     assert.ok(Number.isFinite(x) && Number.isFinite(y));
     assert.ok(x >= -0.01 && x <= width + 0.01 && y >= -0.01 && y <= height + 0.01,
       `${element.type} (${x}, ${y}) outside ${width} × ${height}`);
   };
+  // Sprint default: a plot's y title runs along the axis, a text turned -90 degrees about its centre; its turned box (as long as the text, one line high) must lie inside the frame.
+  if (props['data-tutor-plot-y-title'] !== undefined) {
+    const [, cx, cy] = props.transform.match(/^rotate\(-90 ([-.\d]+) ([-.\d]+)\)$/);
+    const [title] = children(element), size = title.props.fontSize;
+    const length = Math.max(...children(title).filter(child => child.type === 'tspan').map(span => textWidth(span.props.children, size)));
+    within(dx + Number(cx) - lineHeight(size) / 2, dy + Number(cy) - length / 2);
+    within(dx + Number(cx) + lineHeight(size) / 2, dy + Number(cy) + length / 2);
+    return;
+  }
+  if (props.transform) {
+    const match = props.transform.match(/^translate\(([-.\d]+)[ ,]([-.\d]+)\)$/);
+    assert.ok(match, `unexpected scaling or transform: ${props.transform}`);
+    dx += Number(match[1]); dy += Number(match[2]);
+  }
   if (element.type === 'rect' || element.type === 'foreignObject') {
     within(dx + props.x, dy + props.y);
     within(dx + props.x + props.width, dy + props.y + props.height);
@@ -170,7 +182,7 @@ function verifyFrame(element, width, height, offset = [0, 0]) {
   for (const attribute of ['fill', 'stroke']) if (props[attribute] && props[attribute] !== 'none') {
     const color = props[attribute].startsWith('var(')
       ? TEACHING_STYLE[props[attribute].match(/^var\(([^,]+)/)[1]] : props[attribute];
-    assert.ok(Object.values(TEACHING).includes(color), `unapproved ${attribute}: ${props[attribute]}`);
+    assert.ok(APPROVED.has(color), `unapproved ${attribute}: ${props[attribute]}`);
   }
   children(element).forEach(child => verifyFrame(child, width, height, [dx, dy]));
 }

@@ -1,0 +1,42 @@
+{
+  "command": "practice",
+  "typed": "practice",
+  "about": "An open practice task with feedback on the learner's attempt (not a single test question).",
+  "cases": [
+    {
+      "text": "Let me try teaching this back to you and tell me what I got wrong.",
+      "expect": "practice"
+    },
+    {
+      "text": "Give me an exercise to practise attention on my own.",
+      "expect": "practice"
+    },
+    {
+      "text": "I want to attempt describing backpropagation in my own words and get feedback.",
+      "expect": "practice"
+    },
+    {
+      "text": "Set me a small task where I apply gradient descent to a new case.",
+      "expect": "practice"
+    },
+    {
+      "text": "Can I have something to work through that checks how I'd actually use this?",
+      "expect": "practice"
+    },
+    {
+      "text": "Let me have a go at solving one myself and then review my attempt.",
+      "expect": "practice"
+    },
+    {
+      "text": "give me a problem to try on this myself",
+      "history": [
+        {
+          "user": "Explain softmax temperature",
+          "reply": "Temperature rescales logits before softmax: low makes the distribution sharper, high flatter.",
+          "command": null
+        }
+      ],
+      "expect": "practice"
+    }
+  ]
+}

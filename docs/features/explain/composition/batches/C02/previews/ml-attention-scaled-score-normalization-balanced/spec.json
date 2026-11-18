@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "panels",
+    "title": "Scaled attention weights",
+    "caption": "Toy $q=(1,1)$; keys A $(2,0)$, B $(0,1)$, C $(1,2)$. Raw matches are dot products; head width $d_k=2$.",
+    "panels": [
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Raw matches",
+          "bars": [
+            {
+              "label": "A",
+              "value": 2
+            },
+            {
+              "label": "B",
+              "value": 1
+            },
+            {
+              "label": "C",
+              "value": 3
+            }
+          ]
+        }
+      },
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Scaled matches",
+          "bars": [
+            {
+              "label": "A",
+              "value": 1.414
+            },
+            {
+              "label": "B",
+              "value": 0.707
+            },
+            {
+              "label": "C",
+              "value": 2.121
+            }
+          ]
+        }
+      },
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Position weights",
+          "bars": [
+            {
+              "label": "A",
+              "value": 0.284
+            },
+            {
+              "label": "B",
+              "value": 0.14
+            },
+            {
+              "label": "C",
+              "value": 0.576
+            }
+          ],
+          "variant": "stacked",
+          "total": 1
+        }
+      }
+    ],
+    "links": [
+      {
+        "from": 0,
+        "to": 1,
+        "operation": "$\\div\\sqrt{2}$"
+      },
+      {
+        "from": 1,
+        "to": 2,
+        "operation": "softmax"
+      }
+    ],
+    "shared": [
+      "classes",
+      "colours"
+    ]
+  }
+}

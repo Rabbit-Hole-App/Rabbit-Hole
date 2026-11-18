@@ -1,25 +1,31 @@
+import { REHEARSAL } from './rehearsal-flag.js';
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
+import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Map as MapIcon, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, freshFitStep, cornerSlot } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
+import { linkPassage } from './passage-link.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
 import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
-import { effectiveWidgets, focusWidgets, toolbarDrawn, widgetToggle } from './widget-visibility.js';
+import { effectiveWidgets, focusWidgets, studyCardOnly, studyChromeOff, studyHides, toolbarDrawn, widgetToggle } from './widget-visibility.js';
+import { ownedId } from './study-state.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
-import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
+import { DOC_CARD_SIZE, docIsEmpty, isFileDrag, migrateDocToCard, newDocBlock, pressKeepsDocFocus } from './canvas-doc.js';
+import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated } from './rehearsal-cards.js';
+import { ADD_KNOB_EVENT, applyKnobEvent } from './run-card-knobs.js';
+import { CODE_EXPLAIN_SIZE } from './code-explain-text.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
@@ -41,7 +47,9 @@ import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEn
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
-import { SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+import { HoverActions, SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+// A touch screen has no hover: there the selected card keeps its action row (owner 2026-11-13: elsewhere the row shows on hover, not on click).
+const NO_HOVER = typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
 import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
@@ -64,7 +72,7 @@ import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame, memberPorts } from './learn-connectors.js';
 import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
-import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -75,7 +83,11 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
-import { besideSpot, followPlace } from './beside-placement.js';
+import { BESIDE_ASSUMED_H, BESIDE_ASSUMED_W, followPlace } from './beside-placement.js';
+import { placeSourced } from './place-sourced.js';
+import { ARROW, arrowhead, connectorsOf, drawConnector } from './connector.js';
+import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, passageZoom, topView } from './canvas-view.js';
+import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
@@ -85,7 +97,7 @@ import { cardEvidence } from './area-evidence.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
-import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
+import { equationOf, isWebUrl, looksLikeCode, mermaidOf, pasteKind, pasteTarget } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel, selectedIn, targetFor } from './comments/anchors.js';
@@ -97,7 +109,7 @@ import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply
 import { ExplanationHost } from './explanation-host.js';
 import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
-import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
+import { holdsTocLink, resolvedLinks, sectionChoices, tocLinkRows, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
@@ -106,6 +118,7 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
+import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -132,8 +145,13 @@ import { loadMediaOriginal } from './media-storage.js';
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
 // The inline AI editor arrives with its first Ctrl/Cmd+K (docs/features/inline-ai-editor.md), never with the canvas.
 const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI editor');
-// The canvas's document editor (BlockNote), loaded only when Editor view first shows it (docs/features/blocknote-canvas.md).
-const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
+// A document as a card (DocNode below), loaded with the first such card, never with the canvas.
+const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor');
+// A Run card (RunCard.jsx; rehearsal-cards.js), loaded with the first such card.
+// The literal env test beside the import is what lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER (the form home/review-fixtures.js uses); it runs only when the card renders.
+const RunCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./RunCard.jsx') : Promise.reject(new Error('The run card is not part of this build'))), 'The run card');
+// A code-explain card (CodeExplainCard.jsx, code-explain-card-spec.md), loaded with the first such card; the same dev flag and literal env test as the Run card, so a production build drops the chunk.
+const CodeExplainCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./CodeExplainCard.jsx') : Promise.reject(new Error('The code explanation card is not part of this build'))), 'The code explanation card');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
@@ -194,8 +212,6 @@ const DIVIDER_W = 1040;
 // at a glance; picking an ink colour first overrides this.
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
 const COLUMN = 560;
-// The document sheet: about 760 px across at 100% (brief section 4), and at least one screen tall before it holds much.
-const DOC_W = 760, DOC_MIN_H = 960;
 // A new card's one camera correction waits until its measured size has been still for SETTLE_MS (rows it
 // measures a frame or two after mount), REVEAL_MS after the insert at the latest (revealAfter).
 const SETTLE_MS = 200, REVEAL_MS = 1500;
@@ -325,15 +341,35 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // A Tutor card inserted at the column's default place, before its offsets put it on its slot (placeRoadmapCard, pendingAt): laid out (so it is measured) but not shown,
 // so it never flashes at the default place (UI.06).
 const PLACING = { visibility: 'hidden' };
+// A learner's own resize of a Learn section card (learn-position.js): the card keeps that size; the column's width and the content height no longer apply to it. A quiet resize is the canvas's own.
+const learnSized = (block, quiet) => (block.learn?.slot && !quiet ? { ...block, learn: { ...block.learn, sized: true, fit: false } } : block);
 const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
+  // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
+  // It is this card's own state: a hover change re-renders this card only, never the canvas.
+  const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
+  // The highlight over the top of the card (index.css) is as tall as the grip strip and the header together.
+  const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
+  // A press alone changes nothing (the row must not jump when a card is clicked); it hides only once the card is being dragged (a move with a button down).
+  const hoverIn = event => { if (event.buttons) { if (hovered || hoverTimer.current) hoverOff(); return; } measureTop(event.currentTarget); if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
+  const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 350); }; // a grace long enough to cross the empty space between the pills
+  const hoverOff = () => { clearTimeout(hoverTimer.current); hoverTimer.current = null; setHovered(false); };
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
   // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
   const opener = useContext(CardOpen);
   const opens = !chat && opener ? opener.can(id) : null;
+  // The row above a card (owner 2026-11-13): Enter shows on a hovered card and stays on the selected one; the action buttons (Add to chat, Quick Edit, Minimize) show on hover, or on a
+  // touch screen for the selected card. Hover is off while a button is down, so a click that selects keeps Enter even before the pointer moves again.
+  // ONE condition for the whole row (owner 2026-11-13: Enter, Add to chat, Quick Edit and Minimize are seen together or not at all): the card is selected or the pointer is on it.
+  const rowShown = selected || hovered;
+  const showEnter = rowShown && !!opens && (!selected || opener.single === id);
+  // The selected card keeps its buttons whether or not the pointer is on it (owner 2026-11-13: nothing may disappear from it); a card that is only hovered shows its row while the pointer is on it.
+  const showTools = rowShown && !!(selected ? tools : hoverTools);
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
+  placing = placing || !!edit.learnHidden?.(id); // also a Learn section card before the column put it on its slot (learn-position.js): laid out and measured, not shown
   const [cornerDrag, setCornerDrag] = useState(null);
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
   // (card-layout.js fullLength, no slot) as the ordinary sized card it becomes on release (resizeCardLayout corner).
@@ -418,6 +454,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
+      onPointerEnter={hoverIn} onPointerMove={hoverIn} onPointerLeave={hoverOut}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
       // A press on a card takes the keyboard back from the companion column (its keys stand down while a focus is held
@@ -439,22 +476,26 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {selected && ((opens && opener.single === id) || tools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
-          {opens && opener.single === id && (
-            <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
-              onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-              Enter<ArrowUpRight size={13} />
-            </button>
-          )}
-          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
+      {/* ONE component (owner 2026-11-13): Enter, Add to chat, Quick Edit and Minimize are one pill in one fixed place above the card's left edge, seen and not seen together. */}
+      {(showEnter || showTools) && (
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex items-end justify-center after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-['']">
+          <div data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
+            {showEnter && (
+              <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
+                onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
+                className="flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-none px-3 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover">
+                Enter<ArrowUpRight size={13} />
+              </button>
+            )}
+            {showEnter && showTools && <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-line" />}
+            {showTools && <div className="flex items-stretch">{selected ? tools : hoverTools}</div>}
+          </div>
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
-      <div data-drag-handle data-drag-zone title="Drag to move this block"
-        className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : 'hover:bg-hover'}`}>
+      <div data-drag-handle data-drag-zone data-drag-top title="Drag to move this block"
+        className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}>
         {/* The six dots the toolbar and the Rabbit Holes Map grips use (owner 2026-11-08), shown while the card is hovered or focused. */}
         <GripHorizontal data-drag-grip size={13} aria-hidden className={`text-ink-3 ${ghost ? '' : 'opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'}`} />
       </div>
@@ -897,6 +938,82 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
+// A BlockNote document as a card (DocCard.jsx, docs/features/blocknote-canvas.md 2026-11-14): { blocks } on the block, like any card's content. Its words are saved quietly, as a
+// notebook's are (not canvas undo steps; BlockNote keeps its own history). The card is the Notebook card's shell at its own opening size; a view-only canvas, a copy and a locked card
+// show the editor read-only.
+function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
+  const fit = !!block.learn?.fit && !block.h; // a Learn section's lead, follow, notes or chapter heading: as tall as its words, no inner scroll (learn-position.js)
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={DOC_CARD_SIZE.w} height={fit ? undefined : block.h || DOC_CARD_SIZE.h} autoMax={undefined} fitContent={fit} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
+      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
+      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the document</p>}>
+        <DocCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)}
+          onBlocks={blocks => edit.patchBlock?.(block.id, { blocks }, true)} onLive={blocks => edit.docLive?.(block.id, blocks)} />
+      </Suspense>
+    </CanvasNode>
+  );
+}
+
+// A Run card (RunCard.jsx, rehearsal-runtime/RUN_CARD.md, owner 2026-11-14): the Notebook card's shell around the rehearsal's cells. What it keeps (block.run: the record reference,
+// cells, last outputs, typed flags; never a session) is saved quietly, as a notebook's words are. A viewer, a copy and a locked card see it with Run and Start disabled.
+function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
+  // The Tutor's "Add --flag to the Run card" (tutor-knob-action.js) reaches the card as a cancelable event; the card of that repository, commit and route takes it (preventDefault) and adds the
+  // knob to its saved state (run-card-knobs.js addKnob: deduped by flag and step). A locked or view-only card answers 'locked' and changes nothing.
+  const latest = useRef({ block, edit });
+  latest.current = { block, edit };
+  useEffect(() => {
+    if (!REHEARSAL) return undefined;
+    const take = event => {
+      if (event.defaultPrevented) return;
+      const { block: card, edit: ctx } = latest.current, out = applyKnobEvent(card.run, card.generated, event.detail);
+      if (out.status === 'other') return;
+      event.preventDefault();
+      if (ctx.readOnly || ctx.localCopy || ctx.locked.has(card.id)) { event.detail.status = 'locked'; return; }
+      event.detail.status = out.status;
+      if (out.status === 'added') ctx.patchBlock?.(card.id, { run: out.run }, true);
+    };
+    window.addEventListener(ADD_KNOB_EVENT, take);
+    return () => window.removeEventListener(ADD_KNOB_EVENT, take);
+  }, []);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={RUN_CARD_SIZE.w} height={block.h || RUN_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
+      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
+      {REHEARSAL && (
+      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the run card</p>}>
+        <RunCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={run => edit.patchBlock?.(block.id, { run }, true)} />
+      </Suspense>
+      )}
+    </CanvasNode>
+  );
+}
+
+// A code-explain card (CodeExplainCard.jsx): the Notebook card's shell at its own opening size, around the answer's file, ranges and explanation. It is the learner's card, so it has no
+// `generated` mark and deletes like any card. The depth it shows is saved quietly (not a canvas undo step); a satellite code card (CodeCard.jsx `from`) and this card meet in code-explain-link.js.
+function CodeExplainNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={CODE_EXPLAIN_SIZE.w} height={block.h || CODE_EXPLAIN_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
+      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
+      {REHEARSAL && (
+      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the code explanation</p>}>
+        <CodeExplainCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={patch => edit.patchBlock?.(block.id, patch, true)} present={edit.hasBlock} frame={edit.frameBlock} />
+      </Suspense>
+      )}
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
@@ -934,6 +1051,9 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'doc') return <DocNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'run') return <RunNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'codeExplain') return <CodeExplainNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CardCustomTitle block={block} /><CanvasRefCard block={block} /></CanvasNode>;
@@ -951,15 +1071,20 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
-      autoMax={tile ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
+      autoMax={tile ? null : block.learn?.fit ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <>
+        {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
+        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
+      </> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
-        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-        <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
+        <SelectionActionsHost id={block.id} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
@@ -1596,7 +1721,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1621,8 +1746,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
   // The right-click Rename and a card header's double-click open the same in-place editor (CardRename context, CardHeader.jsx).
   const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
+  // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right. Every canvas opens with it active (owner 2026-11-14: an
+  // owner, shared or published canvas, a new empty one too), so a minimize lasts for this canvas's visit and never carries to the next canvas.
   const [composerHidden, setComposerHidden] = useState(false);
   const hideComposer = useCallback(() => setComposerHidden(true), []);
+  // Add to chat and the other "show the chat" actions restore the strip when it is minimized and take the focus (chat-workspace.jsx showChat).
+  useEffect(() => {
+    const show = () => { setComposerHidden(false); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); };
+    window.addEventListener('rh-strip-show', show);
+    return () => window.removeEventListener('rh-strip-show', show);
+  }, []);
+  // The strip's Minimize button lives on the pill itself (ChatComposer, which the Chat's AskPanel draws into the strip), so it announces itself here.
+  useEffect(() => { window.addEventListener('rh-strip-minimize', hideComposer); return () => window.removeEventListener('rh-strip-minimize', hideComposer); }, [hideComposer]);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
   useEffect(() => {
     if (!composerHidden) return undefined;
@@ -1713,9 +1848,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const stored = useRef(null);
   // This browser's copy exactly as this canvas read it at mount, for the first save below.
   const readCopy = useRef(null);
+  // A legacy board's single document (state.doc) becomes a Document card at this one load path (canvas-doc.js migrateDocToCard), whether the
+  // state is this browser's copy, the server's, a shared, member or fork board's: a load-time transform that saves nothing by itself.
+  // migrated: the first save below is then a change, not the board as loaded. The old document is kept in this browser under
+  // :doc-premigration until the page's save has put the card on the server (LearnPage saveBoard); the server's doc goes with that PUT.
+  const migrated = useRef(false);
   if (stored.current === null) {
     // A shared board arrives as state from the server instead (SharedBoardPage).
-    try { readCopy.current = storageKey ? localStorage.getItem(storageKey) : null; stored.current = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {}); } catch { stored.current = {}; }
+    try {
+      readCopy.current = storageKey ? localStorage.getItem(storageKey) : null;
+      const loaded = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {});
+      stored.current = migrateDocToCard(loaded);
+      // Only the owner's own copy (a storage key) saves the card; a read-only, shared, member or guest view just shows it.
+      if (stored.current !== loaded && storageKey && !readOnly && !localCopy && !docIsEmpty(loaded.doc)) {
+        migrated.current = true;
+        try { localStorage.setItem(`${storageKey}:doc-premigration`, JSON.stringify(loaded.doc)); } catch { /* the server's copy still holds the document */ }
+      }
+    } catch { stored.current = {}; }
   }
   const [strokes, setStrokes] = useState(stored.current.strokes || []); // pen and highlighter ink, world coords
   const [live, setLive] = useState(null);
@@ -1822,24 +1971,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const areaById = id => areas.find(area => area.id === id);
   // The board an answer was asked about: the whiteboard itself, or the board a toolbar area was drawn on (EXP-T28).
   const boardOf = id => { const host = areaById(id)?.blockId || id; return blocks.find(block => block.id === host && block.type === 'whiteboard')?.id; };
-  // The canvas's one document (docs/features/blocknote-canvas.md): { v, x, y, w, blocks } in world units, saved with the
-  // board. Never part of the canvas's undo history (BlockNote keeps its own). docLive holds the editor's latest blocks at
-  // once, so a chat turn reads unsaved words; the board copy (doc) follows after a pause, so typing never re-renders the canvas.
-  const [doc, setDoc] = useState(() => (stored.current.doc && typeof stored.current.doc === 'object' ? stored.current.doc : null));
-  const docRef = useRef(doc);
-  docRef.current = doc;
-  const docLive = useRef(doc?.blocks || null), docTimer = useRef(null);
-  // The document as this canvas last wrote it to this browser's copy (JSON), so leaving can tell its own pending words from
-  // a copy someone else (the server's, on load) put there since.
-  const docWritten = useRef(JSON.stringify(doc ?? null));
-  const liveDoc = () => (docRef.current ? { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] } : null);
   const divePortals = useContext(DivePortals);
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
-  boardRef.current = { strokes, shapes, items, links, blocks, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
+  // Document cards' words typed in the last half second (DocCard): held here, not in `blocks`, so typing never re-renders the canvas, and read by every save path through the board
+  // below. The card patches its blocks after the pause and takes its entry back.
+  const docCardLive = useRef(new Map());
+  const withDocCardLive = list => (docCardLive.current.size ? list.map(block => (docCardLive.current.has(block.id) ? { ...block, blocks: docCardLive.current.get(block.id) } : block)) : list);
+  const docCardWords = (id, next) => {
+    if (!next) { docCardLive.current.delete(id); return; }
+    docCardLive.current.set(id, next);
+    boardRef.current = { ...boardRef.current, blocks: withDocCardLive(blocksRef.current) };
+    searchStore.current?.changed(); // Search reads the typed words at once, not after the card's pause
+  };
+  boardRef.current = { strokes, shapes, items, links, blocks: withDocCardLive(blocks), groups, areas, ...(toc ? { toc } : {}) };
   // The board as this canvas first showed it, which retire() compares the live board against (pendingWork).
   const mountedBoard = useRef(null);
   if (!mountedBoard.current) mountedBoard.current = boardRef.current;
@@ -1854,7 +2002,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const retired = useRef(false);
   // The board as this browser's copy holds it (the debounced save's shape), and the last such board this canvas wrote or
   // mounted with: the unmount flush below writes only a board that differs from it.
-  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}), ...(board.doc ? { doc: board.doc } : {}) });
+  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}) });
   const lastWritten = useRef(null);
   if (lastWritten.current === null) lastWritten.current = JSON.stringify(savedShape(mountedBoard.current));
   const storageKeyRef = useRef(storageKey);
@@ -1864,21 +2012,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!storageKey && !onSaveRef.current) return;
     // Oversized data URLs dropped (canvas-persist.js lightBlocks).
     const light = lightBlocks(blocks);
-    // The first run is the board as loaded, not a change.
+    // The first run is the board as loaded, not a change - unless loading migrated a legacy document into a card (migrated): that save must reach the server.
     const loaded = firstSave.current;
     firstSave.current = false;
+    const sendFirst = migrated.current;
     const timer = setTimeout(() => {
       if (retired.current) return;
       // The first run only writes back the board as loaded, so it never goes over a copy that changed since this canvas read
       // it: the server's copy the page put there on open, about to remount this canvas with it. Written over, the remounted
       // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
       if (loaded && storageKey) { try { if (localStorage.getItem(storageKey) !== readCopy.current) return; } catch { /* blocked storage: nothing to write over */ } }
-      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
-      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
-      if (!loaded) onSaveRef.current?.(state);
+      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}) };
+      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
+      if (!loaded || sendFirst) { migrated.current = false; onSaveRef.current?.(state); }
     }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, groups, areas, toc, doc, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, areas, toc, storageKey]);
   // Leaving the canvas (Home, the sidebar, a Rabbit Hole, a remount) cancels the pending save above, so an edit made less
   // than 400 ms before is written here instead, once, on unmount: this browser's copy, then the board's push at once
   // (owner: cancelling a pending save or remounting never discards work). Not for a retired canvas - the page has put its
@@ -1892,52 +2041,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // An Animation card's settled change still inside its own debounce rides along (animation3d/storage.js withFlushedAnimations).
       const state = savedShape({ ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) });
       const result = flushBoard({ state, lastWritten: lastWritten.current, storageKey: key, storage: () => localStorage, onSave: onSaveRef.current });
-      if (result?.wrote) { docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = result.text; }
+      if (result?.wrote) lastWritten.current = result.text;
     };
     window.addEventListener('pagehide', flushBoardNow);
     return () => { window.removeEventListener('pagehide', flushBoardNow); flushBoardNow(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // Typing goes to docLive at once and into the board after a pause (one canvas render per pause, not per key).
-  const onDocDirtyRef = useRef(onDocDirty);
-  onDocDirtyRef.current = onDocDirty;
-  const searchRead = useRef(null), searchStore = useRef(null), docSearchApi = useRef(null);
+  const searchRead = useRef(null), searchStore = useRef(null);
   const searchJump = useRef(0), searchPaint = useRef(null), equationSearchDrafts = useRef(null);
   if (!equationSearchDrafts.current) equationSearchDrafts.current = createEquationSearchDrafts(() => searchStore.current.changed());
   if (!searchStore.current) searchStore.current = createSearchSnapshotStore(() => searchRead.current());
-  const docChanged = next => {
-    docLive.current = next;
-    searchStore.current.changed();
-    // The page says Saving… from the first key, not once the pause is over: Saved only ever means the server has it.
-    if (!docTimer.current) onDocDirtyRef.current?.();
-    clearTimeout(docTimer.current);
-    docTimer.current = setTimeout(() => { docTimer.current = null; setDoc(previous => previous && { ...previous, blocks: docLive.current }); }, 500);
-  };
-  // Leaving the canvas (another canvas, a Rabbit Hole, Home) or a save asked for now never drops the last words typed: a
-  // pending edit is written through the normal save path at once (this browser's copy, then onSave, the board's server push).
-  // Only the document is merged into this browser's copy, and only while that copy still holds what this canvas last wrote:
-  // a server copy that replaced it on open (the page remounts the canvas) is never overwritten from here.
-  const flushDoc = () => {
-    clearTimeout(docTimer.current);
-    docTimer.current = null;
-    if (retired.current) return false;
-    const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
-    if (!live || !storageKey || JSON.stringify(live) === docWritten.current) return false;
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { return false; }
-    if (JSON.stringify(saved.doc ?? null) !== docWritten.current) return false;
-    const state = { ...saved, doc: live };
-    try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { return false; }
-    docWritten.current = JSON.stringify(live);
-    if (alive.current) setDoc(live);
-    onSaveRef.current?.(state);
-    return true;
-  };
-  // A reload or a closed tab runs no unmount: pagehide writes the pending words too (owner decision A1 - after a 409 this
-  // browser's copy is the only place they live until Reload and keep my document or Restore my unsaved document).
-  useEffect(() => {
-    window.addEventListener('pagehide', flushDoc);
-    return () => { window.removeEventListener('pagehide', flushDoc); flushDoc(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   // Where an asked-about area is now: on its host card when it has one, else where it was drawn.
@@ -1963,15 +2075,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
   const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
-  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
+  // study.repository: a repository canvas, where Study hides the toolbar and both maps outright (widget-visibility.js studyHides).
+  const studyRepository = !!study?.repository;
+  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps, repository: studyRepository });
   // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
   // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
   const [focus, dispatchFocus] = useReducer(focusReducer, null);
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
-  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind });
+  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
+  // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
+  // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
+  const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
+  const chromeOff = studyChromeOff({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }); // no zoom controls, no feedback button
   const showWidget = (name, on) => {
-    const route = widgetToggle({ mode: widgetMode, name, on });
+    const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
     if (!route) return;
     if (route.store === 'study') { study?.setMap(name, on); return; }
     ({ minimap: setMinimapPref, holeMap: setHoleMapPref, curious: setCurious, toolbar: setToolbar })[name](on);
@@ -2064,9 +2182,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
   // a way back to your own work.
-  // Notes and text boxes count too - a board of only stickies has to fit.
+  // Notes and text boxes count too - a board of only stickies has to fit; with cards on the board only the cards frame it (canvas-view.js, CV-7).
   // Group frames count too: a Rabbit Hole group's footer sits below its members (owner 2026-10-29).
-  const zoomFit = () => frame([...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id)), ...inlineScreenBoxes('[data-group-box]')]);
+  const zoomFit = () => frame(fitBoxes(Object.values(boundsRef.current), inlineScreenBoxes('[data-group-box]'), boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id))));
   // Stepping frames one section at a time; nothing re-renders, the camera just
   // lands somewhere else, so ink and notes drawn over a section come with it.
   const stepsRef = useRef([]);
@@ -2110,10 +2228,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // never drift apart.
   // What is drawn: while a card is focused the minimap, the Rabbit Hole map and Curious stand down (focusWidgets); the widget choices
   // are untouched, so Back to canvas shows exactly what was shown before. The toolbar stays (except toolbarShown above).
-  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus);
+  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus, { keepCurious: studyHides({ mode: widgetMode, repository: studyRepository }) });
   const focusRef = useRef(null), focusShown = useRef(null);
   focusRef.current = focus;
-  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }); };
+  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }, { bar: !cardOnly }); };
   useLayoutEffect(() => { focusShown.current = syncFocus(focusShown.current, focus, { view, readOnly, find: id => surface.current?.querySelector(`[data-block][data-block-id="${CSS.escape(id)}"],[data-item-id="${CSS.escape(id)}"]`), restore: saved => commandsRef.current.restoreNavigation(saved), gone: id => dispatchFocus({ type: 'content-gone', id }) }); }, [focus, view, readOnly]);
   useLayoutEffect(() => () => { syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current }); }, []);
   // The pane measured again when a panel opens, the Study divider moves, the window or the bottom chrome resizes.
@@ -2129,7 +2247,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them before the first paint,
   // so the focused card never changes size a frame after entering (focus-chrome-check step 4 compares two entries). So for the
   // toolbar standing down or coming back while focused (pinned Study notebook, unpin).
-  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown, cardOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
@@ -2143,6 +2261,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     commandsRef.current = {
       deselect: () => setSelected(null),
+      // The Add to chat pill's x (ContextChips): deselect when the selection is exactly what that pill held (a card's id, or a group's cards).
+      deselectRef: ref => {
+        const ids = ref?.range?.cardIds || (typeof ref?.sourceId === 'string' && ref.sourceId.includes(':') ? [ref.sourceId.slice(ref.sourceId.indexOf(':') + 1)] : []);
+        const now = selectedRef.current;
+        if (ids.length && ids.length === now.length && ids.every(id => now.includes(id))) setSelected(null);
+      },
       // /dive: the return point reads and restores these (docs/features/dive-v1.md).
       getView: () => view, setView, select: id => setSelection([id]), block: id => blocksRef.current.find(block => block.id === id) || null,
       // A selected card the Tutor would read no words from (learn-tutor.js cardText reads a title and a body): a chat card, a
@@ -2177,22 +2301,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       semantic: () => semanticRef.current.value(),
       // Whole-canvas context (chat-canvas-context.js), read when a chat turn is sent: the live lists with the open editor's
       // unsaved words, the freehand strokes, every object's measured box in world units, and the ids selected now.
-      // doc: the document with the editor's unsaved words (docLive), in both views; boxes.doc its measured sheet in Editor view.
-      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with the document's unsaved
-      // words: what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
+      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with a Document card's unsaved
+      // words (boardRef): what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
       boardNow: () => {
-        const b = boardRef.current, doc = liveDoc();
-        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas, ...(doc ? { doc } : {}) };
+        const b = boardRef.current;
+        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas };
       },
-      liveBoard: () => {
-        const doc = liveDoc(), box = docBoxRef.current;
-        return { ...semanticBoard(), strokes: present.current.strokes, boxes: { ...inlineCanvas.layout(), ...(box ? { doc: box } : {}) }, doc };
-      },
-      // The document (blocknote-canvas.md): its box, framing its start, and a whole replacement (Restore my unsaved document).
-      goToDoc: () => goToDoc(),
-      flushDoc: () => flushDoc(),
-      // The editor reads its blocks once, when it is made (CanvasDoc), so a replaced document gets a new editor (docEpoch).
-      replaceDoc: next => { clearTimeout(docTimer.current); docTimer.current = null; docLive.current = next?.blocks || null; setDoc(next && typeof next === 'object' ? next : null); setDocEpoch(epoch => epoch + 1); },
+      liveBoard: () => ({ ...semanticBoard(), strokes: present.current.strokes, boxes: inlineCanvas.layout() }),
       selection: () => selectedRef.current,
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
@@ -2213,7 +2328,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null, preset = null) => openInline(performance.now(), false, mode, preset), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
-      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
+      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true, menuPoint.current || cursorAt())),
       duplicate: () => !!pasteIds(selectedRef.current),
       cut: cutSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand, lockSelection, nudge,
       // Enter on one selected object: a text box or note opens for typing, a closed shape its words, a line its label.
@@ -2259,9 +2374,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
-      insertFile: ({ assetKey = null, kind, label, mediaId = null, meta = null, fileRef = null }) => {
+      // `at`: a world point (a paste or drop at the pointer): the column slot at that height, as insertImported takes it.
+      insertFile: ({ assetKey = null, kind, label, mediaId = null, meta = null, fileRef = null, at = null }) => {
         snapshot();
-        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, ...(assetKey ? { assetKey } : {}), label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}), ...(fileRef ? { fileRef } : {}) });
+        return insertAt({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, ...(assetKey ? { assetKey } : {}), label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}), ...(fileRef ? { fileRef } : {}) }, at);
       },
       // An arXiv paper as a card: the full reader - pages, zoom, Ask selection -
       // on the canvas. One card per paper; pointing at it again turns the page.
@@ -2276,10 +2392,78 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         return insertAtView({ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: title || `arXiv ${id}`, paper: { id, page } }, into);
       },
-      insertNotebook: () => {
+      // block (DECISIONS Q, Learn sections): a notebook built elsewhere (learn-notebook.js newNotebookBlock with its files), else an empty one.
+      insertNotebook: (block = null) => {
         snapshot();
-        return insertAtView(newNotebookBlock());
+        return insertAtView(block?.type === 'notebook' ? { ...block, dx: 0, dy: 0 } : newNotebookBlock());
       },
+      // Insert > Document: an empty BlockNote document card (DocCard.jsx), beside the one selected card or object in free space, else where the learner is looking.
+      insertDocument: () => {
+        if (readOnlyRef.current || localCopyRef.current) return null;
+        const only = selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
+        snapshot();
+        return target ? placeBeside(newDocBlock(), DOC_CARD_SIZE, target, only) : insertAtView(newDocBlock());
+      },
+      // A card the rehearsal flow made (rehearsal-cards.js: the Run card, the Runbook): beside `beside` (its sibling) when that card is here, else beside the one selected card or
+      // object, else where the learner is looking. No undo step of its own: undo never removes a generated card (keepGenerated). -> its id, or null on a board that cannot be edited.
+      insertGenerated: (block, { beside = null } = {}) => {
+        if (readOnlyRef.current || localCopyRef.current || !alive.current) return null;
+        const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
+        const size = block.type === 'run' ? RUN_CARD_SIZE : DOC_CARD_SIZE;
+        return target ? placeBeside(block, size, target, only) : insertAtView(block);
+      },
+      // A code-explain answer's Add as card (code-explain-insert.js addCodeExplain): the primary card, its satellite code cards and the numbered connectors, in ONE undo step. `place(env)` (the
+      // lazily loaded insertion module) returns each card's column offsets from the free place beside `beside` (a card id), else the one selected card, else the view; the camera follows the primary
+      // only if it landed off screen. Idempotent on the primary's id: a card already here is located (never doubled; a satellite the learner deleted is not put back). -> the primary's id, or null.
+      insertCodeExplain: ({ blocks: made, links: joined = [], beside = null, place, reveal = true }) => {
+        const primary = made?.[0];
+        if (!alive.current || readOnlyRef.current || localCopyRef.current || !primary?.id || typeof place !== 'function') return null;
+        if (blocksRef.current.some(block => block.id === primary.id)) { commandsRef.current.focusBlock(primary.id); return primary.id; }
+        const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
+        const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+        const offsets = place({ source: target || null, obstacles: [...inlineCanvas.obstacles(only ? [only] : []), ...placementChrome()], visible: inlineCanvas.visibleWorld(), point: viewCenter(), column: COLUMN, flowY });
+        const added = made.map((block, index) => ({ ...block, ...offsets[index] }));
+        snapshot();
+        blocksRef.current = [...blocksRef.current, ...added];
+        setBlocks(previous => [...previous, ...added]);
+        if (joined.length) setLinks(previous => [...previous, ...joined.filter(link => !previous.some(entry => entry.id === link.id))]);
+        if (!reveal) return primary.id;
+        setSelection([primary.id]);
+        revealAfter(primary.id);
+        return primary.id;
+      },
+      // Connectors between cards already on the board (learn-section-perform.js: an item made for an earlier item's text, consecutive code cards), the same shape the code-explain
+      // satellites' connectors have; a link id already here is not added twice. -> whether any was added.
+      linkCards: links => {
+        if (!alive.current || readOnlyRef.current || localCopyRef.current) return false;
+        const here = new Set(blocksRef.current.map(block => block.id)), fresh = (links || []).filter(link => link?.id && here.has(link.from) && here.has(link.to));
+        if (!fresh.length) return false;
+        setLinks(previous => [...previous, ...fresh.filter(link => !previous.some(entry => entry.id === link.id))]);
+        return true;
+      },
+      // Whether a card has been drawn and measured (insertCodeExplain's `beside` needs its box).
+      measured: id => !!boundsRef.current[id],
+      // Learn sections, Position (learn-position.js): whether the column has put a section card on its slot (perform waits for it), the camera for a card just placed
+      // (spec 3: the section's first card is centred once; a later card is followed only while the previous one is on screen; zoom unchanged), the dev row Arrange
+      // section (the cards of one section made before Position join the column once, one undo step; a dragged card keeps its place) and the dev spacing toggle.
+      learnPlaced: id => !!blocksRef.current.find(block => block.id === id)?.learn?.placed,
+      learnReveal: (id, previous = null) => {
+        const box = boundsRef.current[id], before = previous && boundsRef.current[previous];
+        if (!box || !surface.current) return false;
+        if (!previous) { centerOn(box); return true; }
+        if (!before || !framesAnyBlock(viewRef.current, controlArea(), [before])) return false;
+        centerOn(union([before, box]));
+        return true;
+      },
+      arrangeLearn: sectionId => {
+        if (readOnlyRef.current || localCopyRef.current) return 0;
+        const ids = new Set(blocksRef.current.filter(block => block.learn?.sectionId === sectionId && !block.learn.slot).map(block => block.id));
+        if (!ids.size) return 0;
+        snapshot();
+        setBlocks(previous => previous.map(block => (ids.has(block.id) ? { ...block, learn: { ...block.learn, slot: true, placed: !!block.at } } : block)));
+        return ids.size;
+      },
+      learnSpacing: scale => { setSpacingScale(scale); setLearnTick(n => n + 1); },
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
       insertImported: (block, at = null) => {
@@ -2316,7 +2500,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         let whole = fit; // a new Explanation is framed whole whichever way it arrives (CV-8), as a typed one always was
         const framed = id => { if (whole && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
-        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
+        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}), ...(Number.isFinite(parent.dy) ? { dy: parent.dy } : {}) } } : {}) });
         if (link && parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) { // link: false = a card placed beside its source, no connector (owner 2026-11-08)
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
@@ -2331,6 +2515,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A screen rect (a selection's) in world units, for a card to be placed beside it.
       worldRect: rect => (rect && surface.current ? toWorld(rect, surface.current.getBoundingClientRect(), viewRef.current) : null),
+      // HL-146 (passage-link.js): the card a Ctrl+K explanation was made from saves the explained passage as a pink highlight naming the new card, and the new card names its source. No undo step of its own:
+      // undoing the new card's insertion restores the blocks as they were before both.
+      linkPassage: (cardId, passage) => {
+        if (!alive.current || readOnlyRef.current || !cardId || !passage) return false;
+        setBlocks(previous => linkPassage(previous, passage, cardId));
+        return true;
+      },
       // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
       // instead of adding a second card; the result attaches to it later (ExplainPending).
       // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
@@ -2342,19 +2533,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         blocksRef.current = [...blocksRef.current, added];
         return insertAtView(added, into);
       },
-      // near { cardId, world }: the card the passage is in and the passage's box. The skeleton stands beside that passage, in free space, never over the source card
-      // or anything else (roadmap-placement.js deliveredSpot, the Tutor slots' rule), and the camera stays where it is.
+      // near { cardId, world | alignY }: the card the passage is in and the passage's box (world), or the highlighted line's offset from the card's top. The skeleton stands beside that passage, on the right or the left of the
+      // source and level with the line, in free space (place-sourced.js, the one placement of a card made from a card), never over or moving any card; CK-4: the camera then centres on it.
       placeExplain: (card, { into = null, near = null } = {}) => {
         if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
         snapshot();
-        const added = { ...card, dx: 0, dy: 0 }, source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
+        const source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
+        // AR-C1: the card names its source card and the passage line (the connector's tail), so the arrow survives a reload without measuring the passage again.
+        const line = box ? (near.world ? near.world.y + near.world.h / 2 : Number.isFinite(near.alignY) ? box.y + near.alignY : null) : null;
+        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };
         if (box) {
-          const spot = deliveredSpot({ w: EXPLAIN_PENDING_SIZE.width, h: 360 }, proposalAnchor(box, near.world), [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current), box], null);
+          const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };
+          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
+          // CK-5: the ONE placement call of the card a Ctrl+K Explain selection makes (the v2 job path); reserve() has the other (a card from a card through a skeleton).
+          const placed = placeSourced({ source: box, anchorY: line, size: slot, boxes: [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current)], siblings, id: card.id, sourceId: source.id, area: null });
           perfMark(added.id, 'insert');
-          pendingAt.current.set(added.id, spot);
+          pendingAt.current.set(added.id, { x: placed.x, y: placed.y });
           blocksRef.current = [...blocksRef.current, added];
           setBlocks(previous => [...previous, added]);
+          revealAfter(added.id); // CK-4: once measured and placed, the camera centres on the new card (never over a camera the learner moved since)
           return added.id;
         }
         blocksRef.current = [...blocksRef.current, added];
@@ -2393,7 +2591,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
@@ -2401,7 +2599,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const anchor = beside || (follow && !given ? followAnchor() : null), source = anchor ? boundsRef.current[anchor] : null;
         let at = given;
         if (!at && source && follow && !beside) ({ at, size } = followPlace({ source, size, id, obstacles: boardObstacles([anchor]) }));
-        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy }); if (at) size = { ...size, h: Math.round(source.h) }; }
+        else if (!at && source) {
+          // CK-5 / AR-C3 (releases 144, 146): the ONE placement call of a card made from a passage (or Ask in a new card): a card made from this one stands on its RIGHT or LEFT, level with the passage (besideDy, the highlighted line's offset from the source's top) or the source's middle for Ask in a new card,
+          // chosen and slid to a free place by placeSourced (never over or moving a card); the connector is drawn from where it ends up.
+          const slot = { w: Math.max(size?.w || 0, BESIDE_ASSUMED_W), h: Math.min(Math.round(source.h), BESIDE_ASSUMED_H) };
+          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === anchor && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
+          const placed = placeSourced({ source, anchorY: Number.isFinite(besideDy) ? source.y + besideDy : null, size: slot, boxes: boardObstacles([anchor]), siblings, id, sourceId: anchor, area: null });
+          at = { x: placed.x, y: placed.y }; size = { ...size, h: slot.h };
+        }
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
@@ -2533,6 +2738,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return hit.length;
       },
       removeBlock: async id => {
+        if (blocksRef.current.some(block => block.id === id && isGenerated(block))) { toast(GENERATED_NOTE); return; }
         const cad=blocksRef.current.find(block=>block.id===id && block.type==='cad' && block.jobId && !block.cadDetached);
         if(cad){if(cadRunning(cad.status) && !window.confirm('Removing this CAD card cancels its running job. Undo does not restart generation. Remove it?'))return;try{await cadClient(api,appName).action(cad.jobId,'placement',{hidden:true});}catch(problem){toast(problem.message);return;}}
         if (!blocksRef.current.some(block => block.id === id)) return;
@@ -2728,6 +2934,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // what follows, and the camera already knows how to land on one. A contents entry frames the heading it links; one
       // with no canvas heading has nothing to frame.
       showSection: id => {
+        const linked = blocksRef.current.filter(block => block.learn?.slot && block.tocLinks?.includes(id)).map(block => boundsRef.current[block.id]).filter(Boolean);
+        if (linked.length) { showLearnBoxes(linked); return; }
+        // A chapter row (spec 4): its heading card, found by the row's number ("2") as learn.sectionId; the contents of an accepted plan number as the plan does.
+        const path = sectionChoices(outlineFrom(blocksRef.current, tocRef.current)).find(choice => choice.id === id)?.path;
+        const chapter = path && !path.includes('.') ? blocksRef.current.find(block => block.learn?.role === 'chapter' && block.learn.sectionId === path) : null;
+        if (chapter && boundsRef.current[chapter.id]) { showLearnBoxes([boundsRef.current[chapter.id]]); return; }
         const heading = tocHeading(tocRef.current, id);
         if (heading == null) return;
         const steps = presentSteps(blocksRef.current, boundsRef.current);
@@ -2737,22 +2949,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The board saved now, a shared board's push awaited (canvas-persist.js; architecture §6.5.5, LP1 Task 15): a
       // journey section is recorded only once this resolves ok. It reads boardRef, so a call after a paint that follows
       // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
-      // The document's words typed in the last half second ride too (liveDoc), not only its last board copy.
       persist: () => {
         if (!alive.current) return Promise.resolve({ ok: false });
-        const live = liveDoc();
-        clearTimeout(docTimer.current); docTimer.current = null;
-        if (live) { docWritten.current = JSON.stringify(live); setDoc(live); }
-        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks), ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
+        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
       // `base`: the board the work is counted from - the server's copy before a 409 (conflictBaseKey), else the mounted one.
       retire: (base = mountedBoard.current) => {
         retired.current = true;
-        const work = pendingWork(base, boardRef.current);
-        // The document as typed, its words still in the editor's pause included: the page offers it back, never drops it.
-        const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
-        return live && JSON.stringify(live) !== JSON.stringify(base.doc ?? null) ? { ...work, doc: live } : work;
+        return pendingWork(base, boardRef.current);
       },
       // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
       // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.
@@ -2766,8 +2971,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
   const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
-  // [[cardId, title, entryIds]] for the cards that link to contents sections (toc-links.js linkedCards): the Table of contents' side of each link.
-  const linksKey = JSON.stringify(blocks.filter(block => block.tocLinks?.length).map(block => [block.id, objectName(block, describeBlock(block)), block.tocLinks]));
+  // [[cardId, title, entryIds, type, role]] for the cards that link to contents sections (toc-links.js tocLinkRows, linkedCards): the Table of contents' side of each link.
+  const linksKey = JSON.stringify(tocLinkRows(blocks, block => objectName(block, describeBlock(block))));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -2788,6 +2993,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const pick = list => list.filter(entry => picked.includes(entry.id));
     clipCopies.current = {
       blocks: pick(blocksRef.current), items: pick(itemsRef.current), shapes: pick(shapesRef.current), chats: pick(exchangesRef.current),
+      bounds: Object.fromEntries(picked.filter(id => boundsRef.current[id]).map(id => [id, boundsRef.current[id]])), // where each was drawn: a cut card has no box left to measure a paste from
       links: present.current.links.filter(link => picked.includes(link.from) && picked.includes(link.to)),
       groups: groupsRef.current.filter(group => { const members = membersOf(group.id); return members.length && members.every(id => picked.includes(id)); }),
     };
@@ -2810,7 +3016,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // copy is never locked. step: how far the copies land from their sources.
   // Returns { ids, copies } (copies for Alt-drag to place), or null.
   // clip: a paste from the clipboard, which may name objects since cut or deleted (Duplicate and Alt-drag never do).
-  const pasteIds = (picked, step = 28, clip = false) => {
+  // at: a world point (a paste from the clipboard with the pointer over the canvas, owner 2026-11-14): the copies' top-left corner lands on it and they keep
+  // their layout. Cards go to the column slot at that height with their offsets set so they are drawn at the point; notes, text, equations and marks move by
+  // the same distance. Chat cards are put on the point once measured (pendingAt); a card whose slot is not measured yet keeps the step.
+  const pasteIds = (picked, step = 28, clip = false, at = null) => {
     const saved = (clip && clipCopies.current) || {};
     const live = (list, kept = []) => picked.map(id => list.find(entry => entry.id === id) || kept.find(entry => entry.id === id)).filter(Boolean);
     const pickedBlocks = live(blocksRef.current, saved.blocks);
@@ -2832,13 +3041,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
     // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
-    const copyNode = node => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
-    const blocksCopy = pickedBlocks.map(copyNode);
+    const drawn = { ...(saved.bounds || {}), ...boundsRef.current }; // a live box wins; a cut card's is the one kept at copy
+    const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: drawn, index: flowIndexAt(at.y) }) : null;
+    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, generated: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const blocksCopy = pickedBlocks.map(node => copyNode(node, target?.shift || undefined));
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
-    const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
-    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + step, y: item.y + step, fresh: false }));
-    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }));
+    // A chat card joins the column where the parent adds it, so it is put on the pointer once it is measured (pendingAt), as a Tutor card is.
+    const chatsCopy = pickedChats.map(node => {
+      const copy = { ...copyNode(node), linkFrom: null, status: 'done' }, box = target && drawn[node.id];
+      if (box) pendingAt.current.set(copy.id, { x: box.x + target.move.x, y: box.y + target.move.y });
+      return copy;
+    });
+    const by = target?.move || { x: step, y: step };
+    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + by.x, y: item.y + by.y, fresh: false }));
+    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + by.x, y1: shape.y1 + by.y, x2: shape.x2 + by.x, y2: shape.y2 + by.y }));
     // Live links first; a saved link only where one of its ends is gone (a cut), never one deleted on its own since.
     const liveIds = new Set(everything().map(entry => entry.id));
     const linkSource = [...present.current.links, ...(saved.links || []).filter(link => !liveIds.has(link.from) || !liveIds.has(link.to))];
@@ -2846,7 +3063,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Each copy lands directly after its source rather than at the end of the
     // column, where on a long canvas it was off-screen and read as nothing
     // having happened.
-    if (blocksCopy.length) setBlocks(previous => {
+    if (blocksCopy.length && target?.shift) setBlocks(previous => [...previous.slice(0, target.index), ...blocksCopy, ...previous.slice(target.index)]);
+    else if (blocksCopy.length) setBlocks(previous => {
       const next = [...previous];
       blocksCopy.forEach((copy, index) => {
         const at = next.findIndex(block => block.id === pickedBlocks[index].id);
@@ -2894,10 +3112,48 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const pasteIdsRef = useRef(pasteIds);
   // Pasted text lands as one text card at the view's centre, as Insert text does, already written.
   const pasteTextRef = useRef(null);
-  pasteTextRef.current = text => {
+  pasteTextRef.current = (text, at = null) => {
     snapshot();
-    const center = viewCenter();
+    const center = at || cursorAt() || viewCenter();
     setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: text.trim(), color, opacity, level }]);
+  };
+  // A paste lands where the pointer is (owner 2026-11-14), not at the top of the column: the last pointer position, in world coordinates, while it is over the
+  // canvas; null when the pointer is elsewhere, and the paste then lands where the learner is looking, as before.
+  const pointerRef = useRef(null);
+  // The menu's Paste row lands at the point the menu was opened on, not at the row the pointer is over now.
+  const menuPoint = useRef(null);
+  useEffect(() => {
+    const move = event => { pointerRef.current = { clientX: event.clientX, clientY: event.clientY }; };
+    window.addEventListener('pointermove', move, { passive: true });
+    return () => window.removeEventListener('pointermove', move);
+  }, []);
+  const cursorAt = () => {
+    const point = pointerRef.current, box = surface.current?.getBoundingClientRect();
+    if (!point || !box || point.clientX < box.left || point.clientX > box.right || point.clientY < box.top || point.clientY > box.bottom) return null;
+    return local(point);
+  };
+  // A card at a world point (its column slot nearest that height, as a drop finds it), else where the learner is looking.
+  const insertAt = (block, at) => {
+    if (!at) return insertAtView(block);
+    const index = flowIndexAt(at.y);
+    setBlocks(previous => [...previous.slice(0, index), block, ...previous.slice(index)]);
+    return revealAfter(block.id);
+  };
+  // Pasted Mermaid source is a Mermaid card and one pasted $$...$$ equation an equation card, placed at the pointer and selected.
+  const pasteRichRef = useRef(null);
+  pasteRichRef.current = (kind, text) => {
+    snapshot();
+    const at = cursorAt();
+    if (kind === 'mermaid') {
+      const block = { ...BLOCK_TYPES.mermaid.sample(), title: 'Diagram', code: mermaidOf(text), showSource: false };
+      insertAt(block, at);
+      setSelection([block.id]);
+      return;
+    }
+    const item = { ...newEquation(at || viewCenter()), latex: equationOf(text), fresh: false };
+    setItems(previous => [...previous, item]);
+    selectedRef.current = [item.id];
+    setSelection([item.id]);
   };
   const dropFilesRef = useRef(onDropFiles);
   dropFilesRef.current = onDropFiles;
@@ -2906,14 +3162,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
   const [urlPaste, setUrlPaste] = useState(null);
   const [webpageAsk, setWebpageAsk] = useState(null);
-  const addWebpage = url => {
+  const addWebpage = (url, at = null) => {
     if (readOnlyRef.current || localCopyRef.current || !isWebUrl(url)) return null;
     let host = url;
     try { host = new URL(url).hostname; } catch { /* isWebUrl parsed it */ }
     const id = crypto.randomUUID();
     askCapture(id);
     snapshot();
-    insertAtView({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false });
+    insertAt({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false }, at);
     setSelection([id]);
     return id;
   };
@@ -2928,7 +3184,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setUrlPaste(null);
     chosen?.back?.focus?.();
     if (!chosen) return;
-    if (choice === 'card') addWebpage(chosen.text); else if (choice === 'text') pasteTextRef.current(chosen.text);
+    if (choice === 'card') addWebpage(chosen.text, chosen.at); else if (choice === 'text') pasteTextRef.current(chosen.text, chosen.at); else if (choice === 'tab') window.open(chosen.text, '_blank', 'noopener,noreferrer');
   };
   const pasteCodeRef = useRef(onPasteCode);
   pasteCodeRef.current = onPasteCode;
@@ -3086,17 +3342,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
-  // Move the camera only if the card is not in the visible area - one in view stays put - and never the zoom.
-  const bringIntoView = id => showBox(boundsRef.current[id]);
+  // AR-C1: the connectors the cards imply, recomputed only when the cards or their measured boxes change (the same state the links follow): no per-frame state, no layout reads.
+  const arrows = useMemo(() => connectorsOf(blocks).map(connector => drawConnector(connector, blocks, bounds)).filter(Boolean), [blocks, bounds]);
+  // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
+  const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
-  const showBox = (box, smooth = false, centre = false, zoom = null) => {
+  const showBox = (box, smooth = false, centre = false, zoom = null, focus = null) => {
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
-    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), first = panInto(box, current, area, centre);
+    // centre: CK-4's rule (canvas-view.js centerOnBox: the middle of the area on both axes, even a box already in view); not centre: the keep-in-view nudge (a card resizing, a control revealed).
+    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), reach = within => (centre ? centerOnBox(box, current, within, focus) : panInto(box, current, within, false)), first = reach(area);
     // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
-    const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
+    const next = floor < area.bottom ? reach({ ...area, bottom: Math.max(area.top + 1, floor) }) : first;
     if (next.x === was.x && next.y === was.y && next.z === was.z) return true;
     glideTo(next, true); // every reveal glides now (owner 2026-11-08); `smooth` is kept by its callers
     return true;
@@ -3195,8 +3454,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     const element = surface.current;
     if (!element) return undefined;
-    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret has
-    // its own reveal (docCaret); moving the camera under a learner's typing is not this rule's job.
+    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret is
+    // the editor's own to reveal; moving the camera under a learner's typing is not this rule's job.
     const typing = target => target.isContentEditable || target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(target.type));
     const focused = event => { const target = event.target; if (!focusRef.current && target?.matches?.(':focus-visible') && !typing(target) && target.closest('[data-block]')) revealFocusRef.current(target); };
     element.addEventListener('focusin', focused);
@@ -3253,7 +3512,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const cameraRef = useRef(null);
   // A passage's View explanation can name a Tutor slot (source-refs.js publishPending): the camera goes to it; it is not a block, so nothing is selected.
   const [, nudgeSlotCamera] = useState(0);
-  useSourceRefIndex(blocks, id => { if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; } setSelection([id]); cameraRef.current = { id, frame: true }; });
+  useSourceRefIndex(blocks, (id, options) => {
+    if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; }
+    setSelection([id]);
+    // HL-148 (View passage, Go to highlight): the passage's world box is centred at a readable zoom (canvas-view.js passageZoom); no passage: the card is framed as before.
+    const box = options?.passage && surface.current ? toWorld(options.passage, surface.current.getBoundingClientRect(), viewRef.current) : null;
+    cameraRef.current = box ? { id, smooth: true, centre: true, focus: box, zoom: passageZoom(viewRef.current.z) } : { id, frame: true };
+  });
   const slotPassages = JSON.stringify(slots.filter(slot => slot.roadmap?.sourceRef?.id && slot.roadmap.passage).map(slot => ({ slotId: slot.id, ref: slot.roadmap.sourceRef, start: slot.roadmap.passage.start, end: slot.roadmap.passage.end })));
   useEffect(() => { publishPending(JSON.parse(slotPassages)); }, [slotPassages]);
   useEffect(() => () => publishPending([]), []);
@@ -3292,7 +3557,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (want.moves != null && want.moves !== manualMoves.current) return; // the learner moved the camera since
     const box = { x: element.offsetLeft + (owner?.dx || 0), y: element.offsetTop + (owner?.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
     // A slot or a Tutor card glides there at the learner's zoom; a Files-panel card, a chip's or Locate's card is framed, gliding too (glideTo).
-    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre);
+    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre ?? true, want.zoom ?? null, want.focus ?? null); // CK-4: centred unless a caller says otherwise; HL-148: a passage focus box and its zoom
   });
   // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
   const focusSearchTarget = async target => {
@@ -3300,14 +3565,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     searchPaint.current?.(); searchPaint.current = null;
     if (!target || !surface.current) return { found: false, reason: 'missing-target' };
     let element, range = null, box;
-    if (target.kind === 'document') {
-      if (!liveDoc()) return { found: false, reason: 'missing-target' };
-      if (docView !== 'editor') return { found: false, reason: 'document-hidden' };
-      if (!docSearchApi.current) return { found: false, reason: 'document-loading' };
-      const result = docSearchApi.current.reveal(target.docBlockId || target.id, target.quote);
-      if (!result.found) return result;
-      ({ element, range } = result);
-    } else if (target.anchor?.kind === 'point') {
+    if (target.anchor?.kind === 'point') {
       box = { x: target.anchor.x, y: target.anchor.y, w: 24, h: 24 };
     } else {
       const id = target.anchor?.kind === 'object' ? target.anchor.object_id : target.id;
@@ -3327,7 +3585,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     await new Promise(resolve => requestAnimationFrame(resolve));
     if (jump !== searchJump.current || !surface.current || (element && !element.isConnected)) return { found: false, reason: 'superseded' };
     // A matching paragraph within a Full-content card is its own camera target; an internally scrolled match is now visible.
-    if (element && (range || target.kind === 'document')) {
+    if (element && range) {
       const hit = range?.getBoundingClientRect() || element.getBoundingClientRect(), at = surface.current.getBoundingClientRect(), current = viewRef.current;
       if (hit.width || hit.height) box = { x: (hit.left - at.left - current.x) / current.z, y: (hit.top - at.top - current.y) / current.z,
         w: Math.max(1, hit.width / current.z), h: Math.max(1, hit.height / current.z) };
@@ -3382,8 +3640,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
     // A locked object is never deleted by accident: it stays, selected, and says so.
-    const ids = selectedRef.current.filter(id => !lockedRef.current.has(id));
-    if (ids.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
+    const unlocked = selectedRef.current.filter(id => !lockedRef.current.has(id));
+    if (unlocked.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
+    // A generated card (the Run card, the Runbook) is never deleted, alone or in a selection: the rest goes and these stay (rehearsal-cards.js).
+    const { ids, refused } = deletableIds(unlocked, blocksRef.current);
+    if (refused) toast(GENERATED_NOTE);
     if (!ids.length) return;
     const cad = blocksRef.current.filter(block=>ids.includes(block.id) && block.type==='cad' && block.jobId && !block.cadDetached);
     if(cad.some(block=>cadRunning(block.status)) && !window.confirm('Removing this CAD card cancels its running job. Undo restores the card but does not restart generation. Remove it?'))return;
@@ -3405,6 +3666,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A webpage card's Remove (a capture that was refused): the card and its connections, one undo step.
   const removeBlock = id => {
     if (readOnlyRef.current || !blocksRef.current.some(block => block.id === id)) return;
+    if (blocksRef.current.some(block => block.id === id && isGenerated(block))) { toast(GENERATED_NOTE); return; }
     snapshot();
     setBlocks(previous => previous.filter(block => block.id !== id));
     setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
@@ -3439,6 +3701,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Cut: the copy machinery first; only a copy that succeeded deletes anything (and never a locked object).
   const cutSelection = () => {
+    // Only generated cards selected: nothing to cut, so nothing is copied either (a mixed selection cuts the rest; deleteSelection leaves these).
+    if (selectedRef.current.length && !deletableIds(selectedRef.current, blocksRef.current).ids.length) { toast(GENERATED_NOTE); return false; }
     if (!copySelection()) return false;
     deleteSelection();
     return true;
@@ -3543,7 +3807,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const entry = history.current[history.current.length - 1];
     if (!entry) return;
     history.current.pop();
-    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(entry.blocks);
+    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(keepGenerated(entry.blocks, blocksRef.current));
     if (entry.exchanges) onRestoreRef.current?.(entry.exchanges);
   };
   // A text edit is one undo step: opened when typing starts, dropped at the end if the edit changed nothing.
@@ -3566,7 +3830,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before = blocksRef.current.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached), after = state.blocks.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached);
     for(const block of before.filter(block=>!after.some(next=>next.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:true}).catch(problem=>toast(problem.message));
     for(const block of after.filter(block=>!before.some(old=>old.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:false}).catch(problem=>toast(problem.message));
-    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
+    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(keepGenerated(state.blocks, blocksRef.current)); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
   const travelHistory = (from,to) => {
@@ -3602,6 +3866,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const openOnLeadRef = useRef(openOnLead);
   openOnLeadRef.current = openOnLead;
   useEffect(() => { openOnLeadRef.current(); }, [bounds]);
+  // CV-6 (canvas-view.js): a board whose cards were moved off the top of the column (laid out far to the right and down) must not open on an empty surface: once, at the first
+  // measure, if the opening camera frames no card and the learner has not moved the camera, open on the top of the first file card (else the first card, else the first chat
+  // exchange). PV-1: a board with no card or exchange at all (text, notes, images, ink, frames) is opened at mount on the cluster of what it holds. A view-only page, a guest's
+  // copy and the editor open the same way: the board state carries no camera, so the opening one is always the homeView set at mount.
+  const firstViewDone = useRef(false);
+  useEffect(() => {
+    if (firstViewDone.current || !surface.current) return;
+    const boxes = Object.values(bounds), bare = !blocksRef.current.length && !exchangesRef.current.length;
+    if (!boxes.length && !bare) return; // cards not measured yet: the next measure decides
+    firstViewDone.current = true;
+    if (manualMoves.current !== openedAt.current || focusRef.current || (opening.current && blocksRef.current[0]?.program)) return;
+    const area = visibleArea(), content = bare ? contentBoxes() : boxes;
+    if (!content.length || framesAnyBlock(autoView.current || viewRef.current, area, content)) return;
+    const target = bare ? clusterBox(content, area) : firstViewTarget(blocksRef.current, bounds);
+    if (target) setView(autoView.current = topView(target, area));
+  }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!opening.current || !surface.current || typeof ResizeObserver === 'undefined') return undefined;
     let frame = 0;
@@ -3638,10 +3918,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rail?.addEventListener('wheel', railWheel, { passive: false });
     return () => { element.removeEventListener('wheel', wheel); rail?.removeEventListener('wheel', railWheel); };
   }, [presenting === null]);
-  // The surface clips (overflow hidden) but the document caret's reveal (the browser's and ProseMirror's scrollRectIntoView)
-  // still scrolls it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
-  // goes back to 0, so the camera follows the document's caret (blocknote-canvas.md section 6). flushSync:
-  // docCaret measures in the next frame, after the move, so it never pans a second time.
+  // The surface clips (overflow hidden) but a Document card's caret reveal (the browser's and ProseMirror's scrollRectIntoView)
+  // can still scroll it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
+  // goes back to 0 (blocknote-canvas.md section 6).
   useEffect(() => {
     const element = surface.current;
     const scrolled = () => {
@@ -3660,7 +3939,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, []);
   // ---------- Inline AI editor hooks (docs/features/inline-ai-editor.md) ----------
   // The live lists, never the last saved copy (§4). Layout comes separately (layout()), so content stays cheap to read.
-  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current });
+  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: withDocCardLive(blocksRef.current), groups: groupsRef.current, exchanges: exchangesRef.current });
   // The live lists with the open text editor's words on its object, read without committing or closing it (the shared
   // snapshot's board; agent-coordination 2026-10-13-shared-canvas-semantics.md, decision 3).
   const editorWords = () => {
@@ -3674,8 +3953,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
   // Search reads these unbudgeted live lists, independently of model context and camera/layout state.
-  searchRead.current = () => ({ ...equationSearchDrafts.current.apply(semanticBoard()), doc: liveDoc() });
-  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick, doc]);
+  searchRead.current = () => equationSearchDrafts.current.apply(semanticBoard());
+  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick]);
   useEffect(() => () => { searchJump.current++; searchPaint.current?.(); searchStore.current.dispose(); }, []);
   // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
   // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
@@ -3853,7 +4132,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
     // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
-    reveal: box => showBox(box, true),
+    reveal: box => showBox(box, true, true), // CK-4: where a result will land, centred
     placementChrome,
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
     // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
@@ -4098,8 +4377,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         // the page silently kill the copy.
         const text = window.getSelection();
         if (typing || !selectedRef.current.length || (text && !text.isCollapsed && text.toString())) return;
-        // Cut is copy, then delete - only once the copy succeeded.
-        if ((event.key.toLowerCase() === 'x' ? commands.cut : commands.copy)()) event.preventDefault();
+        // Cut is copy, then delete - only once the copy succeeded. Cut runs the menu's own row, so a locked object and a board that cannot be edited stay as they are.
+        if (event.key.toLowerCase() === 'x') { if (keyActionRef.current('cut').ran) event.preventDefault(); return; }
+        if (commands.copy()) event.preventDefault();
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -4116,6 +4396,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const paste = event => {
       const active = document.activeElement;
       if (typingIn(active)) return;
+      if (readOnlyRef.current) return; // a view-only board takes no paste
       // Never behind a modal window or an open menu (owner brief 2026-11-02): they own the keyboard, Ctrl/Cmd+V included.
       if (document.querySelector('[role="dialog"][aria-modal="true"]') || menuOpenRef.current || active?.closest?.('[role="menu"]')) return;
       const data = event.clipboardData;
@@ -4123,12 +4404,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current });
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current, rich: !readOnlyRef.current && !localCopyRef.current });
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
-      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
-      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
-      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
-      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
+      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active, at: cursorAt() }); return; }
+      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images, cursorAt()); return; }
+      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true, cursorAt())) { event.preventDefault(); return; }
+      if (kind === 'mermaid' || kind === 'equation') { event.preventDefault(); pasteRichRef.current(kind, text); return; }
+      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text, cursorAt()); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
     window.addEventListener('keydown', key, true);
@@ -4454,6 +4736,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { x: cx - (cx - v.x) * f, y: cy - (cy - v.y) * f, z };
   });
   // One click moves roughly one screenful, so the canvas reads like a page.
+  const [minimapFolded, setMinimapFolded] = useState(() => { try { return localStorage.getItem('rh-minimap-folded') === '1'; } catch { return false; } });
+  const foldMinimap = next => { setMinimapFolded(next); try { localStorage.setItem('rh-minimap-folded', next ? '1' : '0'); } catch { /* storage off: it still folds for this visit */ } };
   const scrollBy = direction => setView(v => ({ ...v, y: v.y - direction * (surface.current.clientHeight * 0.7) }));
   const zoomCenter = factor => { const element = surface.current; zoomAt(element.clientWidth / 2, element.clientHeight / 2, factor); };
   const local = event => {
@@ -5155,7 +5439,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const box = target();
       if (!box || !surface.current) return;
       const z = fitZoom(box, visibleArea(), viewRef.current.z);
-      showBox(box, true, false, z === viewRef.current.z ? null : z);
+      showBox(box, true, true, z === viewRef.current.z ? null : z); // CK-4: centred
     }));
     return !!target();
   };
@@ -5246,7 +5530,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
   // Cards move freely: anywhere on the canvas, overlapping if the learner wants.
-  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy } : block));
+  // A dragged card is anchored: it records the world position it was put at (card-anchor.js), so a card inserted above it later does not carry it along.
+  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? dragged(block, boundsRef.current[id], dx, dy) : block));
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
@@ -5273,7 +5558,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false, slot = null) => {
     if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
-    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner, slot) : block));
+    setBlocks(previous => previous.map(block => block.id === id ? learnSized(resizeCardLayout(block, w, h, x, minimum, corner, slot), quiet) : block));
   };
   const setCardLayout = (id, mode) => {
     if (readOnly || lockedRef.current.has(id) || selection.length !== 1) return;
@@ -5441,7 +5726,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const picked = selectedRef.current.find(drawn);
     if (picked) return picked;
     if (lastExplain.current && drawn(lastExplain.current)) return lastExplain.current;
-    return [...blocksRef.current].reverse().find(block => explainCard(block) && drawn(block.id))?.id ?? null;
+    return [...blocksRef.current].reverse().find(block => explainCard(block) && drawn(block.id))?.id
+      ?? blocksRef.current.find(block => block.type === 'file' && block.kind === 'markdown' && drawn(block.id))?.id ?? null; // no explanation card yet: the markdown the learner is reading is what the first card goes beside
   };
   const insertAtView = (block, into = null) => {
     perfMark(block.id, 'insert');
@@ -5511,12 +5797,58 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!pendingAt.current.size) return;
     const moves = new Map();
     for (const [id, at] of pendingAt.current) {
-      const box = bounds[id], owner = blocksRef.current.find(entry => entry.id === id);
+      const box = bounds[id], chat = exchangesRef.current.find(entry => entry.id === id), owner = blocksRef.current.find(entry => entry.id === id) || chat;
       if (!box || !owner) continue;
+      if (chat) { onMove(id, Math.round(at.x - (box.x - (chat.dx || 0))), Math.round(at.y - (box.y - (chat.dy || 0)))); pendingAt.current.delete(id); continue; }
       moves.set(id, { dx: Math.round(at.x - (box.x - (owner.dx || 0))), dy: Math.round(at.y - (box.y - (owner.dy || 0))) });
       pendingAt.current.delete(id);
       for (const [key, spot] of roadmapSpots.current) if (spot === at) roadmapSpots.current.delete(key);
     }
+    if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+  }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Anchored cards (card-anchor.js): when the column moves under a dragged card (a card inserted above it, one above it growing), it is re-offset by the same amount and stays put.
+  const anchorSeen = useRef(new Map());
+  // Learn sections, Position (learn-position-spec.md, learn-position.js): the cards of an accepted plan's sections (block.learn.slot) stand in one column. On every measure each
+  // takes the column's width W and its type's height (a card the learner resized, learn.sized, keeps its own), then each is put on its slot by its offsets, as a drag would. A card
+  // the learner dragged (its anchor, block.at) keeps its place and the column flows around it. A card is shown once it stands on its slot (learn.placed, saved with it). No undo
+  // step: the card's insertion was the step.
+  const [learnTick, setLearnTick] = useState(0);
+  useLayoutEffect(() => {
+    if (readOnly || localCopy) return;
+    const plan = blocks.filter(block => block.learn?.slot);
+    if (!plan.length) return;
+    const natural = block => (block.type === 'explanation' ? explanationCardWidth(block) : block.type === 'doc' ? DOC_CARD_SIZE.w : block.type === 'repo-code' ? CODE_CARD.w : BLOCK_TYPES[block.type]?.width) || COLUMN;
+    const W = columnWidth(plan.map(natural)), sizes = new Map();
+    for (const block of plan) {
+      if (block.learn.sized) continue;
+      const w = cardWidth(natural(block), W), h = fixedHeight(block, W), fit = fitsContent(block);
+      if (block.cardLayout?.mode === 'full') { if (block.cardLayout.fullWidth !== w) sizes.set(block.id, { cardLayout: { ...block.cardLayout, fullWidth: w } }); continue; }
+      if (block.cardLayout) continue; // a Scrollable layout the learner chose keeps its own frame
+      if (block.w !== w || (h != null && block.h !== h) || !!block.learn.fit !== fit) sizes.set(block.id, { w, ...(h != null ? { h } : {}), learn: { ...block.learn, fit } });
+    }
+    if (sizes.size) { setBlocks(previous => previous.map(block => (sizes.has(block.id) ? { ...block, ...sizes.get(block.id) } : block))); return; }
+    const cards = plan.map(block => { const box = bounds[block.id] || null; return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
+    const { targets } = learnLayout({ cards, others: inlineCanvas.obstacles(plan.map(block => block.id)), W });
+    const moves = new Map();
+    for (const block of plan) {
+      const target = targets.get(block.id), box = bounds[block.id];
+      if (!target || !box) continue;
+      const ddx = Math.round(target.x - box.x), ddy = Math.round(target.y - box.y);
+      if (ddx || ddy || !block.learn.placed) moves.set(block.id, { dx: (block.dx || 0) + ddx, dy: (block.dy || 0) + ddy, learn: { ...block.learn, placed: true } });
+    }
+    if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+  }, [bounds, blocks, learnTick, readOnly, localCopy]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A TOC click on a section with cards (spec 3, 5): the camera to the top of those cards, centred on the column, zoom unchanged unless the view is narrower than the column.
+  const showLearnBoxes = boxes => {
+    const box = union(boxes), top = boxes.reduce((a, b) => (b.y < a.y ? b : a)), area = controlArea(), room = area.right - area.left, need = top.w + 2 * SPACING.card;
+    setView(v => {
+      const z = room < need ? Math.min(1, room / need) : v.z;
+      return (autoView.current = { ...v, z, x: (area.left + area.right) / 2 - (top.x + top.w / 2) * z, y: area.top + SPACING.card - box.y * z });
+    });
+  };
+  useLayoutEffect(() => {
+    if (readOnly) return;
+    const moves = holdAnchors(blocksRef.current, bounds, anchorSeen.current);
     if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, opened for typing, with no connector to the card (owner
@@ -5544,13 +5876,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const made = notebookFromCode(code || itemsRef.current.find(entry => entry.id === id))?.block;
     const target = boxesOf([id])[0];
     if (!made || !target || readOnlyRef.current) return null;
-    // NotebookCard's opening size. It joins the end of the column (gap-5, a wide card centred on it, as insertBlock's)
-    // and is drawn at the placed spot by its offset from there.
-    const size = { w: 640, h: 540 };
+    snapshot();
+    return placeBeside(made, { w: 640, h: 540 }, target, id); // NotebookCard's opening size
+  };
+  // A new card beside `target` (a measured box; `id` its object) in free space - placeNote and its obstacles - selected, and panned to when the spot is off-screen. The card
+  // joins the end of the column (gap-5, a wide card centred on it, as insertBlock's) and is drawn at the placed spot by its offset from there. The caller snapshots (one undo step).
+  const placeBeside = (made, size, target, id) => {
     const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
     const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
     const added = { ...made, dx: Math.round(spot.x - (COLUMN - size.w) / 2), dy: Math.round(spot.y - flowY) };
-    snapshot();
     perfMark(added.id, 'insert');
     setBlocks(previous => [...previous, added]);
     setSelection([added.id]);
@@ -5575,76 +5909,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...itemsRef.current.map(item => ({ id: item.id, ...(boxesOf([item.id])[0] || { x: item.x, y: item.y, w: item.w || 0, h: item.h || 0 }) })),
     ...present.current.strokes.map(inkBox).filter(Boolean),
   ];
-  // The document (docs/features/blocknote-canvas.md): a portrait sheet in world units on the canvas, framed at its start.
-  // Framing reads the free part of the surface (visibleArea: less the chat sheet and the contents rail) and keeps a zoom that
-  // reads well - 100%, less only when the sheet would not fit across - never a zoom-out to fit a long document's height.
-  const docFrame = target => {
-    const element = surface.current;
-    if (!element || !target) return;
-    const area = visibleArea(), span = Math.max(240, area.right - area.left);
-    const z = Math.max(0.3, Math.min(1, (span - 48) / target.w));
-    glideTo({ x: area.left + (span - target.w * z) / 2 - target.x * z, y: area.top + 32 - target.y * z, z }, true);
-  };
-  const goToDoc = () => docFrame(docRef.current);
-  // First opening: the sheet goes where the learner is looking, across the middle of the free view, its top just below the
-  // top edge; when cards, shapes, notes or ink already sit there, beside them to the right instead - nothing existing moves.
-  const placeDoc = () => {
-    const element = surface.current;
-    if (!element) return null;
-    const area = visibleArea(), v = viewRef.current;
-    const left = (area.left - v.x) / v.z, top = (area.top - v.y) / v.z, span = (area.right - area.left) / v.z, tall = (area.bottom - area.top) / v.z;
-    const sheet = { x: Math.round(left + span / 2 - DOC_W / 2), y: Math.round(top + 32 / v.z), w: DOC_W, h: Math.max(DOC_MIN_H, tall) };
-    const hits = box => box.w > 0 && box.h > 0 && box.x < sheet.x + sheet.w && box.x + box.w > sheet.x && box.y < sheet.y + sheet.h && box.y + box.h > sheet.y;
-    for (let i = 0; i < 50; i += 1) {
-      const blocking = contentBoxes().filter(hits);
-      if (!blocking.length) break;
-      sheet.x = Math.round(Math.max(...blocking.map(box => box.x + box.w)) + 80);
-    }
-    return { v: 1, x: sheet.x, y: sheet.y, w: DOC_W, blocks: [] };
-  };
-  // Editor view on a canvas with no document yet: one empty sheet, placed once (its world position is saved), then framed.
-  // Only after the page has the board's saved copy (docReady), so an empty sheet is never made over one still loading.
-  useEffect(() => {
-    if (docView !== 'editor' || doc || readOnly || localCopy || !docReady || docError) return;
-    const fresh = placeDoc();
-    if (!fresh) return;
-    docLive.current = fresh.blocks;
-    setDoc(fresh);
-    requestAnimationFrame(() => docFrame(fresh));
-  }, [docView, doc, readOnly, docReady, docError]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Typing near the bottom (or the top) of the view keeps the caret on screen, through the canvas camera.
-  const docCaret = box => {
-    const element = surface.current;
-    if (!element || !document.activeElement?.closest?.('[data-canvas-doc]')) return;
-    // A reveal scroll of the surface not yet turned into a camera move (its scroll event can come after this frame) is taken
-    // first: the pan keeps the caret where it is on screen, so box still holds, and the late scroll event finds nothing to do.
-    if (element.scrollLeft || element.scrollTop) {
-      const dx = element.scrollLeft, dy = element.scrollTop;
-      element.scrollLeft = 0; element.scrollTop = 0;
-      flushSync(() => setView(v => (autoView.current = { ...v, x: v.x - dx, y: v.y - dy })));
-    }
-    const frame = element.getBoundingClientRect(), bottom = Math.min(frame.bottom, frame.top + chromeTop(0, frame.width)) - 48, top = frame.top + controlArea().top + 48;
-    const by = box.bottom > bottom ? bottom - box.bottom : box.top < top ? top - box.top : 0;
-    if (by) setView(v => (autoView.current = { ...v, y: v.y + by }));
-  };
-  const paperRef = useRef(null);
-  // The document's box in world units, the one source for its footprint (blocknote-layers-minimap.md section 3): its saved
-  // x, y and width, and the paper's measured height (at least DOC_MIN_H, empty or not), in Editor view only. The height comes
-  // from one ResizeObserver, set only when it changes (a new line, not a key), and is never saved with the board.
-  const [docH, setDocH] = useState(DOC_MIN_H);
-  const docBox = doc && docView === 'editor' ? { x: doc.x, y: doc.y, w: doc.w, h: docH } : null;
-  const docBoxRef = useRef(docBox);
-  docBoxRef.current = docBox;
-  const docShown = !!doc && docView === 'editor';
-  useEffect(() => {
-    const paper = paperRef.current;
-    if (!paper) return undefined;
-    const observer = new ResizeObserver(() => setDocH(Math.max(DOC_MIN_H, paper.offsetHeight)));
-    observer.observe(paper);
-    return () => observer.disconnect();
-  }, [docShown]);
-  const [docMounted, setDocMounted] = useState(false);
-  const [docEpoch, setDocEpoch] = useState(0);
   // [+] pushes everything below the line down; [-] pulls it up, stopping short
   // of closing the gap. Cards, chat cards, shapes, notes and ink all move.
   const nudgeGap = (gap, delta) => {
@@ -5967,7 +6231,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (last) roomAfter[last.id] = groupRoom[group.id];
   }
   const minimapBoxes = [
-    ...(docBox ? [{ ...docBox, doc: true }] : []),
     ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
@@ -6149,7 +6412,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const pickMenu = id => {
     const target = menuAt.target;
     setMenuAt(null);
+    menuPoint.current = { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z };
     const done = runAction(id, target, actionCtx);
+    menuPoint.current = null;
     if (!done.ran && done.reason) toast(done.reason);
   };
   // Escape or Tab gives the focus back to what had it at open (the card, for Shift+F10), else to the clicked card.
@@ -6165,6 +6430,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const keyAction = id => {
     const done = runAction(id, selectionTarget(menuModel()), actionCtxRef.current);
     if (!done.ran && done.reason) toast(id === 'delete' && done.reason === 'Locked' ? 'Locked objects stay. Unlock them to delete.' : done.reason);
+    // Delete hides its row on generated cards alone (canvas-actions.js), so the key says why nothing happened.
+    else if (!done.ran && id === 'delete' && selectedRef.current.length && !deletableIds(selectedRef.current, blocksRef.current).ids.length) toast(GENERATED_NOTE);
     return done;
   };
   const keyActionRef = useRef(keyAction);
@@ -6183,7 +6450,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ask: async ({ id, revision, question, destination, actionId }, { onAdmitted } = {}) => {
       const card = blocksRef.current.find(entry => entry.id === id);
       if (!card || !chatWorkspace?.ask) return false;
-      chatWorkspace.panels?.openChat?.();
+      // Ask in a new card (and a follow-up or explore card) makes a card: the right panel stays as it is (owner 2026-11-15). Only Ask in chat opens the Chat.
+      if (destination === 'here') chatWorkspace.panels?.openChat?.();
       const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
       // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
       const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}), ...(destination === 'card' || destination === 'follow-up' || destination === 'explore' ? { beside: true } : {}) }; // 'follow-up' (the bottom field) and 'explore' (a term's new card, owner 2026-11-09) run the same /explain with no parentLink, so no connector joins the new card (owner 2026-11-08)
@@ -6206,7 +6474,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }), [canAsk, canNote, canQuick]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
-  const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
+  const soleFocus = null; // the card toolbar draws no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard
   const soleMinimize = soleObject && minimizable(soleObject) && !soleObject.minimized && !readOnly && !localCopy && !lockedRef.current.has(soleObject.id) ? () => minimizeCard(soleObject.id) : null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
@@ -6220,11 +6488,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, learnHidden: id => { const block = !readOnly && !localCopy && blocksRef.current.find(entry => entry.id === id); return !!block?.learn?.slot && !block.learn.placed && !block.at; }, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
-    <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
+      // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
+      // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
+      onClickCapture={event => {
+        const link = event.target.closest?.('[data-web-link]');
+        if (!link || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || readOnlyRef.current || localCopyRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setUrlPaste({ text: link.getAttribute('href'), back: null, link: true, at: local(event) });
+      }}
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
         const editor = editorRef.current;
@@ -6291,13 +6568,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
-        {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
+        {focus && !cardOnly && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
-        {urlPaste && <div role="dialog" aria-label="Paste a link" data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
+        {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
           className="absolute top-1/3 left-1/2 z-40 flex w-72 max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-pop">
           <p className="truncate px-2 pt-1 pb-0.5 text-xs text-ink-2" title={urlPaste.text}>{urlPaste.text}</p>
-          <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>
+          {urlPaste.link
+            ? <button type="button" autoFocus data-paste-url-choice="tab" onClick={() => choosePaste('tab')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><ArrowUpRight size={14} className="shrink-0 text-ink-2" />Open in new tab</button>
+            : <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>}
           <button type="button" data-paste-url-choice="card" onClick={() => choosePaste('card')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Globe size={14} className="shrink-0 text-ink-2" />Add webpage card</button>
         </div>}
         {/* Insert > Webpage: the address, then the capture a pasted link makes. Esc places nothing. */}
@@ -6316,40 +6595,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset} highlight={inline.highlight || null}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
-        {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
-          <div data-canvas-doc data-doc-state={docError ? 'error' : 'loading'} className="absolute top-[calc(var(--canvas-top,0px)+3rem)] left-1/2 z-40 w-80 -translate-x-1/2 rounded-md border border-line bg-white p-4 text-sm text-ink-2 shadow-md dark:bg-side">
-            {docError ? <>
-              <p role="alert">Couldn&apos;t load this canvas&apos;s document. Your saved document is unchanged.</p>
-              {onDocRetry && <button type="button" onClick={onDocRetry} className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-ink hover:bg-hover">Retry</button>}
-            </> : <p>Loading the document</p>}
-          </div>
-        )}
         <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-300 ease-in-out motion-reduce:transition-none' : ''}`}>
-        {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
-            (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
-            connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own
-            order, and focus or a menu never raises it. Its editor menus keep their own z-index in this layer, above the cards.
-            Editor view only - in
-            Canvas view it is not drawn at all, so nothing invisible catches the canvas's input. The hand tool and Space pan
-            through it; a press inside it is the editor's, never a marquee, pan or card drag. Files dropped on it do nothing
-            (no media in this MVP) rather than becoming a canvas card behind it. */}
-        {doc && docView === 'editor' && (
-          <div ref={paperRef} data-canvas-doc data-doc-state={docError || unknownDocBlock(doc.blocks) ? 'error' : docMounted ? 'ready' : 'loading'}
-            style={{ left: doc.x, top: doc.y, width: doc.w, minHeight: DOC_MIN_H }}
-            onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
-            onContextMenu={event => event.stopPropagation()}
-            onDragOver={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
-            onDrop={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
-            className={`absolute flex flex-col rounded-md border border-line bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] dark:bg-side ${(tool === 'hand' && !readOnly) || spacePan ? 'pointer-events-none' : ''}`}>
-            <div data-canvas-doc-editor className="flex-1 px-4 py-14 [&_.bn-editor]:px-10">
-              {unknownDocBlock(doc.blocks)
-                ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
-                : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document</p>}>
-                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly && !localCopy} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
-                </Suspense>}
-            </div>
-          </div>
-        )}
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
         {pages && (
@@ -6358,6 +6604,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               <g key={page.n}>
                 <rect x={page.x} y={page.y} width={page.w} height={page.h} fill="none" stroke="var(--color-line-strong)" strokeWidth={1 / view.z} />
                 <text x={page.x + page.w - 8} y={page.y + page.h - 8} textAnchor="end" fill="var(--color-ink-3)" fontSize={12 / view.z}>{page.n}</text>
+              </g>
+            ))}
+          </svg>
+        )}
+        {/* AR-C1/C2/C4 (release 146): the connectors between a card and the card it was made from. Derived from parentCard / sourceRef, never stored; drawn BELOW every card (this layer comes before the cards'
+            column in the world layer and has no z-index), pointer-events none, thin, dashed for an explained passage and solid for Ask in a new card, one palette colour per connector (connector.js). */}
+        {arrows.length > 0 && (
+          <svg width="1" height="1" aria-hidden="true" data-card-arrows className="pointer-events-none absolute top-0 left-0 overflow-visible">
+            {arrows.map(arrow => (
+              <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
+                <path d={arrow.geometry.d} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
+                <path d={arrowhead(arrow.geometry, 1 / view.z)} />
               </g>
             ))}
           </svg>
@@ -6729,45 +6987,47 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
-      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
-        <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
+      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(min-content,1fr)_minmax(200px,780px)_minmax(min-content,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
+        <div className="flex items-end gap-2 md:col-start-1">
         {/* The page's own lower-left control (Learn: the feedback button). */}
-        {bottomLeft}
-        {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
-            row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
-            the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
-        <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
-        {drawnWidgets.minimap && <div data-canvas-minimap>
-          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+        {/* Owner 2026-11-15: ONE pill, its parts separated by dividers: the page's lower-left control (feedback), the map, then zoom out, the percentage and zoom in. No scroll arrows.
+            The minimap panel opens above the pill when shown; the map button is its switch. */}
+        {!chromeOff && <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
+        {drawnWidgets.minimap && !minimapFolded && <div data-canvas-minimap>
+          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit} onFold={foldMinimap}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
         </div>}
         <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2">
-          <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
-          <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
-          <span className="mx-0.5 h-5 w-px bg-line" />
+          {bottomLeft && <><span data-zoom-lower-left className="flex items-center [&_button]:rounded-md [&_button]:border-0 [&_button]:shadow-none">{bottomLeft}</span><span className="mx-0.5 h-5 w-px bg-line" /></>}
+          {drawnWidgets.minimap && <><IconBtn data-minimap-toggle title={minimapFolded ? 'Show minimap' : 'Hide minimap'} aria-pressed={!minimapFolded} onClick={() => foldMinimap(!minimapFolded)}><MapIcon size={14} /></IconBtn><span className="mx-0.5 h-5 w-px bg-line" /></>}
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
+          <span className="mx-0.5 h-5 w-px bg-line" />
           <button type="button" title="Reset zoom" onClick={() => setView(homeView(controlArea(), COLUMN))} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
+          <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
-        </div>
+        </div>}
         </div>
         {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
         {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
-        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
-          <ComposerHide.Provider value={hideComposer}>{composer}</ComposerHide.Provider>
-        </div>}
-        {composer && composerHidden && <div data-composer-show-slot className="flex justify-center max-md:order-2">
-          <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
-            onClick={() => { setComposerHidden(false); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] textarea, [data-canvas-composer] input[type="text"], [data-canvas-composer] [contenteditable="true"]')?.focus({ preventScroll: true })); }}
-            className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-md hover:text-ink"><MessageCircle size={13} />Chat<ChevronUp size={13} /></button>
+        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} style={{ translate: 'var(--study-shift)' }} className={`${DOCK_WIDTH} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
+          {/* The chat window (owner 2026-11-13): sending from the strip opens the conversation here, above the suggestions and the composer. */}
+          {chatWindow}
+          {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
+          {hooks && <div data-hooks-slot ref={hooksSlot} className={`mb-1.5 empty:hidden ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {composer}
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
-        <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
-          {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:col-start-3 max-md:order-1">
+          {hooks && !composer && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {/* The minimized chat strip: the Rabbit Hole mark on black (owner 2026-11-13), at the lower right, beside the Curious icon. */}
+          {composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
+            onClick={() => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); }}
+            className="h-12 w-12 shrink-0 cursor-pointer overflow-hidden rounded-full border-[3px] border-line-strong bg-black shadow-pop transition-transform hover:scale-105 hover:border-ink-2 active:scale-95"><img src="/static/rabbit-hole-white-on-black-128.png" srcSet="/static/rabbit-hole-white-on-black-128.png 1x, /static/rabbit-hole-white-on-black-256.png 2x" alt="" draggable={false} className="h-full w-full object-cover" /></button>}
         </div>
         {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
         {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><SurfaceBoundary artifact="next_card_pill"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></SurfaceBoundary></div>}

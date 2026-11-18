@@ -42,16 +42,19 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   // handoff (Ctrl+K, owner spec 2026-10-29 4.2): another surface's line runs here exactly as a typed one, about ITS selection
   // ({ target, about }), and the composer's own draft is never cleared or replaced (a kept line only fills an empty composer).
   // -> whether the line was taken: false only for a prompt the Chat refused (busy), which a handoff's sender keeps and says so.
-  const exec = async (raw, handoff = null) => {
+  // section (Learn sections, learn-section-perform.js): a section item's line, with { depth, board, context, madeBy, onCard, onDone }. It is the Tutor's, not the learner's: the composer
+  // keeps its draft, the Chat records no user message for it, its cards report to onCard, and onDone gets the outcome.
+  const exec = async (raw, handoff = null, section = null) => {
     const name = parseSlash(raw)?.name || '';
     const started = scope;
-    if (!handoff) setInput('');
+    if (!handoff && !section) setInput('');
     setProposal(null); setBusy(true);
-    setNotice({ tone: 'busy', text: `Working on /${name}` });
-    const turn = onRun?.(raw, handoff) || null;
+    setNotice(null); // no "Working on /name" pill (owner 2026-11-13): the chat already shimmers while the command works
+    const turn = section ? { onCard: section.onCard || null } : onRun?.(raw, handoff) || null;
     let out;
-    try { out = await run(raw, target, turn, handoff); }
+    try { out = await run(raw, target, turn, handoff, section); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
+    section?.onDone?.(out);
     const ui = commandUi(out, { raw, started, current: scopeNow.current, tracked: !!turn });
     if (!ui) return true; // the conversation changed: the card stays, nothing here (New chat already cleared the notice)
     setBusy(false);
@@ -95,7 +98,8 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     },
     search: () => setQuery(''),
     // A sent line that starts with / is a command, never a chat message.
-    intercept: raw => { if (busy) { held.current = raw; return true; } exec(raw); return true; },
+    // A section item's line (second argument) that meets a running command is refused at once: its sender says so and offers Try again.
+    intercept: (raw, section = null) => { if (busy) { if (section) section.onDone?.({ notice: { tone: 'error', text: 'busy' } }); else held.current = raw; return true; } exec(raw, null, section); return true; },
     // Ctrl+K's line (chat-workspace ask): run now, or refuse while another command runs or when the Chat refuses its prompt, so the
     // sender keeps it and says so. Answers once taken or refused, never at the command's end.
     handoff: (raw, handoff) => (busy ? false : exec(raw, handoff)),

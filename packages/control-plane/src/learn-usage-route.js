@@ -8,6 +8,7 @@ import { allowanceFor } from './learn-entitlement.js';
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { periodOf, periodReset, usageByFeature, usageTotals } from './learn-usage.js';
 import { creditsOf } from './pricing-registry.js';
+import { computeSummary } from './learn-compute.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -31,7 +32,10 @@ export async function usageFetch(req, env, { identity = devIdentity, now = Math.
   // internally (1 credit = 10,000 micros); the conversion is here, on the server, and the financial accounting stays in the ledger
   // and behind the owner telemetry routes (owner-telemetry-routes.js, ownerOnly). unknownReserved is internal and not returned.
   const credits = micros => creditsOf(Number(micros || 0));
-  return json({ enforced, period, resetsAt: periodReset(period), allowanceCredits: credits(allowance),
+  // Compute usage (usage-limits-spec.md): the same body answers both meters, units only. A server that cannot read it says so; the screen never shows a blank.
+  let compute;
+  try { compute = await computeSummary(env.LEARN_DB, env, String(userId), { now }); } catch { compute = { unavailable: 'accounting' }; }
+  return json({ enforced, period, resetsAt: periodReset(period), compute, allowanceCredits: credits(allowance),
     usedCredits: credits(totals.used), reservedCredits: credits(totals.reserved), estimatedCredits: credits(totals.estimated),
     remainingCredits: credits(Math.max(0, allowance - totals.used - totals.reserved)),
     // Unknown cost is never silently 0: how many finished attempts have no confirmed cost. They are charged nothing and hold nothing:

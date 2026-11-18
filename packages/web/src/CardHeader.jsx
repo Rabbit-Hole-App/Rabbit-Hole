@@ -19,7 +19,8 @@ export default function CardHeader({ block, meta = null, trailing = null, size =
   // fit at that count; the whole text is then the tooltip. The header grows with the title, the icon and the trailing controls sit on its first line.
   const shown = headerTitleOf(block), first = size === 'lg' ? 'h-[25px]' : 'h-5', full = placeholder ? '' : fullTitleOf(block);
   return (
-    <header data-card-header {...headerProps} data-card-type={block?.type} className={`@container shrink-0 ${sticky ? 'sticky top-0 z-10 bg-white' : ''} ${className}`}>
+    // The whole header drags the card (owner 2026-11-13): the title row and the line under it, not only the thin strip above the card.
+    <header data-card-header data-drag-zone data-drag-top {...headerProps} data-card-type={block?.type} className={`@container shrink-0 cursor-grab transition-colors active:cursor-grabbing ${sticky ? 'sticky top-0 z-10 bg-white' : ''} ${className}`}>
       <div data-drag-zone className="flex min-w-0 cursor-grab items-start gap-2 active:cursor-grabbing">
         {Icon && <Icon data-card-icon size={size === 'lg' ? 18 : 16} strokeWidth={1.75} aria-hidden className={`shrink-0 text-ink-2 ${size === 'lg' ? 'mt-[3.5px]' : 'mt-0.5'}`} />}
         <h3 data-card-title {...titleProps} {...(placeholder ? { 'data-card-title-placeholder': '' } : {})} title={full.length > TITLE_TWO_LINES ? full : canRename ? 'Double-click to rename' : undefined}

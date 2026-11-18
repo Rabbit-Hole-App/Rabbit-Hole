@@ -1,0 +1,152 @@
+{
+  "W": 720,
+  "origin": {
+    "x": 800,
+    "y": 0
+  },
+  "spacing": {
+    "card": 40,
+    "pair": 40,
+    "section": 80,
+    "chapter": 240,
+    "column": 240
+  },
+  "boxes": [
+    {
+      "id": "chapter-2",
+      "type": "doc",
+      "role": "chapter",
+      "x": 800,
+      "y": 0,
+      "w": 720,
+      "h": 184
+    },
+    {
+      "id": "i1-lead",
+      "type": "doc",
+      "role": "lead",
+      "x": 800,
+      "y": 224,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "i1-card",
+      "type": "explanation",
+      "role": "card",
+      "x": 800,
+      "y": 472,
+      "w": 720,
+      "h": 520
+    },
+    {
+      "id": "i1-follow",
+      "type": "doc",
+      "role": "follow",
+      "x": 800,
+      "y": 1032,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "i2-lead",
+      "type": "doc",
+      "role": "lead",
+      "x": 800,
+      "y": 1280,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "i2-card",
+      "type": "snippet",
+      "role": "card",
+      "x": 800,
+      "y": 1528,
+      "w": 720,
+      "h": 924
+    },
+    {
+      "id": "i2-follow",
+      "type": "doc",
+      "role": "follow",
+      "x": 800,
+      "y": 2492,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "i3-lead",
+      "type": "doc",
+      "role": "lead",
+      "x": 800,
+      "y": 2740,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "i3-card",
+      "type": "notebook",
+      "role": "card",
+      "x": 800,
+      "y": 2988,
+      "w": 720,
+      "h": 720
+    },
+    {
+      "id": "i3-follow",
+      "type": "doc",
+      "role": "follow",
+      "x": 800,
+      "y": 3748,
+      "w": 720,
+      "h": 184
+    },
+    {
+      "id": "i5-lead",
+      "type": "doc",
+      "role": "lead",
+      "x": 800,
+      "y": 3972,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "i5-card",
+      "type": "explanation",
+      "role": "card",
+      "x": 800,
+      "y": 4220,
+      "w": 720,
+      "h": 520
+    },
+    {
+      "id": "i5-follow",
+      "type": "doc",
+      "role": "follow",
+      "x": 800,
+      "y": 4780,
+      "w": 720,
+      "h": 208
+    },
+    {
+      "id": "notes-lead",
+      "type": "doc",
+      "role": "lead",
+      "x": 800,
+      "y": 5028,
+      "w": 720,
+      "h": 184
+    },
+    {
+      "id": "notes-card",
+      "type": "doc",
+      "role": "card",
+      "x": 800,
+      "y": 5252,
+      "w": 720,
+      "h": 304
+    }
+  ],
+  "errors": []
+}

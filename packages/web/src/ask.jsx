@@ -1,4 +1,4 @@
-import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL, StripTool } from './ChatComposer.jsx';
 import { takePrefill } from './creator-analytics.js';
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
@@ -10,6 +10,8 @@ import { MAX_REFS, sameRef } from './chat-context.js';
 import { turnPaper } from './pdf-source.js';
 import { chatHistory, refIds } from './chat-canvas-context.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
+// ponytail: the voice icon is hidden in every chat composer (owner 2026-11-13: the right-side Chat and the canvas strip are one composer); set true to bring it back.
+const SHOW_VOICE_TOGGLE = false;
 import ContextDocs from './ContextDocs.jsx';
 import AddContextDialog from './AddContextDialog.jsx';
 import { CONTEXT_ACCEPT, useContextDocs } from './context-docs.js';
@@ -18,11 +20,11 @@ import { codeRef } from './chat-sources.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, CircleHelp, MessageSquare, Maximize2, Minimize2, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -32,14 +34,14 @@ import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js'
 import CommandPill from './CommandPill.jsx';
 import { NO_STEPS, composerCommand, historyKey, recordStep, removesToken, travel } from './command-token.js';
 import { composerKey } from './composer-keys.js';
-import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
+import { chatSendKey, saveUiPref, sendKeyLabel, uiPrefs } from './ui-prefs.js';
 import { answersInChat, commandLine, holdsLine, lineCommand, releaseLine } from './learn-slash.js';
 import { toolOf, typedOf } from './agent/slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
-import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
-import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { chatTitle, lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
+import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeHistory, routeOutcome } from './generation-proposal-chat.js';
 import { isSmallTalk } from './inline-ai-route.js';
 import { markEnd, markStart } from './client-timing.js';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
@@ -53,6 +55,10 @@ import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
 import { TutorCoaching } from './use-learn-coaching.jsx';
+import { REHEARSAL } from './rehearsal-flag.js';
+// The literal env test beside the import lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER; it runs only when the flow renders.
+const TutorRehearsalFlow = lazy(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./TutorRehearsal.jsx') : Promise.reject(new Error('not part of this build'))));
+import { CODEBASE_OPTIONS_EVENT, canvasUseId, offerIntakeText } from './codebase-use-route.js';
 import RoadmapTranscript, { TutorMessage } from './RoadmapTranscript.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
@@ -181,50 +187,50 @@ export function MaterialIcon({ type }) {
 // A selected page of a context document rides as that document's ref at its page (pdf-to-canvas.md): first, once, within the limit.
 const withPage = (refs, page) => (page && !refs.some(ref => sameRef(ref, page)) ? [page, ...refs].slice(0, MAX_REFS) : refs);
 const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
-// HOOK_ROW: one option's height, two lines of hook text, so the skeleton and the three hooks are the same size.
-const HOOK_ROW = 'min-h-14 rounded-lg border border-line';
+// HOOK_ROW: one suggestion's minimum height (owner 2026-11-13: three small cards in a row above the chat strip; the text wraps to three lines, never cut to one), so the skeleton and the hooks are the same size.
+const HOOK_ROW = 'min-h-9 rounded-xl border border-line';
 // The card's header (owner brief 2 item 6): Refresh asks the same pipeline for a new set (a ready set only, one at a time);
 // Minimize folds the card to a chip. Neither sends a message, navigates, adds a card or starts a Rabbit Hole.
-function NextStepsHeader({ steps, spinning = false, onMinimize }) {
+function NextStepsHeader({ steps, spinning = false, onMinimize = null }) {
   const refreshing = steps.refresh_state === 'loading';
   return (
-    <div className="flex items-center gap-1">
-      <h2 className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-ink-2">Curious where this goes?{spinning && <Loader2 size={12} aria-hidden="true" className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" />}</h2>
+    <div className="order-last flex shrink-0 items-center gap-0.5 self-center">
+      <h2 className="sr-only">Curious where this goes?{spinning && <Loader2 size={12} aria-hidden="true" className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" />}</h2>
       {typeof steps.refresh === 'function' && (
         <button type="button" data-next-steps-refresh aria-label="Refresh suggestions" title="Refresh suggestions: a new set for this canvas" disabled={steps.status !== 'ready' || refreshing} aria-busy={refreshing || undefined}
-          onClick={() => steps.refresh()} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-50 disabled:hover:bg-transparent">
+          onClick={() => steps.refresh()} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-50 disabled:hover:bg-transparent">
           <RefreshCw size={13} className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
         </button>
       )}
-      <button type="button" data-next-steps-minimize aria-label="Minimize suggestions" title="Minimize suggestions" aria-expanded="true" onClick={onMinimize}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink"><Minus size={13} /></button>
+      {onMinimize && <button type="button" data-next-steps-minimize aria-label="Minimize suggestions" title="Minimize suggestions" aria-expanded="true" onClick={onMinimize}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-hover hover:text-ink"><Minus size={13} /></button>}
     </div>
   );
 }
 
-export function NextStepsCard({ steps, onPick }) {
+export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimizedChange = null }) {
   const [working, setWorking] = useState(null);
-  // Minimized: a small chip that frees the card's room; Restore shows the same suggestions again, never asking for new ones.
-  const [minimized, setMinimized] = useState(false);
+  // Minimized: a round icon that frees the card's room; Restore shows the same suggestions again, never asking for new ones. The
+  // choice is this device's (ui-prefs.js curiousMin, owner 2026-11-13), so it holds when the card leaves with the opened Chat panel and returns.
+  // Controlled (the canvas page, owner 2026-11-13): the choice lives with the chat composer's own toggle next to the / control, so the card has no Minimize of
+  // its own and draws nothing while folded. Uncontrolled (a shared canvas): its own Minimize and icon.
+  const [own, setOwn] = useState(() => uiPrefs().curiousMin);
+  const controlled = onMinimizedChange !== null;
+  const minimized = controlled ? held : own;
+  const setMinimized = on => { if (controlled) return onMinimizedChange(on); setOwn(on); try { saveUiPref('curiousMin', on); } catch { /* storage refused: the choice holds until a reload */ } };
   // The last set's height: the skeleton that replaces it keeps it, so the card does not change size while the next set loads.
   const frame = useRef(null), height = useRef(0);
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
   if (!steps) return null;
   const visible = steps.status === 'loading' || steps.status === 'stale' || (steps.status === 'ready' && steps.options.length === 3);
-  // View > Curious shown again with no saved set (owner brief 2026-10-21 message 25 item 2): a compact empty state. Only its
-  // button asks for a set (useNextSteps request); showing Curious never does.
-  if (steps.status === 'unavailable' && steps.reason === 'curious_empty' && typeof steps.request === 'function') return (
-    <section data-next-steps="empty" aria-label="Curious where this goes?" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
-      <span className="text-xs font-medium whitespace-nowrap text-ink-2">No suggestions yet</span>
-      <button type="button" data-next-steps-request aria-label="Suggest next steps" title="Suggest next steps for this canvas" onClick={() => steps.request()}
-        className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-ink hover:bg-hover">Suggest</button>
-    </section>
-  );
+  // No saved set (owner 2026-11-13, replacing the 2026-10-21 empty state with its Suggest button): nothing is drawn. useNextSteps asks for a set
+  // by itself as soon as the card is shown, and the loading card below takes over.
+  if (steps.status === 'unavailable' && steps.reason === 'curious_empty') return null;
+  if (minimized && controlled) return null;
   if (minimized && visible) return (
-    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
-      <span className="truncate text-xs font-medium text-ink-2">Curious where this goes?</span>
-      <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink"><ChevronUp size={14} /></button>
+    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="flex w-full justify-end">
+      <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Curious where this goes? Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}
+        className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover hover:text-ink"><CircleHelp size={15} strokeWidth={1.7} /></button>
     </section>
   );
   // A set on its way for this basis, loading or stale (owner, 2026-10-08: "if the questions are still being loaded just show
@@ -232,10 +238,10 @@ export function NextStepsCard({ steps, onPick }) {
   // never the previous hooks (contract §1.2). Unavailable, whatever its reason, draws nothing.
   if (steps.status === 'loading' || steps.status === 'stale') {
     return (
-      <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
-        <NextStepsHeader steps={steps} spinning onMinimize={() => setMinimized(true)} />
+      <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-wrap items-stretch gap-1.5">
+        <NextStepsHeader steps={steps} spinning onMinimize={controlled ? null : () => setMinimized(true)} />
         <span className="sr-only">Loading suggestions</span>
-        {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} flex-1 bg-hover motion-safe:animate-pulse`} />)}
+        {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} min-w-[11rem] flex-1 bg-hover motion-safe:animate-pulse`} />)}
       </section>
     );
   }
@@ -248,27 +254,23 @@ export function NextStepsCard({ steps, onPick }) {
     try { await onPick(r.selected_next_step, hook); } finally { setWorking(null); }
   };
   return (
-    <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-white p-3 shadow-pop">
-      <NextStepsHeader steps={steps} onMinimize={() => setMinimized(true)} />
+    <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-wrap items-stretch gap-1.5">
+      <NextStepsHeader steps={steps} onMinimize={controlled ? null : () => setMinimized(true)} />
       {steps.refresh_state === 'loading' && <span role="status" className="sr-only">Refreshing suggestions</span>}
-      {steps.refresh_state === 'error' && (
-        <p role="alert" data-next-steps-refresh-error className="flex items-center gap-2 text-xs text-ink-2">
-          {steps.refresh_reason === 'limited' ? 'Refresh limit reached for now; these suggestions stay.' : 'Could not refresh; these suggestions stay.'}
-          {steps.refresh_reason !== 'limited' && <button type="button" onClick={() => steps.refresh()} className="font-medium text-ink underline-offset-2 hover:underline">Try again</button>}
-        </p>
-      )}
+      {/* A failed or limited refresh says nothing (owner 2026-11-13): the suggestions simply stay. */}
       {steps.options.map(hook => (
         <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={!!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
-          className="flex min-h-14 w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm text-ink hover:border-[#b42318]/40 hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:border-line disabled:hover:bg-transparent">
-          {working === hook.id ? <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin text-ink-3" /> : <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" />}
-          <span className="min-w-0">{hook.hook}{hook.section && <span data-next-section-note className="block text-xs text-ink-3">{sectionNote(hook.section)}</span>}</span>
+          title={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : hook.hook}
+          className="flex min-h-9 min-w-[11rem] flex-[1_1_0%] cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-left text-xs leading-snug text-ink shadow-sm hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:bg-white">
+          {working === hook.id ? <Loader2 size={12} className="shrink-0 animate-spin text-ink-3" /> : <CornerDownRight size={12} className="shrink-0 text-ink-3" />}
+          <span className="min-w-0 line-clamp-3">{hook.hook}{hook.section && <span data-next-section-note className="sr-only">{sectionNote(hook.section)}</span>}</span>
         </button>
       ))}
     </section>
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, stripHost = null, windowHost = null, curiousToggle = null, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -313,6 +315,30 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // composer, in one thread, and make no card; Add to canvas turns an answer
   // into a card. Asking about a selected card still answers as a linked card.
   const sheetMode = sheet && composerOnly;
+  const stripMode = !!(stripHost && chat && !tocView);
+  // Curious's own toggle (owner 2026-11-13): in the canvas strip's toolbar, next to the / control; LearnPage owns the state (curiousToggle: { min, set }).
+  const curiousButton = stripMode && curiousToggle ? (
+    <StripTool data-curious-toggle label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} on={!curiousToggle.min} onClick={() => curiousToggle.set(!curiousToggle.min)}><CircleHelp size={16} strokeWidth={1.7} /></StripTool>) : null;
+  // The window above the strip (owner 2026-11-13): sending from the strip leaves the right panel closed and opens this small fixed-height window, which holds
+  // the conversation (moved here without remounting) and can be minimized or maximized; a send reopens a minimized one.
+  const [windowSeen, setWindowSeen] = useState(false), [winState, setWinState] = useState('normal');
+  const windowMode = stripMode && !!windowHost && windowSeen;
+  const convHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
+  const convSlot = useRef(null), windowBody = useRef(null);
+  // A card added to the canvas folds the window away, so the learner can focus on the card (LearnPage dispatches rh-card-added; the chat button in the strip brings it back).
+  useEffect(() => {
+    if (!windowMode) return undefined;
+    const fold = () => setWinState('min');
+    window.addEventListener('rh-card-added', fold);
+    return () => window.removeEventListener('rh-card-added', fold);
+  }, [windowMode]);
+  useLayoutEffect(() => { const where = windowMode ? windowBody.current : convSlot.current; if (where && convHost.parentNode !== where) where.appendChild(convHost); });
+  // Minimized, the window is gone completely; this button in the strip's toolbar (next to the Curious toggle) shows it again, and hides it while it is open.
+  const chatWindowButton = stripMode && windowHost && windowSeen ? (
+    <StripTool data-chat-window-toggle label={winState === 'min' ? 'Show chat' : 'Hide chat'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} on={winState !== 'min'} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}><MessageSquare size={16} strokeWidth={1.7} /></StripTool>) : null;
+  const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
+  const inlineSlot = useRef(null);
+  useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
   const [sheetOpen, setSheetOpen] = useState(true);
   const [sheetHistory, setSheetHistory] = useState(false);
   const sheetThread = useRef(null);
@@ -562,6 +588,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null, onAdmitted = null } = {}) => {
+    // A slash command makes its card on the canvas: it does not open the chat window above the strip (owner 2026-11-15); only a chat question does.
+    if (stripMode && !commandName && !command) { setWindowSeen(true); setWinState(state => (state === 'min' ? 'normal' : state)); } // sent from the canvas strip: the window above it shows the conversation; the panel stays closed
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
@@ -579,6 +607,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const chips = keepDraft ? [] : mentions;
     const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return false;
+    // The Tutor's intake question is open on a repository canvas (TutorRehearsal.jsx; dev flag): a plain line is the reply to it, routed to one of the 14 uses, not sent as a turn.
+    if (chat && !tocView && !regenerate && !keepDraft && !prompted && !commandName && !file && !message.startsWith('/') && REHEARSAL && offerIntakeText(chat.canvas, message)) { setInput(''); return; }
     // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
     // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
     // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
@@ -780,7 +810,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // The learner's own words; the card, group or region they asked about rides beside them,
         // its text resolved at send (targetText) so a live card sends the state the learner sees.
         message,
-        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : about?.selection?.explanation && about.selection.id ? { canvas_target: canvasTargetField({ kind: 'card', ...about.selection }) } : {}), // an Explanation card's Ask here (explanation-host.js): the card, captured when the question was pressed
+        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : about?.selection?.explanation && about.selection.id ? { canvas_target: canvasTargetField({ kind: 'card', ...about.selection }) } : {}), // an Explanation card's Ask in chat (explanation-host.js): the card, captured when the question was pressed
         thread_id: threadId.current,
         ...(regenerate ? { regenerate } : {}),
         // A Continue convo's first request also carries the card its answer was linked from.
@@ -789,6 +819,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
+        // Dev flag (rehearsal-flag.js): a repository chat names the canvas goal's use so the server composes its prompt overlay (codebase-use-route.js canvasUseId).
+        ...(REHEARSAL && chat && codebase && canvasUseId(chat.coaching?.state) ? { use: canvasUseId(chat.coaching.state) } : {}),
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // R2: the learner's Depth for this canvas (Balanced sends nothing).
         ...depthSnapshot,
@@ -820,9 +852,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       clarified.current = null;
       if (routable && !commandName && answerChosen) payload.answer_only = true;
       if (routable && !answerChosen && ((!prompted && !commandName) || reviewRequired(commandName))) {
-        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }), { plain: !commandName && !routeAs && !prompted });
+        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null, history: routeHistory(msgs) }), { plain: !commandName && !routeAs && !prompted });
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
+        // The router read the words as a request for a course (owner 2026-11-14): the canvas's Markdown file becomes a course through the same create the invitation's button runs; the plan arrives in Chat.
+        // The router read the words as "what can I do with this codebase?" (owner 2026-11-15): the Tutor offers its list again, the one dropdown, on a repository canvas; anywhere else it is an ordinary answer.
+        if (!outcome.send && outcome.direct?.command === 'codebase-options') {
+          const offer = { canvas: chat.canvas, handled: false }; // the Tutor's flow, where it is mounted, answers by setting handled
+          window.dispatchEvent(new CustomEvent(CODEBASE_OPTIONS_EVENT, { detail: offer }));
+          if (offer.handled) { setMsgs(m => m.slice(0, -2)); return; }
+          Object.assign(outcome, { send: true, token: null, answerOnly: false, direct: null }); // an ordinary turn with its tools: answer-only would strip the repository and paper tools from a plain question
+        }
+        if (!outcome.send && outcome.direct?.command === 'course' && chat?.canvasOps?.startCourse) { const done = chat.canvasOps.startCourse(outcome.direct.args); setMsgs(m => m.slice(0, -2)); say(done?.notice?.text || 'Making the plan. It appears in Chat for you to review.'); return; }
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
         if (!outcome.send) {
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
@@ -958,6 +999,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const sendStep = async (step, hook) => {
     if (voice?.on) return voice.say('', { nextStep: step, selectedAt: new Date().toISOString() });
     if (busy) return false;
+    // Owner 2026-11-13: a Curious suggestion always makes a card: /explain on its words, run directly through the command dispatcher (no router, no chat turn).
+    if (slashRef.current?.intercept(`/${typedOf('explanation')} ${hook}`)) return true;
     return (await send(hook)) !== false;
   };
   if (nextStepRef) nextStepRef.current = sendStep; // the page's hook card sends through the dock (LearnPage)
@@ -1018,6 +1061,246 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     </div>}
   </>;
   const pinnedTarget = !!(chat && canvasTarget?.ref && chat.context.isAttached(canvasTarget.ref));
+  // The strip (owner 2026-11-13): while the right panel is closed the canvas offers a host (stripHost) at its bottom and this one composer, tools
+  // and all, is drawn there as a pill; Send then opens the panel. chipsNode: the context chips, in the stacked box or above the pill.
+  const chipsNode = chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
+            selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
+            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null;
+  const conversationRegion = (
+    <>
+      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || hideConversation || (composerOnly && !sheetMode)) && 'hidden',
+        sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
+        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card))) && 'hidden')}>
+        {sheetMode && (
+          <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
+            <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>
+            <button type="button" data-chat-clear aria-label="Clear the conversation" title="Clear" disabled={busy} onClick={newChat} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={13} /></button>
+            <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setSheetOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
+              <Minus size={14} />
+            </button>
+          </div>
+        )}
+        {sheetMode && sheetHistory && (threads.length ? threads.map(t => (
+          <button key={t.id} type="button" onClick={async () => { await loadThread(t.id); setSheetHistory(false); }} className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover">
+            <span className="min-w-0 flex-1 truncate">{t.title}</span>
+            {t.created_at && <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>}
+          </button>
+        )) : <p className="py-2 text-sm text-ink-3">No past chats.</p>)}
+        {/* The Learn Chat opens empty: these starters are the apps agent's, not a canvas's, and Explore next (Lane B) follows answers. */}
+        {!sheetMode && !chat && msgs.length === 0 && !choices && (
+          <div className="flex flex-col items-start gap-1.5 py-3">
+            {(repository
+              ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']
+              : scope.run
+              ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
+              : scope.app
+                ? ['When did this last run, and how did it go?', 'What does the code actually do?', 'Who has access to this app?']
+                : ['What apps do we have and what do they do?', 'Any failed runs recently?', 'What did Watch find this week?']
+            ).map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => send(q)}
+                className="cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-left text-[13px] text-ink-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-line-strong hover:text-ink"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
+        {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
+        {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
+        {/* The initial pipeline's Tutor messages after the thread's own (TutorRehearsal.jsx; dev flag VITE_REHEARSAL_TRIGGER=1). */}
+        {chat && !tocView && chat.coaching && REHEARSAL && <Suspense fallback={null}><TutorRehearsalFlow chat={chat} slash={slashRef} /></Suspense>}
+        {choices && (
+          <div className="py-2">
+            <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
+            <div className="flex flex-col gap-1">
+              {choices.candidates.map((c) => (
+                <button
+                  key={c.app}
+                  onClick={() => send(choices.message, { app: c.app })}
+                  className="cursor-pointer rounded-sm border border-line px-3 py-1.5 text-left text-sm hover:bg-hover"
+                >
+                  <span className="font-medium">{c.app}</span>
+                  {c.hint && <span className="block truncate text-xs text-ink-2">{c.hint}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {!(contentPanel || hideConversation || composerOnly) && <JumpToLatest follow={follow} />}
+    </>
+  );
+  const composerRegion = (
+      <div ref={composerBox} className={cn('relative shrink-0', stripMode ? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2')}>
+        {/* @-mention suggestions above the input */}
+        {!tocView && atHits.length > 0 && (
+          <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
+            {atHits.map((a) => (
+              <button
+                key={a.name}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setMentions((m) => (m.includes(a.name) ? m : [...m, a.name]));
+                  setInput(input.replace(/@[a-z0-9-]*$/, ''));
+                  inputRef.current?.focus();
+                }}
+                className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover"
+              >
+                <KindIcon kind={a.kind} schedule={a.schedule} />
+                {a.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {(file || mentions.length > 0) && (
+          <div className="mb-1 flex flex-wrap gap-1.5">
+            {mentions.map((m) => (
+              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs">
+                @{m}
+                <button aria-label={`Remove ${m}`} className="cursor-pointer text-ink-2 hover:text-ink" onClick={() => setMentions((ms) => ms.filter((x) => x !== m))}><X size={11} /></button>
+              </span>
+            ))}
+            {file && (
+              <span className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-xs text-ink-2">
+                <Paperclip size={12} strokeWidth={1.5} /> {file.name}
+                <button aria-label="Remove attachment" className="cursor-pointer hover:text-ink" onClick={() => setFile(null)}><X size={12} /></button>
+              </span>
+            )}
+          </div>
+        )}
+        {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
+          {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
+        </button>}
+        {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
+            first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
+        {!tocView && repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
+          <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
+          {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
+          {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
+        </div>; })()}
+        {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
+        {canvasTarget && !chat && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+          {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
+          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
+          {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
+          {canvasTarget.card && !canvasTarget.preview && <MaterialIcon type={canvasTarget.context?.material_type} />}
+          {!canvasTarget.card && !String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
+          <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
+          <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
+        </div>}
+        {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
+        {!chat && boardPending}
+        {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} messages={msgs.length} busy={busy} />}
+        {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
+        {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
+        {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
+        {!tocView && <CadReview ops={workspace?.canvasOps} />}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
+        {stripMode && chipsNode && <div className="mb-1.5 has-[ul:empty]:hidden">{chipsNode}</div>}
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
+          onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
+            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
+          dock={dock || stripMode} hold={uploadHeld(canvasTarget) ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
+          stacked={!!chat && !stripMode} pill={stripMode} onMinimize={stripMode ? () => window.dispatchEvent(new Event('rh-strip-minimize')) : null} tocView={tocView} chips={chat && !stripMode ? chipsNode : null}
+          leading={<>
+          {!tocView && <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Add"
+              disabled={voiceOn}
+              title={chat ? 'Add context' : undefined}
+              onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
+              className={cn(chat ? COMPOSER_TOOL : dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
+            >
+              <Plus size={chat ? 16 : 14} strokeWidth={1.5} />
+            </button>
+            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
+              {/* The Chat pane adds to the canvas's one context collection through the Context header's own Add context dialog: a file
+                  (chat.context.upload, the context-docs upload) or a web address (owner brief 2026-10-29). */}
+              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); setAddContext(true); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+                Add images, PDFs, or CSVs
+              </MenuItem>}
+              {chat ? <MenuItem icon={AtSign} data-mention-canvas disabled={privateChat || canvasMentioned.length >= CANVAS_MENTIONS} onClick={() => { setPlusOpen(false); setMentionPick(true); }}>
+                Mention a canvas
+              </MenuItem> : <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+                Mention an app
+              </MenuItem>}
+            </Menu>
+            {/* On document.body: inside the composer's form, the picker's buttons would submit (send) the chat. */}
+            {addContext && chat && <AddContextDialog onClose={() => { setAddContext(false); inputRef.current?.focus(); }} />}
+            {mentionPick && chat && createPortal(<CanvasRefPicker mention exclude={null} linked={canvasMentioned.map(ref => canvasBoardId(ref.sourceId))} returnFocus={() => inputRef.current}
+              onPick={canvas => { const ref = canvasMentionRef(canvas.id); if (chat.context.isAttached(ref)) return { ok: false, reason: 'exists' }; rememberCanvas(canvas); chat.context.attach(ref); return { ok: true }; }}
+              onClose={() => setMentionPick(false)} />, document.body)}
+            <input
+              ref={fileRef}
+              type="file"
+              accept={chat ? CONTEXT_ACCEPT : '.png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt'}
+              className="hidden"
+              onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
+            />
+          </div>}
+          {contextDocs.enabled && !chat && (
+            <div className="relative shrink-0">
+              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
+                onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
+                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>
+                <Files size={dock ? 16 : 14} strokeWidth={1.5} />
+                {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
+              </button>
+              <Menu open={ctxOpen} onClose={() => setCtxOpen(false)} className={dock ? 'bottom-11 left-0 w-[22rem] max-w-[92vw] p-1' : 'bottom-8 left-0 w-[22rem] max-w-[92vw] p-1'}>
+                <ContextDocs context={contextDocs} />
+              </Menu>
+            </div>
+          )}
+          {srcOpts.length > 0 && !chat && (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                aria-label="Sources"
+                title="What the agent reads"
+                onMouseDown={(e) => { e.stopPropagation(); setSrcOpen(!srcOpen); }}
+                className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', srcOpen && 'bg-active text-ink')}
+              >
+                <SlidersHorizontal size={14} strokeWidth={1.5} />
+              </button>
+              <Menu open={srcOpen} onClose={() => setSrcOpen(false)} className="bottom-8 left-0 w-64 p-2">
+                <div className="pb-1.5 text-xs font-medium text-ink-2">Sources</div>
+                {srcOpts.map(([k, label]) => {
+                  const SI = SOURCE_ICON[k];
+                  return (
+                  <div key={k} className="flex h-7 items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">{SI && <SI size={14} strokeWidth={1.5} className="text-ink-2" />}{label}</span>
+                    <Toggle
+                      aria-label={label}
+                      on={srcOn.has(k)}
+                      onChange={() => setSrcOn((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; })}
+                    />
+                  </div>
+                  );
+                })}
+                <div className="pt-1.5 text-xs text-ink-3">{privateChat
+                  ? `${scope.run ? 'Run details' : 'Job definition'} always included. Choose additional evidence above.`
+                  : "The agent only reads what's on here."}</div>
+              </Menu>
+            </div>
+          )}
+          {/* The Chat toolbar after Plus, in order: the mode, the / slot, the mic; Send sits at the far right. Context, Files and
+              Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
+          {chat && <ModeSelector disabled={voiceOn} />}
+          {(dock || chat) && chatControl}
+          {SHOW_VOICE_TOGGLE && (dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
+          </>}
+          voice={voiceOn ? <VoiceField voice={voice} /> : null}
+          trailing={stripMode ? <>{curiousButton}{chatWindowButton}</> : dock || chat ? null : chatControl}
+        />
+      </div>
+  );
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
       {/* The Chat pane's own header (ChatPane: title, History, New chat) replaces this row there. */}
@@ -1114,235 +1397,27 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       )}
       {(view === 'chat' || contentPanel) && (<>
       {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
-      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || hideConversation || (composerOnly && !sheetMode)) && 'hidden',
-        sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
-        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card))) && 'hidden')}>
-        {sheetMode && (
-          <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
-            <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>
-            <button type="button" data-chat-clear aria-label="Clear the conversation" title="Clear" disabled={busy} onClick={newChat} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={13} /></button>
-            <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setSheetOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
-              <Minus size={14} />
-            </button>
-          </div>
-        )}
-        {sheetMode && sheetHistory && (threads.length ? threads.map(t => (
-          <button key={t.id} type="button" onClick={async () => { await loadThread(t.id); setSheetHistory(false); }} className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover">
-            <span className="min-w-0 flex-1 truncate">{t.title}</span>
-            {t.created_at && <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>}
-          </button>
-        )) : <p className="py-2 text-sm text-ink-3">No past chats.</p>)}
-        {/* The Learn Chat opens empty: these starters are the apps agent's, not a canvas's, and Explore next (Lane B) follows answers. */}
-        {!sheetMode && !chat && msgs.length === 0 && !choices && (
-          <div className="flex flex-col items-start gap-1.5 py-3">
-            {(repository
-              ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']
-              : scope.run
-              ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
-              : scope.app
-                ? ['When did this last run, and how did it go?', 'What does the code actually do?', 'Who has access to this app?']
-                : ['What apps do we have and what do they do?', 'Any failed runs recently?', 'What did Watch find this week?']
-            ).map((q) => (
-              <button
-                key={q}
-                type="button"
-                onClick={() => send(q)}
-                className="cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-left text-[13px] text-ink-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-line-strong hover:text-ink"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
-        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
-        {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
-        {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
-        {choices && (
-          <div className="py-2">
-            <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
-            <div className="flex flex-col gap-1">
-              {choices.candidates.map((c) => (
-                <button
-                  key={c.app}
-                  onClick={() => send(choices.message, { app: c.app })}
-                  className="cursor-pointer rounded-sm border border-line px-3 py-1.5 text-left text-sm hover:bg-hover"
-                >
-                  <span className="font-medium">{c.app}</span>
-                  {c.hint && <span className="block truncate text-xs text-ink-2">{c.hint}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      {!(contentPanel || hideConversation || composerOnly) && <JumpToLatest follow={follow} />}
+      {/* The conversation lives in convHost, moved without remounting between this slot and the window above the canvas strip (owner 2026-11-13). */}
+      <div ref={convSlot} className="contents" />
+      {createPortal(conversationRegion, convHost)}
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
-      <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
-        {/* @-mention suggestions above the input */}
-        {!tocView && atHits.length > 0 && (
-          <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
-            {atHits.map((a) => (
-              <button
-                key={a.name}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setMentions((m) => (m.includes(a.name) ? m : [...m, a.name]));
-                  setInput(input.replace(/@[a-z0-9-]*$/, ''));
-                  inputRef.current?.focus();
-                }}
-                className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover"
-              >
-                <KindIcon kind={a.kind} schedule={a.schedule} />
-                {a.name}
-              </button>
-            ))}
-          </div>
-        )}
-        {(file || mentions.length > 0) && (
-          <div className="mb-1 flex flex-wrap gap-1.5">
-            {mentions.map((m) => (
-              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs">
-                @{m}
-                <button aria-label={`Remove ${m}`} className="cursor-pointer text-ink-2 hover:text-ink" onClick={() => setMentions((ms) => ms.filter((x) => x !== m))}><X size={11} /></button>
-              </span>
-            ))}
-            {file && (
-              <span className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-xs text-ink-2">
-                <Paperclip size={12} strokeWidth={1.5} /> {file.name}
-                <button aria-label="Remove attachment" className="cursor-pointer hover:text-ink" onClick={() => setFile(null)}><X size={12} /></button>
-              </span>
-            )}
-          </div>
-        )}
-        {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
-          {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
-        </button>}
-        {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
-            first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
-        {!tocView && repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
-          <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
-          {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
-          {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
-        </div>; })()}
-        {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
-        {canvasTarget && !chat && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
-          {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
-          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
-          {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
-          {canvasTarget.card && !canvasTarget.preview && <MaterialIcon type={canvasTarget.context?.material_type} />}
-          {!canvasTarget.card && !String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
-          <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
-          <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
-        </div>}
-        {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
-        {!chat && boardPending}
-        {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} messages={msgs.length} busy={busy} />}
-        {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
-        {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
-        {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
-        {!tocView && <CadReview ops={workspace?.canvasOps} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
-        {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
-        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
-          onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
-            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
-          dock={dock} hold={uploadHeld(canvasTarget) ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} tocView={tocView} chips={chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
-            selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
-            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null}
-          leading={<>
-          {!tocView && <div className="relative shrink-0">
-            <button
-              type="button"
-              aria-label="Add"
-              disabled={voiceOn}
-              title={chat ? 'Add context' : undefined}
-              onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
-              className={cn(chat ? COMPOSER_TOOL : dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
-            >
-              <Plus size={chat ? 16 : 14} strokeWidth={1.5} />
-            </button>
-            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
-              {/* The Chat pane adds to the canvas's one context collection through the Context header's own Add context dialog: a file
-                  (chat.context.upload, the context-docs upload) or a web address (owner brief 2026-10-29). */}
-              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); setAddContext(true); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
-                Add images, PDFs, or CSVs
-              </MenuItem>}
-              {chat ? <MenuItem icon={AtSign} data-mention-canvas disabled={privateChat || canvasMentioned.length >= CANVAS_MENTIONS} onClick={() => { setPlusOpen(false); setMentionPick(true); }}>
-                Mention a canvas
-              </MenuItem> : <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
-                Mention an app
-              </MenuItem>}
-            </Menu>
-            {/* On document.body: inside the composer's form, the picker's buttons would submit (send) the chat. */}
-            {addContext && chat && <AddContextDialog onClose={() => { setAddContext(false); inputRef.current?.focus(); }} />}
-            {mentionPick && chat && createPortal(<CanvasRefPicker mention exclude={null} linked={canvasMentioned.map(ref => canvasBoardId(ref.sourceId))} returnFocus={() => inputRef.current}
-              onPick={canvas => { const ref = canvasMentionRef(canvas.id); if (chat.context.isAttached(ref)) return { ok: false, reason: 'exists' }; rememberCanvas(canvas); chat.context.attach(ref); return { ok: true }; }}
-              onClose={() => setMentionPick(false)} />, document.body)}
-            <input
-              ref={fileRef}
-              type="file"
-              accept={chat ? CONTEXT_ACCEPT : '.png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt'}
-              className="hidden"
-              onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
-            />
-          </div>}
-          {contextDocs.enabled && !chat && (
-            <div className="relative shrink-0">
-              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
-                onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
-                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>
-                <Files size={dock ? 16 : 14} strokeWidth={1.5} />
-                {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
-              </button>
-              <Menu open={ctxOpen} onClose={() => setCtxOpen(false)} className={dock ? 'bottom-11 left-0 w-[22rem] max-w-[92vw] p-1' : 'bottom-8 left-0 w-[22rem] max-w-[92vw] p-1'}>
-                <ContextDocs context={contextDocs} />
-              </Menu>
-            </div>
-          )}
-          {srcOpts.length > 0 && !chat && (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                aria-label="Sources"
-                title="What the agent reads"
-                onMouseDown={(e) => { e.stopPropagation(); setSrcOpen(!srcOpen); }}
-                className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', srcOpen && 'bg-active text-ink')}
-              >
-                <SlidersHorizontal size={14} strokeWidth={1.5} />
-              </button>
-              <Menu open={srcOpen} onClose={() => setSrcOpen(false)} className="bottom-8 left-0 w-64 p-2">
-                <div className="pb-1.5 text-xs font-medium text-ink-2">Sources</div>
-                {srcOpts.map(([k, label]) => {
-                  const SI = SOURCE_ICON[k];
-                  return (
-                  <div key={k} className="flex h-7 items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">{SI && <SI size={14} strokeWidth={1.5} className="text-ink-2" />}{label}</span>
-                    <Toggle
-                      aria-label={label}
-                      on={srcOn.has(k)}
-                      onChange={() => setSrcOn((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; })}
-                    />
-                  </div>
-                  );
-                })}
-                <div className="pt-1.5 text-xs text-ink-3">{privateChat
-                  ? `${scope.run ? 'Run details' : 'Job definition'} always included. Choose additional evidence above.`
-                  : "The agent only reads what's on here."}</div>
-              </Menu>
-            </div>
-          )}
-          {/* The Chat toolbar after Plus, in order: the mode, the / slot, the mic; Send sits at the far right. Context, Files and
-              Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
-          {chat && <ModeSelector disabled={voiceOn} />}
-          {(dock || chat) && chatControl}
-          {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
-          </>}
-          voice={voiceOn ? <VoiceField voice={voice} /> : null}
-          trailing={dock || chat ? null : chatControl}
-        />
-      </div>
+      {/* The composer lives in regionHost (a div React portals it into) so it can move, without remounting, between this slot and the
+          canvas strip (stripHost, owner 2026-11-13: the bottom strip is the Chat's own composer, same tools, while the panel is closed). */}
+      <div ref={inlineSlot} className="contents" />
+      {createPortal(composerRegion, regionHost)}
+      {windowMode && createPortal(
+        <section data-chat-window data-chat-window-state={winState} aria-label="Chat" className={cn('mb-1.5 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-white shadow-pop', winState === 'normal' && 'h-80 max-h-[55vh]', winState === 'max' && 'h-[min(75vh,760px)]', winState === 'min' && 'hidden')}>
+          <header className="flex h-9 shrink-0 items-center gap-0.5 pr-1.5 pl-3">
+            <h2 data-chat-window-title className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{chatTitle(chat.thread)}</h2>
+            <button type="button" data-chat-window-clear aria-label="Clear the conversation" title="Clear the conversation" disabled={busy} onClick={newChat}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={14} /></button>
+            <button type="button" data-chat-window-minimize aria-label="Minimize chat" title="Minimize the chat: the chat button in the strip brings it back" onClick={() => setWinState('min')}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"><Minus size={15} /></button>
+            <button type="button" data-chat-window-maximize aria-label={winState === 'max' ? 'Restore chat size' : 'Maximize chat'} title={winState === 'max' ? 'Restore the chat size' : 'Maximize the chat'} onClick={() => setWinState(winState === 'max' ? 'normal' : 'max')}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink">{winState === 'max' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
+          </header>
+          <div ref={windowBody} className={cn('flex min-h-0 flex-1 flex-col px-3 pb-2', winState === 'min' && 'hidden')} />
+        </section>, windowHost)}
       </>)}
     </div>
   );

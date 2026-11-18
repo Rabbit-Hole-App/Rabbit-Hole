@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/run-status.json",
+  "title": "Run status (GET /sessions/<id>/runs/<runId>)",
+  "description": "Polled every 2 s while the run is not complete. stdoutTail and stderrTail are the last limits.RUN_TAIL_LINES lines (at most limits.RUN_TAIL_MAX_BYTES bytes each); the full log is kept server-side (GET /sessions/<id>/runs/<runId>/log answers text/plain). `sec` counts up while running. status: queued, running, then done (rc 0), error (rc != 0), timeout (rc 124, the cell's timeoutSec) or stopped (the session was stopped).",
+  "$defs": {
+    "producedFile": {
+      "type": "object", "additionalProperties": false, "required": ["path", "bytes", "kind", "fetched"],
+      "properties": {
+        "path": { "type": "string", "description": "relative to the repository clone" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "kind": { "enum": ["image", "json", "table", "markdown", "html", "notebook", "audio", "video", "text", "binary"], "description": "by extension: image png jpg jpeg gif webp svg; json; table csv tsv; markdown md; html; notebook ipynb; audio wav mp3 ogg; video mp4 webm; text txt log; binary everything else (.pt .bin .db .pkl). Binaries are never fetched and never offered for download." },
+        "fetched": { "type": "boolean", "description": "previewable kinds are fetched under 5 MB per file and 25 MB per run; beyond the cap listed with fetched false" }
+      }
+    }
+  },
+  "type": "object", "additionalProperties": false, "required": ["runId", "cellId", "status", "complete", "sec", "cmd", "stdoutTail", "stderrTail", "stdoutBytes", "stderrBytes"],
+  "properties": {
+    "runId": { "type": "string", "pattern": "^[a-f0-9]{16}$" },
+    "cellId": { "type": "string" },
+    "status": { "enum": ["queued", "running", "done", "error", "timeout", "stopped"] },
+    "complete": { "type": "boolean" },
+    "rc": { "type": "integer" },
+    "sec": { "type": "number", "minimum": 0 },
+    "cmd": { "type": "string", "description": "the command actually run (validated flags substituted)" },
+    "stdoutTail": { "type": "string" },
+    "stderrTail": { "type": "string" },
+    "stdoutBytes": { "type": "integer", "minimum": 0 },
+    "stderrBytes": { "type": "integer", "minimum": 0 },
+    "step": { "type": "string", "description": "a custom sequence: the step id running now" },
+    "stdoutKind": { "enum": ["text", "json", "table"], "description": "classification of the whole stdout once complete: json when it parses as JSON, table for an aligned block of 3 or more lines; text otherwise (the text stays underneath). Carriage-return progress (tqdm) is collapsed to its last state in stdoutTail." },
+    "metrics": { "type": "array", "maxItems": 8, "description": "series parsed from `key: number` lines or the step's metric check, capped at 2000 points each, live while the run streams", "items": { "type": "object", "additionalProperties": false, "required": ["name", "points"], "properties": { "name": { "type": "string" }, "points": { "type": "array", "maxItems": 2000, "items": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }], "minItems": 2, "maxItems": 2 } } } } },
+    "producedFiles": { "type": "array", "maxItems": 200, "description": "files the run created or changed in the work tree (diff before and after), complete once the run is", "items": { "$ref": "#/$defs/producedFile" } },
+    "probes": { "type": "array", "maxItems": 4, "description": "longRunning steps with an http_200 check: the probe's response, body cut to 64 KB", "items": { "type": "object", "additionalProperties": false, "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "type": "integer" }, "contentType": { "type": "string" }, "body": { "type": "string", "maxLength": 65536 } } } }
+  }
+}

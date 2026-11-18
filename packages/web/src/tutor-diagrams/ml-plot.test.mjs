@@ -3,8 +3,8 @@ import test from 'node:test';
 import { z } from 'zod';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createShapes, validate, describe, visibleText, plotSeriesPoints } from './ml-plot-spec.js';
-import { createLayouts } from './ml-plot-layouts.js';
+import { createShapes, validate, describe, visibleText, plotSeriesPoints, axisName } from './ml-plot-spec.js';
+import { createLayouts, PLOT_NOTES_MAX } from './ml-plot-layouts.js';
 import { references } from './ml-plot-references.js';
 import { lineHeight, textWidth } from './primitives.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
@@ -53,10 +53,16 @@ test('five line series use distinct strokes and right-edge labels keep clear of 
   assert.notEqual(errors(d), '');
 });
 
-test('unchanged plots and bars delegate to the legacy layouts exactly', () => {
+// Sprint default: every coordinate-plot, plain or extended, and every bar-chart (BAR-1: vertical bars with an ink L-axis) is drawn by the themed layout, not the legacy one.
+test('bars and a plain plot are drawn by the themed layout, not the legacy one', () => {
   for (const d of [plot(), { kind: 'bar-chart', title: 'Bars', bars: [{ label: 'A', value: -1 }, { label: 'B', value: 2 }] }]) {
     const old = quantitativeLayouts[d.kind](d, 320);
-    assert.deepEqual(layouts[d.kind](d, 320), old);
+    assert.notDeepEqual(layouts[d.kind](d, 320), old);
+    const { svg } = render(d, 320);
+    if (d.kind === 'bar-chart') {
+      assert.equal(marks(svg, 'data-tutor-bar-axis').length, 1, 'bars draw the ink L-axis');
+      assert.equal(marks(svg, 'data-tutor-bar').length, 2, 'one vertical bar per category');
+    } else assert.equal(marks(svg, 'data-tutor-plot-area').length, 1);
     assert.equal(describe(d), null);
     assert.equal(visibleText(d), null);
   }
@@ -93,14 +99,15 @@ test('annotations and labelled samples share the same exact linear mapping', () 
   assert.ok(describe(d).join(' ').includes('sample1'));
 });
 
-test('a dense extended line marks its first and last point and labelled points, and retains the full curve', () => {
+// Sprint default: a line series of up to PLOT_MARKER_ALL_MAX_SAMPLES (8) samples marks every sample, and is straight between samples unless `smooth: true`.
+test('a line of seven samples marks every sample and retains the full (smooth) curve', () => {
   const d = plot();
-  d.series = [{ label: 'Dense line', kind: 'line', points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i % 3,
+  d.series = [{ label: 'Dense line', kind: 'line', smooth: true, points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i % 3,
     ...(i === 2 ? { label: 'Peak' } : i === 3 ? { id: 'unlabelled' } : {}),
   })) }, { label: 'Stems', kind: 'stem', points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i + 1 })) }];
   const { svg, plotBounds } = render(d);
   assert.deepEqual(marks(svg, 'data-tutor-coordinate-point').map(mark => mark.value),
-    ['0,0', '2,2', '6,0', '0,1', '1,2', '2,3', '3,4', '4,5', '5,6', '6,7']);
+    ['0,0', '1,1', '2,2', '3,0', '4,1', '5,2', '6,0', '0,1', '1,2', '2,3', '3,4', '4,5', '5,6', '6,7']);
   assert.equal(marks(svg, 'data-tutor-plot-stem').length, 7);
   assert.match(svg, /Peak/);
   assert.match(svg, /Dense line/);
@@ -116,7 +123,8 @@ test('a dense extended line marks its first and last point and labelled points, 
 
 // logX (release 118, Codex ae9bf069d): a log x axis is labelled at its powers of ten plus the exact endpoints, thinned only when crowded, so it carries 3 to 7 ticks (a domain inside two decades is completed with 1-2-5 sub-ticks, plot-ticks.js); linear axes keep 3 to 5.
 function checkAxisTicks(frame, xDomain, yDomain, logX = false) {
-  const labels = frame.elements.filter(({ type, props }) => type === 'text' && props.fontSize === 12).map(({ props }) => props);
+  // Sprint default: tick labels are 15 px / 500 (value labels are 15 px / 700 and the legend 12 px, so neither is a tick).
+  const labels = frame.elements.filter(({ type, props }) => type === 'text' && props.fontSize === 15 && props.fontWeight === 500).map(({ props }) => props);
   const bottomRow = Math.max(...labels.map(p => p.y));
   const x = labels.filter(p => p.y === bottomRow).sort((a, b) => a.x - b.x);
   const y = labels.filter(p => p.y !== bottomRow).sort((a, b) => b.y - a.y);
@@ -165,7 +173,9 @@ test('log axes put geometric means at visual midpoints and identify the scale', 
   const [a, b, c] = marks(svg, 'data-tutor-coordinate-point');
   close(number(b.tag, 'cx'), (number(a.tag, 'cx') + number(c.tag, 'cx')) / 2);
   close(number(b.tag, 'cy'), (number(a.tag, 'cy') + number(c.tag, 'cy')) / 2);
-  assert.match(svg, /log scale/);
+  // Sprint default: the figure no longer draws the "log scale" suffix (the sampled tick labels say it); axisName keeps it for the written description.
+  assert.doesNotMatch(svg, /log scale/);
+  assert.match(axisName(d.x), /log scale/);
 });
 
 test('very narrow positive log domains retain finite, distinct endpoints', () => {
@@ -260,10 +270,11 @@ test('grouped series share a zero baseline and retain category/series identity',
   const { svg } = render(bars('grouped'));
   const values = marks(svg, 'data-tutor-grouped-bar');
   assert.equal(values.length, 6);
-  const zero = number(marks(svg, 'data-tutor-bar-baseline')[0].tag, 'x1');
+  // BAR-1: vertical bars share one horizontal zero baseline; a positive bar stands on it, a negative one hangs from it.
+  const zero = number(marks(svg, 'data-tutor-bar-baseline')[0].tag, 'y1');
   for (const { tag, value } of values) {
-    if (Number(value) > 0) close(number(tag, 'x'), zero);
-    else close(number(tag, 'x') + number(tag, 'width'), zero);
+    if (Number(value) > 0) close(number(tag, 'y') + number(tag, 'height'), zero);
+    else close(number(tag, 'y'), zero);
   }
   assert.match(svg, /data-tutor-bar-category="First"/);
   assert.match(svg, /data-tutor-bar-series="B"/);
@@ -307,7 +318,8 @@ test('all-zero multi-series bars emit finite zero marks', () => {
     const d = bars(variant); d.series.forEach(s => { s.values = [0, 0]; });
     const { svg } = render(d);
     assert.doesNotMatch(svg, /NaN|Infinity/);
-    assert.equal(marks(svg, `data-tutor-${variant}-bar`).filter(m => m.tag.startsWith('<circle')).length, 6);
+    // A zero value is a zero-height mark on the baseline: a circle in a stacked chart, a flat line (BAR-1) in a grouped one.
+    assert.equal(marks(svg, `data-tutor-${variant}-bar`).filter(m => m.tag.startsWith(variant === 'grouped' ? '<line' : '<circle')).length, 6);
   }
 });
 
@@ -350,7 +362,9 @@ test('reference scenes validate, render at narrow/wide widths and cover the Phas
 
 test('the descent reference samples and smoothly closes 16 points per contour', () => {
   const d = references.find(ref => ref.id === 'gradient-descent-contours').spec.diagram;
-  const { svg } = render(d, 408);
+  // Sprint default: a line is smooth only from 20 samples (or with `smooth: true`), so the 16-point contours opt in.
+  const smooth = { ...d, series: d.series.map(series => ({ ...series, smooth: true })) };
+  const { svg } = render(smooth, 408);
   const paths = marks(svg, 'data-tutor-plot-series');
   assert.equal(paths.length, 2);
   for (const [i, series] of d.series.entries()) {
@@ -408,40 +422,64 @@ test('nearest-centroid reference computes each center from its displayed samples
   }
 });
 
+// Sprint default: the suffix is added once, in the written description (axisName); the figure draws the axis title as authored.
 test('the log-scale suffix is added once: an axis label that already says it is not extended again', () => {
-  const count = svg => (svg.match(/log scale/g) || []).length;
   const d = plot();
   d.x = { label: 'Number of trees · log scale', min: 1, max: 100, scale: 'log' };
   d.series[0].points = [{ x: 1, y: 0.1 }, { x: 10, y: 0.5 }, { x: 100, y: 0.9 }];
   d.y = { label: 'Accuracy', min: 0, max: 1 };
+  assert.equal(axisName(d.x), 'Number of trees · log scale', 'an axis label that already says it is not extended again');
   const said = render(d).svg;
   assert.doesNotMatch(said, /log scale · log scale/);
-  assert.equal(count(said), count(said.replace('Number of trees · log scale', '')) + 1, 'the x label shows it exactly once');
+  assert.match(said, /Number of trees · log scale/, 'the figure shows the authored title');
   d.x.label = 'Number of trees';
-  assert.match(render(d).svg, /Number of trees · log scale/);
+  assert.equal(axisName(d.x), 'Number of trees · log scale', 'the description adds it once');
+  assert.doesNotMatch(render(d).svg, /Number of trees · log scale/, 'the figure draws the title without the suffix');
 });
 
 
 // PL-1: a point label that only restates its point is dropped, and a plot keeps at most six point notes (the data marks stay).
 const labelled = (labels, extra = {}) => ({ ...plot(), x: { label: 'X', min: 0, max: 20 }, y: { label: 'Y', min: 0, max: 40 }, series: [{ label: 'Samples', kind: 'scatter', ...extra, points: labels.map((label, i) => ({ x: i + 1, y: 2 * i + 0.5, ...(label === undefined ? {} : { label }) })) }] });
 const badges = svg => marks(svg, 'data-tutor-plot-badge').length;
+// Sprint default (PL-1, owner 2026-11-15): a labelled sample draws no badge and no list line, whatever its label; the data marks stay.
 test('point labels that only restate the point get no note, and the marks stay', () => {
   const { svg } = render(labelled(['1', '2.5', '(3, 4.5)', 'Samples: 4', 'Peak', undefined]));
-  assert.equal(badges(svg), 1, 'only the label that names something keeps a badge');
+  assert.equal(badges(svg), 0, 'a labelled sample draws no badge');
   assert.equal(marks(svg, 'data-tutor-coordinate-point').length, 6, 'every data mark stays');
 });
-test('more than six labelled points keep six notes, the first in series order, and every mark', () => {
+// Sprint default (PLT-2): no numbered badge is drawn; PLOT_NOTES_MAX (6) caps the callouts, which belong to annotations; a labelled sample never draws one.
+test('more than six annotation notes keep six callouts, the first in order, and every mark', () => {
   const names = ['Start', 'Dip', 'Rise', 'Peak', 'Drop', 'Floor', 'Late', 'Final'];
-  const { svg } = render(labelled(names));
-  assert.equal(badges(svg), 6);
+  const d = labelled(names.map(() => undefined));
+  d.annotations = names.map((label, i) => ({ kind: 'point', x: i + 1, y: 2 * i + 0.5, label }));
+  const { svg } = render(d);
+  assert.equal(PLOT_NOTES_MAX, 6);
+  assert.equal(badges(svg), 0, 'no numbered badge is drawn');
   assert.equal(marks(svg, 'data-tutor-coordinate-point').length, 8);
-  const noted = marks(svg, 'data-tutor-plot-badge').map(m => m.value);
-  assert.deepEqual(noted, ['1', '2', '3', '4', '5', '6']);
-  assert.ok(!svg.includes('Late: (7') && !svg.includes('Final: (8'), 'the seventh and eighth names have no list line');
+  const noted = marks(svg, 'data-tutor-plot-callout').map(m => m.value);
+  assert.deepEqual(noted, names.slice(0, PLOT_NOTES_MAX), 'the first six annotations in order each draw a callout');
+  assert.ok(!svg.includes('Late') && !svg.includes('Final'), 'the seventh and eighth names have no callout');
+  assert.equal(badges(render(labelled(names)).svg), 0, 'labelled samples draw no badge at all');
 });
 test('showValues prints the y of each point, so those labels get no note either', () => {
   const d = { ...plot(), x: { label: 'X', min: 0, max: 20 }, y: { label: 'Y', min: 0, max: 20 }, series: [{ label: 'Fit', kind: 'step', samples: { x: { start: 0, step: 1 }, y: [1, 2, 3, 4, 5], showValues: true } }] };
   assert.equal(badges(render(d).svg), 0);
   const explicit = { ...d, series: [{ label: 'Fit', kind: 'step', points: [0, 1, 2, 3, 4].map(i => ({ x: i, y: i + 1, label: String(i + 1) })) }] };
   assert.equal(badges(render(explicit).svg), 0, 'the compact and the explicit form agree');
+});
+test('PLT-2B-n2: line and band labels are one line; one that does not fit goes above the plot, stacked, and a plain plot is not lifted', () => {
+  const d = { ...plot(), x: { label: 'X', min: 0, max: 10 },
+    annotations: [{ kind: 'reference-line', axis: 'x', value: 5, label: 'Mean' }, { kind: 'reference-line', axis: 'x', value: 2, label: 'One standard deviation below the mean' },
+      { kind: 'band', axis: 'x', from: 3, to: 7, label: 'Within one standard deviation of the mean' }, { kind: 'band', axis: 'x', from: 4, to: 6, label: 'Within half a standard deviation' }] };
+  const { svg, plotBounds, width } = render(d, 408);
+  const labels = marks(svg, 'data-tutor-plot-label');
+  assert.deepEqual(labels.map(m => m.value), d.annotations.map(a => a.label));
+  assert.ok(labels.every(m => !/<tspan[^>]*dy=/.test(m.tag)), 'one line each');
+  const above = [...svg.matchAll(/<g[^>]*data-tutor-plot-label="([^"]*)"[^>]*><text x="([\d.]+)" y="([\d.]+)"[^>]*font-size="11"/g)].map(m => ({ name: m[1], y: Number(m[3]) }));
+  assert.deepEqual(above.map(a => a.name), d.annotations.slice(1).map(a => a.label), 'all but the short "Mean" go above the plot');
+  assert.ok(above.every(a => a.y < plotBounds.top), 'above the plot area');
+  assert.equal(new Set(above.map(a => a.y)).size, above.length, 'each stands in its own row');
+  assert.equal(plotBounds.top, 40 + above.length * 14, 'the top margin grows by the rows used');
+  assert.ok(plotBounds.top - 10 - 14 * (above.length - 1) > 0 && width === 408);
+  assert.equal(render(plot(), 408).plotBounds.top, 40, 'a plot without such labels keeps its margin');
 });

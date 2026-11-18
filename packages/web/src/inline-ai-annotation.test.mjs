@@ -91,11 +91,13 @@ const READERS = {
   'web/src/canvas-persist.js': 'saves them as one of the board lists',
   'web/src/explain-inputs.js': 'Explain-back resource inputs: only kind explain-input links (edge, pill, frozen evidence); annotations and other connectors ignored',
   'web/src/learn-style-panel.js': 'styles selected links',
+  'web/src/learn-section-perform.js': 'Learn sections: adds connectors between the cards of a section (canvas linkCards, insertCodeExplain links); no reading',
   'control-plane/src/learn-boards.js': 'copies the list on fork; no reading',
   'control-plane/src/shared-privacy.js': 'keeps the list on what a link shows (sharedState); no reading',
   'control-plane/src/canvases.js': 'the empty board',
   'control-plane/src/dives.js': 'its "links" are canvas_dives rows (the Dive tree and map), not board links',
   'web/src/map-memory.js': 'a helper named links over code references, not board links',
+  'web/src/code-explain-insert.js': 'writes the numbered connectors of a code-explain card to its satellite code cards (new links only); reads no existing link',
   'web/src/RepositoryGraph.jsx': 'graph edges of a repository scene, not board links',
   'web/src/SourcesDisclosure.jsx': 'a comment about web links',
   'web/src/agent/AgentBar.jsx': 'agent result links, not board links',
@@ -125,6 +127,12 @@ const READERS = {
   'web/src/interact-stepper-plans.js': 'pinned typed teaching-picture states and their structural region links, not board links',
   'web/src/interact-stepper-schema.js': 'closed schema for structural links between teaching-picture regions, not board links',
   'web/src/interact-templates/fixed-picture.js': 'draws declared teaching-picture links between preset region anchors, not board links',
+  'web/src/tutor-diagrams/composition-neural-networks-references.js': 'C01 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/composition-regularization-references.js': 'C01 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/topic-linear-regression-references.js': 'the C01 linear-unit panels reference: links between panels, not board links',
+  'web/src/tutor-diagrams/composition-attention-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/composition-distribution-shift-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/composition-model-evaluation-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);

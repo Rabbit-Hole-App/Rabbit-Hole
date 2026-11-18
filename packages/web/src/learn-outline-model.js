@@ -13,7 +13,7 @@ export const DESCRIPTION_MAX = 240;
 const TITLE_MAX = 200;
 // At most this many ops per proposal (contract C7b): 96 when adopting a validated Tutor syllabus (12 topics x (1 + 6
 // subtopics) + 12 describes), 24 for anything else.
-const MAX_OPS = 24, MAX_SYLLABUS_OPS = 96;
+const MAX_OPS = 24, MAX_SYLLABUS_OPS = 96, MAX_PLAN_OPS = 48; // 48: a Learn plan, 4-8 chapters of 2-5 sections (learn-plan-toc-spec.md, Reviewer 2026-11-15)
 // The most headings the contents hold for the Tutor (owner decision, Release A3 item 1): a proposal (a Tutor change or a
 // syllabus adoption) may not take the total past it, and chat sends the headings only up to it. The learner's own edits
 // in the panel are never capped. The control plane imports this same constant (learn-context.js).
@@ -36,10 +36,19 @@ export function outlineFrom(blocks, toc = null) {
 // entry. Each row keeps its step identity, description, status line and navigation; done is the learner's own manual mark (doneIds).
 export const ROADMAP_ROW = 'roadmap:';
 export function withRoadmap(outline, toc, doneIds = new Set()) {
-  if (!toc?.steps?.length) return outline || [];
-  const rows = toc.steps.map(step => ({ id: `${ROADMAP_ROW}${step.id}`, level: 1, label: String(step.title || '').trim() || UNTITLED[1], done: doneIds.has(step.id),
-    description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, source: step.source || null, removed: !!step.removed, resultId: step.resultId || null } }));
-  return [...rows, ...(outline || []).filter(entry => !String(entry.id).startsWith(ROADMAP_ROW))];
+  if (!toc?.steps?.length && !toc?.earlier?.length) return outline || [];
+  // A plan with sections (owner 2026-11-14): a section row (not editable, no card) above its steps, which sit one level down; a step with no section stays top level.
+  const rows = toc.steps.flatMap((step, index) => {
+    const sectioned = !!step.section;
+    const row = { id: `${ROADMAP_ROW}${step.id}`, level: sectioned ? 2 : 1, label: String(step.title || '').trim() || UNTITLED[sectioned ? 2 : 1], done: doneIds.has(step.id),
+      description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, source: step.source || null, removed: !!step.removed, resultId: step.resultId || null } };
+    return sectioned && step.section !== toc.steps[index - 1]?.section ? [{ id: `roadmap-section:${index}`, level: 1, label: step.section, done: false, description: '', roadmap: { section: true, status: '', nav: null, source: null, removed: false, resultId: null } }, row] : [row];
+  });
+  // Finished courses (owner 2026-11-14): each under its file name, its steps one level down; they keep their status and their Go to card.
+  const older = (toc.earlier || []).flatMap(group => [{ id: `roadmap-earlier:${group.roadmapId}`, level: 1, label: group.name || 'Earlier course', done: false, description: '', roadmap: { section: true, status: '', nav: null, source: null, removed: false, resultId: null } },
+    ...group.steps.map(step => ({ id: `${ROADMAP_ROW}${step.id}`, level: 2, label: String(step.title || '').trim() || UNTITLED[2], done: doneIds.has(step.id), description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX),
+      roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, source: step.source || null, removed: !!step.removed, resultId: null } }))]);
+  return [...rows, ...older, ...(outline || []).filter(entry => !String(entry.id).startsWith(ROADMAP_ROW))];
 }
 
 // The outline as the Table of contents draws it (R4 owner decisions 1A, 2A): each entry under the nearest earlier entry
@@ -117,7 +126,7 @@ export const STALE_PROPOSAL = 'The contents changed since this proposal. Ask the
 // applies unconditionally, as before. Either way an invalid op refuses the whole list. source: 'syllabus' | 'tutor'.
 export function applyOutlineProposal(blocks, ops, { base = null, source = null, newId } = {}) {
   if (base != null && outlineRevision(outlineFrom(blocks)) !== base) return { ok: false, reason: 'stale', message: STALE_PROPOSAL };
-  const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null, max: source === 'syllabus' ? MAX_SYLLABUS_OPS : MAX_OPS });
+  const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null, max: source === 'syllabus' ? MAX_SYLLABUS_OPS : source === 'learn-plan' ? MAX_PLAN_OPS : MAX_OPS });
   // Checked against the resulting total, existing headings included; over the limit the whole proposal is refused and
   // nothing applies, never a partial or truncated one.
   if (!plan.error && source) {

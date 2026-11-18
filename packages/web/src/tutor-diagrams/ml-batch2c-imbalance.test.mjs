@@ -78,7 +78,7 @@ for (const id of [accuracyTrap, undersampling]) {
       assert.ok(rendered.width >= width && rendered.width <= width + 24);
       assert.ok(Number.isFinite(rendered.height) && rendered.height > 0);
       assert.match(svg, /^<svg .*role="img"/);
-      assert.ok(svg.includes(TEACHING.blueSoft));
+      assert.ok(svg.includes(TEACHING.blueFill)); // the heat and header fills are the saturated blue, not the soft tint
       assert.doesNotMatch(svg, /NaN|Infinity|undefined|katex-error/);
       assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
 

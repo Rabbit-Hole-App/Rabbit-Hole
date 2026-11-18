@@ -16,6 +16,7 @@ import { chatProposalFetch } from '../control-plane/src/chat-proposal-route.js';
 import { chatOutputsFetch } from '../control-plane/src/chat-outputs-route.js';
 import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
+export { RepositoryRehearsals } from '../control-plane/src/learn-rehearsal.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
@@ -43,6 +44,7 @@ import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';
 import BLOG from './dist-dev/design/rabbit-hole-blog.html';
 import FEATURES from './dist-dev/design/rabbit-hole-features.html';
+import EXAMPLES from './dist-dev/design/rabbit-hole-examples.html';
 import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
 import MANIFESTO from './dist-dev/design/rabbit-hole-manifesto.html';
 import AUTH from './dist-dev/design/rabbit-hole-auth.html';
@@ -59,6 +61,7 @@ import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback,
 import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
+import { rehearsalRoute, runRoute } from '../control-plane/src/learn-rehearsal.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { cardFeedbackRoute } from '../control-plane/src/card-feedback-routes.js';
 import { userSettingsRoute } from '../control-plane/src/learn-user-settings.js';
@@ -78,6 +81,7 @@ import { runCleanup } from '../control-plane/src/publication-analytics-purge.js'
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { explanationSummaryRoute } from '../control-plane/src/explanation-summary.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
+import { chatKeepFetch } from '../control-plane/src/chat-keep-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
@@ -158,7 +162,7 @@ const routes = {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'same-origin' },
       });
     }
-    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
+    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/examples': EXAMPLES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
     if (typeof publicPage === 'string') return new Response(publicPage, {
       headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
     });
@@ -329,6 +333,10 @@ const routes = {
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
     // The Tutor's codebase goals and source drift (learn-codebase-source-map.js): the learner's own canvas, no model, no execution.
     if (path === '/api/learn/codebase') return codebaseRoute(path, req, env);
+    // Rehearsal of a connected repository (learn-rehearsal.js): the owner's own canvas; 404 where REPOSITORY_REHEARSALS is not bound (production).
+    if (path === '/api/learn/rehearsal') return rehearsalRoute(path, req, env);
+    // The Run card's sandbox session (learn-rehearsal.js runRoute): start, run a cell, poll, log, stop; same owner-only canvas, same 404 where unbound.
+    if (path === '/api/learn/run') return runRoute(path, req, env);
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.
@@ -379,6 +387,8 @@ const routes = {
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);
     // CR-1: the chat line's capability route decision, before the turn is sent (chat-capability-route.js).
     if (path === '/api/learn/chat/route') return chatRouteFetch(req, env);
+    // Create as card (owner 2026-11-13): whether a finished reply is worth offering as a written /explain card (chat-keep-route.js).
+    if (path === '/api/learn/chat/keep') return chatKeepFetch(req, env);
     if (path === '/api/learn/inline/evidence') return inlineEvidenceFetch(req, env);
     if (path === '/api/learn/inline/generate') return inlineGenerateFetch(req, env);
     if (path === '/api/learn/inline/telemetry') return inlineTelemetryFetch(req, env);

@@ -72,7 +72,7 @@ const shot = name => page.screenshot({ path: `${SHOTS}/${name}.png` });
 const until = async (fn, what, ms = 15000) => { const end = Date.now() + ms; for (;;) { if (await fn()) return; if (Date.now() > end) throw Error(what); await page.waitForTimeout(100); } };
 const stored = key => page.evaluate(k => localStorage.getItem(k), key);
 const study = async () => JSON.parse((await stored(STUDY)) || 'null');
-const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
+const view = async label => { await page.locator(`[data-study-toggle-option="${label === 'Canvas' ? 'canvas' : 'study'}"]`).click(); }; // the header pill (Run | Canvas), no View rows since 2026-11-15; UNRUN
 
 // What the learner can see and what the View menu says, side by side.
 const minimapShown = async () => (await page.locator('[data-canvas-minimap]').count()) === 1 && await page.locator('[data-canvas-minimap]').isVisible();

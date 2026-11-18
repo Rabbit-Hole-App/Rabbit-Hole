@@ -1,0 +1,146 @@
+{
+  "fixture": "datasette-e9d45fe",
+  "route": "A (serve and open)",
+  "hardware": "cpu",
+  "matchRules": {
+    "steps": "same order for the steps the fixture lists; extra record steps (e.g. an explicit install step) are allowed before them; cmd compared after whitespace collapse; `uv run` prefix removal and `--port` value differences pass",
+    "longRunning": "the serve step must be longRunning: true, started in the background, probed, then stopped"
+  },
+  "install": [
+    {
+      "cmdMustInclude": "pip install -e .",
+      "sourceFileAnyOf": [
+        "pyproject.toml",
+        "README.md",
+        "docs/contributing.rst"
+      ],
+      "note": "Reviewer 15:20: match the install source by FILE, not line \u2014 S1b makes facts come from source and the citation lands on pyproject.toml:1 (the file) or the contributing line."
+    }
+  ],
+  "steps": [
+    {
+      "id": "fixtures",
+      "cmd": "python tests/fixtures.py fixtures.db",
+      "source": "docs/contributing.rst:146",
+      "timeoutSec": 300,
+      "checks": [
+        {
+          "type": "exit_zero"
+        },
+        {
+          "type": "files_exist",
+          "paths": [
+            "fixtures.db"
+          ]
+        },
+        {
+          "type": "stdout_matches",
+          "pattern": "Test tables written to fixtures.db"
+        }
+      ],
+      "stdoutSource": "tests/fixtures.py:460"
+    },
+    {
+      "id": "serve",
+      "cmd": "datasette serve fixtures.db --port 8001",
+      "source": "README.md:43",
+      "longRunning": true,
+      "timeoutSec": 120,
+      "checks": [
+        {
+          "type": "port_listens",
+          "port": 8001
+        },
+        {
+          "type": "http_200",
+          "port": 8001,
+          "path": "/-/versions.json"
+        },
+        {
+          "type": "http_200",
+          "port": 8001,
+          "path": "/fixtures"
+        }
+      ],
+      "bodyMustContain": {
+        "/-/versions.json": "\"datasette\""
+      },
+      "note": "Reviewer 15:20: `datasette fixtures.db` is the same as `datasette serve fixtures.db` (serve is the default command, cli.py); either form passes. default port 8001 (cli.py:376); /-/versions routed at app.py:2805",
+      "cmdAnyOf": [
+        "datasette serve fixtures.db --port 8001",
+        "datasette fixtures.db",
+        "datasette serve fixtures.db",
+        "datasette fixtures.db --port 8001"
+      ]
+    }
+  ],
+  "knobs": [
+    {
+      "flag": "--port",
+      "type": "int",
+      "default": "8001",
+      "source": "datasette/cli.py:374-379",
+      "safeValue": "8002"
+    },
+    {
+      "flag": "--cors",
+      "type": "bool",
+      "default": "false",
+      "source": "datasette/cli.py:390-392"
+    },
+    {
+      "flag": "--memory",
+      "type": "bool",
+      "default": "false",
+      "source": "datasette/cli.py:418",
+      "optional": true,
+      "note": "optional (Reviewer 15:20): discovery lists the knobs the step's own command declares; --memory is a serve option the record may omit"
+    },
+    {
+      "flag": "--setting",
+      "type": "string",
+      "source": "datasette/cli.py:426-428",
+      "optional": true
+    },
+    {
+      "flag": "--root",
+      "type": "bool",
+      "source": "datasette/cli.py:439-441",
+      "optional": true
+    }
+  ],
+  "knobVerification": {
+    "rule": "semantic: a serve with a non-default --port (e.g. 8002), probed with port_listens + http_200 on that port, then stopped",
+    "temperatureBelow": null
+  },
+  "timing": {
+    "fixturesSecMax": 120,
+    "serveStartedSecMax": 60
+  },
+  "allowedFixes": [
+    {
+      "kind": "edit_command",
+      "change": "drop `uv run ` prefix",
+      "evidence": "uv not in the sandbox image"
+    },
+    {
+      "kind": "install_package",
+      "change": "pip install uv"
+    },
+    {
+      "kind": "allow_domain",
+      "note": "not expected: pypi.org and files.pythonhosted.org are already allowlisted"
+    },
+    {
+      "kind": "install_package",
+      "change": "pip install pytest",
+      "evidence": "tests/fixtures.py imports pytest (Reviewer 15:20)"
+    }
+  ],
+  "notExpected": [
+    "any fix installing Docker or a browser",
+    "editing repository files",
+    "a second serve on the same port"
+  ],
+  "installNote": "Reviewer 2026-11-15 11:40: docs/contributing.rst:46 added as an allowed install source (the --group dev install is documented there); a `pip install pip==25.3` repair step is accepted (INFO)."
+}

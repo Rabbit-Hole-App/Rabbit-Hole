@@ -1,9 +1,11 @@
-import { TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
+import { TEACHING, TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
+import { LINES } from './theme/palette.js';
+import { isDotTree } from './ml-topology-spec.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
 import { isExtendedPlot } from './ml-plot-spec.js';
 import { fitCaption, label, layoutCaption, lineHeight, SURFACE, wrap } from './primitives.js';
-import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
+import { describeTutorDiagram, dropGenericUnits, parseTutorDiagram } from './spec.js';
 import { usesIllustrations } from './illustration-kinds.js';
 
 const DEFAULT_WIDTH = 408;
@@ -13,7 +15,7 @@ const CAPTION_SIZE = 13;
 const CAPTION_GUTTER = 32;
 
 export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
-  const document = parseTutorDiagram(spec);
+  const document = dropGenericUnits(parseTutorDiagram(spec));
   const { diagram } = document;
   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
   const illustration = usesIllustrations(diagram);
@@ -30,12 +32,14 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
     xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
     'aria-label': describeTutorDiagram(document),
     fontFamily: teaching ? TEACHING_FONT : 'Arial, Liberation Sans, sans-serif',
-    style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}) },
+    style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}),
+      // Panels of round-and-square trees sit on the palette's cream ground alone: no inset surface.
+      ...(diagram.kind === 'panels' && diagram.panels.every(panel => isDotTree(panel.diagram)) ? { '--viz-surface': TEACHING.ground } : {}) },
     'data-tutor-diagram': diagram.kind,
   },
   h('title', null, diagram.title),
   h('rect', { x: 0.5, y: 0.5, width: width - 1, height: height - 1, rx: 12,
-    fill: SURFACE, stroke: 'var(--color-line, #dedad4)' }),
+    fill: SURFACE, stroke: `var(--color-line, ${LINES.frame})` }),
   label(title, width / 2, titleHeight / 2 + 3, { size: 17, weight: 700 }),
   h('g', { transform: `translate(0 ${titleHeight})` }, ...layout.elements),
   caption.height ? caption.draw(width / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
@@ -87,5 +91,6 @@ function isTeachingDiagram(d) {
   if (['scaled-lanes', 'teaching', 'hierarchy', 'dendrogram', 'graph'].includes(d.layout)) return true;
   if (d.kind === 'tree') return d.highlightPath || d.nodes.some(n => n.edgeLabel || n.detail || n.count !== undefined || n.pruned);
   if (d.kind === 'flow') return d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
+  if (d.kind === 'coordinate-plot') return true;
   return isExtendedPlot(d);
 }

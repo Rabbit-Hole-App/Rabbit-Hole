@@ -92,11 +92,11 @@ function renderMarks(id, width, edit = spec => spec) {
 
 test('the run band and flag align with the observed counts at all three widths', () => {
   for (const width of widths) {
-    // A line series of more than six points marks only its first and last point and labelled points (owner 2026-11-08): the run's start point, which the band is checked against, is labelled here.
-    const labelRunStart = spec => { for (const series of spec.diagram.series) for (const point of series.points) if (point.x === 7 && point.y === 5) point.label = 'Run start'; return spec; };
+    // Sprint default (PLT-5): a line of up to 8 samples marks every sample; a longer one marks only its first, its last and its labelled samples: the run's start and end points, which the band and flag are checked against, are labelled here.
+    const labelRunStart = spec => { for (const series of spec.diagram.series) for (const point of series.points) { if (point.x === 7 && point.y === 5) point.label = 'Run start'; if (point.x === 12 && point.y === 5) point.label = 'Run end'; } return spec; };
     const marks = renderMarks(runId, width, labelRunStart);
     const observations = marks.filter(mark => mark.props['data-tutor-coordinate-point']);
-    assert.equal(observations.length, 3, 'first point, the labelled run start and the last point');
+    assert.deepEqual(observations.map(mark => mark.props['data-tutor-coordinate-point'].split(',')[0]), ['1', '7', '12'], 'the first sample, the labelled run start and the last (labelled) run end');
     const start = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '7,5');
     const end = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '12,5');
     const band = marks.find(mark => mark.props['data-tutor-plot-band']);
@@ -110,9 +110,15 @@ test('the run band and flag align with the observed counts at all three widths',
 test('one labeled bar per case shows the fixed score order at all three widths', () => {
   for (const width of widths) {
     const marks = renderMarks(rankingId, width);
-    const bars = marks.flatMap((mark, i) => {
+    // BAR-1: vertical bars. Each bar's name stands under the baseline and its value above the bar, both centred on it.
+    const texts = marks.filter(mark => mark.type === 'text');
+    const bars = marks.flatMap(mark => {
       if (mark.props['data-tutor-bar'] === undefined) return [];
-      return [[lines(marks[i + 1]), lines(marks[i + 2]), mark.props.width]];
+      const centre = mark.props.x + mark.props.width / 2, over = texts.filter(text => Math.abs(text.props.x - centre) < 1);
+      const name = over.filter(text => text.props.y > mark.props.y + mark.props.height), score = over.filter(text => text.props.y < mark.props.y);
+      assert.equal(name.length, 1, 'one name under the bar');
+      assert.equal(score.length, 1, 'one value above the bar');
+      return [[lines(name[0]), lines(score[0]), mark.props.height]];
     });
     assert.deepEqual(bars.map(([name, score]) => [name, score]), [
       ['Case A', '0.92'], ['Case B', '0.81'], ['Case C', '0.7'], ['Case D', '0.44'], ['Case E', '0.27'],

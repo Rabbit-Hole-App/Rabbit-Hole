@@ -1,10 +1,10 @@
-import { ROLES } from '../scene-vocab.js';
+import { SDK_ROLES } from '../scene-vocab.js';
 import { CONTRACT_LIMITS } from './contract.js';
 
 // Trusted guest code. Coordinates are data values; positive y goes up.
 export const GEOMETRY_SOURCE = String.raw`
 (function () {
-  var roles = ${JSON.stringify(ROLES)};
+  var roles = ${JSON.stringify(SDK_ROLES)};
   var idPattern = /^[A-Za-z0-9_.-]{1,24}$/;
   var kinds = { points: 'point', segments: 'segment', vectors: 'vector', paths: 'path' };
 

@@ -47,7 +47,7 @@ test('exactly one tab is active: aria-selected, the soft purple with a purple ic
   const css = read('./index.css');
   assert.match(css, /--nav-selected-bg: #eee5fc;\n\s+--nav-selected-fg: #6431a0;/, 'light: the mockup values');
   assert.match(css, /--nav-selected-bg: #453060;\n\s+--nav-selected-fg: #e1cff9;/, 'dark: the mockup values');
-  assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(true\), \[tab, setTab\] = useState\('chat'\);/, 'open on Chat by default');
+  assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(\(\) => uiPrefs\(\)\.rightPanel\), \[tab, setTab\] = useState\('chat'\);/, 'open on Chat by default, and a closed panel stays closed after a refresh (owner 2026-11-13)');
   assert.match(page, /const \{ open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab \} = panels;/);
   assert.match(page, /<div role="tabpanel" aria-label="Table of contents" className=\{`\$\{panelTab === 'toc' \? 'flex' : 'hidden'\}/);
   assert.match(page, /<CanvasSearchPanel hidden=\{panelTab !== 'find'\}/);
@@ -97,7 +97,7 @@ test('Progress: a tab of the panel (after the Table of contents), its tabpanel i
   const pane = readFileSync(new URL('./ChatPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.doesNotMatch(pane, /data-chat-progress|ChartColumnIncreasing/, 'not in the Chat header');
   assert.doesNotMatch(page + header, /data-chat-progress|ChartColumnIncreasing size/, 'no separate Progress toggle anywhere');
-  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: ListTree \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: Gauge \},/, 'right after the Table of contents, a descriptive icon');
+  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: ListTree \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: TrendingUp \},/, 'right after the Table of contents, a descriptive icon');
   assert.doesNotMatch(header, /progress = null|progress\.onToggle/, 'no Progress toggle prop');
   assert.doesNotMatch(page, /companionView === 'progress'|companion\.show\('progress'\)|panels\.progress/, 'the companion column never shows Progress');
   assert.match(page, /if \(panelOpen && panelTab === 'progress'\) shown\.current\.add\('progress'\);/);

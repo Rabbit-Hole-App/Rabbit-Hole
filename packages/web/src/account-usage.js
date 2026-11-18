@@ -5,9 +5,10 @@
 // number in this file. Phase 1 is accounting only: the server says `enforced: false` and every display says so.
 // ponytail: the shared Sonner refusal handler (D4 section 4: exhausted / insufficient / reserved, View usage, dedupe) ships with
 // enforcement in stage 2; it reads this store and calls refreshAccountUsage() after a refusal.
+import { USAGE_COPY } from './usage-copy.js';
 export const USAGE_PATH = '/api/learn/usage';
 export const TRACKING_NOTE = 'Tracking only - limits are not enforced yet.';
-// The server answers in AI credits only (control-plane learn-usage-route.js: no dollars, micros or currency on the wire). Inside this
+// The server answers in AI units only (control-plane learn-usage-route.js: no dollars, micros or currency on the wire). Inside this
 // module an amount is kept in credit hundredths-of-a-hundredth (1 credit = 10,000 units), so a fraction of a credit survives and the
 // rounding rules below stay exact. The units never leave the module; the screen shows credits.
 const AMOUNTS = ['allowanceCredits', 'usedCredits', 'reservedCredits', 'remainingCredits'];
@@ -17,10 +18,12 @@ const units = credits => Math.round(credits * UNITS_PER_CREDIT);
 // Credits from units (owner messages 32-33, 2026-10-21): people see credits, never dollars; 1 credit = 10,000 units. Rounded to the nearest credit with thousands separators. Nonzero usage never reads "0 credits": a balance
 // or a charge below half a credit reads "less than 1 credit".
 export const creditCount = micros => Math.round(micros / 10_000).toLocaleString('en-US');
+// Compute units arrive as whole units (GET /api/learn/usage `compute`); kept as the same ten-thousandths-of-a-unit micros so one bar and one formatter serve both meters.
+export const formatComputeUnits = micros => { const n = Math.round(micros / 10_000); return n === 0 && micros > 0 ? 'less than 1 Compute unit' : `${n.toLocaleString('en-US')} Compute unit${n === 1 ? '' : 's'}`; };
 export function formatCredits(micros) {
   const credits = Math.round(micros / 10_000);
-  if (credits === 0 && micros > 0) return 'less than 1 credit';
-  return `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
+  if (credits === 0 && micros > 0) return 'less than 1 AI unit';
+  return `${credits.toLocaleString('en-US')} AI unit${credits === 1 ? '' : 's'}`;
 }
 
 // The reset instant is the start of a UTC month (2026-11-01 00:00 UTC is October 31, 5:00 PM PDT). It is shown in the person's
@@ -31,6 +34,17 @@ export const formatReset = (iso, { timeZone } = {}) => {
     .formatToParts(new Date(iso)).map(p => [p.type, p.value]));
   return `${parts.month} ${parts.day}, ${parts.hour}:${parts.minute} ${parts.dayPeriod} ${parts.timeZoneName}`;
 };
+
+// The compute meter of the usage body: null for a server older than the meter (the screen says it is not metered yet), { unavailable } when it cannot be read, else the numbers in units.
+function readCompute(c) {
+  if (c === undefined || c === null) return null;
+  if (typeof c !== 'object' || c.unavailable) return { unavailable: String(c?.unavailable || 'malformed') };
+  const count = v => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  if (!['allowanceUnits', 'usedUnits', 'reservedUnits', 'remainingUnits'].every(k => count(c[k])) || !(c.allowanceUnits > 0)) return { unavailable: 'malformed' };
+  const machines = Array.isArray(c.byMachine) ? c.byMachine.filter(m => m && typeof m === 'object') : [];
+  return { allowance: units(c.allowanceUnits), used: units(c.usedUnits), reserved: units(c.reservedUnits), remaining: units(c.remainingUnits),
+    minutesLeft: Number.isFinite(c.minutesLeft) ? c.minutesLeft : null, resetsAt: typeof c.resetsAt === 'string' ? c.resetsAt : null, byMachine: machines };
+}
 
 // One response to one state. Anything but a well-formed 200 is neutral: a failed or odd request never shows red or a zero balance.
 export function readUsage(status, body) {
@@ -50,6 +64,7 @@ export function readUsage(status, body) {
   const split = Array.isArray(body.byFeature) && body.byFeature.every(row => typeof row?.feature === 'string' && amount(row.usedCredits) && amount(row.reservedCredits) && whole(row.unknownAttempts ?? 0))
     ? { byFeature: body.byFeature.map(row => ({ feature: row.feature, used: units(row.usedCredits), reserved: units(row.reservedCredits), unknownAttempts: row.unknownAttempts ?? 0 })) } : {};
   return { status: 'ready', usage: {
+    compute: readCompute(body.compute),
     allowance: units(body.allowanceCredits), used: units(body.usedCredits), reserved: units(body.reservedCredits), remaining: units(body.remainingCredits),
     resetsAt: body.resetsAt, period: body.period ?? null, enforced: body.enforced === true, unknownAttempts: unknown, ...split,
   } };
@@ -78,7 +93,7 @@ export function featureRows(byFeature = []) {
 // The quiet line for requests whose cost is not known yet: a count, never an amount (unknown cost is never $0). Null at 0.
 export const unknownLine = count => (count > 0 ? `${count} AI request${count === 1 ? ' ended without a confirmed cost and was' : 's ended without a confirmed cost and were'} not charged` : null);
 
-// Buy credits (owner, 2026-10-29; BuyCreditsDialog.jsx): a typed "Other amount" in USD is a positive number with at most two
+// Add units (owner, 2026-10-29; BuyCreditsDialog.jsx): a typed "Other amount" in USD is a positive number with at most two
 // decimal places ("20", "0.5", "12.34"), else null. No exponent, sign, Infinity or blank.
 export function purchaseAmount(text) {
   const value = String(text).trim();
@@ -92,15 +107,18 @@ export const checkoutCredits = () => 'Credit purchases are coming soon.';
 // What the gauge, its tooltip and its label say for a state. Red ('empty') only when the server reports remaining 0.
 export function usageView(state) {
   if (state.status === 'ready') {
-    const { usage } = state;
-    const empty = usage.remaining === 0;
-    const label = empty ? 'No AI credits remaining' : `AI credits: ${formatCredits(usage.remaining)} remaining`;
+    const { usage } = state, c = usage.compute && !usage.compute.unavailable ? usage.compute : null;
+    const share = m => m.remaining / m.allowance;
+    const empty = usage.remaining === 0 || c?.remaining === 0;
+    const lowest = Math.min(share(usage), c ? share(c) : 1);
+    const left = c ? `${formatCredits(usage.remaining)}, ${formatComputeUnits(c.remaining)}` : formatCredits(usage.remaining);
+    const label = usage.remaining === 0 ? 'No AI units remaining' : c?.remaining === 0 ? 'No Compute units remaining' : `${USAGE_COPY.menu}: ${left} remaining`;
     const note = usage.enforced ? null : TRACKING_NOTE;
-    return { tone: empty ? 'empty' : 'ok', label, note, title: note ? `${label}. ${note}` : label, usage };
+    return { tone: empty ? 'empty' : 'ok', lowest, label, note, title: note ? `${label}. ${note}` : label, usage };
   }
-  const label = state.status === 'signed_out' ? 'Sign in to see your AI credits'
-    : state.status === 'unavailable' || state.status === 'error' ? 'AI usage unavailable' : 'Loading AI usage';
-  return { tone: 'neutral', label, note: null, title: label, usage: null };
+  const label = state.status === 'signed_out' ? 'Sign in to see your usage limit'
+    : state.status === 'unavailable' || state.status === 'error' ? 'Usage limit unavailable' : 'Loading usage limit';
+  return { tone: 'neutral', lowest: null, label, note: null, title: label, usage: null };
 }
 
 // The usage bar's fill: used, then reserved, each a whole percent of the allowance, together never past 100.

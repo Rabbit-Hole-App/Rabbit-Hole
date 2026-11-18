@@ -41,8 +41,15 @@ import { lessonDecisionTreesReferences } from './lesson-decision-trees-reference
 import { references as topicWhatIsMachineLearningReferences } from './topic-what-is-machine-learning-references.js';
 import { references as topicLinearRegressionReferences } from './topic-linear-regression-references.js';
 import { references as topicLogisticRegressionReferences } from './topic-logistic-regression-references.js';
+import { references as compositionNeuralNetworks } from './composition-neural-networks-references.js';
+import { references as compositionRegularization } from './composition-regularization-references.js';
+import { references as compositionAttention } from './composition-attention-references.js';
+import { references as compositionModelEvaluation } from './composition-model-evaluation-references.js';
+import { references as compositionTimeSeries } from './composition-time-series-references.js';
+import { references as compositionDistributionShift } from './composition-distribution-shift-references.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
+import { mleStepsReference } from './ml-mle-steps-reference.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -56,7 +63,7 @@ export const illustrationReferences = Object.freeze([
 ]);
 
 export const batch1FollowupReferences = Object.freeze(batch1Followups);
-export const estimationEvaluationReferences = Object.freeze([mleBernoulliReference, kfoldValidationReference]);
+export const estimationEvaluationReferences = Object.freeze([mleBernoulliReference, mleStepsReference, kfoldValidationReference]);
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -87,6 +94,9 @@ export const diagramReferences = Object.freeze([
   ...topicLinearRegressionReferences,
 
   ...topicLogisticRegressionReferences,
+  ...compositionNeuralNetworks, ...compositionRegularization,
+  ...compositionAttention, ...compositionModelEvaluation,
+  ...compositionTimeSeries, ...compositionDistributionShift,
   ...estimationEvaluationReferences,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];

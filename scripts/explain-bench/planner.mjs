@@ -14,10 +14,10 @@ const USD_PER_TOKEN = 0.042 / 1e6, TIMEOUT_MS = 8000;
 
 // --- the owner's request (2026-11-08), verbatim criteria. Tuning pass 1 (depth rule in the kind instructions, decision-tree prediction as a flow) lowered kind accuracy (raw right 55 -> 52 of 67) and was reverted. ---
 const KIND = {
-  flow: 'Ordered steps of one process, with or without decisions; the default only when nothing below fits.',
+  flow: 'Ordered steps of one process, with or without decisions (a numbered derivation with no branches is a timeline); the default only when nothing below fits.',
   sequence: 'Two to four named parties sending things to each other: client/server, sender/receiver, protocols, handshakes, request/response.',
   cycle: 'Steps that repeat, where the last feeds the first: water cycle, training loop, engine strokes.',
-  timeline: 'Events ordered by dates, years or eras.',
+  timeline: 'Events ordered by dates, years or eras. Also a short numbered derivation or recipe of 3 to 6 stages in a fixed order with no branches, written with times "1" to "N".',
   tree: 'A hierarchy, parts of one thing, splits, recursive calls; binary trees, BSTs, heaps, decision trees as structures.',
   relationship: 'Named things linked by labelled relations, including feedback and cycles between them; causes and effects.',
   transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing. Never for a function, wave or encoding over position or time.',

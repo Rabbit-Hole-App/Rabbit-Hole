@@ -71,20 +71,23 @@ test('each query has a separate panel, ordered weights, exact arrow endpoints an
   let previousOpacity = 0;
   const center = box => box.x + box.width / 2;
   for (const arrow of arrows) {
-    const [, wire, tip] = arrow.props.children;
+    // a link is the shared wire (a path and a filled head in one group), 1.5 to 6 px by weight
+    const [, line] = arrow.props.children;
+    const [wire, tip] = [line.props.children].flat();
     assert.ok(wire.props.strokeWidth > previousWidth);
     assert.ok(arrow.props.opacity > previousOpacity);
     previousWidth = wire.props.strokeWidth;
     previousOpacity = arrow.props.opacity;
     const target = boxes.get(`target:${arrow.props['data-tutor-token-link'].split(':')[1]}`);
     const source = boxes.get('source:0');
-    const [from, to] = wire.props.points.split(' ').map(pair => pair.split(',').map(Number));
-    assert.equal(wire.props.points.split(' ').length, 2);
+    const [from] = wire.props.d.match(/-?[\d.]+,-?[\d.]+/g).map(pair => pair.split(',').map(Number));
+    assert.equal(wire.props.d.match(/[ML]/g).length, 2);
     assert.equal(from[0], center(source));
     assert.ok(from[1] >= source.y + source.height);
-    assert.equal(to[0], center(target));
-    assert.ok(to[1] <= target.y && to[1] > from[1]);
-    assert.equal(tip.props.points.split(' ')[0], to.join(','));
+    // the wire's line ends at the head's base; the head's tip stops 2 px short of the link's end, which is 3 px above the target's top centre
+    const [point] = tip.props.points.split(' ').map(pair => pair.split(',').map(Number));
+    assert.ok(Math.hypot(point[0] - center(target), point[1] - target.y) <= 5.01);
+    assert.ok(point[1] <= target.y && point[1] > from[1]);
   }
   const svg = render(repeated, 408);
   assert.match(svg, /data-tutor-token-largest-weight="0\.6"/);
@@ -117,13 +120,14 @@ test('the attention reference keeps exact positions, an exact unit sum and the c
   assert.match(accessible, /cat.*target position 2.*0\.45/);
 });
 
-test('natural token widths keep the full rows and bound long labels at 960 px', () => {
+test('natural token widths keep the full rows; chip rows wrap at chip boundaries, so long labels stay within 960 px', () => {
   const [{ spec: { diagram } }] = tokenLinksReferences;
   const long = { ...repeated, source: Array(8).fill('W'.repeat(24)), target: Array(8).fill('W'.repeat(24)),
     queries: [{ index: 7, weights: [0.2, 0, 0.3, 0, 0.4, 0, 0.1, 0] }] };
   const natural = tokenLinksNaturalWidth(diagram);
   assert.ok(natural > 408 && natural < 960);
-  assert.equal(tokenLinksNaturalWidth(long), 960);
+  // TOK-W3: the row budget is the request (at least 720, at most 960); a 355 px chip pair does not fit 720, so the natural width is one chip column (471), two columns from 960.
+  assert.equal(tokenLinksNaturalWidth(long), 471);
   for (const specimen of [diagram, long]) for (const width of [408, tokenLinksNaturalWidth(specimen), 960]) {
     const svg = render(specimen, width);
     assert.equal(svg, render(specimen, width));
@@ -136,8 +140,12 @@ test('natural token widths keep the full rows and bound long labels at 960 px', 
   const target = tokens.filter(element => element?.props['data-tutor-token'].startsWith('target:'));
   assert.equal(target.length, 8);
   const boxes = target.map(element => element.props.children[0].props);
-  assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 &&
-    (index === 0 || boxes[index - 1].x + boxes[index - 1].width < box.x)));
+  assert.deepEqual([...new Set(boxes.map(box => box.y))].map(y => boxes.filter(box => box.y === y).length), [2, 2, 2, 2], 'rows of two chips');
+  assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 && (index === 0 ? true : box.y === boxes[index - 1].y
+    ? boxes[index - 1].x + boxes[index - 1].width < box.x : box.y > boxes[index - 1].y && box.x < boxes[index - 1].x)));
+  // At the 408 request the same chips stand one to a row (the 720 budget holds one 355 px chip).
+  const narrow = layoutTokenLinks(long, 408).elements[0].props.children.filter(element => element?.props['data-tutor-token']?.startsWith('target:'));
+  assert.equal(new Set(narrow.map(element => element.props.children[0].props.y)).size, 8);
 });
 
 function sixTokenComparison() {
@@ -185,7 +193,7 @@ test('compact head panels wrap long labels at the native font size', () => {
   const token = tokensInChild(first).find(element => element.props['data-tutor-token'] === 'target:0');
   const name = token.props.children[1];
   assert.equal(name.type, 'text');
-  assert.equal(name.props.fontSize, 14);
+  assert.equal(name.props.fontSize, 15); // the body label size is 15 px (teaching-theme body text)
   assert.ok(name.props.children.length > 1);
   assert.equal(name.props.children.map(span => span.props.children).join(' '), 'long text here');
 });

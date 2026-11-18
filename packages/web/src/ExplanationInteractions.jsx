@@ -4,15 +4,16 @@
 // is gated on `block.interactions` (written only while the server switch EXPLANATION_INTERACTIONS is on): a card without the envelope renders exactly as
 // before, with no wrapper, no spacer row and no listener. Actions go through the canvas host (explanation-host.js) and the Chat workspace; a surface
 // without them omits the controls it cannot run. Pure mapping, anchors and state: explanation-interactions.js.
-import { createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, GitBranch, Highlighter, MessageSquare, Plus, StickyNote, Trash2 } from 'lucide-react';
+import { createElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowUp, GitBranch, MessageSquare, Plus, ScanText, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
 import { MdInline } from './Md.jsx';
-import { ToolButton } from './selection-toolbar.jsx';
-import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
-import { ariaKey } from './shortcuts.js';
+import { SelectionToolbar } from './selection-toolbar.jsx';
+import { selectionRef } from './selection-ref.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { ExplanationHost } from './explanation-host.js';
+import { PASSAGE_EVENT, explainedIds, holdPassage } from './passage-link.js';
+import { focusExplanation } from './source-refs.js';
 import { alignField, anchorsFromRange, exploreQuestion, termSentence, contentRevision, contentRevisionInput, decorate, fieldText, fieldsOf, highlightsFor, quoteOf, suggestionsFor, termsFor, undecorate, withConsumed, withHighlight, withoutHighlight } from './explanation-interactions.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -59,6 +60,11 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   const [menu, setMenu] = useState(null);         // { id, rect }: the saved highlight offered Remove highlight (the file and webpage cards' highlight menu)
   const menuEl = useRef(null);
   const canEdit = !readOnly;
+  // HL-146 (passage-link.js): what the selection toolbar offers is held for Ctrl+K, so the card made from these words can save them on this card (pink) and link both ways.
+  useEffect(() => { holdPassage(block.id, bar ? { revision, segments: bar.segments, quote: bar.quote } : null); }, [bar, revision, block.id]);
+  useEffect(() => () => holdPassage(block.id, null), [block.id]);
+  const [passageIcon, setPassageIcon] = useState(null); // { id, rect }: the explained passage under the pointer, offered Go to card
+  const iconEl = useRef(null), iconTimer = useRef(0);
 
   // ---- terms ----
   const closeTerm = useCallback((restore = false) => {
@@ -85,7 +91,9 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
       if (pill) { const id = pill.getAttribute('data-term-id'); clearTimeout(hoverTimer.current); setOpenTerm(current => (current?.id === id ? (current.via === 'hover' || current.via === 'focus' ? { id, via: event.detail === 0 ? 'key' : 'pointer' } : null) : { id, via: event.detail === 0 ? 'key' : 'pointer' })); return; }
       // A press on a saved highlight (not a drag that selected text) offers Remove highlight, as the file and webpage cards do.
       const mark = event.target?.closest?.('[data-highlight-ids]'), selection = window.getSelection?.();
-      if (mark && canEdit && (!selection || selection.isCollapsed)) setMenu({ id: mark.getAttribute('data-highlight-ids').split(' ')[0], rect: mark.getBoundingClientRect() });
+      // An explained (pink) passage opens its menu for a reader too: Go to card is navigation, Remove highlight needs edit rights.
+      const pink = mark?.getAttribute('data-explained') || null;
+      if (mark && (canEdit || pink) && (!selection || selection.isCollapsed)) setMenu({ id: pink || mark.getAttribute('data-highlight-ids').split(' ')[0], rect: mark.getBoundingClientRect(), explainedBy: pink ? (latest.current.block.highlights || []).find(h => h?.id === pink)?.explainedBy ?? null : null });
     },
     onKeyDown: event => {
       const pill = pillOf(event);
@@ -94,6 +102,23 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     },
     onScroll: () => { setOpenTerm(null); },
   };
+  // HL-146: the same icon as on the Markdown file card, on hover of an explained (pink) passage: Go to card.
+  const overTerm = flowProps.onPointerOver, outTerm = flowProps.onPointerOut;
+  flowProps.onPointerOver = event => { const mark = event.target?.closest?.('[data-explained]'); if (mark) { clearTimeout(iconTimer.current); setPassageIcon({ id: mark.getAttribute('data-explained'), rect: mark.getBoundingClientRect() }); } overTerm(event); };
+  flowProps.onPointerOut = event => { if (event.target?.closest?.('[data-explained]')) { clearTimeout(iconTimer.current); iconTimer.current = setTimeout(() => setPassageIcon(null), 350); } outTerm(event); };
+  useEffect(() => () => clearTimeout(iconTimer.current), []);
+  // Go to highlight (the new card's header, source-refs.js goToPassage): this card brings its pink passage into view and shows it for a moment.
+  useEffect(() => {
+    const onPassage = event => {
+      if (event.detail?.cardId !== block.id) return;
+      const mark = flowRef.current?.querySelector(`[data-explained="${CSS.escape(String(event.detail.highlightId))}"]`);
+      if (!mark) return;
+      mark.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+      mark.animate?.([{ outline: '2px solid var(--color-explained)', outlineOffset: '3px' }, { outline: '2px solid var(--color-explained)', outlineOffset: '3px', offset: 0.8 }, { outline: '2px solid transparent', outlineOffset: '3px' }], { duration: 1800 });
+    };
+    window.addEventListener(PASSAGE_EVENT, onPassage);
+    return () => window.removeEventListener(PASSAGE_EVENT, onPassage);
+  }, [block.id]);
   useEffect(() => {
     if (!openTerm) return undefined;
     const escape = event => { if (event.key === 'Escape') { event.stopPropagation(); closeTerm(true); } };
@@ -186,9 +211,16 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     const made = host.note({ id: latest.current.block.id, quote: bar.quote, segments: bar.segments, revision: latest.current.revision });
     if (made) done();
   };
+  // Add to chat (UX-1): the selected words join the right-hand Chat composer as a context pill, as the Markdown card's toolbar does; nothing is sent.
+  const addToChat = () => {
+    if (!bar || !chat?.addToChat) return;
+    const quote = String(bar.quote), now = latest.current;
+    chat.addToChat(selectionRef({ ids: [now.block.id], kind: 'card', name: String(now.block.title || 'Explanation').slice(0, 120), content: quote, quote, text: () => quote }));
+    done();
+  };
 
   if (!enabled) return null;
-  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, explore, holdTerm, leaveTerm, quickAsk, highlight, createNote, menu, menuEl, removeHighlight,
+  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, explore, holdTerm, leaveTerm, quickAsk, highlight, createNote, addToChat, menu, menuEl, setMenu, removeHighlight, passageIcon, setPassageIcon, iconEl, iconTimer, explained: explainedIds(block, revision),
     terms: termsFor(block, revision), suggestions: suggestionsFor(block, revision), highlights: highlightsFor(block, revision) };
 }
 
@@ -207,7 +239,7 @@ export function InteractiveField({ layer, field, children }) {
       ...layer.highlights.flatMap(h => h.segments.filter(segment => segment.field === field).map(segment => ({ start: segment.start, end: segment.end, kind: 'highlight', id: h.id }))),
     ] : [];
     // The marks only change when the terms or highlights do: re-wrapping on every render would replace the pill the learner just focused.
-    const signature = JSON.stringify([canonical, marks]), present = !!root.querySelector('[data-explanation-mark]');
+    const pink = layer.explained, signature = JSON.stringify([canonical, marks, [...pink]]), present = !!root.querySelector('[data-explanation-mark]');
     if (last.current === signature && present === marks.length > 0) return;
     undecorate(root);
     last.current = signature;
@@ -220,7 +252,11 @@ export function InteractiveField({ layer, field, children }) {
       piece.className = PILL;
       if (piece.hasAttribute('data-term-first')) { piece.setAttribute('role', 'button'); piece.setAttribute('tabindex', '0'); piece.setAttribute('aria-haspopup', 'dialog'); piece.setAttribute('aria-expanded', layer.openTerm?.id === piece.getAttribute('data-term-id') ? 'true' : 'false'); }
     }
-    for (const piece of root.querySelectorAll('[data-highlight-ids]')) piece.className = piece.hasAttribute('data-term-id') ? `${PILL} ${MARKED}` : MARKED;
+    for (const piece of root.querySelectorAll('[data-highlight-ids]')) {
+      piece.className = piece.hasAttribute('data-term-id') ? `${PILL} ${MARKED}` : MARKED;
+      const explained = piece.getAttribute('data-highlight-ids').split(' ').find(id => pink.has(id)); // HL-146: an explained passage is pink (card-layout.css [data-explained])
+      if (explained) piece.setAttribute('data-explained', explained);
+    }
   });
   useLayoutEffect(() => () => { layer.fields.current.delete(field); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={ref} data-explanation-field={field}>{children}</div>;
@@ -252,7 +288,7 @@ export function TermNote({ layer }) {
 }
 
 const ACTION = 'grid h-7 w-7 place-items-center rounded-[5px] p-0 text-ink-2 hover:bg-active hover:text-accent focus-visible:bg-active focus-visible:text-accent disabled:cursor-default disabled:opacity-45';
-// The three suggested questions below the reading flow (approved card 07 .suggestions). Ask here and Ask in a new card reveal on hover or focus.
+// The three suggested questions below the reading flow (approved card 07 .suggestions). Ask in chat and Ask in a new card reveal on hover or focus.
 export function Suggestions({ layer }) {
   const { suggestions, pending, host, canEdit } = layer;
   if (!suggestions.length || !host?.ask || !canEdit) return null;
@@ -263,7 +299,7 @@ export function Suggestions({ layer }) {
         <li key={question.id} data-explanation-suggestion={question.id} className="group/row flex min-h-9 items-center justify-between gap-1.5 rounded-md bg-hover py-0.5 pr-1 pl-2.5 text-[13px] leading-snug text-ink hover:bg-active focus-within:bg-active">
           <span id={`q-${question.id}`} className="min-w-0 select-text"><MdInline text={question.text} mathOnly /></span>
           <span className="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-0 group-focus-within/row:pointer-events-auto group-focus-within/row:opacity-100 group-hover/row:pointer-events-auto group-hover/row:opacity-100">
-            <button type="button" data-ask="here" title="Ask here" aria-label="Ask here" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'here' ? 'true' : undefined}
+            <button type="button" data-ask="here" title="Ask in chat" aria-label="Ask in chat" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'here' ? 'true' : undefined}
               onPointerDown={event => event.stopPropagation()} onClick={() => layer.askSuggestion(question, 'here')} className={ACTION}><MessageSquare size={16} aria-hidden="true" /></button>
             <button type="button" data-ask="card" title="Ask in a new card" aria-label="Ask in a new card" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'card' ? 'true' : undefined}
               onPointerDown={event => event.stopPropagation()} onClick={() => layer.askSuggestion(question, 'card')} className={ACTION}><GitBranch size={16} aria-hidden="true" /></button>
@@ -322,21 +358,16 @@ export function FollowUp({ layer }) {
 // The selection toolbar (selection-toolbar.jsx): Ctrl+K, Highlight, Create note, in that order (owner 2026-11-09: Ctrl+K replaces Ask in chat). The first button shows the key hint and opens Ctrl+K over
 // the highlighted words exactly as the key does (host.quickAsk). A control that cannot run here stays, greyed, with its name.
 export function SelectionBar({ layer }) {
-  const { bar, barEl, host, canEdit } = layer;
-  const mac = useMemo(isMac, []), hint = chordLabel('quick-edit', mac);
+  const { bar, barEl, host, canEdit, chat } = layer;
   useLayoutEffect(() => {
     if (!bar) return;
     place(barEl.current, bar.rect, layer.flowRef.current?.closest('[data-block-id]') || layer.flowRef.current?.parentElement, 'above');
   });
   if (!bar) return null;
   return (
-    <div ref={barEl} data-explanation-selection-toolbar data-explanation-ui role="toolbar" aria-label="Selected text" style={{ left: 0, top: 0 }}
-      onPointerDown={event => event.stopPropagation()} className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop">
-      <Button aria-label={hint} title={hint} aria-keyshortcuts={ariaKey(chordBinding('quick-edit'), mac)} data-quick-ask disabled={!host?.quickAsk} onMouseDown={event => event.preventDefault()} onClick={layer.quickAsk}
-        className="min-w-8 justify-center px-2 text-ink-2 hover:text-ink"><kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd></Button>
-      <ToolButton label="Highlight" icon={Highlighter} disabled={!canEdit || !bar.segments.length} onClick={layer.highlight} />
-      <ToolButton label="Create note" icon={StickyNote} disabled={!canEdit || !host?.note} onClick={layer.createNote} />
-    </div>
+    <SelectionToolbar barRef={barEl} data-explanation-selection-toolbar data-explanation-ui onPointerDown={event => event.stopPropagation()}
+      onQuickAsk={layer.quickAsk} quickDisabled={!host?.quickAsk} onAddToChat={layer.addToChat} chatDisabled={!chat?.addToChat}
+      onHighlight={layer.highlight} highlightDisabled={!canEdit || !bar.segments.length} onNote={layer.createNote} noteDisabled={!canEdit || !host?.note} />
   );
 }
 
@@ -351,8 +382,23 @@ export function HighlightMenu({ layer }) {
   return (
     <div ref={menuEl} data-explanation-highlight-menu data-explanation-ui role="menu" aria-label="Highlight" style={{ left: 0, top: 0 }} onPointerDown={event => event.stopPropagation()}
       className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop">
-      <button type="button" role="menuitem" autoFocus onClick={layer.removeHighlight} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
+      {menu.explainedBy && <button type="button" role="menuitem" autoFocus data-explained-go-to-card onClick={() => { layer.setMenu(null); focusExplanation(menu.explainedBy); }} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><ScanText size={14} className="shrink-0 text-ink-2" aria-hidden="true" />Go to card</button>}
+      {layer.canEdit && <button type="button" role="menuitem" autoFocus={!menu.explainedBy} onClick={layer.removeHighlight} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>}
     </div>
+  );
+}
+
+// HL-146: the same icon as the Markdown file card's passage, on hover of an explained (pink) passage of this card: Go to card (the camera goes to the card made from it).
+export function PassageIcon({ layer }) {
+  const { passageIcon, iconEl, block } = layer;
+  const target = passageIcon && (block.highlights || []).find(h => h?.id === passageIcon.id)?.explainedBy;
+  useLayoutEffect(() => { if (passageIcon && target) place(iconEl.current, passageIcon.rect, layer.flowRef.current?.closest('[data-block-id]') || layer.flowRef.current?.parentElement); });
+  if (!passageIcon || !target) return null;
+  return (
+    <button ref={iconEl} type="button" data-explained-go-to-card data-explanation-ui title="Go to card" aria-label="Go to card" style={{ left: 0, top: 0 }} onPointerDown={event => event.stopPropagation()}
+      onPointerEnter={() => clearTimeout(layer.iconTimer.current)} onPointerLeave={() => { layer.iconTimer.current = setTimeout(() => layer.setPassageIcon(null), 350); }}
+      onClick={() => { layer.setPassageIcon(null); focusExplanation(target); }}
+      className="absolute z-30 grid h-7 w-7 place-items-center rounded bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><ScanText size={16} aria-hidden="true" /></button>
   );
 }
 

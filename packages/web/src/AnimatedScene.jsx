@@ -1,7 +1,7 @@
 import { rasterRuns } from './raster-pixels.js';
 import { FigureShape, LookShape } from './explain-program/FrameFigures.jsx';
 import { frameLook } from './explain-program/frame-look.js';
-import { Children, cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import katex from 'katex';
@@ -27,8 +27,8 @@ import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, re
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
 import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor, interactTextStyle } from './interact-style.js';
-import { INK, PATH, SURFACE, connector } from './tutor-diagrams/primitives.js';
-import { TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
+import { FILLED_INK, INK, PATH, SURFACE, lineHeight, wire, wrap } from './tutor-diagrams/primitives.js';
+import { TEACHING, TEACHING_STYLE, mixHex } from './tutor-diagrams/teaching-theme.js';
 import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
@@ -44,6 +44,28 @@ const MONO = 'var(--font-scene-mono)'; // the bundled JetBrains Mono (index.css)
 // settle wherever the evaluator says they are.
 const POP = { type: 'spring', stiffness: 520, damping: 26 };
 const BAR_GAP = 4; // SPACE: gap between adjacent bars
+const INTERACT_BAR_GAP = 6; // the composed theme's bars: 18 wide on a 24 pitch
+// Bars that are one distribution (the values sum to 1, within 0.01) take the warm sequential ramp by value, mustard to orange to coral.
+const isDistribution = values => values.length > 1 && values.every(value => value != null && value >= 0) && Math.abs(values.reduce((sum, value) => sum + value, 0) - 1) <= 0.01;
+const warmRamp = t => t < 0.5 ? mixHex(TEACHING.orange, TEACHING.mustardFill, t * 2) : mixHex(TEACHING.coral, TEACHING.orange, (t - 0.5) * 2);
+// An operator circle draws these symbols as ink strokes, not text: each stroke is 0.55 of the circle's diameter long, 3 px, round caps. Every other symbol (a sigma, a letter) stays text.
+const SQ = Math.SQRT1_2; // a diagonal arm is as long as a straight one
+const OPERATOR_STROKES = { '×': [[-SQ, -SQ, SQ, SQ], [-SQ, SQ, SQ, -SQ]], '+': [[-1, 0, 1, 0], [0, -1, 0, 1]], '−': [[-1, 0, 1, 0]], '-': [[-1, 0, 1, 0]], '·': [[0, 0, 0, 0]], '⋅': [[0, 0, 0, 0]] };
+// A monotone cubic through points (Fritsch-Carlson tangents): never overshoots, flat at a peak. Returns an SVG path from the first point.
+function monotonePath(points) {
+  const n = points.length, h = [], d = [];
+  for (let i = 0; i < n - 1; i++) { h.push(points[i + 1][0] - points[i][0]); d.push((points[i + 1][1] - points[i][1]) / h[i]); }
+  const m = points.map((_, i) => (i === 0 ? d[0] : i === n - 1 ? d[n - 2] : d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2));
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  return points.slice(1).reduce((path, [x, y], i) => {
+    const [x0, y0] = points[i];
+    return path + ` C ${x0 + h[i] / 3} ${y0 + m[i] * h[i] / 3} ${x - h[i] / 3} ${y - m[i + 1] * h[i] / 3} ${x} ${y}`;
+  }, `M ${points[0][0]} ${points[0][1]}`);
+}
 const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
 // Motion places an SVG element's transform origin itself, from originX/originY
 // (fractions of the element's own box) - a CSS transformOrigin is overwritten.
@@ -100,6 +122,7 @@ function SelectionMark({ geometry }) {
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
 function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) {
+  const stripClip = useId().replace(/[^A-Za-z0-9_-]/g, '');
   const dataStyle = interact ? interactDataStyle : shapeStyle;
   const hue = interact ? interactMarkColor(role, object.identitySlot) : identityVar(object.identitySlot) ?? roleVar(role);
   // Direct manipulation: an object bound to a learning input turns its items
@@ -132,6 +155,7 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
   const labelInk = (ink, text, x, y, anchor, baseline = 'auto') => inkAt(ink, estimateTextBox({ text, x, y, fontSize: numeral.fontSize, anchor, baseline }));
   if (object.type === 'grid' || object.type === 'strip') {
     const cell = object.cell || GEOMETRY.cellPitch;
+    const cellH = object.type === 'strip' && object.cellH ? object.cellH : cell;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
     const rows = object.type === 'strip' ? 1 : (object.rows || 1);
     const heatMode = object.heat?.mode;
@@ -239,14 +263,14 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
         // keeps its bouncy pop for state changes without ever touching the
         // property that broke.
         const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
-        const cellX = object.x + column * cell, cellY = object.y + row * cell;
+        const cellX = object.x + column * cell, cellY = object.y + row * cellH;
         cells.push(
           <g key={index} {...(pickProps ? pickProps(index, lit, `${object.semanticId} item ${index + 1}`) : {})}>
-            <rect x={cellX} y={cellY} width={cell} height={cell} style={{ fill }} />
-            <motion.rect x={cellX} y={cellY} width={cell} height={cell} fill="none"
-              animate={ring} transition={pop} />
+            <rect x={cellX} y={cellY} width={cell} height={cellH} style={{ fill }} />
+            <motion.rect x={cellX} y={cellY} width={cell} height={cellH} fill="none"
+              animate={ring} initial={false} transition={pop} />
             {value != null && cell >= 22 && (
-              <text x={cellX + cell / 2} y={cellY + cell / 2}
+              <text x={cellX + cell / 2} y={cellY + cellH / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={cellFont} fontWeight={numeral.fontWeight}
                 style={{ fontFamily: MONO, fill: ink }}>{cellTexts[index]}</text>
             )}
@@ -259,9 +283,11 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
         );
       }
     }
+    const rounded = interact && object.type === 'strip';
     return (
       <g transform={`translate(${object.x + (object.w || 0) / 2} ${object.y + (object.h || 0) / 2}) scale(${emphasis}) translate(${-(object.x + (object.w || 0) / 2)} ${-(object.y + (object.h || 0) / 2)})`}>
-        {cells}
+        {rounded && <clipPath id={`${stripClip}-${object.id}`}><rect x={object.x} y={object.y} width={object.w} height={object.h} rx={6} /></clipPath>}
+        {rounded ? <g clipPath={`url(#${stripClip}-${object.id})`}>{cells}</g> : cells}
         {/* Axis names, not captions: the same numeral scale as the cells they
             name, one per row down the left and one per column across the top -
             drawn in this same group so they scale and move with the grid. */}
@@ -283,7 +309,7 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
         {rowSelected && highlightKind === 'select' && (
           <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y + at.row * cell, width: object.w || columns * cell, height: cell }} />
         )}
-        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={4} fill="none" style={{ stroke: hue }} strokeWidth="1.6" />
+        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={rounded ? 6 : 4} fill="none" style={{ stroke: rounded ? FILLED_INK : hue }} strokeWidth={rounded ? 1.5 : 1.6} />
         {/* Whole-object selection (picked, not a per-cell cellHighlight) -
             migrated onto the same generic SelectionMark the grid's own cells
             already use, rather than the old role-derived 'chosen' fill/stroke
@@ -300,16 +326,25 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
     // Same per-object pitch sizeOf froze (animation-scene.js): word-labelled
     // bars author a wider cell so neighbouring labels never run together.
     const pitch = object.cell ?? GEOMETRY.barWidth;
+    const ramp = interact && isDistribution(values);
+    // One distribution is a bell: its bars touch (gap 0) under a smooth envelope.
+    const gap = ramp ? 0 : interact ? INTERACT_BAR_GAP : BAR_GAP;
     // An authored peak pins the axis. Without it the scale is recomputed from
     // the tweening values, so bars that never changed visibly shrink while a
     // neighbour grows - the learner watches their own answer move.
     const peak = object.peak ?? Math.max(...values.map(entry => Math.abs(entry ?? 0)), 0.0001);
     const height = object.h || GEOMETRY.barHeight;
+    const tallOf = value => (value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4))));
+    const baseY = object.y + height, endX = object.x + values.length * pitch;
+    // The peak bar is coral; every other bar takes the warm ramp by value.
+    const rampFill = value => (value != null && Math.abs(value) === peak ? TEACHING.coral : warmRamp(Math.abs(value ?? 0) / peak));
+    // The envelope runs through the bar-top centres and lands on the baseline half a bar past the first and the last of them (the outer edges of the end bars).
+    const envelope = ramp && monotonePath([[object.x, baseY], ...values.map((value, index) => [object.x + index * pitch + pitch / 2, baseY - tallOf(value)]), [endX, baseY]]);
     return (
       <g>
-        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: hue }} strokeWidth="1.5" />
+        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: interact ? FILLED_INK : hue }} strokeWidth="1.5" />
         {values.map((value, index) => {
-          const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
+          const tall = tallOf(value);
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           // Categorical, not value-encoded - a bar's height already carries
           // the number, so its fill is state (is this the one being pointed
@@ -323,8 +358,9 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
             // and its label together from their shared centre: every bar, lit
             // or not, stands on the same baseline and its label stays put.
             <g key={index}>
-              <motion.rect x={object.x + index * pitch + BAR_GAP / 2} y={object.y + height - tall} width={pitch - BAR_GAP} height={tall}
-                rx={4} animate={{ fill: look.fill, scale: lit ? 1.06 : 1 }} transition={pop} style={fromBaseline} />
+              <motion.rect x={object.x + index * pitch + gap / 2} y={object.y + height - tall} width={pitch - gap} height={tall}
+                rx={ramp ? 0 : 4} initial={false} animate={{ fill: ramp && value != null ? rampFill(value) : look.fill, scale: lit ? 1.06 : 1 }} transition={pop}
+                style={interact && !ramp ? { ...fromBaseline, stroke: FILLED_INK, strokeWidth: 1.5 } : fromBaseline} />
               {object.labels?.[index] && (
                 <text x={object.x + index * pitch + pitch / 2} y={object.y + height + 12} textAnchor="middle"
                   fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
@@ -333,6 +369,10 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
             </g>
           );
         })}
+        {envelope && (
+          // The envelope is an outline only: the stepped bars keep their own ramp fills beneath it.
+          <path d={envelope} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: FILLED_INK }} />
+        )}
         {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * pitch), height }} />}
       </g>
     );
@@ -436,11 +476,20 @@ function RunsLabel({ runs, text, x, y, anchor, baseline, type, fill }) {
 // a frame that changes every tick does not rescale; every scene card leaves it off and is framed as before.
 // A composed card's line or arrow: the written diagrams' connector (tutor-diagrams/primitives.js: its stroke widths, round caps and arrowhead geometry),
 // tinted to a role hue only when the colour is neither INK nor the PATH blue the connector already draws.
+// A connector in the composed theme: the shared wire (tutor-diagrams/primitives.js), 2.5 px, a 12 x 8 head; when the two ends differ in both x and y it takes one rounded elbow (radius 8),
+// horizontal then vertical for a mostly horizontal run, vertical then horizontal otherwise.
 function InteractConnector({ from, to, arrow, color }) {
-  const element = connector([[from.x, from.y], [to.x, to.y]], { arrow, path: color === PATH });
-  if (color === PATH || color === INK) return element;
-  const tint = child => cloneElement(child, child.type === 'polygon' ? { fill: color } : { stroke: color });
-  return element.type === 'g' ? cloneElement(element, {}, ...Children.toArray(element.props.children).map(tint)) : tint(element);
+  const elbow = from.x !== to.x && from.y !== to.y;
+  const points = !elbow ? [[from.x, from.y], [to.x, to.y]]
+    : Math.abs(to.x - from.x) >= Math.abs(to.y - from.y) ? [[from.x, from.y], [to.x, from.y], [to.x, to.y]] : [[from.x, from.y], [from.x, to.y], [to.x, to.y]];
+  return wire(points, { active: color === PATH, color: color === PATH || color === INK ? undefined : color, width: 2.5, head: arrow });
+}
+
+// A caption in the composed theme wraps at the scene's width: one text object, several lines (the shared wrap of the written diagrams). Width 0: no wrapping.
+function wrapped(text, width, size, x) {
+  if (!width || !text) return text;
+  const lines = wrap(text, width, size);
+  return lines.length < 2 ? text : lines.map((line, index) => <tspan key={index} x={x} dy={index ? lineHeight(size) : 0}>{line}</tspan>);
 }
 
 export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false }) {
@@ -571,6 +620,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           const isCode = object.type === 'code';
           const isEquation = object.type === 'equation';
           const isCircle = object.type === 'circle';
+          const operatorStrokes = interact && isCircle && role === 'operator' ? OPERATOR_STROKES[object.label] : undefined;
           const isData = DATA_TYPES.includes(object.type);
           const isStroke = object.type === 'arrow' || object.type === 'line';
           const isPolyline = object.type === 'polyline';
@@ -581,7 +631,11 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
           const centre = centreOf(object);
-          const label = labelAt(object, { stroke: isStroke || isPolyline, above: isData || isImage || isRaster, text: isText }, centre, visibleObjects);
+          const placed = labelAt(object, { stroke: isStroke || isPolyline, above: isData || isImage || isRaster, text: isText }, centre, visibleObjects);
+          // The weights label of a bar chart stands centred under its baseline (13 px, muted) in the composed theme.
+          // A wrapped caption keeps its own left edge: the clamp inside labelAt measures it as one long line and would push it to x = 0.
+          const label = interact && object.type === 'bars' && object.label ? { ...placed, x: object.x + (object.w || 0) / 2, y: object.y + (object.h || GEOMETRY.barHeight) + 18, anchor: 'middle', baseline: 'central' }
+            : interact && object.type === 'text' && object.typography === 'caption' ? { ...placed, x: object.x } : placed;
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.
           // IDENTITY (if this object has one) takes the hue role would
@@ -598,6 +652,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
             : isCode ? styleOf('code')
             : isEquation ? styleOf('equation')
             : object.type === 'text' ? styleOf(object.typography)
+            : interact && isCircle && role === 'operator' ? { ...styleOf('body'), fontSize: 0.6 * (object.w || 60), fontWeight: 800, fontFamily: 'inherit' }
             : styleOf('body');
           // Colour comes from role alone (scene-style.js): a text object with a
           // real role keeps that role's colour (its text-safe variant), and
@@ -666,7 +721,11 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                     strokeLinecap="round" style={{ stroke: wireInk, strokeWidth: look.strokeWidth }}
                     markerEnd={object.type === 'arrow' ? 'url(#animation-arrow-tinted)' : undefined} />
                 : isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                ? (<>
+                    <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                    {operatorStrokes && <path d={operatorStrokes.map(([x1, y1, x2, y2]) => `M ${centre.x + x1 * 0.275 * (object.w || 60)} ${centre.y + y1 * 0.275 * (object.w || 60)} L ${centre.x + x2 * 0.275 * (object.w || 60)} ${centre.y + y2 * 0.275 * (object.w || 60)}`).join(' ')}
+                      fill="none" strokeWidth="3" strokeLinecap="round" style={{ stroke: FILLED_INK }} />}
+                  </>)
                 : isText ? null
                   : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={radius}
                       filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />}
@@ -695,12 +754,12 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                 <RunsLabel runs={object.runs} text={object.label} x={label.x} y={label.y} anchor={label.anchor} baseline={label.baseline}
                   type={{ ...type, fontFamily: type.fontFamily ?? (isCircle ? MONO : undefined) }} fill={labelFill} />
               )}
-              {!maths && !isFigure && !object.look && !(object.runs && object.textProgress >= 1) && (
+              {!maths && !isFigure && !object.look && !operatorStrokes && !(object.runs && object.textProgress >= 1) && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}
                   fontWeight={type.fontWeight}
-                  style={{ fontFamily: type.fontFamily ?? (isCircle ? MONO : 'inherit'), fill: labelFill }}>{shown}</text>
+                  style={{ fontFamily: type.fontFamily ?? (isCircle ? MONO : 'inherit'), fill: labelFill }}>{wrapped(shown, interact && object.type === 'text' && object.typography === 'caption' ? scene.width - object.x - 24 : 0, type.fontSize, label.x)}</text>
               )}
               {/* the full label reserves its space so later objects never shift */}
               {object.textProgress < 1 && <text x={-9999} y={-9999} fontSize={type.fontSize}>{object.label}</text>}
@@ -860,7 +919,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {pager && <CardPager declaration={pager} value={evaluated.inputs[pager.name]} data={block.scene.exampleData} onInput={setInput} />}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-[var(--viz-surface)]">
         <Frame scene={scene} interact={interact} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}
           onPick={semanticId => (semanticId ? (onChangeQuiet || onChange)({ ...latest.current, selectedObject: semanticId }) : clearMark())}

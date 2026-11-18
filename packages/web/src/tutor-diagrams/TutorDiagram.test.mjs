@@ -25,7 +25,7 @@ test('every fixture renders deterministically, with a readable SVG and the share
     assert.equal(markup, renderToStaticMarkup(renderTutorDiagram(JSON.stringify(fixture), 408).element));
     assert.ok(width >= 408 && height > 100);
     assert.match(markup, /<svg[^>]+role="img"/);
-    assert.match(markup, /fill="var\(--viz-surface, #fbfbfa\)"/);
+    assert.match(markup, /fill="var\(--viz-surface, #FFFCF0\)"/);
     assert.ok(markup.includes(fixture.diagram.title), fixture.diagram.title);
     assert.ok(!markup.includes('NaN'), fixture.diagram.kind);
   }
@@ -129,10 +129,13 @@ test('an unbreakable formula in a caption fits the SVG bounds, including in comp
   }
 });
 
-test('the exact local:global component label still fits the minimized Gemma diagram', () => {
+// GEM-1: the nested-flow node minimum (180) is below what the Gemma stack needs, so the diagram is wider than a card and scrolls; owner accepted that for this release (18:55), the node minimum is recorded for after it.
+test('the exact local:global component label is drawn whole in the minimized Gemma diagram, which scrolls inside the 440 card (408 of room)', () => {
   const reference = illustrationReferences.find(({ id }) => id === 'ml-gemma-decoder-stack');
   const spec = structuredClone(reference.depths.deep.spec);
   spec.diagram.blocks.find(({ id }) => id === 'att').diagram.steps[1].label =
     'Sliding-window + GQA attention (5:1 local:global)';
-  assert.equal(renderTutorDiagram(spec, 320).width, 320);
+  const drawn = renderTutorDiagram(spec, 408).width;
+  assert.equal(drawn, 598, 'the drawn width at the 408 of room of a card');
+  assert.ok(drawn > 408, 'wider than the room: the figure scrolls, it does not fit');
 });

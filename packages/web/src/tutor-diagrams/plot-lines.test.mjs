@@ -70,6 +70,7 @@ test('the line stays inside a narrow linear uncertainty band', () => {
   }
 });
 
+// A line is smooth unless `smooth: false`; a line of up to 8 samples marks every sample (the first, the last and the labelled ones from 9).
 test('basic and Phase 02 plots smooth lines by default and preserve straight segments on opt-out', () => {
   for (const extended of [false, true]) {
     const points = [0, 0.1, 0.4, 0.9, 0.7, 0.3, 0].map((y, x) => ({ x, y,
@@ -83,12 +84,28 @@ test('basic and Phase 02 plots smooth lines by default and preserve straight seg
     const svg = render();
     assert.match(svg, /<path d="M[^"]+C[^"]+"/);
     assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]),
-      extended ? ['0,0', '3,0.9', '6,0'] : ['0,0', '6,0']);
+      ['0,0', '1,0.1', '2,0.4', '3,0.9', '4,0.7', '5,0.3', '6,0']);
     series.smooth = false;
     const straight = render();
     assert.doesNotMatch(straight, /<path d="M[^"]+C[^"]+"/);
     assert.match(straight, /<polyline points="(?:[\d.,]+ ){6}[\d.,]+"/);
   }
+});
+
+test('smooth: false draws straight segments with a marker on every sample, and 9 or more samples mark only the first, the last and the labelled ones', () => {
+  const draw = (n, extra = {}) => {
+    const points = Array.from({ length: n }, (_, x) => ({ x, y: (x * 7) % 5, ...(x === 2 ? { label: 'Peak' } : {}) }));
+    const spec = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Samples', x: { label: 'X', min: 0, max: n }, y: { label: 'Y', min: 0, max: 5 },
+      series: [{ kind: 'line', label: 'Samples', points, ...extra }] } };
+    return renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
+  };
+  const straight = draw(6, { smooth: false });
+  assert.doesNotMatch(straight, /<path d="M[^"]+C[^"]+"/);
+  assert.match(straight, /<polyline points="(?:[\d.,]+ ){5}[\d.,]+"/);
+  assert.equal([...straight.matchAll(/data-tutor-coordinate-point=/g)].length, 6);
+  const long = draw(12);
+  assert.match(long, /<path d="M[^"]+C[^"]+"/);
+  assert.deepEqual([...long.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]), ['0,0', '2,4', '11,2']);
 });
 
 test('integer axis ticks show each depth when space allows and reject noninteger bounds', () => {

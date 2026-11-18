@@ -1,11 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CardHeader from './CardHeader.jsx';
-import { Copy, ExternalLink, Highlighter, Loader2, Lock, LockOpen, MessageSquarePlus, RotateCw, Trash2, X } from 'lucide-react';
+import { ExternalLink, Loader2, Lock, LockOpen, RotateCw, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { customTitleOf } from './card-rename.js';
-import { Boxes, ToolButton, placeNear } from './selection-toolbar.jsx';
+import { Boxes, SelectionToolbar, placeNear } from './selection-toolbar.jsx';
+import { ExplanationHost } from './explanation-host.js';
 import { EXCERPT_LIMIT, textAnchor, toViewport } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
+import { locateLoose, locateQuote, rangeFromOffsets, reportLearnHighlight } from './learn-wiki-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
@@ -244,10 +246,37 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     };
     put();
   };
-  const copy = anchor => {
-    navigator.clipboard?.writeText(anchor.exact).then(() => setMessage({ text: 'Copied' }), () => setMessage({ text: 'Couldn’t copy. Press Ctrl C instead.' }));
-    done();
-  };
+  // Learn sections (C section 10c, DECISIONS S): the Tutor's quotes for this page (block.learnQuotes, learn-section-perform.js), placed as the author's own highlights, owner only.
+  // One at a time: found in the capture's text, the page scrolls to it so its tiles draw their text, it is anchored there (textAnchor) and saved once (highlight -> putHighlight);
+  // one not on the page is reported (learn-wiki-highlights.js reportLearnHighlight). When the last is placed the page rests at the first.
+  const learnFirst = useRef(null), learnAt = useRef(null);
+  useEffect(() => {
+    const pending = block.learnQuotes, quote = pending?.quotes?.[0];
+    if (!quote || !owner || !source || !shown || !runs.length || !layer.current) return;
+    const ordered = runsByTile(runs, tiles).flat(), starts = [];
+    let all = '';
+    for (const run of ordered) { starts.push(all.length); all += `${run.text}
+`; }
+    const find = text => locateQuote(text, { exact: quote, prefix: '', suffix: '' }) || locateLoose(text, quote);
+    const next = () => { const quotes = pending.quotes.slice(1); save({ ...latest.current, learnQuotes: quotes.length ? { ...pending, quotes } : null }); if (!quotes.length && learnFirst.current != null) setTop(learnFirst.current); };
+    const missed = () => { reportLearnHighlight({ sectionId: pending.sectionId, itemId: pending.itemId }, 'not_found', block.id); next(); };
+    const whole = find(all);
+    if (!whole) { missed(); return; }
+    let k = starts.length - 1;
+    while (k > 0 && starts[k] > whole.start) k -= 1;
+    const y = Math.max(0, ordered[k].y - 40);
+    learnFirst.current ??= y;
+    const root = layer.current, span = find(root.textContent || '');
+    if (!span) { if (learnAt.current !== quote) { learnAt.current = quote; setTop(y); } return; } // drawn once its tiles are on screen
+    const range = rangeFromOffsets(root, span.start, span.end), found = range ? textAnchor(range, root, viewport, column.current) : { error: 'empty' };
+    if (found.error) { missed(); return; }
+    highlight(found);
+    next();
+  }, [block.learnQuotes, owner, !!source, shown?.sha256, runs, visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  // UX-1: the Ctrl+K button opens the inline editor over the selected words (the page's own selection, as the key does); Create note puts a sticky note beside the card, quoting them.
+  const canvasHost = useContext(ExplanationHost);
+  const quickAsk = () => { if (canvasHost?.quickAsk?.()) setBar(null); };
+  const createNote = anchor => { if (canvasHost?.note?.({ id: block.id, quote: anchor.exact })) done(); };
   // Ask about selection: Chat opens in Ask with the passage, title, URL and capture as one card ref in its composer. Nothing is sent.
   const ask = anchor => {
     const text = askText(block, anchor.exact);
@@ -319,11 +348,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
           </div>
         </div>
       </div>
-      {bar && <div ref={barEl} data-webcard-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
-        {source && <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.anchor)} />}
-        <ToolButton label="Copy" icon={Copy} onClick={() => copy(bar.anchor)} />
-        {chat && !readOnly && <ToolButton label="Ask about selection" icon={MessageSquarePlus} onClick={() => ask(bar.anchor)} />}
-      </div>}
+      {bar && <SelectionToolbar barRef={barEl} data-webcard-selection-toolbar onQuickAsk={() => quickAsk()} quickDisabled={!canvasHost?.quickAsk} onAddToChat={() => ask(bar.anchor)} chatDisabled={!chat || readOnly}
+        onHighlight={() => highlight(bar.anchor)} highlightDisabled={!source || readOnly} onNote={() => createNote(bar.anchor)} noteDisabled={!canvasHost?.note || readOnly} />}
       {menu && <div ref={menuEl} data-webcard-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
         <button type="button" role="menuitem" autoFocus onClick={() => removeHighlight(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
       </div>}

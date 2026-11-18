@@ -106,13 +106,13 @@ test('no motion.* element in AnimatedScene.jsx owns the same visual property thr
 
 test('mutation proof: reintroducing the prior heat-keyed style/animate split fails the invariant', () => {
   const mutated = source.replace(
-    `<rect x={cellX} y={cellY} width={cell} height={cell} style={{ fill }} />
-            <motion.rect x={cellX} y={cellY} width={cell} height={cell} fill="none"
-              animate={ring} transition={pop} />`,
-    `<motion.rect x={cellX} y={cellY} width={cell} height={cell}
+    `<rect x={cellX} y={cellY} width={cell} height={cellH} style={{ fill }} />
+            <motion.rect x={cellX} y={cellY} width={cell} height={cellH} fill="none"
+              animate={ring} initial={false} transition={pop} />`,
+    `<motion.rect x={cellX} y={cellY} width={cell} height={cellH}
               style={heat ? { fill } : undefined}
               animate={heat ? ring : { fill, ...ring }}
-              transition={pop} />`,
+              initial={false} transition={pop} />`,
   );
   assert.notEqual(mutated, source, 'the mutation target text was not found - update it to match the current source');
   const violations = findMotionOwnershipViolations(mutated);

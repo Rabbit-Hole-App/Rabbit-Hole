@@ -1,0 +1,567 @@
+{
+  "version": "rehearsal-1",
+  "repo": "karpathy/nanoGPT",
+  "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+  "hardware": "cpu",
+  "provider": "modal",
+  "sandboxId": "sb-01M7EA4QKZ9GJRCBB594NB2HR7",
+  "terminated": true,
+  "sandboxesLeftAfter": 0,
+  "image": {
+    "ref": "modal:im-m1OM46c0i7hRl2Ekd9vjeU (python:3.12-slim)",
+    "digest": "sha256:eb30cf2d7ebec3a9a10b0931166d334d19094e54353cfbb218596958961616bd"
+  },
+  "model": "claude-sonnet-5-5",
+  "startedUtc": "2026-11-15T00:36:29Z",
+  "finishedUtc": "2026-11-15T00:38:52Z",
+  "wallSec": 143.9,
+  "environment": {
+    "python": "3.12.16",
+    "cpu": 2,
+    "memGiB": 4.0,
+    "packagesAfter": {
+      "certifi": "2026.10.23",
+      "charset-normalizer": "3.5.2",
+      "filelock": "4.2.4",
+      "fsspec": "2026.9.0",
+      "idna": "3.20",
+      "Jinja2": "3.1.6",
+      "MarkupSafe": "3.0.3",
+      "mpmath": "1.3.0",
+      "networkx": "3.7",
+      "numpy": "2.5.4",
+      "pip": "25.0.1",
+      "regex": "2026.11.9",
+      "requests": "2.34.2",
+      "setuptools": "78.1.0",
+      "sympy": "1.14.0",
+      "tiktoken": "0.14.0",
+      "torch": "2.15.0+cpu",
+      "typing_extensions": "4.16.0",
+      "urllib3": "2.8.0"
+    }
+  },
+  "route": {
+    "routeId": "shakespeare_char_cpu",
+    "title": "Character-level Shakespeare GPT on CPU (README laptop recipe)",
+    "whyChosen": "This is the README's own CPU/'cheap computer' route. The dataset is a 1MB download, the model is tiny, and training is documented at about 3 minutes, so it fits the 20 minute budget with no GPU. It ends with generated text and a falling loss, which are both easy to check.",
+    "alternatives": [
+      {
+        "routeId": "shakespeare_char_gpu",
+        "rejected": "README.md:48 is the GPU config (6 layers, 256 context), too slow on CPU and documented for an A100."
+      },
+      {
+        "routeId": "openwebtext_gpt2_repro",
+        "rejected": "README.md:112 and README.md:118 need a 54GB download, a 17GB train.bin and an 8xA100 node for about 4 days."
+      },
+      {
+        "routeId": "finetune_shakespeare_gpt2",
+        "rejected": "README.md:163 finetunes a pretrained GPT-2 (124M+). It downloads checkpoints and is documented for a GPU, so it is slow on CPU."
+      },
+      {
+        "routeId": "sample_gpt2_xl",
+        "rejected": "README.md:197 downloads the 1.5B-parameter gpt2-xl weights (several GB), which is heavy and slow on CPU."
+      },
+      {
+        "routeId": "eval_gpt2_baselines",
+        "rejected": "README.md:141 needs the OpenWebText data and pretrained GPT-2 weights, so it is a large download and compute-heavy."
+      }
+    ],
+    "install": [
+      {
+        "cmd": "pip install torch numpy tiktoken requests",
+        "source": "README.md:22",
+        "trimmedFrom": "pip install torch numpy transformers datasets tiktoken wandb tqdm"
+      }
+    ],
+    "steps": [
+      {
+        "id": "prepare_data",
+        "cmd": "python data/shakespeare_char/prepare.py",
+        "source": "README.md:40",
+        "timeoutSec": 300,
+        "checks": [
+          {
+            "type": "exit_zero"
+          },
+          {
+            "type": "files_exist",
+            "paths": [
+              "data/shakespeare_char/train.bin",
+              "data/shakespeare_char/val.bin",
+              "data/shakespeare_char/meta.pkl"
+            ]
+          },
+          {
+            "type": "stdout_matches",
+            "pattern": "^vocab size: 65$"
+          }
+        ]
+      },
+      {
+        "id": "train_cpu",
+        "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+        "source": "README.md:85",
+        "timeoutSec": 1200,
+        "checks": [
+          {
+            "type": "exit_zero"
+          },
+          {
+            "type": "files_exist",
+            "paths": [
+              "out-shakespeare-char/ckpt.pt"
+            ]
+          },
+          {
+            "type": "metric_decreased",
+            "pattern": "^iter \\d+: loss (\\d+\\.\\d+)"
+          }
+        ]
+      },
+      {
+        "id": "sample_cpu",
+        "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+        "source": "README.md:91",
+        "timeoutSec": 300,
+        "checks": [
+          {
+            "type": "exit_zero"
+          },
+          {
+            "type": "stdout_matches",
+            "pattern": "^Loading meta from .*meta\\.pkl"
+          },
+          {
+            "type": "stdout_matches",
+            "pattern": "^---------------$"
+          }
+        ]
+      }
+    ],
+    "knobs": [
+      {
+        "step": "train_cpu",
+        "flag": "--max_iters",
+        "default": "600000",
+        "type": "int",
+        "source": "train.py:59",
+        "safeValue": "500"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--lr_decay_iters",
+        "default": "600000",
+        "type": "int",
+        "source": "train.py:67",
+        "safeValue": "500"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--block_size",
+        "default": "1024",
+        "type": "int",
+        "source": "train.py:50",
+        "safeValue": "64"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--batch_size",
+        "default": "12",
+        "type": "int",
+        "source": "train.py:49",
+        "safeValue": "12"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--n_layer",
+        "default": "12",
+        "type": "int",
+        "source": "train.py:52",
+        "safeValue": "4"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--n_head",
+        "default": "12",
+        "type": "int",
+        "source": "train.py:53",
+        "safeValue": "4"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--n_embd",
+        "default": "768",
+        "type": "int",
+        "source": "train.py:54",
+        "safeValue": "128"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--learning_rate",
+        "default": "6e-4",
+        "type": "float",
+        "source": "train.py:58"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--dropout",
+        "default": "0.0",
+        "type": "float",
+        "source": "train.py:55",
+        "safeValue": "0.0"
+      },
+      {
+        "step": "train_cpu",
+        "flag": "--eval_iters",
+        "default": "200",
+        "type": "int",
+        "source": "train.py:38",
+        "safeValue": "20"
+      },
+      {
+        "step": "sample_cpu",
+        "flag": "--start",
+        "default": "\\n",
+        "type": "string",
+        "source": "sample.py:14"
+      },
+      {
+        "step": "sample_cpu",
+        "flag": "--num_samples",
+        "default": "10",
+        "type": "int",
+        "source": "sample.py:15",
+        "safeValue": "2"
+      },
+      {
+        "step": "sample_cpu",
+        "flag": "--max_new_tokens",
+        "default": "500",
+        "type": "int",
+        "source": "sample.py:16",
+        "safeValue": "200"
+      },
+      {
+        "step": "sample_cpu",
+        "flag": "--temperature",
+        "default": "0.8",
+        "type": "float",
+        "source": "sample.py:17"
+      },
+      {
+        "step": "sample_cpu",
+        "flag": "--top_k",
+        "default": "200",
+        "type": "int",
+        "source": "sample.py:18"
+      },
+      {
+        "step": "sample_cpu",
+        "flag": "--seed",
+        "default": "1337",
+        "type": "int",
+        "source": "sample.py:19"
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "step": "install",
+      "n": 1,
+      "cmd": "pip install torch numpy tiktoken requests",
+      "rc": 0,
+      "sec": 3.21,
+      "stderrTail": "\n[notice] A new release of pip is available: 25.0.1 -> 26.3\n[notice] To update, run: pip install --upgrade pip",
+      "log": "logs/install-1.log"
+    },
+    {
+      "step": "prepare_data",
+      "n": 1,
+      "cmd": "python data/shakespeare_char/prepare.py",
+      "rc": 0,
+      "sec": 0.76,
+      "stderrTail": "length of dataset in characters: 1,115,394\nall the unique characters: \n !$&',-.3:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\nvocab size: 65\ntrain has 1,003,854 tokens\nval has 111,540 tokens",
+      "log": "logs/prepare_data-1.log"
+    },
+    {
+      "step": "train_cpu",
+      "n": 1,
+      "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+      "rc": 0,
+      "sec": 69.83,
+      "stderrTail": "/work/repo/train.py:196: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.\n  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))\n/usr/local/lib/python3.12/site-packages/torch/cuda/amp/grad_scaler.py:31: UserWarning: torch.cuda.amp.GradScaler is enabled, but CUDA is not available.  Disabling.\n  super().__init__(",
+      "log": "logs/train_cpu-1.log"
+    },
+    {
+      "step": "sample_cpu",
+      "n": 1,
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+      "rc": 0,
+      "sec": 10.23,
+      "stderrTail": "\nRomest and the facll by lords him,\nNot that lop, thou are frien when,\nWhich nought ye fair safy same, wrow you,\nwhat not the do con the sunry coursel\nThe ill hims urn this one arme our too?\n\nLADO:\nYou beand our king upor teept more put thein;\nYou do mile spord of unfent all of death lied,\nAs a that he beck his not with tie my ret our\nThan with the wommer not lonks consomes'd?\n\nMORCUSE:\nThat you have bod love mort are sead the how.\n\nKING RIC& Eymewing:\nAway hat baine whem ske fall be thee leath,\n\n---------------",
+      "log": "logs/sample_cpu-1.log"
+    }
+  ],
+  "fixes": [],
+  "steps": [
+    {
+      "id": "prepare_data",
+      "cmd": "python data/shakespeare_char/prepare.py",
+      "rc": 0,
+      "sec": 0.76,
+      "checks": [
+        {
+          "type": "exit_zero",
+          "passed": true
+        },
+        {
+          "type": "files_exist",
+          "passed": true
+        },
+        {
+          "type": "stdout_matches",
+          "passed": true
+        }
+      ],
+      "files": {
+        "data/shakespeare_char/input.txt": {
+          "bytes": 1115394,
+          "sha256": "86c4e6aa9db7c042ec79f339dcb96d42b0075e16b8fc2e86bf0ca57e2dc565ed"
+        },
+        "data/shakespeare_char/meta.pkl": {
+          "bytes": 703,
+          "sha256": "6ee5a37533af83b67fcbe6b93705fde9e15e78bafe895f54b2cb2cb32534526c"
+        },
+        "data/shakespeare_char/train.bin": {
+          "bytes": 2007708,
+          "sha256": "6ec305602a99ac2802745a134e1f5e33e2231b4855525b00b9aebb730ac2626f"
+        },
+        "data/shakespeare_char/val.bin": {
+          "bytes": 223080,
+          "sha256": "d37d30cc0c8327c270d493299c3dca54135f6d5f1c9ef60cda78076e311204b1"
+        }
+      },
+      "log": "logs/prepare_data-1.log",
+      "warnings": []
+    },
+    {
+      "id": "train_cpu",
+      "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+      "rc": 0,
+      "sec": 69.83,
+      "checks": [
+        {
+          "type": "exit_zero",
+          "passed": true
+        },
+        {
+          "type": "files_exist",
+          "passed": true
+        },
+        {
+          "type": "metric_decreased",
+          "passed": true,
+          "last": 1.6958,
+          "first": 4.1828
+        }
+      ],
+      "files": {
+        "out-shakespeare-char/ckpt.pt": {
+          "bytes": 9678732,
+          "sha256": "0b8ec850474586f0d735ebb349bc30db06d3d0d4f1b09da798b5a60fdcde8714"
+        }
+      },
+      "log": "logs/train_cpu-1.log",
+      "warnings": [
+        "/work/repo/train.py:196: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.",
+        "/usr/local/lib/python3.12/site-packages/torch/cuda/amp/grad_scaler.py:31: UserWarning: torch.cuda.amp.GradScaler is enabled, but CUDA is not available.  Disabling."
+      ]
+    },
+    {
+      "id": "sample_cpu",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+      "rc": 0,
+      "sec": 10.23,
+      "checks": [
+        {
+          "type": "exit_zero",
+          "passed": true
+        },
+        {
+          "type": "stdout_matches",
+          "passed": true
+        },
+        {
+          "type": "stdout_matches",
+          "passed": true
+        }
+      ],
+      "files": {},
+      "log": "logs/sample_cpu-1.log",
+      "warnings": []
+    }
+  ],
+  "traps": [
+    {
+      "id": "temperature_int_not_float",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temperature=1 --num_samples=1 --max_new_tokens=5 --top_k=1 --seed=1",
+      "rc": 1,
+      "sec": 1.64,
+      "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 42, in <module>\nAssertionError",
+      "failsAsExpected": true,
+      "log": "logs/trap-temperature_int_not_float.log"
+    },
+    {
+      "id": "start_with_equals_sign",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=A=B --num_samples=1 --max_new_tokens=5 --top_k=1 --seed=1",
+      "rc": 1,
+      "sec": 1.69,
+      "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 32, in <module>\nValueError: too many values to unpack (expected 2)",
+      "failsAsExpected": true,
+      "log": "logs/trap-start_with_equals_sign.log"
+    },
+    {
+      "id": "unknown_key",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temprature=0.5 --num_samples=1 --max_new_tokens=5 --top_k=1 --seed=1",
+      "rc": 1,
+      "sec": 1.62,
+      "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 47, in <module>\nValueError: Unknown config key: temprature",
+      "failsAsExpected": true,
+      "log": "logs/trap-unknown_key.log"
+    }
+  ],
+  "knobsVerified": [
+    {
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=hello --num_samples=2 --max_new_tokens=200 --temperature=0.5 --top_k=1 --seed=1",
+      "rc": 0,
+      "sec": 2.41,
+      "startsWithPrompt": true,
+      "separators": 2
+    }
+  ],
+  "allChecksPassed": true,
+  "modelCalls": [
+    {
+      "role": "discovery",
+      "model": "claude-sonnet-5-5",
+      "inputTokens": 21718,
+      "outputTokens": 2794,
+      "usd": 0.071376
+    },
+    {
+      "role": "plan",
+      "model": "claude-sonnet-5-5",
+      "inputTokens": 6035,
+      "outputTokens": 1986,
+      "usd": 0.03193
+    }
+  ],
+  "modelSpendUsd": 0.103306,
+  "sandboxSpendNote": "measured 0.0000 USD for job d6b1974b192dbad3cc413d445a07ef66b0a2293de4c768c1a2fa745ef4dd43a0 at 2026-11-15T00:38:52Z (app delta 0.0000 USD, 0 report items; hourly buckets may lag, 0 means not yet visible)",
+  "draftPlan": {
+    "repo": "karpathy/nanoGPT",
+    "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+    "hardware": "cpu",
+    "timeBudgetMin": 20,
+    "totalMin": 15,
+    "steps": [
+      {
+        "n": 1,
+        "pattern": "see",
+        "title": "See the map: prepare.py, train.py and sample.py, and how the README's CPU recipe chains them",
+        "minutes": 2,
+        "check": null
+      },
+      {
+        "n": 2,
+        "pattern": "predict",
+        "title": "Predict: what vocab size will the character data give, and will the loss rise or fall?",
+        "minutes": 1,
+        "check": {
+          "type": "recorded"
+        }
+      },
+      {
+        "n": 3,
+        "pattern": "run",
+        "title": "Prepare the character-level Shakespeare data",
+        "minutes": 1,
+        "cmd": "python data/shakespeare_char/prepare.py",
+        "measuredSec": 0.76,
+        "check": {
+          "type": "files_exist",
+          "paths": [
+            "data/shakespeare_char/train.bin",
+            "data/shakespeare_char/val.bin",
+            "data/shakespeare_char/meta.pkl"
+          ]
+        }
+      },
+      {
+        "n": 4,
+        "pattern": "run",
+        "title": "Train a tiny GPT on CPU",
+        "minutes": 2,
+        "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+        "measuredSec": 69.83,
+        "check": {
+          "type": "metric_decreased",
+          "pattern": "^iter \\d+: loss (\\d+\\.\\d+)"
+        }
+      },
+      {
+        "n": 5,
+        "pattern": "run",
+        "title": "Generate Shakespeare-like text from the checkpoint",
+        "minutes": 1,
+        "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+        "measuredSec": 10.23,
+        "check": {
+          "type": "stdout_matches",
+          "pattern": "^---------------$"
+        }
+      },
+      {
+        "n": 6,
+        "pattern": "explain",
+        "title": "Explain it back: what the data prep, training loss and sampling each did",
+        "minutes": 3,
+        "check": {
+          "type": "answers",
+          "count": 3
+        }
+      },
+      {
+        "n": 7,
+        "pattern": "change",
+        "title": "Change it: sample with your own prompt, lower temperature and top_k=1",
+        "minutes": 5,
+        "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=hello --num_samples=2 --max_new_tokens=200 --temperature=0.5 --top_k=1 --seed=1",
+        "measuredSec": 2.41,
+        "check": {
+          "type": "stdout_matches",
+          "pattern": "^hello"
+        }
+      },
+      {
+        "n": 8,
+        "pattern": "comeback",
+        "title": "Next week: repeat prepare, train and sample unaided, then try another knob",
+        "minutes": 5,
+        "check": {
+          "type": "unaided_repeat"
+        }
+      }
+    ],
+    "install": [
+      "pip install torch numpy tiktoken requests"
+    ],
+    "trapsToWarn": [
+      "--temperature must be written as a float such as 1.0, not 1, because the config override asserts the type matches the default.",
+      "--start cannot contain an '=' sign, because each command-line override is split on '=' into exactly a key and a value.",
+      "Flag names must match an existing config key exactly: a misspelling like --temprature fails with 'Unknown config key'."
+    ]
+  },
+  "gaveUp": null
+}

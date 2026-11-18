@@ -13,6 +13,7 @@ import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
 import { parseTutorDiagram, tutorDiagramVisibleText } from './tutor-diagrams/spec.js';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 import { cn } from './ui.jsx';
+import { rememberCodeCopy } from './map-files.js';
 
 export { CodeRefs };
 
@@ -46,7 +47,7 @@ function inline(s, math = [], onFile, sourcePath, has = null) {
 function plain(s, math = [], onFile, sourcePath, has = null) {
   return s.split(INLINE_PARTS).map((part, i) => {
     const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-    if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer">{inline(link[1], math)}</EvidencePill>;
+    if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer" data-web-link="">{inline(link[1], math)}</EvidencePill>;
     const token = part.match(/^(\d+)$/);
     if (token && math[Number(token[1])]) return <MathText key={i} {...math[Number(token[1])]} />;
     const reference=onFile&&sourceReference(part,sourcePath);
@@ -106,6 +107,7 @@ export function splitBlocks(text) {
 // colorLine reads # as a comment, so languages where # means something else stay untinted.
 // ponytail: one Python-flavoured tokenizer for every language; a per-language grammar when answers need one.
 const UNTINTED = /^(css|scss|less|html|xml|svg|md|markdown|text|txt|plain|plaintext)$/i;
+const CODE_EXT = { python: 'py', py: 'py', javascript: 'js', js: 'js', jsx: 'jsx', typescript: 'ts', ts: 'ts', tsx: 'tsx', rust: 'rs', go: 'go', java: 'java', c: 'c', cpp: 'cpp', ruby: 'rb', bash: 'sh', sh: 'sh', shell: 'sh', sql: 'sql', json: 'json' };
 export function Code({ lang, lines, diagram = false }) {
   const [copied, setCopied] = useState(null);
   useEffect(() => {
@@ -113,7 +115,9 @@ export function Code({ lang, lines, diagram = false }) {
     const t = setTimeout(() => setCopied(null), 1500);
     return () => clearTimeout(t);
   }, [copied]);
-  const copy = async () => { try { await navigator.clipboard.writeText(lines.join('\n')); setCopied('Copied'); } catch { setCopied('Copy failed'); } };
+  // Copied code is marked as code (map-files.js), so Ctrl+V on the canvas always asks Code card or Jupyter notebook, whatever the snippet looks like (owner 2026-11-14).
+  // A Mermaid source needs no mark: the canvas recognises its header.
+  const copy = async () => { try { await navigator.clipboard.writeText(lines.join('\n')); if (!diagram && !/^mermaid$/i.test(lang)) rememberCodeCopy(() => sessionStorage, { text: lines.join('\n'), path: `snippet.${CODE_EXT[String(lang).toLowerCase()] || 'txt'}` }); setCopied('Copied'); } catch { setCopied('Copy failed'); } };
   return (
     <div data-code-block {...(diagram ? { 'data-md-diagram': '' } : {})} className="my-1.5 min-w-0 rounded-sm bg-code">
       <div className="flex items-center gap-2 px-3 pt-1.5 text-xs text-ink-3">
@@ -125,6 +129,26 @@ export function Code({ lang, lines, diagram = false }) {
       {diagram
         ? <div className="overflow-auto bg-white px-2 py-2 dark:bg-side"><MermaidDiagram code={lines.join('\n')} fallback /></div>
         : <pre className="overflow-x-auto px-3 pt-1 pb-3 font-mono text-xs leading-normal whitespace-pre text-ink">{lines.map((l, j) => <div key={j}>{UNTINTED.test(lang) ? l || ' ' : colorLine(l)}</div>)}</pre>}
+    </div>
+  );
+}
+
+// A display equation with a Copy button (owner 2026-11-14): it copies the LaTeX as $$...$$, which pastes on the canvas as an equation card (canvas-paste.js equationOf).
+function DisplayMath({ expression, ...rest }) {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!done) return undefined;
+    const t = setTimeout(() => setDone(false), 1500);
+    return () => clearTimeout(t);
+  }, [done]);
+  const copy = async () => { try { await navigator.clipboard.writeText(`$$\n${expression}\n$$`); setDone(true); } catch { /* the equation stays selectable */ } };
+  return (
+    <div className="group/math relative">
+      <MathText expression={expression} {...rest} display />
+      {/* Icon only and marked as UI: a word in the button would enter the field's text, which the term pills and passage anchors align against. */}
+      <button type="button" data-math-copy data-explanation-ui aria-label={done ? 'Equation copied' : 'Copy equation'} title="Copy equation" onClick={copy} className="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-3 opacity-0 group-hover/math:opacity-100 hover:bg-hover hover:text-ink focus-visible:opacity-100 pointer-coarse:opacity-100">
+        {done ? <Check size={12} /> : <Copy size={12} />}
+      </button>
     </div>
   );
 }
@@ -160,7 +184,7 @@ const MATH_FENCE = /^(math|latex|tex)$/i;
 const diagramWords = lines => { try { return { 'data-tutor-visible': tutorDiagramVisibleText(parseTutorDiagram(lines.join('\n'))).filter(Boolean).join(' ') }; } catch { return {}; } };
 function fenceOf(fence, key, rich, figures = null) {
   if (figures && ILLUSTRATION_FENCE.test(fence.lang)) return <FenceFigure key={key} source={fence.lines.join('\n')} figures={figures} />;
-  if (rich && MATH_FENCE.test(fence.lang)) return <MathText key={key} expression={fence.lines.join('\n')} display />;
+  if (rich && MATH_FENCE.test(fence.lang)) return <DisplayMath key={key} expression={fence.lines.join('\n')} />;
   // A written Explanation's diagram (rh-diagram, a TutorDiagram spec): invalid text stays readable as the code it is. The legacy Mermaid reader below stays for saved content.
   if (rich && DIAGRAM_FENCE.test(fence.lang)) return <div key={key} className="my-2" {...diagramWords(fence.lines)}><TutorDiagram spec={fence.lines.join('\n')} fallback={<Code {...fence} />} /></div>;
   if (rich && /^mermaid$/i.test(fence.lang)) return <Code key={key} {...fence} diagram />;
@@ -210,7 +234,7 @@ function lines(ls, ctx, first) {
     // A line that is nothing but bold text is a section title in all but syntax.
     const boldTitle = !heading && l.trim().match(/^\*\*([^*]{3,90})\*\*:?$/);
     if (token && math[Number(token[1])]?.display) {
-      out.push(<MathText key={i} {...math[Number(token[1])]} />);
+      out.push(<DisplayMath key={i} {...math[Number(token[1])]} />);
     } else if (heading || boldTitle) {
       const level = heading ? heading[1].length : 3, Heading = `h${level}`;
       // A long answer reads as one wall without a break before each section.

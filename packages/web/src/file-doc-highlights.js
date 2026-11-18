@@ -41,5 +41,5 @@ export function tutorAnchors(cards, resolve) {
 // content after it (whole-section rail), else prose (the exact text tinted). closest(selector) answers for the range's start container; spansBlocks: the range
 // crosses more than one top-level block.
 export const anchorShape = ({ inDiagram, inCode, startsAtHeading, spansBlocks }) => (inDiagram ? 'diagram' : inCode ? 'code' : startsAtHeading && spansBlocks ? 'section' : 'prose');
-// The View card button's words (file 05): tooltip "View card", accessible name "View card: <title>"; several cards share one chooser.
-export const viewCardLabel = cards => (cards.length === 1 ? `View card: ${cards[0].title || 'Explanation'}` : `View card: ${cards.length} cards`);
+// The card button's words (file 05; HL-3, owner 2026-11-14: "Go to card", was "View card"): tooltip "Go to card", accessible name "Go to card: <title>"; several cards share one chooser.
+export const viewCardLabel = cards => (cards.length === 1 ? `Go to card: ${cards[0].title || 'Explanation'}` : `Go to card: ${cards.length} cards`);

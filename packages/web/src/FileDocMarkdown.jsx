@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, Highlighter, Lightbulb, MessageSquarePlus, ScanText, Trash2, X } from 'lucide-react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BookOpen, ScanText, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
+import { ExplanationHost } from './explanation-host.js';
 import { Md } from './Md.jsx';
-import { ToolButton, placeNear } from './selection-toolbar.jsx';
+import { SelectionToolbar, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
@@ -13,6 +14,7 @@ import { textSegments } from './markdown-anchor.js';
 import { focusExplanation, mintSourceRef, registerPassageMeasure } from './source-refs.js';
 import { api } from './api.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
+import { explainedSet, markClear, markSet } from './inline-highlight-mark.js';
 import { selectionRef } from './selection-ref.js';
 import { useSourcePending, useSourceRefBlocks } from './SourceRefChip.jsx';
 
@@ -22,6 +24,7 @@ function paintTutor(key, ranges) {
   if (typeof CSS === 'undefined' || !CSS.highlights || typeof Highlight === 'undefined') return; // ponytail: no prose tint without the Highlight API (pre-2023); block shapes still show
   if (ranges.length) tutorPainted.set(key, ranges); else tutorPainted.delete(key);
   CSS.highlights.set('tutor-source', new Highlight(...[...tutorPainted.values()].flat()));
+  explainedSet(key, ranges);
 }
 // Brief emphasis on the destination card (file 05): the shared selection blue as a passing outline, without touching the card's own classes or styles.
 const emphasizeCard = id => setTimeout(() => document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.animate?.([{ outline: '2px solid var(--color-select)', outlineOffset: '4px' }, { outline: '2px solid var(--color-select)', outlineOffset: '4px', offset: 0.8 }, { outline: '2px solid transparent', outlineOffset: '4px' }], { duration: 1800 }), 300);
@@ -159,8 +162,16 @@ export function MarkdownText({ block, text, children }) {
   // UI.06: the canvas asks where a step's raw range is drawn, to place its slot beside it. Only a resolved range on this revision that is inside the visible
   // scroller answers; anything else is null (the canvas then uses this card's box). Never scrolls, expands or paints.
   const measureRef = useRef(null);
-  measureRef.current = ({ range: raw, rev: wanted }) => {
+  measureRef.current = ({ range: raw, rev: wanted, quote: asked }) => {
     const node = root.current;
+    // HL-148: a resolved quote (View passage, Go to highlight) is measured wherever it is drawn in the card, in view or not, so the canvas can centre it. A card that scrolls inside itself moves the passage after the
+    // camera does (passageView scrolls it to the middle of that scroller), so it is not measured: the card is focused as before. Exact text only, the rule the emphasis paints with.
+    if (asked) {
+      const s = scroller.current;
+      if (!node || wanted !== rev || (s && s.scrollHeight > s.clientHeight + 2)) return null;
+      const found = resolveQuote(node.textContent, asked), range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
+      return range ? range.getBoundingClientRect() : null;
+    }
     if (!node || wanted !== rev || !raw || raw.end > text.length) return null;
     const quote = rawQuote(raw);
     let found = resolveQuote(node.textContent, quote);
@@ -253,16 +264,24 @@ export function MarkdownText({ block, text, children }) {
     // Where the passage is on screen now: the Explain skeleton is placed beside it (LearnPage passageSites, AdaptiveCanvas placeExplain).
     const picked = window.getSelection?.(), box = picked?.rangeCount ? picked.getRangeAt(0).getBoundingClientRect() : null;
     const rect = box && box.width > 0 ? { left: box.left, top: box.top, width: box.width, height: box.height } : null;
+    // HL-2: the passage stays marked pink while Ctrl+K is open over it (the live Range outlives the cleared selection; InlineAiEditor clears the mark when the window closes).
+    if (draft && picked?.rangeCount) markSet({ live: picked.getRangeAt(0).cloneRange() });
     window.getSelection?.()?.removeAllRanges(); setBar(null);
     if (!draft) return;
     try {
       const ref = await mintSourceRef((path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }), draft);
       window.dispatchEvent(new CustomEvent(EXPLAIN_PASSAGE_EVENT, { detail: { sourceRef: ref.id, text: quote.exact, cardId: block.id, rect } }));
-    } catch (problem) { setMessage({ text: problem.message }); }
+    } catch (problem) { markClear(); setMessage({ text: problem.message }); }
   };
   // Add to chat: the highlighted passage joins the right-hand Chat composer as a context pill (the webpage card's Ask about selection, the canvas bar's
   // Add to chat): nothing is sent, no highlight or proposal is made, the draft is untouched, and the same passage is not added twice (chat context).
   const chat = useChatWorkspace();
+  // Create note: the canvas's sticky note beside the selection, quoting it (the same host.note the explanation card's toolbar calls).
+  const host = useContext(ExplanationHost);
+  const createNote = quote => {
+    if (!host?.note || !quote?.exact) return;
+    if (host.note({ id: block.id, quote: quote.exact })) { window.getSelection?.()?.removeAllRanges(); setBar(null); }
+  };
   const addToChat = quote => {
     if (quote.exact.length > EXCERPT_LIMIT) { setMessage({ text: `Select up to ${EXCERPT_LIMIT.toLocaleString('en-US')} characters to add to chat.` }); return; }
     const name = String(block.fileRef?.meta?.name || block.label || block.title || 'Markdown').slice(0, 120);
@@ -283,23 +302,20 @@ export function MarkdownText({ block, text, children }) {
     </div>}
     <div ref={scroller} data-scroll data-file-doc-text className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 py-2" onPointerDown={event => event.stopPropagation()} onScroll={reposition} onClick={click}>
       <div ref={root} data-file-doc-md onPointerMove={anchors.length ? hover : undefined} onPointerLeave={() => setHovered(null)} className={`relative text-sm text-ink ${anchors.length ? 'pr-8' : ''}`}><Md text={text} doc fences />
-        {/* View card in the gutter beside each anchor (file 05): shown on the anchor's hover or the button's own focus; a hidden one keeps its place and Tab stop. */}
+        {/* Go to card (HL-3; was View card) in the gutter beside each anchor (file 05): shown on the anchor's hover or the button's own focus; a hidden one keeps its place and Tab stop. */}
         {anchors.map(anchor => (
-          <button key={anchor.id} type="button" data-view-card={anchor.cards.length === 1 ? anchor.cards[0].cardId : ''} title="View card" aria-label={viewCardLabel(anchor.cards)}
+          <button key={anchor.id} type="button" data-view-card={anchor.cards.length === 1 ? anchor.cards[0].cardId : ''} title="Go to card" aria-label={viewCardLabel(anchor.cards)}
             onPointerDown={event => event.stopPropagation()} onClick={() => (anchor.cards.length === 1 ? viewCard(anchor.cards[0].cardId) : setChooser(chooser === anchor.id ? null : anchor.id))}
             style={{ top: anchor.top }} className={`absolute right-0 flex h-7 w-7 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent ${hovered === anchor.id || chooser === anchor.id ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><ScanText size={16} aria-hidden="true" /></button>
         ))}
-        {chooser && <div data-file-doc-view-cards role="menu" aria-label="View card" style={{ top: (anchors.find(a => a.id === chooser)?.top ?? 0) + 30 }} className="absolute right-0 z-30 flex w-56 flex-col rounded-lg border border-line bg-white p-1 shadow-pop">
+        {chooser && <div data-file-doc-view-cards role="menu" aria-label="Go to card" style={{ top: (anchors.find(a => a.id === chooser)?.top ?? 0) + 30 }} className="absolute right-0 z-30 flex w-56 flex-col rounded-lg border border-line bg-white p-1 shadow-pop">
           {anchors.find(a => a.id === chooser)?.cards.map(card => <button key={card.cardId} type="button" role="menuitem" onClick={() => viewCard(card.cardId)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><ScanText size={14} className="shrink-0 text-ink-2" aria-hidden="true" /><span className="min-w-0 truncate">{card.title || 'Explanation'}</span></button>)}
         </div>}
       </div>
       {children}
     </div>
-    {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
-      <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.quote)} />
-      <ToolButton label="Explain" icon={Lightbulb} onClick={() => explain(bar.quote)} />
-      {chat && <ToolButton label="Add to chat" icon={MessageSquarePlus} onClick={() => addToChat(bar.quote)} />}
-    </div>}
+    {bar && <SelectionToolbar barRef={barEl} data-file-doc-selection-toolbar onQuickAsk={() => explain(bar.quote)} onAddToChat={() => addToChat(bar.quote)} chatDisabled={!chat}
+      onHighlight={() => highlight(bar.quote)} onNote={() => createNote(bar.quote)} noteDisabled={!host?.note} />}
     {menu && <div ref={menuEl} data-file-doc-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
       {menu.cardId && <button type="button" role="menuitem" data-file-doc-view-explanation autoFocus onClick={() => { const id = menu.cardId; setMenu(null); focusExplanation(id); }} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><BookOpen size={14} className="shrink-0 text-ink-2" />View explanation</button>}
       {menu.h && <button type="button" role="menuitem" autoFocus={!menu.cardId} onClick={() => remove(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>}

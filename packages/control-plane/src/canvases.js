@@ -3,14 +3,15 @@ import { DESCRIPTION_MAX, descriptionLength } from './canvas-description.js';
 import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
-import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
-import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
+import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, readableVersion, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { REPOSITORY_TOOLS, parseCodeRef, repositoryTool, SELECTED_NOTE } from './repository-context.js';
+import { repositoryChatPrompt } from './tutor-prompt.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { purgeCanvasAttachments } from './comment-attachments.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
-import { purgeTutorRows } from './learn-coaching-store.js';
+import { hasTable, purgeTutorRows } from './learn-coaching-store.js';
 import { noAccount, purgeStars, setStar, starActor, starsFor, surfaceFrom } from './canvas-stars.js';
 import { purgeAnalytics } from './publication-analytics-purge.js';
 
@@ -129,13 +130,13 @@ export async function canvasAccess(req, env, name, pending = null) {
 }
 // Titles are labels, never identities (docs/features/canvas-naming.md): different people may share one. One owner's canvases never do
 // (owner 2026-11-07, superseding "a typed title is kept exactly"): a canvas made or copied for its owner - New canvas, a Duplicate, a fork -
-// steps to the next free " (n)" when that owner's top-level Library (archived included) already has the title, "Example", "Example (2)",
+// steps to the next free " (n)" when that owner's top-level Library (archived included, Trash not) already has the title, "Example", "Example (2)",
 // "Example (3)", skipping numbers in use; a rename to a title another of their canvases has is refused (409 title_taken). Compared case-insensitively
 // (SQLite NOCASE: ASCII letters). Nested Rabbit Holes, other owners and projects never count.
 export async function freeTitle(db, org, owner, title) {
   const base = title.replace(/ \(\d+\)$/, '') || title;
   const like = `${base.replace(/[\\%_]/g, char => `\\${char}`)} (%)`;
-  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND (c.title COLLATE NOCASE=? OR c.title COLLATE NOCASE=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
+  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND ${NOT_TRASHED('c.org', 'c.name')} AND (c.title COLLATE NOCASE=? OR c.title COLLATE NOCASE=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
     .bind(org, owner, title, base, like, org, owner).all();
   const taken = new Set(results.map(row => row.title.toLowerCase()));
   if (!taken.has(title.toLowerCase())) return title;
@@ -148,7 +149,7 @@ export async function freeTitle(db, org, owner, title) {
 export async function titleTakenByOther(db, org, owner, title, exceptName) {
   // A nested Rabbit Hole is identified by its parent and origin and needs no unique title (canvas-naming.md): renaming one is never refused.
   if (await db.prepare("SELECT 1 FROM canvas_dives WHERE org=? AND owner_email=? AND child=? AND parent_app NOT LIKE 'share:%'").bind(org, owner, exceptName).first()) return false;
-  const row = await db.prepare(`SELECT 1 AS taken FROM canvases c WHERE c.org=? AND c.owner_email=? AND c.title COLLATE NOCASE=? AND c.name<>? AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') LIMIT 1`)
+  const row = await db.prepare(`SELECT 1 AS taken FROM canvases c WHERE c.org=? AND c.owner_email=? AND ${NOT_TRASHED('c.org', 'c.name')} AND c.title COLLATE NOCASE=? AND c.name<>? AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') LIMIT 1`)
     .bind(org, owner, title, exceptName, org, owner).first();
   return !!row;
 }
@@ -500,7 +501,10 @@ export async function canvasesFetch(req, env) {
         if (action === 'trash' && await db.prepare("SELECT 1 FROM canvas_dives WHERE org = ? AND child = ? AND parent_app NOT LIKE 'share:%'").bind(user.org, name).first()) {
           return json({ error: 'A Rabbit Hole inside another canvas goes to Trash with its canvas.' }, 409);
         }
-        await db.batch(trashStatements(db, user.org, name, action === 'trash'));
+        // A canvas in Trash does not hold its title (owner 2026-11-14): a new canvas may take it. Restore then steps the restored one to the
+        // next free " (n)" when its title is in use again; checked while it is still trashed, so it never counts itself.
+        const restored = action === 'untrash' ? await freeTitle(db, user.org, user.email, app.title) : app.title;
+        await db.batch([...trashStatements(db, user.org, name, action === 'trash'), ...(restored === app.title ? [] : [db.prepare('UPDATE canvases SET title=? WHERE id=?').bind(restored, app.id)])]);
         return json(await ownedCanvas(env, user, name));
       }
       // Archived means out of Explore too (the safest reading): restoring never publishes it again by itself.
@@ -535,7 +539,7 @@ export async function canvasesFetch(req, env) {
           dropRefs(db, user.org, user.email, name),
           dropFileRefs(db, user.org, user.email, name),
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
-          ...purgeTutorRows(db, user.org, name), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
+          ...purgeTutorRows(db, user.org, name, { sections: await hasTable(db, 'learn_sections') }), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
           ...purgeCommentRows(db, user.org, name),
           ...purgeStars(db, user.org, name, user.email), // every star on it goes, recorded as a lifecycle removal (docs/features/stars.md)
           ...purgeAnalytics(db, user.org, name), // its creator analytics; Unpublish, Archive and Trash keep them
@@ -551,15 +555,15 @@ export async function canvasesFetch(req, env) {
 // same system note and code tools, on the project's current snapshot. apiAsk reads it on every ask, and only as the
 // caller's own project in this workspace: another person's, one in Trash, one gone or not indexed yet, or a snapshot
 // that will not load leaves a general canvas, quietly.
-export async function projectRepository(env, app) {
+export async function projectRepository(env, app, use = null) {
   if (!app.project) return null;
   try {
     const row = await env.LEARN_DB.prepare(`SELECT * FROM repository_apps r WHERE r.org=? AND r.name=? AND r.owner_email=? AND ${NOT_TRASHED('r.org', 'r.name')}`).bind(app.org, app.project, app.email).first();
     if (!row?.commit_sha) return null;
-    const snapshot = await repositorySnapshot(env, row);
+    const snapshot = await repositorySnapshot(env, row), tutor = repositoryChatPrompt(use);
     return {
       context: `SCOPE: canvas ${JSON.stringify(app.title)} in the project ${row.repo} - a learning canvas whose content lives in the learner's browser, about this repository: ${JSON.stringify({ repo: row.repo, commit: row.commit_sha })}`,
-      system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
+      system: tutor.text, tutor, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input), snapshot, // snapshot: the code-explain handler reads the cited code and the graph from it
       // The learner's code refs (graph and Files selections), read from this snapshot only (repository-context.js).
       // A code card pinned to another commit of a repository the learner owns is read at that commit (cardCodeRefs).
       selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs, snapshot), selectedNote: SELECTED_NOTE }),
@@ -576,10 +580,15 @@ export function canvasAskSeam(env, app) {
     app, db,
     // The title is a weak hint (chat workspace brief section 8): a stale title must never outrank the discussion or material.
     context: `SCOPE: canvas ${JSON.stringify(app.title)} - a standalone learning canvas whose content lives in the learner's browser. The title is a weak hint and may be outdated: it is never the topic when the request, recent turns, attached material or the selection say otherwise. Teach as a general tutor.`,
-    repository: () => projectRepository(env, app),
+    repository: use => projectRepository(env, app, use),
     // Code cards and selections on a canvas outside a project (or whose project the asker cannot read): each read at its own
     // commit under the repository rule (repositories.js readableVersion), so a fork or a copy can ask about them too.
     selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs), selectedNote: SELECTED_NOTE }),
+    // The snapshot of the first code ref's repository at its commit, under the same read rule: for a code-explain turn on a canvas with no project of its own.
+    snapshot: async refs => {
+      const at = parseCodeRef((refs || []).find(ref => ref.kind === 'code')), row = at && env.LEARN_DB ? await readableVersion(env, { org: app.org, email: app.email }, at.repo, at.commit) : null;
+      return row ? repositorySnapshot(env, row, at.commit).catch(() => null) : null;
+    },
     findThread: id => db.prepare("SELECT id, 'learn' AS scope, scope_ref FROM threads WHERE id=? AND org=? AND user=?").bind(id, app.org, app.email).first(),
     newThread: async title => {
       const id = `canvaschat-${crypto.randomUUID()}`;

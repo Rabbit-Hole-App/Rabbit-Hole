@@ -8,7 +8,6 @@
 
 import { cardEditSpec } from './inline-card-edit.js';
 import { cardText, semanticSnapshot } from './canvas-semantics.js';
-import { docText } from './doc-text.js';
 import { fileCoverage } from './file-chat-ref.js';
 
 export const CONTEXT_VERSION = 'inline-context-2';
@@ -16,7 +15,7 @@ export const CONTEXT_VERSION = 'inline-context-2';
 // closeness alone); hops: how far along the diagram's relations; flowGap: the gap between two text boxes read in order.
 export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, rangeAround: 200, connections: 40, relevant: 0.35, hops: 3, flowGap: 48 });
 // What a move changes and a description never reads.
-const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'slot', 'fresh', 'cardLayout']);
+const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'at', 'w', 'h', 'slot', 'fresh', 'cardLayout']);
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
 
 // FNV-1a, 32-bit: a fingerprint, not a secret.
@@ -530,10 +529,6 @@ export function boardObjects(board) {
       basis: `drawn ${shapes.get(relation.id)?.kind || 'line'}${relation.label ? ` "${relation.label.slice(0, 40)}"` : ''} (ends matched by position, confidence ${relation.confidence})` });
   }
   for (const entry of snap.objects) if (entry.labelOf) connectors.push({ id: `${entry.id}>${entry.labelOf}`, from: entry.id, to: entry.labelOf, explicit: false, kind: 'labels', basis: 'short text touching one shape (by position)' });
-  // The canvas document (BlockNote-on-Canvas, board.doc, the live editor's blocks with unsaved text): one object, whether or not
-  // Editor view shows it - hiding changes visibility, not what exists. Nothing when it holds no words.
-  const words = docText(board.doc?.blocks);
-  if (words) objects.push({ id: 'doc', type: 'document', text: words, label: words.split('\n')[0].replace(/^#+\s*/, ''), ...place('doc') });
   const inks = (board.strokes || []).map(stroke => unionBox((stroke.points || []).map(p => ({ x: p.x, y: p.y, w: 0, h: 0 })))).filter(Boolean);
   const area = unionBox([...objects.filter(placed), ...inks]), regions = new Map();
   for (const box of inks) { const region = regionIn(box, area); regions.set(region, [...(regions.get(region) || []), box]); }
@@ -546,7 +541,7 @@ export function boardObjects(board) {
 // A file card's line in the canvas package: listed, with what an attached copy of it would give (canvas-file-imports.md 6).
 const FILE_REASON = { listed: 'file: listed only, not extracted', extracted: 'file: extracted, read when attached', partial: 'file: partly extracted, when attached', unavailable: 'file: content unavailable' };
 export const CANVAS = Object.freeze({ focus: 3000, other: 1200, spread: 300, minPassage: 40, labels: [80, 60, 40, 24], id: 120, excerpts: 200,
-  explicit: 600, inferred: 600, coverage: 300, json: 63000, inventoryJson: 40000, document: 6000, passages: 20 });
+  explicit: 600, inferred: 600, coverage: 300, json: 63000, inventoryJson: 40000, passages: 20 });
 const TYPE = /^[a-z][a-z0-9_-]{0,39}$/;
 const REGIONS = [['top-left', 'top', 'top-right'], ['left', 'center', 'right'], ['bottom-left', 'bottom', 'bottom-right']];
 const SEP = '\n…\n';
@@ -638,7 +633,7 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
     e.score = e.base + 0.5 * best(linked) + 0.3 * best(together) + (focus.has(e.id) ? 3 : [...linked, ...together].some(m => focus.has(m.id)) ? 2 : 0);
   }
   const byScore = (a, b) => b.score - a.score || a.index - b.index;
-  const tier = e => (selected.has(e.id) ? 0 : attached.has(e.id) ? 1 : e.type === 'heading' || e.type === 'document' ? 2 : e.members ? 3 : 4);
+  const tier = e => (selected.has(e.id) ? 0 : attached.has(e.id) ? 1 : e.type === 'heading' ? 2 : e.members ? 3 : 4);
 
   // (1) The reserved share: labels shorten (80, 60, 40, 24) before any object goes; past that, or past the item cap, the
   // lowest-ranked objects go and are recorded as omitted (cap). Stored-link labels take at most a quarter of the reserve.
@@ -668,17 +663,8 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   const jsonRoom = CANVAS.json - inventoryJson - 4000; // 4000: the package's other fields
   const cuts = new Map();
   let spent = 0, excerptJson = 0;
-  // The canvas document has its own share, taken before the other objects' excerpts and after the reserve: at most
-  // CANVAS.document characters and half of what the reserve leaves, its opening plus the passages that share the request's
-  // terms when it is longer. The rest of the canvas keeps the other half and its whole reserve, however long the document.
-  const doc = listed.find(e => e.type === 'document' && e.text.trim() && !held(e));
-  let docChars = 0;
-  if (doc) {
-    const cut = excerptOf(doc.text, Math.min(CANVAS.document, Math.floor((budget - labelChars - linkRoom) / 2)), weigh);
-    if (cut.text) { docChars = cut.text.length; excerptJson = JSON.stringify(cut.text).length + JSON.stringify(cut.passages || []).length + 300; cuts.set(doc.id, { ...cut, json: excerptJson }); }
-  }
-  const room = budget - labelChars - linkRoom - docChars;
-  const candidates = listed.filter(e => e !== doc && !e.media && !e.dark && e.text.trim() && !held(e)).sort(byScore);
+  const room = budget - labelChars - linkRoom;
+  const candidates = listed.filter(e => !e.media && !e.dark && e.text.trim() && !held(e)).sort(byScore);
   const give = (e, most, ceiling) => {
     const had = cuts.get(e.id), size = had ? had.text.length : 0, allowed = Math.min(most, size + ceiling - spent);
     if ((had && !had.omitted) || allowed <= size || allowed < Math.min(CANVAS.minPassage, e.text.length) || (!had && cuts.size >= CANVAS.excerpts)) return;
@@ -711,10 +697,7 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   const inspected = statuses.filter(s => s.status === 'media'), unseen = statuses.filter(s => s.reason === 'media');
   const capped = count(s => s.status === 'omitted'), ink = count(s => s.status === 'unavailable' && s.e.type === 'ink');
   const unavailable = count(s => s.status === 'unavailable' && s.reason !== 'media' && s.e.type !== 'ink');
-  const docCut = doc && cuts.get(doc.id);
-  const docLine = docCut ? (docCut.omitted ? `document partial: ${docCut.text.length} of ${doc.text.length} characters` : 'document in full') : null;
   const summary = [listed.length === total ? `${plural(total, 'object')} listed` : `${listed.length} of ${total} objects listed`, `${full} included in full, ${partial} partially`,
-    ...(docLine ? [docLine] : []),
     ...(inspected.length ? [`${byType(inspected)} inspected`] : []), ...(unseen.length ? [`${byType(unseen)} not inspected`] : []),
     ...(ink ? [`freehand ink in ${plural(ink, 'area')} not described`] : []),
     ...(capped ? [`${capped} omitted for space`] : []), ...(unavailable ? [`${unavailable} unavailable`] : [])].join('; ').slice(0, 200);
@@ -770,7 +753,7 @@ export function buildCanvasContext({ objects = [], connectors = [], groups = [],
   fill(pack.relations.inferred, ranked(drawn), CANVAS.inferred);
   const keptLinks = sum(pack.relations.explicit, r => (r.label || '').length);
   pack.coverage.reserved_chars = labelChars + keptLinks;
-  pack.coverage.used_chars = labelChars + keptLinks + docChars + spent;
+  pack.coverage.used_chars = labelChars + keptLinks + spent;
   return pack;
 }
 

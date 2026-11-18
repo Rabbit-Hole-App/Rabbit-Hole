@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/session.json",
+  "title": "Run card session: one sandbox per (canvas, user, commit)",
+  "description": "POST /sessions takes `request` and answers `state`; GET /sessions/<id> answers `state`; POST /sessions/<id>/stop answers `state` with status stopped. A second start for the same (canvas, user, commit) returns the existing session with existing true. Cells share the one sandbox (files, installed packages and cwd carry from cell to cell). The sandbox is created from record.snapshotImage when present (clone and install already done), else from the pinned image with the rehearsal's clone and install as a first, automatic cell. Sandbox: same create call as the rehearsal (cpu 2, memory 4096, domain allowlist) with idle_timeout=limits.SESSION_IDLE_TIMEOUT_SEC, timeout=limits.SESSION_HARD_TIMEOUT_SEC, tags job=<sessionId>, repo, commit, hardware and session=<sessionId>. A reaper thread lists the app's sandboxes every limits.REAPER_INTERVAL_SEC and terminates any past its deadline.",
+  "$defs": {
+    "request": {
+      "type": "object", "additionalProperties": false, "required": ["repo", "commit", "canvas", "user", "record"],
+      "properties": {
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "canvas": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "user": { "type": "string", "minLength": 1, "maxLength": 200, "description": "opaque id from the control plane (never shown)" },
+        "record": { "$ref": "record.json", "description": "the rehearsal record from R2; repo, commit and hardware must match; the controller derives the cells from it" }
+      }
+    },
+    "state": {
+      "type": "object", "additionalProperties": false, "required": ["sessionId", "status", "existing", "snapshot", "cells", "startedUtc", "deadlineUtc"],
+      "properties": {
+        "sessionId": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+        "status": { "enum": ["starting", "ready", "stopped", "expired", "failed"] },
+        "existing": { "type": "boolean" },
+        "snapshot": { "type": "boolean", "description": "created from record.snapshotImage" },
+        "sandboxId": { "type": "string" },
+        "cells": { "$ref": "cells.json" },
+        "startedUtc": { "type": "string" },
+        "deadlineUtc": { "type": "string", "description": "hard deadline (start + limits.SESSION_HARD_TIMEOUT_SEC)" },
+        "error": { "type": "string" },
+        "cpu": { "type": "number", "minimum": 0, "description": "physical cores the machine holds (limits.SANDBOX_CPU): the machine's size for the usage meter" },
+        "memoryGiB": { "type": "number", "minimum": 0, "description": "memory the machine holds in GiB (limits.SANDBOX_MEMORY_MIB / 1024)" },
+        "endedUtc": { "type": "string", "description": "ISO time the machine stopped being held (stopped or expired); absent while it is held" }
+      }
+    }
+  },
+  "$ref": "#/$defs/state"
+}

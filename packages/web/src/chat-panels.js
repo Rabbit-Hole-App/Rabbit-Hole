@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { saveUiPref, uiPrefs } from './ui-prefs.js';
 
 // Sub-lane A1 (layout) owns this file. Contract: chat-workspace-CONTRACT.md A5; brief section 2.
 // The right side is ONE visibility state, open / setOpen, shared by Chat's panel and the companion column: Hide right panel
@@ -12,8 +13,10 @@ import { useMemo, useState } from 'react';
 // openProgress() selects it; below lg it puts the viewer away, as openChat() does.
 const wide = () => globalThis.matchMedia?.('(min-width: 64rem)').matches ?? true;
 export function useChatPanels() {
-  // Brief section 2: the canvas and Chat show from the start.
-  const [open, setOpen] = useState(true), [tab, setTab] = useState('chat');
+  // Brief section 2: the canvas and Chat show from the start, until the learner closes the panel: that choice is this device's and survives
+  // a refresh (owner 2026-11-13, ui-prefs.js rightPanel).
+  const [open, setOpen] = useState(() => uiPrefs().rightPanel), [tab, setTab] = useState('chat');
+  useEffect(() => { try { saveUiPref('rightPanel', open); } catch { /* storage refused: it holds until a reload */ } }, [open]);
   const [companionOpen, setCompanionOpen] = useState(false), [view, setView] = useState('context');
   return useMemo(() => {
     // reveal false: a late completion (an upload placed after the learner hid the panel) never reopens it; it switches the

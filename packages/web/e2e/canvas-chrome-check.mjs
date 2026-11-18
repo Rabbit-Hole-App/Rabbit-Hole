@@ -77,6 +77,8 @@ const disjoint = (a, b) => !a || !b || a.right <= b.x + 0.5 || b.right <= a.x + 
 const round = b => b && Object.fromEntries(Object.entries(b).map(([k, v]) => [k, Math.round(v)]));
 
 // The geometry rules, one page at a time. phone: the hooks above the composer at the right; the tools a column at the left.
+// A share link opens with the right panel closed and the Chat composer in the canvas's bottom strip (owner 2026-11-14): this check is about the panel, so it opens it first.
+const openSharedPanel = async page => { const toggle = page.locator('[data-panel-toggle]'); await toggle.waitFor({ timeout: 60000 }); if (await toggle.getAttribute('aria-pressed') === 'false') await toggle.click(); };
 const layout = async (page, where, { phone = false, shared = false } = {}) => {
   const hooks = await box(page, '[data-hooks-slot] section[data-next-steps]');
   // Neither canvas has a dock composer. The composer is in the Chat pane: the owned canvas's [data-chat-pane], and on a shared
@@ -197,6 +199,7 @@ for (const [label, viewport, phone] of [['1440', { width: 1440, height: 900 }, f
     const page = await open(viewer, `/b/${token}`, viewport);
     await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
     await sharedReady(page);
+    await openSharedPanel(page);
     await page.waitForTimeout(600);
     await settle(page);
     await page.screenshot({ path: `${SHOTS}/chrome-shared-${label}.png` });
@@ -211,6 +214,7 @@ await check('a set on its way is a skeleton with a spinner - the same card size 
   // Hold the next set: the card shows what it shows while it waits, recorded on every change.
   await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
   await sharedReady(page);
+  await openSharedPanel(page);
   const before = await box(page, '[data-hooks-slot] section[data-next-steps]');
   let release;
   const held = new Promise(resolve => { release = resolve; });

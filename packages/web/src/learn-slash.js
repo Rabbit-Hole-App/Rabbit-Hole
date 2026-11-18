@@ -193,10 +193,11 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // proposal: the signed brief this Generate makes (material-brief.js): the server consumes it once and generates from its own words.
 // depth, board (R2): the Depth the learner had selected when they submitted, with the board it was chosen for; taken from the canvas's
 // settings now unless the caller names them. Plain values copied into this request, so a later change in the menu never alters it.
-export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, sourceRef = null, post, signal = null, ...chosen }) {
+// madeBy (Learn sections, CONTRACT.md "Artifact request"): 'learn-section' for a section item, which the server reads only for the larger code sample (DECISIONS O).
+export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, sourceRef = null, post, signal = null, madeBy = null, ...chosen }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
   const picked = chosen.depth !== undefined || chosen.board !== undefined ? chosen : settingsSnapshot(app);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(picked?.board ? { board: picked.board } : {}), ...(picked?.board && picked.depth ? { depth: picked.depth } : {}), ...(proposal ? { proposal } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(picked?.board ? { board: picked.board } : {}), ...(picked?.board && picked.depth ? { depth: picked.depth } : {}), ...(proposal ? { proposal } : {}), ...(madeBy ? { madeBy } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.
@@ -214,7 +215,9 @@ export const MOTION_OFF = 'Motion (animated explainer videos) is not available h
 // internal: the Tutor's own create_material (runMaterials) may run its material tools; a typed line never can, and a removed
 // command says it is unavailable and runs nothing (owner, 2026-10-20).
 // attachedImage: the composer's attached image (an uploaded media id), used by /explain when the target carries none.
-export async function runLearnCommand(text, { app, target = null, attachedImage = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false }) {
+// section (Learn sections, a section item's line through the composer: learn-section-perform.js): { depth, board, context, madeBy } go on the artifact request as they are, `context` in place of
+// the selected card's (explainContext), and the line skips the Chat brief a typed material command prepares (make spec section 0: a section item has no confirmation step).
+export async function runLearnCommand(text, { app, target = null, attachedImage = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false, section = null }) {
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
   if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
@@ -284,7 +287,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // The simple material briefs (owner spec 2026-10-29 section 6; material-brief.js): an explicit command on a Chat canvas (canvas.briefs)
   // is a chat turn that prepares the command's brief (ask.jsx materialPlan); its card is made only at Generate. With no words and no
   // selected card it asks for the subject and keeps the line. The Tutor's own create_material (internal) makes its card as before.
-  if (!internal && canvas.briefs && isBriefCommand(name)) {
+  if (!internal && !section && canvas.briefs && isBriefCommand(name)) {
     const subject = briefSubject(args, selection);
     if (!subject) return { notice: { tone: 'question', text: `${toolOf(name).placeholder} Add it after /${typedOf(name)}, or select a card first.` }, keep: `/${typedOf(name)} ` };
     return { prompt: args || subject };
@@ -326,17 +329,19 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (name === 'explain' && canvas.startExplain && explainWords) {
     // EXP-T21: the Tutor's chosen tool (internal) is the same job, recorded as its source; no intent call is made for it.
     const started = await canvas.startExplain(explainWords, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(sourceRef ? { sourceRef } : {}), ...(internal ? { source: 'tutor' } : {}) });
+    if (started?.blockId && target?.passage) canvas.linkPassage?.(started.blockId, target.passage); // HL-146: a passage of an Explanation card is saved on that card, pink, once the new card exists (passage-link.js)
     if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
   }
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await generateCommand(name, name === 'explain' ? args || explainWords : args, { app, selection, context: explainContext(target), image, sourceRef, post }); }
+  const chosen = section ? { ...(section.depth ? { depth: section.depth, board: section.board ?? 'main' } : {}), ...(section.madeBy ? { madeBy: section.madeBy } : {}), ...(section.context !== undefined ? { context: section.context ?? null } : {}) } : {};
+  try { result = await generateCommand(name, name === 'explain' ? args || explainWords : args, { app, selection, context: explainContext(target), image, sourceRef, post, ...chosen }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${typed} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // fit: a new written Explanation opens at its full length and the camera frames it (AdaptiveCanvas insertBlock, owner 2026-11-08).
   // The notice names the new card and can take the learner to it. target.parentLink: an Explanation card's Ask in a new card (explanation-host.js) joins the child to its parent.
   // A written /explain says nothing on success (owner 2026-11-08): its card on the canvas and its chip under the line are the answer.
-  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : {}), ...(target?.beside ? { link: false } : {}) }); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : target?.beside && target.id ? { parent: { id: target.id, ...(Number.isFinite(target.alignY) ? { dy: Math.round(target.alignY) } : {}) } } : {}), ...(target?.beside ? { link: false } : {}) }); if (blockId && target?.passage) canvas.linkPassage?.(blockId, target.passage); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
   // its place is held at once (the camera glides there), and the card - which shows its own progress while the
   // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.

@@ -54,13 +54,13 @@ export const ANIMATION_REVIEW_HEADING = 'Review your scene';
 // figure (proposal.usage.max_credits, from animationReservation(); never typed here, so a change to the call limits moves it). No figure from the server, no Generate sentence.
 export const animationCostNote = p => {
   const planCredits = p?.input?.scene?.planCredits, max = p?.usage?.max_credits;
-  return [planCredits ? `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` : null,
+  return [planCredits ? `Edit plan uses up to ${planCredits} AI units to rewrite the plan.` : null,
     Number.isFinite(max) ? `Generate: up to ${max.toLocaleString('en-US')} credits; most animations use 50–100; a failed one is refunded.` : null].filter(Boolean).join(' ') || null;
 };
 // /whiteboard's review card (roadmap 1.3): its heading, and the cost line "up to <N> credits" with the SERVER's worst case for this plan
 // (proposal.usage.max_credits, whiteboardReservation; W-D2). No figure from the server, no cost line.
 export const WHITEBOARD_REVIEW_HEADING = 'Review your whiteboard';
-export const whiteboardCostNote = p => (Number.isFinite(p?.usage?.max_credits) ? `up to ${p.usage.max_credits.toLocaleString('en-US')} credits` : null);
+export const whiteboardCostNote = p => (Number.isFinite(p?.usage?.max_credits) ? `up to ${p.usage.max_credits.toLocaleString('en-US')} AI units` : null);
 // A length change on the whiteboard card re-plans (W-D7): after its saved revision, the job's refine with the note `duration: <n>`. -> the note,
 // or null when the length did not change.
 export const durationRefinement = (before, after) => (after?.command === 'whiteboard-video' && Number.isInteger(after.settings?.duration_seconds)
@@ -153,8 +153,8 @@ export const madeFrom = proposalId => block => (block?.operation?.proposal?.prop
 // ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
 // The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the
 // route endpoint is not deployed (the turn is sent as today).
-async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
-  const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
+async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID(), history = null } = {}) {
+  const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability, ...(history?.length ? { history } : {}),
     mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
   // A bare greeting is never a tool request: decided here with no route request at all (the server's decideChat does the same for a direct caller).
   if (!capability && isSmallTalk(payload.message)) return { route: 'answer', via: 'default', local: true, capability: null, flow: null, token: null, retryable: false, code: null, message: null };
@@ -174,6 +174,18 @@ async function routeDecision(fetcher, payload, { capability = null, requestId = 
 }
 // What a failed route request says when the server gave no words of its own. Shown only for an authorization failure or a command that could not start.
 // The route round trip, timed for benchmarking (client-timing.js): a greeting is decided locally, so its interval is the cost of the check itself.
+// The last turns of this conversation for the router (owner 2026-11-13): each learner message with the reply that followed it and the command it ran,
+// most recent last. The server cuts and checks them again (inline-ai-route.js normalizeHistory).
+export function routeHistory(msgs, turns = 3) {
+  const out = [];
+  for (let i = msgs.length - 1; i >= 0 && out.length < turns; i--) {
+    if (msgs[i]?.role !== 'user') continue;
+    let reply = '';
+    for (let j = i + 1; j < msgs.length && msgs[j]?.role !== 'user'; j++) if (msgs[j]?.role === 'assistant' && typeof msgs[j].content === 'string') { reply = msgs[j].content; break; }
+    out.unshift({ user: String(msgs[i].content ?? ''), reply, command: msgs[i].command ?? null });
+  }
+  return out;
+}
 export async function routeChat(fetcher, payload, options) {
   const timing = startTiming('chat_route_ms', { mode: payload.mode ?? 'auto', depth: payload.depth });
   let decision;
@@ -207,5 +219,7 @@ export function routeOutcome(decision, { plain = false } = {}) {
   if (decision.route === 'unsupported') return { show: { kind: 'unsupported', message: decision.message || 'That isn\'t available here.' } };
   const capability = decision.capability || String(decision.route).replace(/^capability:/, '');
   if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'error', message: ROUTE_FAILED } };
+  // code-explain is a route the chat turn itself answers (control plane learn-code-explain.js), not a command with a handler here: the turn goes on with its token (where the server has no such route it is an ordinary answer, never an error notice).
+  if (capability === 'code-explain') return { send: true, token: decision.token || null };
   return { direct: { command: capability, args: String(decision.args ?? '') } };
 }

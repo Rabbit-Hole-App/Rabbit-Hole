@@ -49,8 +49,9 @@ test('the card is placed clear of the source and of every obstacle: no overlap a
 test('wiring: Ask in a new card and Explore ask for a card beside the source with no connector; the slot is as tall as the source; an anchored slot puts the card on its place; reload keeps dx, dy', () => {
   const canvas = src('./AdaptiveCanvas.jsx'), slash = src('./learn-slash.js');
   assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
-  assert.match(canvas, /if \(at\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
+  // AR-C3 (release 146): a card from a card is placed by place-sourced.js (right or left, level with the passage or the source's middle); the slot is as tall as the source up to BESIDE_ASSUMED_H
+  assert.match(canvas, /placeSourced\(\{ source, anchorY: Number\.isFinite\(besideDy\) \? source\.y \+ besideDy : null, size: slot, boxes: boardObstacles\(\[anchor\]\), siblings, id, sourceId: anchor, area: null \}\)/);
+  assert.match(canvas, /size = \{ \.\.\.size, h: slot\.h \}/);
   // typed /explain (BUG 4): follow the selected or latest explanation card through followPlace, never the column once there is one to follow
   assert.match(canvas, /\(\{ at, size \} = followPlace\(\{ source, size, id, obstacles: boardObstacles\(\[anchor\]\) \}\)\)/);
   assert.match(canvas, /beside \|\| \(follow && !given \? followAnchor\(\) : null\)/);
@@ -60,6 +61,12 @@ test('wiring: Ask in a new card and Explore ask for a card beside the source wit
   assert.match(slash, /\.\.\.\(target\?\.beside \? \{ link: false \} : \{\}\)/);
   // the offsets are the block's own dx, dy: the saved board already stores them (a dragged card), so a reload keeps the place without a migration
   assert.match(canvas, /moves\.set\(id, \{ dx: Math\.round\(at\.x - \(box\.x - \(owner\.dx \|\| 0\)\)\), dy: Math\.round\(at\.y - \(box\.y - \(owner\.dy \|\| 0\)\)\) \}\)/);
+});
+
+// CV-4 (film): with nothing selected and no explanation card yet, the first typed /explain follows the markdown card on the board, not the column.
+test('wiring: followAnchor falls back to the markdown file card when there is no explanation card yet', () => {
+  const canvas = src('./AdaptiveCanvas.jsx');
+  assert.match(canvas, /explainCard\(block\) && drawn\(block\.id\)\)\?\.id\s*\n\s*\?\? blocksRef\.current\.find\(block => block\.type === 'file' && block\.kind === 'markdown' && drawn\(block\.id\)\)\?\.id \?\? null/);
 });
 
 // canvas-cards BUG 4: a typed /explain lands to the right of the previous card, loosely scattered, never overlapping; a full row starts a new one under it, never the column.

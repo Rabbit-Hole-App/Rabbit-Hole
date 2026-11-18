@@ -119,6 +119,38 @@ export function composeVisuals(body, visuals) {
   return [out, ...rest].join('\n\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// The /code primitive at a line and character cap. Typed /code is 60 / 2000; a Learn section item (madeBy 'learn-section', DECISIONS O) is 100 / 4000.
+function codeSample(lines, chars) {
+  return {
+    ready: true,
+    about: 'A short Python code sample to read, with a title and a one-line brief. It is shown, not run: never state its output.',
+    schema: shape({ title: text(120), brief: text(400), code: text(chars) }),
+    check: spec => { if (spec.code.split('\n').length > lines) fail(`Keep the code sample under ${lines} lines`); },
+    // ponytail: no output line - a generated sample's output would be a claim
+    // nobody ran. Add one once samples execute before they are shown.
+    block: spec => ({ type: 'snippet', title: spec.title, brief: spec.brief, code: spec.code }),
+  };
+}
+// Learn section items (C §2b): the source's module names ride in the request's context on this line (learn-section-make/code.js writes it).
+export const SOURCE_MODULES_LINE = 'Source modules, never imported: ';
+const OUTPUT_CLAIM = /^\s*(?:>>>\s|#\s*(?:output|prints?|expected|result)\b|#\s*(?:=>|->)\s*\S)/im;
+// The top-level module of every import line ('.' for a relative import).
+export const importsOf = code => [...String(code).matchAll(/^[ \t]*(?:from[ \t]+(\.*[\w.]*)[ \t]+import|import[ \t]+([\w., \t]+))/gm)]
+  .flatMap(m => (m[1] ?? m[2]).split(',').map(x => x.trim().split(/\s+/)[0]).map(x => (x.startsWith('.') ? '.' : x.split('.')[0])).filter(Boolean));
+const SECTION_SAMPLE = codeSample(100, 4000);
+const SECTION = {
+  code_sample: { ...SECTION_SAMPLE, check: (spec, { context = null } = {}) => {
+    SECTION_SAMPLE.check(spec);
+    if (OUTPUT_CLAIM.test(spec.code)) fail('Do not state the output: the sample is shown, not run');
+    const line = String(context ?? '').split('\n').find(l => l.startsWith(SOURCE_MODULES_LINE));
+    const banned = new Set(line ? line.slice(SOURCE_MODULES_LINE.length).split(',').map(x => x.trim()).filter(Boolean) : []);
+    const bad = importsOf(spec.code).find(name => name === '.' || banned.has(name));
+    if (bad) fail(`Import nothing from the source (${bad === '.' ? 'a relative import' : bad}): standard library and numpy only`);
+  } },
+};
+// The primitive a request gets: a section item's variant where one exists, else the typed command's. A client-sent madeBy changes nothing else (CONTRACT).
+export const primitiveFor = (id, madeBy = null) => (madeBy === 'learn-section' && SECTION[id]) || PRIMITIVES[id];
+
 // ready: a generator may produce it now. unavailable: what the learner is
 // told when their command needs it. Which primitives are paid is the shared
 // contract's call (primitive(id) in agent/slash.js); a paid one is only ever
@@ -173,15 +205,7 @@ export const PRIMITIVES = {
     schema: shape({ prompt: text(600), hint: text(300), expects: list(text(200), 2, 6) }),
     block: spec => ({ type: 'challenge', mode: 'explain_back', prompt: spec.prompt, hint: spec.hint, expects: spec.expects, reveal: '', answer: null }),
   },
-  code_sample: {
-    ready: true,
-    about: 'A short Python code sample to read, with a title and a one-line brief. It is shown, not run: never state its output.',
-    schema: shape({ title: text(120), brief: text(400), code: text(2000) }),
-    check: spec => { if (spec.code.split('\n').length > 60) fail('Keep the code sample under 60 lines'); },
-    // ponytail: no output line - a generated sample's output would be a claim
-    // nobody ran. Add one once samples execute before they are shown.
-    block: spec => ({ type: 'snippet', title: spec.title, brief: spec.brief, code: spec.code }),
-  },
+  code_sample: codeSample(60, 2000),
   flow_diagram: {
     ready: true,
     about: 'A node-and-arrow flow diagram laid out automatically. 2-12 nodes (tone: input, step, repeat, output, note), edges point in the direction of flow or causality.',
@@ -344,12 +368,12 @@ export const isReady = id => PRIMITIVES[id]?.ready === true;
 
 // Validate one generated spec against its primitive and return the canvas
 // block. Throws with a message the model can act on for its one repair.
-export function artifactBlock(id, spec) {
-  const primitive = PRIMITIVES[id];
+export function artifactBlock(id, spec, { madeBy = null, context = null } = {}) {
+  const primitive = primitiveFor(id, madeBy);
   if (!primitive?.ready) fail(`${id} is not a generatable primitive`);
   validateSchema(spec, primitive.schema, id);
   const copy = structuredClone(spec);
-  primitive.check?.(copy);
+  primitive.check?.(copy, { context });
   return primitive.block(copy);
 }
 

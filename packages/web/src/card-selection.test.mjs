@@ -138,7 +138,7 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   assert.match(canvas, /\{selected && block\.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id=\{block\.id\} \/><\/div>\}/, 'an image');
   // A CAD card's viewer tools come first in its row (cad-controls placement requirement), so it gets the divider too.
   // A paper or whiteboard card has no Ask selection pill of its own any more (EXP-T28: the toolbar's Ask about selection).
-  assert.match(canvas, /<SelectionActionsHost id=\{block\.id\} divider=\{cadTools \|\| \['code', 'snippet'\]\.includes\(block\.type\)\} \/>/, 'a lesson card: after its own pills');
+  assert.match(canvas, /<SelectionActionsHost id=\{block\.id\} joined divider=\{cadTools \|\| \['code', 'snippet'\]\.includes\(block\.type\)\} \/>/, 'a lesson card: after its own pills, joined into the one pill');
   assert.match(canvas, /<SelectionActionsHost id=\{exchange\.id\} \/>\n\s+\{renderComposer && !replyOpen && \(/, 'a chat card');
   assert.match(canvas, /const askPill = <SelectionActionsHost id=\{item\.id\} className=\{sticky \? 'absolute z-30 -translate-x-full' : 'ml-auto'\} style=\{sticky \? \{ left: item\.x \+ \(item\.w \|\| 160\), top: item\.y - 40 \} : null\} \/>;/, 'a text box and a note');
   assert.match(canvas, /\{editingShape !== shape\.id && <SelectionActionsHost id=\{shape\.id\} divider \/>\}/, 'a text shape, beside its ladder, never while its words are typed');
@@ -149,7 +149,7 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   // pill would sit over the Focus header); on a view-only
   // board or a local copy Add to chat and Quick Edit are absent, and only Focus (presentation only, focus-study.md section 7) may
   // show - and the floating bar.
-  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| !!focus\} focusLabel=\{soleFocus\?\.label \|\| null\} onFocus=\{focusSole\} onMinimize=\{soleMinimize\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} pinned=\{[^}]*\} cut=\{barCut\} onAddToChat=\{readOnly \|\| localCopy \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly && !localCopy \? quickEdit : null\}>/);
+  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| !!focus\} focusLabel=\{null\} onFocus=\{focusSole\} onMinimize=\{soleMinimize\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} pinned=\{[^}]*\} cut=\{barCut\} onAddToChat=\{readOnly \|\| localCopy \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly && !localCopy \? quickEdit : null\}>/);
   assert.match(canvas, /<SelectionActionBar anchor=\{barAnchor\} box=\{barBox\} \/>/);
   // Add to chat: one object is its card chip, asked (its answer lands as a card linked to it); a dropped image is shown to the tutor
   // too; a group, several objects or a shape are ONE chip with their ids and a text read at send; the draft is untouched, nothing is sent.

@@ -11,6 +11,7 @@ import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { cardLink } from './canvas-refs-model.js';
 import { moveTargets } from './toc-move.js';
 import { ancestorsOf, linkedCards } from './toc-links.js';
+import { cardIconOf, cardLabelOf } from './card-icons.js';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
 import { nameKey } from './unique-title.js';
@@ -147,7 +148,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
         onDrop={event => { event.preventDefault(); event.stopPropagation(); if (drag && drop !== undefined) canvasApi.current?.moveSection(drag, drop); endDrag(); }}
         className={`group relative flex items-start gap-3 rounded-sm transition-colors duration-700 motion-reduce:transition-none ${flashed === entry.id ? 'bg-accent/15 ring-1 ring-accent/40' : ''} ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
         {!readOnly && !entry.roadmap && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
-        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => (entry.roadmap ? toggleRoadmapDone(entry.roadmap.stepId) : canvasApi.current?.toggleSectionDone(entry.id))} />
+        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly || !!entry.roadmap?.section} onToggle={() => (entry.roadmap ? toggleRoadmapDone(entry.roadmap.stepId) : canvasApi.current?.toggleSectionDone(entry.id))} />
         {number && <span data-toc-number className={`${topic ? 'min-w-[18px] pt-[3px] text-xs' : `${entry.level === 3 ? 'min-w-12' : 'min-w-9'} pt-px text-[13px]`} -mr-1 shrink-0 leading-5 text-ink-2 tabular-nums`}>{number}</span>}
         {editing === entry.id ? <Editor entry={entry} topic={topic} onSave={(title, description) => save(entry, title, description)} onCancel={() => setEditing(null)} /> : (
           <div className="min-w-0 flex-1">
@@ -164,18 +165,25 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
               const all = moreLinks.has(entry.id), shown = all ? cards : cards.slice(0, 2);
               return (
                 <div data-toc-links className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  {shown.map(card => (
-                    <span key={card.id} data-toc-linked-card={card.id} className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-hover/60 py-0.5 pr-0.5 pl-1.5 text-xs text-ink hover:border-line-strong hover:bg-hover">
-                      <AddLinkIcon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-3" />
-                      <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className="max-w-44 min-w-0 truncate text-left hover:underline">{card.title}</button>
-                      {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
-                    </span>
-                  ))}
+                  {shown.map(card => {
+                    // One button per chip (owner 2026-11-17 15:40): the card type's icon, its type in words, its title. The unlink X only where the contents are editable.
+                    const Icon = cardIconOf({ type: card.type }), label = cardLabelOf(card.type, card.role);
+                    return (
+                      <span key={card.id} data-toc-linked-card={card.id} className="group/chip inline-flex max-w-full min-w-0 items-center rounded-md border border-line bg-hover/60 text-xs text-ink hover:border-line-strong hover:bg-hover">
+                        <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className={`inline-flex min-w-0 items-center gap-1 rounded-md py-0.5 pl-1.5 text-left ${readOnly ? 'pr-1.5' : 'pr-0.5'}`}>
+                          <Icon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-2" />
+                          {label && <span data-toc-card-type className="shrink-0 text-[11px] text-ink-3">{label} ·</span>}
+                          <span className="max-w-44 min-w-0 truncate group-hover/chip:underline">{card.title}</span>
+                        </button>
+                        {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="mr-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
+                      </span>
+                    );
+                  })}
                   {cards.length > 2 && <button type="button" data-toc-links-more aria-expanded={all} onClick={() => setMoreLinks(previous => { const next = new Set(previous); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next; })} className="rounded-md px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">{all ? 'Show fewer' : `+${cards.length - 2} more`}</button>}
                 </div>
               );
             })()}
-            {entry.roadmap && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
+            {entry.roadmap && !entry.roadmap.section && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
           </div>
         )}
         {editing !== entry.id && (() => {
@@ -265,6 +273,8 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
       {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 shrink-0 truncate text-xs text-ink-3">{subtitle}</p>}
       {goal && <p data-toc-goal title={goal} className="mb-4 shrink-0 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
       {top}
+      {roadmap?.canStartCourse && !readOnly && <div className="mb-3 shrink-0"><Button type="button" size="sm" variant="primary" data-toc-generate-course onClick={() => roadmap.startCourse()}>Generate course</Button></div>}
+      {roadmap?.canRetryCourse && !readOnly && <div className="mb-3 shrink-0"><Button type="button" size="sm" variant="primary" data-toc-try-again onClick={() => roadmap.retryCourse()}>Try again</Button></div>}
       {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
       {adding && (
@@ -380,6 +390,7 @@ function ProposalCard({ proposal, outline, canvasApi, onDone }) {
     const result = canvasApi.current?.applyOutline(ops, { base: proposal.base, source: proposal.source });
     if (!result?.ok) { setRefused(result?.message || 'This proposal cannot be applied.'); return; }
     if (result.skipped) toast(result.applied ? `${result.skipped} of these ${result.skipped === 1 ? 'was' : 'were'} already in the contents.` : 'Everything in this proposal is already in the contents.');
+    if (proposal.source === 'learn-plan') window.dispatchEvent(new CustomEvent('rh:learn-plan-applied')); // the Tutor's plan message takes this as Accept
     onDone();
   };
   return (

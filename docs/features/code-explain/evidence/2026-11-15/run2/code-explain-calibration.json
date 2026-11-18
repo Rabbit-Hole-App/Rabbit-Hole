@@ -1,0 +1,2755 @@
+{
+  "summary": {
+    "model": "claude-sonnet-5-5",
+    "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+    "at": "2026-11-15T23:19:37.456Z",
+    "rows": 13,
+    "passed": 5,
+    "usd": 0.5061,
+    "cross": [
+      {
+        "name": "BRIEF has the same sentence count in rows 11 and 13",
+        "ok": true
+      },
+      {
+        "name": "the suggestions differ between the three goals",
+        "ok": true
+      },
+      {
+        "name": "Standard differs between the goals (emphasis)",
+        "ok": true
+      }
+    ]
+  },
+  "results": [
+    {
+      "n": 1,
+      "question": "how does attention hide later tokens?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "Standard anchors the mask buffer line",
+          "ok": true
+        },
+        {
+          "name": "Standard anchors the masked_fill line",
+          "ok": true
+        }
+      ],
+      "review": "matches the section 5c example in structure; BRIEF symbol-free; trace at DETAILED only",
+      "inputTokens": 16844,
+      "outputTokens": 2694,
+      "usd": 0.0547,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "How attention hides later tokens",
+        "question": "how does attention hide later tokens?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "model.py",
+            "ranges": [
+              {
+                "id": "flashchk",
+                "start": 45,
+                "end": 45
+              },
+              {
+                "id": "buf",
+                "start": 49,
+                "end": 50
+              },
+              {
+                "id": "scores",
+                "start": 67,
+                "end": 67
+              },
+              {
+                "id": "flash",
+                "start": 64,
+                "end": 64
+              },
+              {
+                "id": "mask",
+                "start": 68,
+                "end": 68
+              },
+              {
+                "id": "soft",
+                "start": 69,
+                "end": 69
+              },
+              {
+                "id": "mix",
+                "start": 71,
+                "end": 71
+              }
+            ]
+          }
+        ],
+        "mentioned": [],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "Each token is only allowed to look at itself and the tokens before it. Scores for later positions are blanked out so they get zero weight.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "mask"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "Line 45 checks whether PyTorch offers a built-in fused attention function, and that decides which path hides the future. Lines 49-50 build, only on the slow path, a lower-triangular matrix of ones (`torch.tril`) sized block_size by block_size. Line 67 computes the raw score of every query against every key, giving a T by T grid per head. Line 68 slices the triangle to the current length T and uses `masked_fill` to set every score where the triangle is 0, meaning key later than query, to minus infinity. Line 69 applies softmax across the key axis, so each minus infinity becomes exactly zero weight. Line 71 then multiplies those weights by the values, so later tokens contribute nothing to a position's output. On the fast path, line 64 does the same thing by passing `is_causal=True` to `scaled_dot_product_attention`, with no mask matrix built here.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "flashchk"
+              },
+              {
+                "sentence": 1,
+                "target": "buf"
+              },
+              {
+                "sentence": 2,
+                "target": "scores"
+              },
+              {
+                "sentence": 3,
+                "target": "mask"
+              },
+              {
+                "sentence": 4,
+                "target": "soft"
+              },
+              {
+                "sentence": 5,
+                "target": "mix"
+              },
+              {
+                "sentence": 6,
+                "target": "flash"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "The slow path builds a lower-triangular matrix of ones. Line 68 compares it to 0 to find future positions. Those scores become minus infinity. Softmax turns minus infinity into zero weight. The weighted sum over values then ignores later tokens.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "buf"
+              },
+              {
+                "sentence": 1,
+                "target": "mask"
+              },
+              {
+                "sentence": 2,
+                "target": "mask"
+              },
+              {
+                "sentence": 3,
+                "target": "soft"
+              },
+              {
+                "sentence": 4,
+                "target": "mix"
+              }
+            ],
+            "trace": {
+              "input": "T = 3 on the slow path, one head",
+              "steps": [
+                "Line 67: att is a 3 by 3 grid of scores.",
+                "Line 68: the sliced triangle is rows [1,0,0], [1,1,0], [1,1,1].",
+                "Line 68: the zeros mark the three future cells, which become -inf.",
+                "Line 69: row 0 softmax gives [1,0,0].",
+                "Line 69: row 1 softmax gives weights over two tokens and 0 for the third.",
+                "Line 71: each output row is a weighted sum of value rows at or before its own position."
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "Why does the score get multiplied by 1/sqrt of the head size on line 67?",
+          "What do the two dropout layers do and where is each applied?",
+          "What happens if the sequence is longer than block_size on the slow path?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "model.py:45",
+            "model.py:49-50",
+            "model.py:67",
+            "model.py:64",
+            "model.py:68",
+            "model.py:69",
+            "model.py:71"
+          ],
+          "createdAt": "2026-11-15T23:16:36.518Z"
+        },
+        "figure": null
+      },
+      "answer": "Line 45 checks whether PyTorch offers a built-in fused attention function, and that decides which path hides the future. Lines 49-50 build, only on the slow path, a lower-triangular matrix of ones (`torch.tril`) sized block_size by block_size. Line 67 computes the raw score of every query against every key, giving a T by T grid per head. Line 68 slices the triangle to the current length T and uses `masked_fill` to set every score where the triangle is 0, meaning key later than query, to minus infinity. Line 69 applies softmax across the key axis, so each minus infinity becomes exactly zero weight. Line 71 then multiplies those weights by the values, so later tokens contribute nothing to a position's output. On the fast path, line 64 does the same thing by passing `is_causal=True` to `scaled_dot_product_attention`, with no mask matrix built here."
+    },
+    {
+      "n": 2,
+      "question": "how do my --flags end up changing train.py?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": false,
+          "detail": "77"
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "figure is null",
+          "ok": true
+        },
+        {
+          "name": "Standard anchors the exec(open(config_file)) line",
+          "ok": true
+        },
+        {
+          "name": "Standard anchors the globals() assert",
+          "ok": true
+        },
+        {
+          "name": "mentioned names train.py",
+          "ok": true
+        }
+      ],
+      "review": "BRIEF says in plain words that it rewrites the script's settings before training starts",
+      "inputTokens": 16160,
+      "outputTokens": 3038,
+      "usd": 0.0467,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "How --flags override train.py's globals",
+        "question": "how do my --flags end up changing train.py?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "configurator.py",
+            "ranges": [
+              {
+                "id": "loop",
+                "start": 20,
+                "end": 20
+              },
+              {
+                "id": "cfgfile",
+                "start": 21,
+                "end": 28
+              },
+              {
+                "id": "kv",
+                "start": 31,
+                "end": 33
+              },
+              {
+                "id": "known",
+                "start": 34,
+                "end": 34
+              },
+              {
+                "id": "parse",
+                "start": 35,
+                "end": 40
+              },
+              {
+                "id": "typechk",
+                "start": 42,
+                "end": 42
+              },
+              {
+                "id": "set",
+                "start": 44,
+                "end": 45
+              },
+              {
+                "id": "unk",
+                "start": 46,
+                "end": 47
+              },
+              {
+                "id": "doc",
+                "start": 6,
+                "end": 10
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "tr",
+            "path": "train.py",
+            "start": 77,
+            "end": 77
+          },
+          {
+            "id": "bn",
+            "path": "bench.py",
+            "start": 21,
+            "end": 21
+          },
+          {
+            "id": "sm",
+            "path": "sample.py",
+            "start": 23,
+            "end": 23
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "Your flags are read by a small script that train.py runs inside itself. It replaces the matching settings in train.py before training starts.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "doc"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "train.py runs this file with exec, so the code shares train.py's globals rather than being imported as a module. The loop visits every command-line argument after the script name. An argument with no equals sign is treated as a config file, which is printed and then exec'd, so its assignments overwrite train.py's variables. An argument with an equals sign must start with --, and is split into a key and a value with the dashes removed. The key must already exist in globals, otherwise a ValueError is raised for an unknown key. The value goes through literal_eval, so numbers and booleans become real types, and on failure it stays a string. An assert requires the new value's type to equal the existing variable's type, so a float given for an int setting fails. Finally the global is overwritten with the new value, and train.py continues with it. Which line of train.py runs the exec, and what it defines beforehand, I can only see from train.py:77, which was not shown.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "doc"
+              },
+              {
+                "sentence": 1,
+                "target": "loop"
+              },
+              {
+                "sentence": 2,
+                "target": "cfgfile"
+              },
+              {
+                "sentence": 3,
+                "target": "kv"
+              },
+              {
+                "sentence": 4,
+                "target": "unk"
+              },
+              {
+                "sentence": 5,
+                "target": "parse"
+              },
+              {
+                "sentence": 6,
+                "target": "typechk"
+              },
+              {
+                "sentence": 7,
+                "target": "set"
+              },
+              {
+                "sentence": 8,
+                "target": "tr"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "The file is exec'd inside train.py, so globals() is train.py's namespace. Each flag is checked against existing names. The value is parsed and type-checked before assignment.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "doc"
+              },
+              {
+                "sentence": 1,
+                "target": "known"
+              },
+              {
+                "sentence": 2,
+                "target": "typechk"
+              }
+            ],
+            "trace": {
+              "input": "python train.py --batch_size=32, assuming batch_size is an int in train.py",
+              "steps": [
+                "argv[1:] is ['--batch_size=32']",
+                "'=' is in the arg, so the key-value branch runs",
+                "split gives '--batch_size' and '32'; key becomes 'batch_size'",
+                "key is in globals, so literal_eval('32') returns the int 32",
+                "type(32) equals type of existing batch_size, so the assert passes",
+                "globals()['batch_size'] is set to 32"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "What does train.py define before it execs configurator.py, and which of those can I override?",
+          "What happens if a config file and a --flag set the same key?",
+          "Why does the type assert reject --learning_rate=1 when the default is a float?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "configurator.py:20",
+            "configurator.py:21-28",
+            "configurator.py:31-33",
+            "configurator.py:34",
+            "configurator.py:35-40",
+            "configurator.py:42",
+            "configurator.py:44-45",
+            "configurator.py:46-47",
+            "configurator.py:6-10",
+            "train.py:77",
+            "bench.py:21",
+            "sample.py:23"
+          ],
+          "createdAt": "2026-11-15T23:16:55.159Z"
+        },
+        "figure": null
+      },
+      "answer": "train.py runs this file with exec, so the code shares train.py's globals rather than being imported as a module. The loop visits every command-line argument after the script name. An argument with no equals sign is treated as a config file, which is printed and then exec'd, so its assignments overwrite train.py's variables. An argument with an equals sign must start with --, and is split into a key and a value with the dashes removed. The key must already exist in globals, otherwise a ValueError is raised for an unknown key. The value goes through literal_eval, so numbers and booleans become real types, and on failure it stays a string. An assert requires the new value's type to equal the existing variable's type, so a float given for an int setting fails. Finally the global is overwritten with the new value, and train.py continues with it. Which line of train.py runs the exec, and what it defines beforehand, I can only see from train.py:77, which was not shown.\n\nAlso touched: train.py:77, bench.py:21, sample.py:23."
+    },
+    {
+      "n": 3,
+      "question": "why does the output start with my --start text?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "Standard anchors the decode(y[0]) line",
+          "ok": true
+        }
+      ],
+      "review": "DETAILED trace shows the prompt tokens prepended",
+      "inputTokens": 15993,
+      "outputTokens": 2505,
+      "usd": 0.041,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "Why generated output begins with the start text",
+        "question": "why does the output start with my --start text?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "sample.py",
+            "ranges": [
+              {
+                "id": "r1",
+                "start": 77,
+                "end": 80
+              },
+              {
+                "id": "r2",
+                "start": 81,
+                "end": 81
+              },
+              {
+                "id": "r3",
+                "start": 87,
+                "end": 88
+              },
+              {
+                "id": "r4",
+                "start": 66,
+                "end": 74
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "m1",
+            "path": "model.py",
+            "start": 1,
+            "end": 1
+          },
+          {
+            "id": "x1",
+            "path": "config/eval_gpt2.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x2",
+            "path": "config/eval_gpt2_large.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x3",
+            "path": "config/eval_gpt2_medium.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x4",
+            "path": "data/shakespeare_char/prepare.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x5",
+            "path": "train.py",
+            "start": 138,
+            "end": 138
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "Your start text is fed to the model as the beginning of the sequence, and the model only adds more after it. The whole sequence, prompt included, is then printed.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "r2"
+              },
+              {
+                "sentence": 1,
+                "target": "r3"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "If start begins with FILE:, the text is read from that file instead. Then start is turned into token ids by encode. Those ids become a tensor x, the prompt. The encoder is either character-level from meta.pkl or GPT-2 BPE, chosen above. Next, generate is called with x as its starting context. The sequence it returns is x with the new tokens appended, not only the new tokens. This line prints decode of that whole row, so your prompt shows up first. The body of generate lives in model.py, which I cannot see here, so the append behaviour is inferred from the printed result; I would need model.py's generate to confirm it.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "r1"
+              },
+              {
+                "sentence": 1,
+                "target": "r1"
+              },
+              {
+                "sentence": 2,
+                "target": "r2"
+              },
+              {
+                "sentence": 3,
+                "target": "r4"
+              },
+              {
+                "sentence": 4,
+                "target": "r3"
+              },
+              {
+                "sentence": 5,
+                "target": "r3"
+              },
+              {
+                "sentence": 6,
+                "target": "r3"
+              },
+              {
+                "sentence": 7,
+                "target": "m1"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "Your start string is encoded at this line. The ids are wrapped into a batch of one row. That row is passed to generate. Generate returns a row that, judging by the printed output, still contains the prompt. Line 88 decodes the entire row, so the prompt is printed first. If you wanted only the new text, you would have to slice off the first len(start_ids) tokens, which this code does not do.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "r1"
+              },
+              {
+                "sentence": 1,
+                "target": "r2"
+              },
+              {
+                "sentence": 2,
+                "target": "r3"
+              },
+              {
+                "sentence": 4,
+                "target": "r3"
+              }
+            ],
+            "trace": {
+              "input": "start = 'Hi' with a character-level meta.pkl",
+              "steps": [
+                "encode('Hi') gives [stoi['H'], stoi['i']], two ids",
+                "x has shape [1, 2]",
+                "generate(x, max_new_tokens, ...) returns y of shape [1, 2 + new tokens]",
+                "y[0].tolist() is one list of ids, the prompt ids first",
+                "decode joins itos for each id, so the text starts with 'Hi'"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "How does generate in model.py append each new token to the context?",
+          "How does prepare.py in shakespeare_char create the meta.pkl that sample.py loads?",
+          "What happens if start contains a character that is not in stoi?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "sample.py:77-80",
+            "sample.py:81",
+            "sample.py:87-88",
+            "sample.py:66-74",
+            "model.py:1",
+            "config/eval_gpt2.py:8",
+            "config/eval_gpt2_large.py:8",
+            "config/eval_gpt2_medium.py:8",
+            "data/shakespeare_char/prepare.py:4",
+            "train.py:138"
+          ],
+          "createdAt": "2026-11-15T23:17:11.668Z"
+        },
+        "figure": null
+      },
+      "answer": "If start begins with FILE:, the text is read from that file instead. Then start is turned into token ids by encode. Those ids become a tensor x, the prompt. The encoder is either character-level from meta.pkl or GPT-2 BPE, chosen above. Next, generate is called with x as its starting context. The sequence it returns is x with the new tokens appended, not only the new tokens. This line prints decode of that whole row, so your prompt shows up first. The body of generate lives in model.py, which I cannot see here, so the append behaviour is inferred from the printed result; I would need model.py's generate to confirm it.\n\nAlso touched: model.py:1, config/eval_gpt2.py:8, config/eval_gpt2_large.py:8, config/eval_gpt2_medium.py:8, data/shakespeare_char/prepare.py:4, train.py:138."
+    },
+    {
+      "n": 4,
+      "question": "what does meta.pkl contain and who reads it?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": false,
+          "detail": "138"
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "figure is null",
+          "ok": true
+        },
+        {
+          "name": "mentioned names sample.py",
+          "ok": true
+        },
+        {
+          "name": "no keys beyond vocab_size, itos, stoi",
+          "ok": true
+        }
+      ],
+      "review": "mentioned holds sample.py's meta load line; no invented keys",
+      "inputTokens": 17600,
+      "outputTokens": 2941,
+      "usd": 0.0486,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "What meta.pkl holds and who loads it",
+        "question": "what does meta.pkl contain and who reads it?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "data/shakespeare_char/prepare.py",
+            "ranges": [
+              {
+                "id": "chars",
+                "start": 24,
+                "end": 27
+              },
+              {
+                "id": "maps",
+                "start": 30,
+                "end": 31
+              },
+              {
+                "id": "meta",
+                "start": 55,
+                "end": 61
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "samp",
+            "path": "sample.py",
+            "start": 59,
+            "end": 59
+          },
+          {
+            "id": "train",
+            "path": "train.py",
+            "start": 138,
+            "end": 138
+          },
+          {
+            "id": "x1",
+            "path": "data/shakespeare/prepare.py",
+            "start": 7,
+            "end": 7
+          },
+          {
+            "id": "x2",
+            "path": "bench.py",
+            "start": 36,
+            "end": 36
+          },
+          {
+            "id": "x3",
+            "path": "data/openwebtext/prepare.py",
+            "start": 76,
+            "end": 76
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "It stores the character-to-number tables that turn text into model inputs and back. Training and sampling scripts load it so they use the same mapping.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "meta"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "The script first collects the sorted unique characters and counts them as vocab_size. It then builds stoi, a map from character to integer, and itos, the reverse map. Lines 55-59 put vocab_size, itos and stoi into a dict called meta. Lines 60-61 pickle that dict to meta.pkl beside the script. The file does not hold the encode and decode functions, only the two dicts and the size. The relationships name sample.py:59 and train.py:138 as mentioning meta.pkl. I cannot see those lines, so I would need sample.py and train.py to say what they do with it.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "chars"
+              },
+              {
+                "sentence": 1,
+                "target": "maps"
+              },
+              {
+                "sentence": 2,
+                "target": "meta"
+              },
+              {
+                "sentence": 3,
+                "target": "meta"
+              },
+              {
+                "sentence": 5,
+                "target": "samp"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "The script first collects the sorted unique characters and counts them as vocab_size. It then builds stoi and itos from that list. The meta dict holds exactly three keys: vocab_size, itos and stoi. It is written with pickle in binary mode next to the script. The docstring says it holds the encoder and decoder, but the code stores only the dicts, not the functions. Saving the mapping lets later code encode and decode with the same character order. The comment at the end records a vocab size of 65 for this dataset. Readers named by the graph are sample.py:59 and train.py:138; I cannot see their code, so how they use it is unconfirmed.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "chars"
+              },
+              {
+                "sentence": 1,
+                "target": "maps"
+              },
+              {
+                "sentence": 2,
+                "target": "meta"
+              },
+              {
+                "sentence": 3,
+                "target": "meta"
+              },
+              {
+                "sentence": 7,
+                "target": "samp"
+              }
+            ],
+            "trace": {
+              "input": "A text whose unique characters are 'a','b'",
+              "steps": [
+                "chars = ['a','b'], vocab_size = 2",
+                "stoi = {'a':0,'b':1}",
+                "itos = {0:'a',1:'b'}",
+                "meta = {'vocab_size':2,'itos':...,'stoi':...}",
+                "pickle.dump writes it to meta.pkl"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "What do sample.py and train.py do after they load meta.pkl?",
+          "Why is the data saved as uint16 in train.bin?",
+          "What happens if the text has a character not in stoi?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "data/shakespeare_char/prepare.py:24-27",
+            "data/shakespeare_char/prepare.py:30-31",
+            "data/shakespeare_char/prepare.py:55-61",
+            "sample.py:59",
+            "train.py:138",
+            "data/shakespeare/prepare.py:7",
+            "bench.py:36",
+            "data/openwebtext/prepare.py:76"
+          ],
+          "createdAt": "2026-11-15T23:17:30.183Z"
+        },
+        "figure": null
+      },
+      "answer": "The script first collects the sorted unique characters and counts them as vocab_size. It then builds stoi, a map from character to integer, and itos, the reverse map. Lines 55-59 put vocab_size, itos and stoi into a dict called meta. Lines 60-61 pickle that dict to meta.pkl beside the script. The file does not hold the encode and decode functions, only the two dicts and the size. The relationships name sample.py:59 and train.py:138 as mentioning meta.pkl. I cannot see those lines, so I would need sample.py and train.py to say what they do with it.\n\nAlso touched: sample.py:59, train.py:138, data/shakespeare/prepare.py:7, bench.py:36, data/openwebtext/prepare.py:76."
+    },
+    {
+      "n": 5,
+      "question": "when is ckpt.pt written?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "Standard states the improvement condition",
+          "ok": true
+        },
+        {
+          "name": "Standard states the iter_num > 0 condition",
+          "ok": true
+        },
+        {
+          "name": "mentioned cites the config (eval_interval)",
+          "ok": true
+        }
+      ],
+      "review": "both conditions from the code; first possible save at step 250 with the config's eval_interval",
+      "inputTokens": 16188,
+      "outputTokens": 2925,
+      "usd": 0.0456,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "When train.py writes ckpt.pt",
+        "question": "when is ckpt.pt written?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "train.py",
+            "ranges": [
+              {
+                "id": "gate",
+                "start": 263,
+                "end": 263
+              },
+              {
+                "id": "cond",
+                "start": 274,
+                "end": 275
+              },
+              {
+                "id": "skip0",
+                "start": 276,
+                "end": 276
+              },
+              {
+                "id": "ckpt",
+                "start": 277,
+                "end": 284
+              },
+              {
+                "id": "save",
+                "start": 285,
+                "end": 286
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "m1",
+            "path": "config/train_shakespeare_char.py",
+            "start": 10,
+            "end": 10
+          },
+          {
+            "id": "m2",
+            "path": "config/finetune_shakespeare.py",
+            "start": 14,
+            "end": 14
+          },
+          {
+            "id": "m3",
+            "path": "sample.py",
+            "start": 37,
+            "end": 37
+          },
+          {
+            "id": "m4",
+            "path": "config/train_gpt2.py",
+            "start": 20,
+            "end": 20
+          },
+          {
+            "id": "x1",
+            "path": "config/eval_gpt2.py",
+            "start": 7,
+            "end": 7
+          },
+          {
+            "id": "x2",
+            "path": "config/eval_gpt2_large.py",
+            "start": 7,
+            "end": 7
+          },
+          {
+            "id": "x3",
+            "path": "config/eval_gpt2_medium.py",
+            "start": 7,
+            "end": 7
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "The checkpoint is saved during training, each time the program evaluates the model, but only if the model improved or saving is forced. It never saves on the very first evaluation.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "cond"
+              },
+              {
+                "sentence": 1,
+                "target": "skip0"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "The save sits inside the evaluation block, which runs only when iter_num is a multiple of eval_interval and on the master process. Each time, estimate_loss runs and the losses are printed. The save happens if the validation loss beats best_val_loss, or if always_save_checkpoint is set. Then best_val_loss is updated to the new value. The inner check skips saving when iter_num is 0, so the first evaluation before training never writes a file. A checkpoint dict is then built with the model weights, optimizer state, model_args, iter_num, best_val_loss and config. Finally torch.save writes it to ckpt.pt inside out_dir. Each save overwrites the previous file. The values of eval_interval, always_save_checkpoint and out_dir come from config files, which I cannot see here, so I cannot say what they are by default.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "gate"
+              },
+              {
+                "sentence": 2,
+                "target": "cond"
+              },
+              {
+                "sentence": 4,
+                "target": "skip0"
+              },
+              {
+                "sentence": 5,
+                "target": "ckpt"
+              },
+              {
+                "sentence": 6,
+                "target": "save"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "The save is gated three times. Line 263 requires an eval step on the master process. Line 274 requires a better validation loss or always_save_checkpoint. Line 276 requires iter_num above 0. Passing all three builds the dict and writes ckpt.pt in out_dir.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "gate"
+              },
+              {
+                "sentence": 2,
+                "target": "cond"
+              },
+              {
+                "sentence": 3,
+                "target": "skip0"
+              },
+              {
+                "sentence": 4,
+                "target": "save"
+              }
+            ],
+            "trace": {
+              "input": "An eval step with always_save_checkpoint False, best_val_loss 1.5 and a new val loss 1.4",
+              "steps": [
+                "Line 263: iter_num is a multiple of eval_interval, so the block runs.",
+                "Line 264: estimate_loss returns the losses.",
+                "Line 274: 1.4 < 1.5, so the condition is true.",
+                "Line 275: best_val_loss becomes 1.4.",
+                "Line 276: iter_num > 0, so the save proceeds.",
+                "Lines 277-284: the checkpoint dict is built.",
+                "Line 286: torch.save writes out_dir/ckpt.pt."
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "What does sample.py do with ckpt.pt when it loads it?",
+          "How does train.py resume from ckpt.pt?",
+          "What happens if always_save_checkpoint is True and validation loss gets worse?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "train.py:263",
+            "train.py:274-275",
+            "train.py:276",
+            "train.py:277-284",
+            "train.py:285-286",
+            "config/train_shakespeare_char.py:10",
+            "config/finetune_shakespeare.py:14",
+            "sample.py:37",
+            "config/train_gpt2.py:20",
+            "config/eval_gpt2.py:7",
+            "config/eval_gpt2_large.py:7",
+            "config/eval_gpt2_medium.py:7"
+          ],
+          "createdAt": "2026-11-15T23:17:49.481Z"
+        },
+        "figure": null
+      },
+      "answer": "The save sits inside the evaluation block, which runs only when iter_num is a multiple of eval_interval and on the master process. Each time, estimate_loss runs and the losses are printed. The save happens if the validation loss beats best_val_loss, or if always_save_checkpoint is set. Then best_val_loss is updated to the new value. The inner check skips saving when iter_num is 0, so the first evaluation before training never writes a file. A checkpoint dict is then built with the model weights, optimizer state, model_args, iter_num, best_val_loss and config. Finally torch.save writes it to ckpt.pt inside out_dir. Each save overwrites the previous file. The values of eval_interval, always_save_checkpoint and out_dir come from config files, which I cannot see here, so I cannot say what they are by default.\n\nAlso touched: config/train_shakespeare_char.py:10, config/finetune_shakespeare.py:14, sample.py:37, config/train_gpt2.py:20, config/eval_gpt2.py:7, config/eval_gpt2_large.py:7, config/eval_gpt2_medium.py:7."
+    },
+    {
+      "n": 6,
+      "question": "why are the embedding and output weights the same?",
+      "use": null,
+      "pass": true,
+      "valid": true,
+      "firstTry": true,
+      "attempts": 1,
+      "firstTryErrors": [],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": true
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "names the weight tying",
+          "ok": true
+        },
+        {
+          "name": "no external paper claims",
+          "ok": true
+        }
+      ],
+      "review": "DETAILED gives the stated reason only if the code's comment says it",
+      "inputTokens": 7217,
+      "outputTokens": 1343,
+      "usd": 0.0199,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "Why the embedding and output weights are tied",
+        "question": "why are the embedding and output weights the same?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "model.py",
+            "ranges": [
+              {
+                "id": "wte",
+                "start": 127,
+                "end": 127
+              },
+              {
+                "id": "head",
+                "start": 133,
+                "end": 133
+              },
+              {
+                "id": "warn",
+                "start": 134,
+                "end": 137
+              },
+              {
+                "id": "tie",
+                "start": 138,
+                "end": 138
+              },
+              {
+                "id": "init",
+                "start": 141,
+                "end": 145
+              },
+              {
+                "id": "count",
+                "start": 148,
+                "end": 148
+              }
+            ]
+          }
+        ],
+        "mentioned": [],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "The model reuses one table of numbers for both reading tokens in and predicting tokens out. This is called weight tying, and it saves parameters.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "tie"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "The input embedding `wte` is an `nn.Embedding` of shape vocab_size by n_embd. The output layer `lm_head` is an `nn.Linear` from n_embd to vocab_size with no bias, so its weight has the same shape. Because the shapes match, line 138 assigns `lm_head.weight` to `wte.weight`, making both modules share one parameter tensor. The comment on that line points to a weight-tying reference, but the code does not state a reason itself. The usual motivation is fewer parameters and one shared token representation; that is general background, not something this file says. The comment at lines 134-137 says tying triggers a torch.compile warning the author thinks is harmless and has not investigated. Line 141 then applies the init once, and the shared tensor is only one parameter. The count printed at line 148 comes from `get_num_params`, whose body is not in these lines, so you would need to read it to see whether it subtracts the tied weights.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "wte"
+              },
+              {
+                "sentence": 1,
+                "target": "head"
+              },
+              {
+                "sentence": 2,
+                "target": "tie"
+              },
+              {
+                "sentence": 3,
+                "target": "tie"
+              },
+              {
+                "sentence": 5,
+                "target": "warn"
+              },
+              {
+                "sentence": 6,
+                "target": "init"
+              },
+              {
+                "sentence": 7,
+                "target": "count"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "The input embedding `wte` is an `nn.Embedding` of shape vocab_size by n_embd. The output layer `lm_head` has no bias and the same shape. Line 138 makes both point to one tensor.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "wte"
+              },
+              {
+                "sentence": 1,
+                "target": "head"
+              },
+              {
+                "sentence": 2,
+                "target": "tie"
+              }
+            ],
+            "trace": {
+              "input": "Tie the two weights at construction",
+              "steps": [
+                "Line 127 creates wte.weight with shape (vocab_size, n_embd).",
+                "Line 133 creates lm_head.weight with shape (vocab_size, n_embd).",
+                "Line 138 rebinds wte.weight to lm_head.weight, so one tensor remains."
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "What does get_num_params do about the tied weight?",
+          "How does the forward pass use wte and lm_head on the same tensor?",
+          "What would change if line 138 were removed?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "model.py:127",
+            "model.py:133",
+            "model.py:134-137",
+            "model.py:138",
+            "model.py:141-145",
+            "model.py:148"
+          ],
+          "createdAt": "2026-11-15T23:18:00.263Z"
+        },
+        "figure": null
+      },
+      "answer": "The input embedding `wte` is an `nn.Embedding` of shape vocab_size by n_embd. The output layer `lm_head` is an `nn.Linear` from n_embd to vocab_size with no bias, so its weight has the same shape. Because the shapes match, line 138 assigns `lm_head.weight` to `wte.weight`, making both modules share one parameter tensor. The comment on that line points to a weight-tying reference, but the code does not state a reason itself. The usual motivation is fewer parameters and one shared token representation; that is general background, not something this file says. The comment at lines 134-137 says tying triggers a torch.compile warning the author thinks is harmless and has not investigated. Line 141 then applies the init once, and the shared tensor is only one parameter. The count printed at line 148 comes from `get_num_params`, whose body is not in these lines, so you would need to read it to see whether it subtracts the tied weights."
+    },
+    {
+      "n": 7,
+      "question": "how does the learning rate change over training?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "Standard anchors three places",
+          "ok": true,
+          "detail": "7"
+        },
+        {
+          "name": "mentioned cites the config",
+          "ok": true
+        }
+      ],
+      "review": "three phases in run order; the trace uses the config's numbers",
+      "inputTokens": 16140,
+      "outputTokens": 3508,
+      "usd": 0.0513,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "How the learning rate warms up, then decays",
+        "question": "how does the learning rate change over training?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "train.py",
+            "ranges": [
+              {
+                "id": "warm",
+                "start": 233,
+                "end": 234
+              },
+              {
+                "id": "floor",
+                "start": 236,
+                "end": 237
+              },
+              {
+                "id": "ratio",
+                "start": 239,
+                "end": 240
+              },
+              {
+                "id": "cos",
+                "start": 241,
+                "end": 242
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "m1",
+            "path": "config/train_shakespeare_char.py",
+            "start": 27,
+            "end": 33
+          },
+          {
+            "id": "m2",
+            "path": "config/train_gpt2.py",
+            "start": 17,
+            "end": 17
+          },
+          {
+            "id": "m3",
+            "path": "config/finetune_shakespeare.py",
+            "start": 24,
+            "end": 24
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "The learning rate ramps up from near zero, then smoothly falls along a curve to a small floor. After that it stays at the floor.",
+            "anchors": []
+          },
+          "standard": {
+            "prose": "get_lr takes the step number it and returns the learning rate for that step. For the first warmup_iters steps, it returns a straight-line ramp, learning_rate * (it + 1) / (warmup_iters + 1). Once it passes lr_decay_iters, it returns the constant min_lr. Between the two, decay_ratio measures how far you are through the decay phase, from 0 to 1. The assert guards that this ratio stays in range. coeff = 0.5 * (1 + cos(pi * decay_ratio)) slides from 1 down to 0 along a cosine curve. The result min_lr + coeff * (learning_rate - min_lr) therefore starts at learning_rate and ends at min_lr. The actual values of warmup_iters, learning_rate, lr_decay_iters and min_lr are set in config files such as config/train_shakespeare_char.py, not here.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "warm"
+              },
+              {
+                "sentence": 2,
+                "target": "floor"
+              },
+              {
+                "sentence": 3,
+                "target": "ratio"
+              },
+              {
+                "sentence": 4,
+                "target": "ratio"
+              },
+              {
+                "sentence": 5,
+                "target": "cos"
+              },
+              {
+                "sentence": 6,
+                "target": "cos"
+              },
+              {
+                "sentence": 7,
+                "target": "m1"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "get_lr returns a learning rate for step it in three phases. Warmup runs while it is below warmup_iters. The +1 in numerator and denominator means step 0 gets a nonzero rate. Past lr_decay_iters the rate is pinned at min_lr. In between, decay_ratio is the fraction of the decay span completed. The cosine coefficient is 1 at ratio 0 and 0 at ratio 1, so the curve is flat at both ends and steepest in the middle. If lr_decay_iters were less than warmup_iters, the ratio would go out of range and the assert would fail.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "warm"
+              },
+              {
+                "sentence": 2,
+                "target": "warm"
+              },
+              {
+                "sentence": 3,
+                "target": "floor"
+              },
+              {
+                "sentence": 4,
+                "target": "ratio"
+              },
+              {
+                "sentence": 5,
+                "target": "cos"
+              },
+              {
+                "sentence": 6,
+                "target": "ratio"
+              }
+            ],
+            "trace": {
+              "input": "warmup_iters = 2, lr_decay_iters = 4, learning_rate = 1, min_lr = 0 (made-up small values)",
+              "steps": [
+                "it=0: 1*(1)/(3) = 0.333",
+                "it=1: 2/3 = 0.667",
+                "it=2: decay_ratio = 0/2 = 0, coeff = 1, lr = 1",
+                "it=3: decay_ratio = 0.5, coeff = 0.5, lr = 0.5",
+                "it=4: decay_ratio = 1, coeff = 0, lr = 0",
+                "it=5: above lr_decay_iters, returns min_lr = 0"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "Where is get_lr called in the training loop?",
+          "Why do the configs set lr_decay_iters close to max_iters?",
+          "What happens if decay_lr is turned off?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "train.py:233-234",
+            "train.py:236-237",
+            "train.py:239-240",
+            "train.py:241-242",
+            "config/train_shakespeare_char.py:27-33",
+            "config/train_gpt2.py:17",
+            "config/finetune_shakespeare.py:24"
+          ],
+          "createdAt": "2026-11-15T23:18:21.053Z"
+        },
+        "figure": null
+      },
+      "answer": "get_lr takes the step number it and returns the learning rate for that step. For the first warmup_iters steps, it returns a straight-line ramp, learning_rate * (it + 1) / (warmup_iters + 1). Once it passes lr_decay_iters, it returns the constant min_lr. Between the two, decay_ratio measures how far you are through the decay phase, from 0 to 1. The assert guards that this ratio stays in range. coeff = 0.5 * (1 + cos(pi * decay_ratio)) slides from 1 down to 0 along a cosine curve. The result min_lr + coeff * (learning_rate - min_lr) therefore starts at learning_rate and ends at min_lr. The actual values of warmup_iters, learning_rate, lr_decay_iters and min_lr are set in config files such as config/train_shakespeare_char.py, not here.\n\nAlso touched: config/train_shakespeare_char.py:27-33, config/train_gpt2.py:17, config/finetune_shakespeare.py:24."
+    },
+    {
+      "n": 8,
+      "question": "can the model see the future?",
+      "use": null,
+      "pass": false,
+      "valid": false,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": "The explanation did not validate after one retry: depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic",
+      "checks": [
+        {
+          "name": "valid",
+          "ok": false,
+          "detail": "no card"
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        }
+      ],
+      "review": "the correction is the right one: a position sees only earlier ones",
+      "inputTokens": 16955,
+      "outputTokens": 2897,
+      "usd": 0.0469,
+      "figure": null,
+      "card": null,
+      "answer": "No, in this attention layer every token is blocked from reading later tokens. The queries, keys and values are computed for all positions at once. Lines 56-59 split them into heads. If PyTorch has `scaled_dot_product_attention`, line 45 sets `self.flash` to true. Then line 64 calls it with `is_causal=True`, which applies the causal restriction inside the kernel. Otherwise lines 49-50 build a lower-triangular matrix of ones with `torch.tril` as a buffer. The fallback path computes the score matrix on line 67. Line 68 then fills every score where the triangle is 0 (the future positions) with minus infinity. The softmax on line 69 turns those minus-infinity scores into zero weight. Line 71 then mixes the values using those weights, so future values contribute nothing. The mask is sliced to `:T,:T` on line 68, so shorter sequences work too. Whether the flash kernel masks correctly is PyTorch's code, which is not in this file."
+    },
+    {
+      "n": 9,
+      "question": "how fast is this on my GPU?",
+      "use": null,
+      "pass": true,
+      "valid": true,
+      "firstTry": true,
+      "attempts": 1,
+      "firstTryErrors": [],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": true
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "figure is null",
+          "ok": true
+        },
+        {
+          "name": "the last Standard sentence names a file or line it would need",
+          "ok": true,
+          "detail": "How estimate_mfu computes peak throughput is in model.py, which I can't see here."
+        },
+        {
+          "name": "no invented throughput",
+          "ok": true
+        }
+      ],
+      "review": "STANDARD ends with one sentence saying the code cannot answer, and what it would need",
+      "inputTokens": 9123,
+      "outputTokens": 1305,
+      "usd": 0.0233,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "How bench.py measures speed on your GPU",
+        "question": "how fast is this on my GPU?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "bench.py",
+            "ranges": [
+              {
+                "id": "cfg",
+                "start": 12,
+                "end": 19
+              },
+              {
+                "id": "model",
+                "start": 51,
+                "end": 64
+              },
+              {
+                "id": "loop",
+                "start": 99,
+                "end": 115
+              },
+              {
+                "id": "report",
+                "start": 116,
+                "end": 117
+              },
+              {
+                "id": "prof",
+                "start": 72,
+                "end": 81
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "mdl",
+            "path": "model.py",
+            "start": 1,
+            "end": 1
+          },
+          {
+            "id": "cfgr",
+            "path": "configurator.py",
+            "start": 1,
+            "end": 1
+          },
+          {
+            "id": "x1",
+            "path": "config/eval_gpt2.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x2",
+            "path": "config/eval_gpt2_large.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x3",
+            "path": "config/eval_gpt2_medium.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x4",
+            "path": "config/train_gpt2.py",
+            "start": 12,
+            "end": 12
+          },
+          {
+            "id": "x5",
+            "path": "config/train_shakespeare_char.py",
+            "start": 19,
+            "end": 19
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "This script is how you find out: it trains a GPT-2-sized model for a few steps on your GPU and prints the time per step. I can't run it here, so I can't give you a number.",
+            "anchors": []
+          },
+          "standard": {
+            "prose": "I can't run this on your GPU, so I can't give you a number; the script measures it for you. The settings fix the workload: batch of 12, context of 1024, bfloat16 if your GPU supports it, and compilation on. The model is a 12-layer, 12-head, 768-wide GPT. The timing loop first calls a synchronize so earlier GPU work doesn't leak into the clock. It runs two stages of 10 and 20 steps, and the first is burn-in so compile and warm-up costs are excluded. Each step does a forward pass, a backward pass and an optimizer step, then reads the loss with item(). After each stage it synchronizes again so the clock covers the GPU's real work, then computes dt. It asks the model's estimate_mfu for the fraction of peak GPU throughput used. Only the second stage prints time per iteration in milliseconds and MFU as a percent. If you set profile, the profiler path runs instead and writes traces for TensorBoard, with no timing line. To run the benchmark, use python bench.py, with any overrides read by configurator.py. How estimate_mfu computes peak throughput is in model.py, which I can't see here.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "cfg"
+              },
+              {
+                "sentence": 2,
+                "target": "model"
+              },
+              {
+                "sentence": 3,
+                "target": "loop"
+              },
+              {
+                "sentence": 4,
+                "target": "loop"
+              },
+              {
+                "sentence": 5,
+                "target": "loop"
+              },
+              {
+                "sentence": 6,
+                "target": "loop"
+              },
+              {
+                "sentence": 7,
+                "target": "loop"
+              },
+              {
+                "sentence": 8,
+                "target": "report"
+              },
+              {
+                "sentence": 9,
+                "target": "prof"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "Not used.",
+            "anchors": [],
+            "trace": {
+              "input": "n/a",
+              "steps": [
+                "n/a"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "How does estimate_mfu turn step time into a percentage of GPU peak?",
+          "What does configurator.py let me override when I run bench.py?",
+          "What changes in the timing if I set compile to False?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "bench.py:12-19",
+            "bench.py:51-64",
+            "bench.py:99-115",
+            "bench.py:116-117",
+            "bench.py:72-81",
+            "model.py:1",
+            "configurator.py:1",
+            "config/eval_gpt2.py:4",
+            "config/eval_gpt2_large.py:4",
+            "config/eval_gpt2_medium.py:4",
+            "config/train_gpt2.py:12",
+            "config/train_shakespeare_char.py:19"
+          ],
+          "createdAt": "2026-11-15T23:18:48.402Z"
+        },
+        "figure": null
+      },
+      "answer": "I can't run this on your GPU, so I can't give you a number; the script measures it for you. The settings fix the workload: batch of 12, context of 1024, bfloat16 if your GPU supports it, and compilation on. The model is a 12-layer, 12-head, 768-wide GPT. The timing loop first calls a synchronize so earlier GPU work doesn't leak into the clock. It runs two stages of 10 and 20 steps, and the first is burn-in so compile and warm-up costs are excluded. Each step does a forward pass, a backward pass and an optimizer step, then reads the loss with item(). After each stage it synchronizes again so the clock covers the GPU's real work, then computes dt. It asks the model's estimate_mfu for the fraction of peak GPU throughput used. Only the second stage prints time per iteration in milliseconds and MFU as a percent. If you set profile, the profiler path runs instead and writes traces for TensorBoard, with no timing line. To run the benchmark, use python bench.py, with any overrides read by configurator.py. How estimate_mfu computes peak throughput is in model.py, which I can't see here.\n\nAlso touched: model.py:1, configurator.py:1, config/eval_gpt2.py:4, config/eval_gpt2_large.py:4, config/eval_gpt2_medium.py:4, config/train_gpt2.py:12, config/train_shakespeare_char.py:19."
+    },
+    {
+      "n": 10,
+      "question": "what does compile do here?",
+      "use": null,
+      "pass": true,
+      "valid": true,
+      "firstTry": true,
+      "attempts": 1,
+      "firstTryErrors": [],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": true
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "mentioned names train.py",
+          "ok": true
+        }
+      ],
+      "review": "names the compile line elsewhere; describes no behaviour it was not shown",
+      "inputTokens": 7022,
+      "outputTokens": 932,
+      "usd": 0.0154,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "No compile call in model.py lines 1-27",
+        "question": "what does compile do here?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "model.py",
+            "ranges": [
+              {
+                "id": "imp",
+                "start": 10,
+                "end": 16
+              },
+              {
+                "id": "ln",
+                "start": 18,
+                "end": 27
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "tr",
+            "path": "train.py",
+            "start": 1,
+            "end": 1
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "Nothing in these lines compiles anything. They only import libraries and define a small normalization layer.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "ln"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "These lines contain no compile call, so there is nothing to explain about it here. The imports pull in math, inspect, dataclass, torch and its functional helpers. The LayerNorm class is a module with an optional bias. Its constructor creates a weight of ones. It creates a bias of zeros only when bias is true, otherwise None. The forward method calls F.layer_norm with that weight and bias and an epsilon of 1e-5. If you mean torch.compile, it would be called elsewhere, and I would need to read train.py (likely) or the rest of model.py to say what it does.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "imp"
+              },
+              {
+                "sentence": 2,
+                "target": "ln"
+              },
+              {
+                "sentence": 3,
+                "target": "ln"
+              },
+              {
+                "sentence": 4,
+                "target": "ln"
+              },
+              {
+                "sentence": 5,
+                "target": "ln"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "These lines contain no compile call.",
+            "anchors": [],
+            "trace": {
+              "input": "none",
+              "steps": [
+                "no compile in lines 1-27"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "Why does LayerNorm need its own class instead of nn.LayerNorm?",
+          "Where does train.py use torch.compile on the model?",
+          "What happens if bias is False in LayerNorm?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "model.py:10-16",
+            "model.py:18-27",
+            "train.py:1"
+          ],
+          "createdAt": "2026-11-15T23:18:55.794Z"
+        },
+        "figure": null
+      },
+      "answer": "These lines contain no compile call, so there is nothing to explain about it here. The imports pull in math, inspect, dataclass, torch and its functional helpers. The LayerNorm class is a module with an optional bias. Its constructor creates a weight of ones. It creates a bias of zeros only when bias is true, otherwise None. The forward method calls F.layer_norm with that weight and bias and an epsilon of 1e-5. If you mean torch.compile, it would be called elsewhere, and I would need to read train.py (likely) or the rest of model.py to say what it does.\n\nAlso touched: train.py:1."
+    },
+    {
+      "n": 11,
+      "question": "what do these settings do?",
+      "use": "use_codebase",
+      "pass": true,
+      "valid": true,
+      "firstTry": true,
+      "attempts": 1,
+      "firstTryErrors": [],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": true
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "Standard speaks of the output each knob changes",
+          "ok": true
+        }
+      ],
+      "review": "one suggestion is a knob to try; BRIEF has the same structure as row 13",
+      "inputTokens": 7484,
+      "outputTokens": 1644,
+      "usd": 0.0337,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "What the sample.py settings control",
+        "question": "what do these settings do?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "sample.py",
+            "ranges": [
+              {
+                "id": "src",
+                "start": 12,
+                "end": 14
+              },
+              {
+                "id": "cnt",
+                "start": 15,
+                "end": 16
+              },
+              {
+                "id": "rnd",
+                "start": 17,
+                "end": 19
+              },
+              {
+                "id": "hw",
+                "start": 20,
+                "end": 22
+              },
+              {
+                "id": "cfg",
+                "start": 23,
+                "end": 23
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "cfgpy",
+            "path": "configurator.py",
+            "start": 1,
+            "end": 1
+          },
+          {
+            "id": "ev",
+            "path": "config/eval_gpt2.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "fs",
+            "path": "config/finetune_shakespeare.py",
+            "start": 3,
+            "end": 3
+          },
+          {
+            "id": "tsc",
+            "path": "config/train_shakespeare_char.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x1",
+            "path": "config/eval_gpt2_large.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x2",
+            "path": "config/eval_gpt2_medium.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x3",
+            "path": "bench.py",
+            "start": 21,
+            "end": 21
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "These are the dials for generating text from a trained model: which model to load, what to start with, how much to write, and how adventurous the writing is. You can override each one when you run the script.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "src"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "Each of these is a plain variable that you can override on the command line, for example by typing --name=value after python sample.py. The line that makes this possible runs configurator.py, which overrides these variables from the command line or a config file. Setting init_from to 'resume' loads a checkpoint you trained from out_dir, and out_dir is ignored for any other value. Setting init_from to a gpt2 variant such as 'gpt2-xl' downloads that pretrained model instead. The start variable is the prompt text, and it defaults to a newline. You can also write start as \"FILE:prompt.txt\" to read the prompt from a file. num_samples sets how many separate texts you get, 10 by default, and max_new_tokens sets the length of each, 500 tokens by default. Lower temperature (default 0.8) gives safer, more repetitive text, and a value above 1.0 gives more random text. top_k (default 200) keeps only that many of the most likely next tokens and gives every other token zero probability. seed (1337) fixes the random draws, so changing it gives different text. device picks 'cpu' or a CUDA GPU, and on a machine without a GPU you must pass --device=cpu. dtype picks bfloat16 when the GPU supports it and float16 otherwise, and you can set 'float32' instead. compile=True asks PyTorch 2.0 to compile the model, which is faster to run but slower to start. The lines after this file's line 23 do the actual sampling, and I cannot see them, so I cannot cite how these values are used there.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "cfg"
+              },
+              {
+                "sentence": 1,
+                "target": "cfg"
+              },
+              {
+                "sentence": 2,
+                "target": "src"
+              },
+              {
+                "sentence": 3,
+                "target": "src"
+              },
+              {
+                "sentence": 4,
+                "target": "src"
+              },
+              {
+                "sentence": 5,
+                "target": "src"
+              },
+              {
+                "sentence": 6,
+                "target": "cnt"
+              },
+              {
+                "sentence": 7,
+                "target": "rnd"
+              },
+              {
+                "sentence": 8,
+                "target": "rnd"
+              },
+              {
+                "sentence": 9,
+                "target": "rnd"
+              },
+              {
+                "sentence": 10,
+                "target": "hw"
+              },
+              {
+                "sentence": 11,
+                "target": "hw"
+              },
+              {
+                "sentence": 12,
+                "target": "hw"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "Not needed.",
+            "anchors": [],
+            "trace": {
+              "input": "none",
+              "steps": [
+                "none"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "What happens if you run python sample.py --init_from=gpt2 --start=\"Hello\" --num_samples=1 --max_new_tokens=50?",
+          "How does configurator.py turn --temperature=1.0 into an override of this variable?",
+          "What changes in the output if you set --top_k=1?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "sample.py:12-14",
+            "sample.py:15-16",
+            "sample.py:17-19",
+            "sample.py:20-22",
+            "sample.py:23",
+            "configurator.py:1",
+            "config/eval_gpt2.py:8",
+            "config/finetune_shakespeare.py:3",
+            "config/train_shakespeare_char.py:4",
+            "config/eval_gpt2_large.py:8",
+            "config/eval_gpt2_medium.py:8",
+            "bench.py:21"
+          ],
+          "createdAt": "2026-11-15T23:19:07.682Z"
+        },
+        "figure": null
+      },
+      "answer": "Each of these is a plain variable that you can override on the command line, for example by typing --name=value after python sample.py. The line that makes this possible runs configurator.py, which overrides these variables from the command line or a config file. Setting init_from to 'resume' loads a checkpoint you trained from out_dir, and out_dir is ignored for any other value. Setting init_from to a gpt2 variant such as 'gpt2-xl' downloads that pretrained model instead. The start variable is the prompt text, and it defaults to a newline. You can also write start as \"FILE:prompt.txt\" to read the prompt from a file. num_samples sets how many separate texts you get, 10 by default, and max_new_tokens sets the length of each, 500 tokens by default. Lower temperature (default 0.8) gives safer, more repetitive text, and a value above 1.0 gives more random text. top_k (default 200) keeps only that many of the most likely next tokens and gives every other token zero probability. seed (1337) fixes the random draws, so changing it gives different text. device picks 'cpu' or a CUDA GPU, and on a machine without a GPU you must pass --device=cpu. dtype picks bfloat16 when the GPU supports it and float16 otherwise, and you can set 'float32' instead. compile=True asks PyTorch 2.0 to compile the model, which is faster to run but slower to start. The lines after this file's line 23 do the actual sampling, and I cannot see them, so I cannot cite how these values are used there.\n\nAlso touched: configurator.py:1, config/eval_gpt2.py:8, config/finetune_shakespeare.py:3, config/train_shakespeare_char.py:4, config/eval_gpt2_large.py:8, config/eval_gpt2_medium.py:8, bench.py:21."
+    },
+    {
+      "n": 12,
+      "question": "what do these settings do?",
+      "use": "debug_behavior",
+      "pass": true,
+      "valid": true,
+      "firstTry": true,
+      "attempts": 1,
+      "firstTryErrors": [],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": true
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        },
+        {
+          "name": "Standard speaks of what goes wrong with a bad value",
+          "ok": true
+        }
+      ],
+      "review": "one suggestion is a way to confirm a cause; facts identical to row 11",
+      "inputTokens": 7520,
+      "outputTokens": 1675,
+      "usd": 0.0341,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "What the sampling settings control",
+        "question": "what do these settings do?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "sample.py",
+            "ranges": [
+              {
+                "id": "init",
+                "start": 12,
+                "end": 12
+              },
+              {
+                "id": "outd",
+                "start": 13,
+                "end": 13
+              },
+              {
+                "id": "start",
+                "start": 14,
+                "end": 14
+              },
+              {
+                "id": "num",
+                "start": 15,
+                "end": 16
+              },
+              {
+                "id": "temp",
+                "start": 17,
+                "end": 17
+              },
+              {
+                "id": "topk",
+                "start": 18,
+                "end": 18
+              },
+              {
+                "id": "seed",
+                "start": 19,
+                "end": 19
+              },
+              {
+                "id": "dev",
+                "start": 20,
+                "end": 20
+              },
+              {
+                "id": "dtype",
+                "start": 21,
+                "end": 21
+              },
+              {
+                "id": "comp",
+                "start": 22,
+                "end": 22
+              },
+              {
+                "id": "cfg",
+                "start": 23,
+                "end": 23
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "m1",
+            "path": "config/eval_gpt2.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "m2",
+            "path": "config/finetune_shakespeare.py",
+            "start": 3,
+            "end": 3
+          },
+          {
+            "id": "m3",
+            "path": "configurator.py",
+            "start": 7,
+            "end": 7
+          },
+          {
+            "id": "x1",
+            "path": "config/eval_gpt2_large.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x2",
+            "path": "config/eval_gpt2_medium.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x3",
+            "path": "config/train_shakespeare_char.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x4",
+            "path": "bench.py",
+            "start": 21,
+            "end": 21
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "These are the knobs for generating text from a trained model: where the model comes from, what prompt to start with, how much to write, and how adventurous the word choices are. You can override any of them from the command line or a config file.",
+            "anchors": [
+              {
+                "sentence": 1,
+                "target": "cfg"
+              }
+            ]
+          },
+          "standard": {
+            "prose": "Line 12 `init_from` picks the model source: 'resume' loads from a training folder, otherwise a GPT-2 variant name; a value that is neither would most likely fail when the model is loaded, which this file range does not show. Line 13 `out_dir` is the folder to resume from and is ignored unless `init_from` is 'resume'. Line 14 `start` is the prompt text, or 'FILE:' plus a path to read the prompt from a file. Lines 15 and 16 set how many samples to draw and how many tokens each one gets, so larger values mean longer runs. Line 17 `temperature` rescales predictions: below 1.0 is less random, above 1.0 is more random, per the comment, and 0 would most likely cause a divide-by-zero, which the sampling code in model.py would show. Line 18 `top_k` keeps only the 200 most likely tokens and gives the rest zero probability, according to the comment. Line 19 `seed` fixes the random number generator so reruns can repeat. Line 20 `device` names where to run, and 'cuda' fails on a machine without a GPU, so use 'cpu' there. Line 21 `dtype` chooses bfloat16 if the GPU supports it and float16 otherwise. Line 22 `compile` turns PyTorch 2.0 compilation on or off, and it is off here. Line 23 runs configurator.py, which overrides these names from the command line or a config file. The code that consumes these values is later in sample.py, outside these lines, so I can't confirm the exact behaviour from here.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "init"
+              },
+              {
+                "sentence": 1,
+                "target": "outd"
+              },
+              {
+                "sentence": 2,
+                "target": "start"
+              },
+              {
+                "sentence": 3,
+                "target": "num"
+              },
+              {
+                "sentence": 4,
+                "target": "temp"
+              },
+              {
+                "sentence": 5,
+                "target": "topk"
+              },
+              {
+                "sentence": 6,
+                "target": "seed"
+              },
+              {
+                "sentence": 7,
+                "target": "dev"
+              },
+              {
+                "sentence": 8,
+                "target": "dtype"
+              },
+              {
+                "sentence": 9,
+                "target": "comp"
+              },
+              {
+                "sentence": 10,
+                "target": "cfg"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "See standard.",
+            "anchors": [],
+            "trace": {
+              "input": "none",
+              "steps": [
+                "see standard"
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "What does configurator.py do with command-line arguments?",
+          "How does temperature change the probabilities in model.py's generate?",
+          "What happens if top_k is larger than the vocabulary size?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "sample.py:12",
+            "sample.py:13",
+            "sample.py:14",
+            "sample.py:15-16",
+            "sample.py:17",
+            "sample.py:18",
+            "sample.py:19",
+            "sample.py:20",
+            "sample.py:21",
+            "sample.py:22",
+            "sample.py:23",
+            "config/eval_gpt2.py:8",
+            "config/finetune_shakespeare.py:3",
+            "configurator.py:7",
+            "config/eval_gpt2_large.py:8",
+            "config/eval_gpt2_medium.py:8",
+            "config/train_shakespeare_char.py:4",
+            "bench.py:21"
+          ],
+          "createdAt": "2026-11-15T23:19:18.527Z"
+        },
+        "figure": null
+      },
+      "answer": "Line 12 `init_from` picks the model source: 'resume' loads from a training folder, otherwise a GPT-2 variant name; a value that is neither would most likely fail when the model is loaded, which this file range does not show. Line 13 `out_dir` is the folder to resume from and is ignored unless `init_from` is 'resume'. Line 14 `start` is the prompt text, or 'FILE:' plus a path to read the prompt from a file. Lines 15 and 16 set how many samples to draw and how many tokens each one gets, so larger values mean longer runs. Line 17 `temperature` rescales predictions: below 1.0 is less random, above 1.0 is more random, per the comment, and 0 would most likely cause a divide-by-zero, which the sampling code in model.py would show. Line 18 `top_k` keeps only the 200 most likely tokens and gives the rest zero probability, according to the comment. Line 19 `seed` fixes the random number generator so reruns can repeat. Line 20 `device` names where to run, and 'cuda' fails on a machine without a GPU, so use 'cpu' there. Line 21 `dtype` chooses bfloat16 if the GPU supports it and float16 otherwise. Line 22 `compile` turns PyTorch 2.0 compilation on or off, and it is off here. Line 23 runs configurator.py, which overrides these names from the command line or a config file. The code that consumes these values is later in sample.py, outside these lines, so I can't confirm the exact behaviour from here.\n\nAlso touched: config/eval_gpt2.py:8, config/finetune_shakespeare.py:3, configurator.py:7, config/eval_gpt2_large.py:8, config/eval_gpt2_medium.py:8, config/train_shakespeare_char.py:4, bench.py:21."
+    },
+    {
+      "n": 13,
+      "question": "what do these settings do?",
+      "use": null,
+      "pass": false,
+      "valid": true,
+      "firstTry": false,
+      "attempts": 2,
+      "firstTryErrors": [
+        "depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic"
+      ],
+      "reason": null,
+      "checks": [
+        {
+          "name": "valid",
+          "ok": true
+        },
+        {
+          "name": "firstTry",
+          "ok": false
+        },
+        {
+          "name": "brief <= 2 sentences",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "brief has no identifier or backtick the question did not use",
+          "ok": true
+        },
+        {
+          "name": "trace only on detailed",
+          "ok": true
+        },
+        {
+          "name": "detailed has a trace (v1.1: always; control flow when there is no arithmetic)",
+          "ok": true
+        },
+        {
+          "name": "numbers in Brief and Standard come from the code",
+          "ok": true
+        },
+        {
+          "name": "prose never names the use case",
+          "ok": true
+        }
+      ],
+      "review": "the neutral reading; rows 11-13 agree on every fact",
+      "inputTokens": 15864,
+      "outputTokens": 2916,
+      "usd": 0.0449,
+      "figure": null,
+      "card": {
+        "type": "codeExplain",
+        "title": "What the sampling settings control",
+        "question": "what do these settings do?",
+        "repo": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "files": [
+          {
+            "path": "sample.py",
+            "ranges": [
+              {
+                "id": "src",
+                "start": 12,
+                "end": 14
+              },
+              {
+                "id": "gen",
+                "start": 15,
+                "end": 18
+              },
+              {
+                "id": "seed",
+                "start": 19,
+                "end": 19
+              },
+              {
+                "id": "hw",
+                "start": 20,
+                "end": 22
+              },
+              {
+                "id": "cfg",
+                "start": 23,
+                "end": 23
+              }
+            ]
+          }
+        ],
+        "mentioned": [
+          {
+            "id": "m1",
+            "path": "configurator.py",
+            "start": 1,
+            "end": 1
+          },
+          {
+            "id": "m2",
+            "path": "config/eval_gpt2.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "m3",
+            "path": "config/finetune_shakespeare.py",
+            "start": 3,
+            "end": 3
+          },
+          {
+            "id": "x1",
+            "path": "config/eval_gpt2_large.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x2",
+            "path": "config/eval_gpt2_medium.py",
+            "start": 8,
+            "end": 8
+          },
+          {
+            "id": "x3",
+            "path": "config/train_shakespeare_char.py",
+            "start": 4,
+            "end": 4
+          },
+          {
+            "id": "x4",
+            "path": "bench.py",
+            "start": 21,
+            "end": 21
+          }
+        ],
+        "depth": "standard",
+        "depths": {
+          "brief": {
+            "prose": "These are the knobs for generating text from a trained model: which model to load, how much to write, and how adventurous the output is. They also pick the hardware and can be overridden from the command line.",
+            "anchors": []
+          },
+          "standard": {
+            "prose": "Lines 12 to 14 choose the model and the prompt: init_from picks a saved checkpoint ('resume') or a GPT-2 variant, out_dir is the checkpoint folder, and start is the prompt text or a FILE: path. Lines 15 and 16 set the amount: num_samples is how many texts to draw and max_new_tokens is the length of each. Line 17 sets temperature, which the comment says makes output less random below 1.0 and more random above it. Line 18 sets top_k, which keeps only the 200 most likely tokens and gives the rest zero probability. Line 19 sets seed, the random seed, so runs repeat. Lines 20 to 22 set the device, the number format (bfloat16 if CUDA supports it, otherwise float16), and whether PyTorch 2.0 compiles the model. Line 23 runs configurator.py, which the comment says overrides any of these from the command line or a config file. Config files such as eval_gpt2.py set init_from, and finetune_shakespeare.py sets out_dir. I cannot see how the values are used after line 23, so for that I would need the rest of sample.py.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "src"
+              },
+              {
+                "sentence": 1,
+                "target": "gen"
+              },
+              {
+                "sentence": 2,
+                "target": "gen"
+              },
+              {
+                "sentence": 3,
+                "target": "gen"
+              },
+              {
+                "sentence": 4,
+                "target": "seed"
+              },
+              {
+                "sentence": 5,
+                "target": "hw"
+              },
+              {
+                "sentence": 6,
+                "target": "cfg"
+              },
+              {
+                "sentence": 7,
+                "target": "m2"
+              }
+            ]
+          },
+          "detailed": {
+            "prose": "These lines are plain defaults that line 23 can override. The defaults describe ten samples of up to 500 tokens each.",
+            "anchors": [
+              {
+                "sentence": 0,
+                "target": "cfg"
+              },
+              {
+                "sentence": 1,
+                "target": "gen"
+              }
+            ],
+            "trace": {
+              "input": "Running sample.py with no overrides",
+              "steps": [
+                "Lines 12-22 assign defaults: init_from='resume', num_samples=10, max_new_tokens=500, temperature=0.8, top_k=200, seed=1337.",
+                "Line 21 picks bfloat16 if CUDA supports it, else float16.",
+                "Line 23 executes configurator.py, which may replace any of these names.",
+                "With no overrides, the defaults stay as assigned."
+              ]
+            }
+          }
+        },
+        "suggestions": [
+          "How does configurator.py override these variables?",
+          "How does the model use temperature and top_k when sampling?",
+          "What happens if init_from is set to a GPT-2 variant instead of 'resume'?"
+        ],
+        "evidence": {
+          "model": "claude-sonnet-5-5",
+          "sources": [
+            "sample.py:12-14",
+            "sample.py:15-18",
+            "sample.py:19",
+            "sample.py:20-22",
+            "sample.py:23",
+            "configurator.py:1",
+            "config/eval_gpt2.py:8",
+            "config/finetune_shakespeare.py:3",
+            "config/eval_gpt2_large.py:8",
+            "config/eval_gpt2_medium.py:8",
+            "config/train_shakespeare_char.py:4",
+            "bench.py:21"
+          ],
+          "createdAt": "2026-11-15T23:19:37.438Z"
+        },
+        "figure": null
+      },
+      "answer": "Lines 12 to 14 choose the model and the prompt: init_from picks a saved checkpoint ('resume') or a GPT-2 variant, out_dir is the checkpoint folder, and start is the prompt text or a FILE: path. Lines 15 and 16 set the amount: num_samples is how many texts to draw and max_new_tokens is the length of each. Line 17 sets temperature, which the comment says makes output less random below 1.0 and more random above it. Line 18 sets top_k, which keeps only the 200 most likely tokens and gives the rest zero probability. Line 19 sets seed, the random seed, so runs repeat. Lines 20 to 22 set the device, the number format (bfloat16 if CUDA supports it, otherwise float16), and whether PyTorch 2.0 compiles the model. Line 23 runs configurator.py, which the comment says overrides any of these from the command line or a config file. Config files such as eval_gpt2.py set init_from, and finetune_shakespeare.py sets out_dir. I cannot see how the values are used after line 23, so for that I would need the rest of sample.py.\n\nAlso touched: configurator.py:1, config/eval_gpt2.py:8, config/finetune_shakespeare.py:3, config/eval_gpt2_large.py:8, config/eval_gpt2_medium.py:8, config/train_shakespeare_char.py:4, bench.py:21."
+    }
+  ]
+}

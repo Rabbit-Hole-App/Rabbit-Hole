@@ -38,10 +38,13 @@ export const secretBlockers = (worker, names) => [
   ...[...NEVER_ON_PRODUCTION, ...(SECRETS[worker].forbidden || [])].filter(n => names.includes(n)).map(n => `${worker} must not have secret ${n}`),
 ];
 // Dev-only sign-in: the test bypass, the mock OAuth and the dev Access bridge (dev-access.js) must never be configured here.
-export const NEVER_ON_PRODUCTION = ['TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD', 'ACCESS_TEAM_DOMAIN', 'ACCESS_ALLOWED_EMAILS', 'ACCESS_HOST', 'ACCESS_SMOKE_CLIENT_ID'];
+export const NEVER_ON_PRODUCTION = ['REHEARSAL_PIN_COMMIT', 'TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD', 'ACCESS_TEAM_DOMAIN', 'ACCESS_ALLOWED_EMAILS', 'ACCESS_HOST', 'ACCESS_SMOKE_CLIENT_ID'];
 // The production build (rabbit-hole-production.md): never the dev/review tools or BYOC.
 export const BUILD_ENV = {
   VITE_RABBIT_HOLE: 'true',
+  // The rehearsal feature ships ON (Reviewer 2026-11-16 12:10): the Tutor flow, the Run card, the section rows and the Start-from-GitHub canvas destination
+  // (start-run.js). The code-explain route follows the server's CODE_EXPLAIN_ENABLED. rehearsal-flag.js builds it in only for '1'.
+  VITE_REHEARSAL_TRIGGER: '1',
   // /motion (owner activation GO, 2026-10-21): the production orchestrator and renderer serve it.
   VITE_MOTION: 'true',
   // Explain-back durable attempts, voice notes, Sketch panel and Tutor review (owner GO required to release; plan 2026-10-30).
@@ -341,7 +344,7 @@ async function release(opts) {
     };
     for (const [name, cwd] of [['rabbit-hole-cp', CP], ['rabbit-hole-app', WEB]]) {
       let out;
-      try { out = run('npx', ['wrangler', 'deploy', '--config', CONFIG, '--message', message], cwd); }
+      try { out = run('npx', ['wrangler', 'deploy', '--config', CONFIG, '--message', message, '--var', `RELEASE_SHA:${sha}`], cwd); } // CF-1: the worker knows its release (archive records, telemetry); a var, so the bundle hash is untouched
       catch (e) { receipt.deployed[name] = 'unknown'; return await rollback(`${name} upload failed (${e.message.split('\n')[0]})`); }
       receipt.deployed[name] = out.match(/Current Version ID: (\S+)/)?.[1] ?? 'unknown';
     }

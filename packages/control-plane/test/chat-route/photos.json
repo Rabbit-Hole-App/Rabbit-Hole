@@ -1,0 +1,31 @@
+{
+  "command": "image",
+  "typed": "photos",
+  "about": "A real photo found on the web (typed /photos). Found, never generated.",
+  "cases": [
+    {
+      "text": "Find me real pictures of the Eiffel Tower at sunrise.",
+      "expect": "image"
+    },
+    {
+      "text": "I need a snapshot of a monarch butterfly on a flower, one that was really taken.",
+      "expect": "image"
+    },
+    {
+      "text": "Search for existing pictures of the Apollo 11 landing site.",
+      "expect": "image"
+    },
+    {
+      "text": "Get a real picture of a red panda from the web with credit.",
+      "expect": "image"
+    },
+    {
+      "text": "Look for a genuine picture of the Great Wall of China in autumn.",
+      "expect": "image"
+    },
+    {
+      "text": "Show me what a coral reef looks like in real life.",
+      "expect": "image"
+    }
+  ]
+}

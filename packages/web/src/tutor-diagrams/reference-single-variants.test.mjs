@@ -14,7 +14,7 @@ const parents = diagramReferences.filter(({ id, spec: { diagram } }) =>
 );
 
 test('all two-panel references have exactly one linked single-diagram variant', () => {
-  assert.equal(parents.length, 33); // 23 release references, eight figure chapters, the linear-regression normal-equation comparison and the logistic softmax panels.
+  assert.equal(parents.length, 43); // 23 release references, eight figure chapters, the linear-regression normal-equation comparison, the logistic softmax panels, the four C01 panels references (linear unit, hidden layer, regularized objective, dropout mask) and the six C02 panels references: the answer panel is the variant.
   assert.deepEqual(singleDiagramReferences.map(r => r.panelReferenceId).sort(), parents.map(r => r.id).sort());
   for (const single of singleDiagramReferences) {
     const panel = parents.find(r => r.id === single.panelReferenceId);

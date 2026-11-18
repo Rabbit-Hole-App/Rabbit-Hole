@@ -13,7 +13,7 @@ import { chatTitle } from './chat-threads.js';
 // then chatAskProps (A3b: slash, tutor, journey, voice and the other props the removed dock had).
 // docked (R4 A3, C:/s/spec/toc-r4.md): under the Table of contents only this pane's composer shows. Same pane, same AskPanel,
 // so the thread, draft and attachments stay; the header, History and the conversation stay mounted, hidden.
-const ICON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink';
+const ICON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink';
 
 export default function ChatPane({ hidden = false, docked = false, unavailable = null, chatAskProps = {}, ...askProps }) {
   const { thread } = useChatWorkspace();
@@ -35,7 +35,7 @@ export default function ChatPane({ hidden = false, docked = false, unavailable =
           className={`${ICON} ${thread.historyOpen ? 'bg-hover text-ink' : ''}`}><History size={16} strokeWidth={1.8} aria-hidden /></button>
         {/* Icon only in a pane under 360 px; the accessible name stays "New chat". */}
         <button type="button" data-chat-new aria-label="New chat" title="New chat" onClick={() => { thread.newChat(); thread.setHistoryOpen(false); }}
-          className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-ink-2 hover:bg-hover hover:text-ink @max-[360px]:w-8 @max-[360px]:justify-center @max-[360px]:px-0">
+          className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-sm text-ink-2 hover:bg-hover hover:text-ink @max-[360px]:w-8 @max-[360px]:justify-center @max-[360px]:px-0">
           <Plus size={16} strokeWidth={1.8} aria-hidden /><span className="@max-[360px]:hidden">New chat</span></button>
         {actions.length > 0 && <span className="relative">
           <button type="button" data-chat-more aria-label="More chat actions" title="More" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(open => !open)}

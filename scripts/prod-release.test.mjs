@@ -514,3 +514,10 @@ test('MVP mode needs the note AND vars.MVP_ALLOWED_SHA equal to the commit; a no
     assert.deepEqual([r.status, r.flag, r.log], [0, '', ''], `an ordinary note with ${allowed ? 'the variable set' : 'no variable'}`);
   }
 });
+
+// CF-1: both Workers are deployed with their release sha as a var (env.RELEASE_SHA: archive records and telemetry read it); a var is not part of the built bundle, so the bundle hash is unchanged.
+test('the release deploys each Worker with RELEASE_SHA set to the released sha', () => {
+  const src = readFileSync(new URL('./prod-release.mjs', import.meta.url), 'utf8');
+  assert.match(src, /'--message', message, '--var', `RELEASE_SHA:\$\{sha\}`\]/, 'wrangler deploy carries --var RELEASE_SHA:<sha>');
+  assert.doesNotMatch(src, /VITE_RELEASE_SHA/, 'no build-time release var: it would make the production bundle differ from the dev bundle it was gated on');
+});

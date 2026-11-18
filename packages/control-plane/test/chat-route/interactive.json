@@ -1,0 +1,31 @@
+{
+  "command": "explain",
+  "typed": "interactive",
+  "about": "The playable visual explanation (typed /interactive): a drawing or scene with controls to step through or play, asked for as the output.",
+  "cases": [
+    {
+      "text": "Make a visual walk-through of how a heap keeps its order, with controls to step through.",
+      "expect": "explain"
+    },
+    {
+      "text": "I'd like a labelled drawing with sliders that shows how compound interest changes.",
+      "expect": "explain"
+    },
+    {
+      "text": "Build me an explorable scene that shows how a pendulum's period depends on its length.",
+      "expect": "explain"
+    },
+    {
+      "text": "Show the idea of a hash table as steps I can play and pause.",
+      "expect": "explain"
+    },
+    {
+      "text": "Create a playable visual showing how a ball rolls down differently shaped hills.",
+      "expect": "explain"
+    },
+    {
+      "text": "Draw a playable picture of how two sorted lists get merged.",
+      "expect": "explain"
+    }
+  ]
+}

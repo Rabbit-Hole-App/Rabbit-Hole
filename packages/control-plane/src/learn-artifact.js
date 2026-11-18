@@ -17,7 +17,7 @@ import { consumeProposal, releaseProposal, verifyProposal } from './generation-p
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -31,7 +31,7 @@ import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } fr
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
 import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, explanationTarget, validDepth } from './chat-depth.js';
-import { illustrateExplanation } from './explanation-figures.js';
+import { FIGURE_STYLE_ID, illustrateExplanation } from './explanation-figures.js';
 import { readDepth } from './learn-user-settings.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
 
@@ -119,8 +119,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const explanationTail = `\n\n${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE}\n\nBased on the rules above, this card:\n\n# Depth\n${explanationTarget(input.depth)}\n\n${visualsStatement(input.plan, resolved) ?? EXPLANATION_VISUAL_RULES}${formulaSamplerEnabled(env) ? FORMULA_SERIES_GUIDANCE : ''}${interactionsEnabled(env) ? `\n\n# Output format\n${INTERACTION_GUIDANCE}` : ''}`;
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
-    input_schema: id === 'explanation' ? authorSchema(env) : PRIMITIVES[id].schema,
+    description: `${PRIMITIVES[id].about}${lengths(primitiveFor(id, input.madeBy).schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    input_schema: id === 'explanation' ? authorSchema(env) : primitiveFor(id, input.madeBy).schema, // O: a section item's code sample is 100 lines / 4000 characters
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Balanced sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
@@ -169,7 +169,7 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null } = {}) {
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
@@ -192,7 +192,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape).map(r => r.id), shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null } });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
-  if (!injected && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace }, generateArtifact);
+  if ((!injected || meterStep) && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace, meterStep }, generateArtifact);
   const baseCall = injected || loggedModel('artifact', planModel);
   const { request, ready, messages, body, model } = prepared;
   const binding = prepared.profile ? await explanationProfileBinding(prepared.profile) : null; // what this card's model was chosen by, saved with the result
@@ -251,7 +251,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       } else if (id === 'explanation' && interactionsEnabled(env)) {
         const { questions: q, terms: t, ...card } = call.input ?? {};
         questions = q; terms = t; block = artifactBlock(id, card);
-      } else block = artifactBlock(id, call.input);
+      } else block = artifactBlock(id, call.input, { madeBy: input.madeBy, context: input.context });
       if (title && typeof block.title === 'string') block = { ...block, title };
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
       // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
@@ -381,6 +381,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     body = JSON.parse(raw);
     if (!body || typeof body.command !== 'string' || typeof (body.args ?? '') !== 'string' || (body.args || '').length > 1000 || (body.context != null && (typeof body.context !== 'string' || body.context.length > 8000))) throw new Error('Invalid artifact request');
     artifactPlan(body.command, body); // unknown command or selection: 400 before auth or model
+    if (body.madeBy !== undefined && body.madeBy !== 'learn-section') throw new Error('madeBy must be learn-section'); // CONTRACT: it unlocks only the larger code sample (DECISIONS O)
     if (body.depth !== undefined && !validDepth(body.depth)) throw new Error('depth must be brief, balanced or detailed'); // R2: an explicit Depth the server does not know is refused, never normalized
     if (body.image_context !== undefined && body.command !== 'explain') throw new Error('Only /explain takes an attached image');
     if ((body.image_role ?? 'layout_reference') !== 'layout_reference' || (body.image_role !== undefined && body.image_context === undefined)) throw new Error('image_role must be layout_reference, with an image_context');
@@ -434,7 +435,8 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   // Card archive: one record per request that reaches the author, success or failure (learn-storage.js archiveExplanation: logged, never thrown). No email, only the user id.
   const trace = {}, started = Date.now();
   const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.user_id ?? null, app: body.app, board: typeof body.board === 'string' ? body.board : null,
-    request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra });
+    request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra,
+    ...(extra.returned?.figures ? { stylePreamble: FIGURE_STYLE_ID } : {}) }); // ILL-0 v2: a card with pictures records the style they were made with
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
     // E1: what the learner explicitly asked the written card to contain, read from their own words on the server; a picture the library does not draw is told now, before any call.
@@ -449,7 +451,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
       return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(body.madeBy ? { madeBy: body.madeBy } : {}), ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });

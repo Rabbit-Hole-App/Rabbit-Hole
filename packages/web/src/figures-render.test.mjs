@@ -122,8 +122,8 @@ test('the markup of each figure kind in the composed card is pinned', () => {
   assert.deepEqual(pins, EXPECTED_MARKUP_HASHES, 'update only with a deliberate change to how a figure is drawn');
 });
 const EXPECTED_MARKUP_HASHES = {
-  axisX: 'a560140acaa12466e1f91058e0d27fe305a0b69b54e8c3179d95b4f5b01f3491',
-  axisY: '82f48c2487842873aefc04b0df5a842101a1e332028dc432030980c9adaccdec',
-  plot: 'd79d9afed29b65e1c58bd56b4edecb23d0b31468b6813a0400cb011e36780c6a',
-  diagram: '97c0443ec308667cf6f1cb2952b53cc20095b02dff7461dba427894a792de4c5',
+  axisX: '4397dc3e965fa5ea44d802d3d2a955a8969a827b794058588143bd887b096a63',
+  axisY: '74bfc7b41944b1763c468e69c63fe0cd3a4fda1f5232e5fd36228c7cb0992d80',
+  plot: 'ebe3aa12af1699f51335d4b40f9d2e4707f19e04a5a7ca8c9e83555a2797231d',
+  diagram: '266021bd81b01399461a4c07641fe15ebc2a06515ebd72cd5c8cd12444976ebd',
 };

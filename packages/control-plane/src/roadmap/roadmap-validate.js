@@ -131,7 +131,7 @@ function languageErrors(visible, language) {
 }
 
 // --- invitation (planning.md 3): deterministic, no model ---------------------------------------------------------------
-export const INVITATION_CHOICES = Object.freeze(['Explain on canvas', 'Just keep it here']);
+export const INVITATION_CHOICES = Object.freeze(['Create a course', 'Cancel']); // owner 2026-11-14 (were Explain on canvas, Just keep it here)
 export function decideInvitation({ sourceSupported, autoSuggest, mode, unfinishedRoadmap, alreadyOffered, chatIdle = true } = {}) {
   const no = reason => ({ offer: false, reason });
   if (!sourceSupported) return no('unsupported_source');

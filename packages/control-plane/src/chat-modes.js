@@ -7,6 +7,8 @@ import { FILE_SOURCE, fileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CANVAS_MENTIONS, CANVAS_REF_NAME, CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
 import { depthInstruction, validDepth } from './chat-depth.js';
+// The Tutor prompt record helpers apiAsk uses, re-exported here so the handler's one import of chat-modes carries them (index.js, and the harnesses that run apiAsk).
+export { codebaseUseId, logTutorCall, tutorRecord } from './tutor-prompt.js';
 
 const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
@@ -259,7 +261,7 @@ export async function recordAnswer(db, { threadId, userMessageId, content, raw, 
   const alternatives = turn ? [...new Set([String(turn.first), ...await turnAnswers(db, turn.first), String(messageId)])] : [String(messageId)];
   // kind and syllabus ride too (syllabus is always null since Tutor cleanup P4; old saved metas keep theirs as data).
   return {
-    answerMeta: { messageId: String(messageId), actions: meta.actions, followUps: meta.followUps, alternatives, kind: meta.kind, syllabus: meta.syllabus, ...(meta.proposal ? { proposal: meta.proposal } : {}), ...(meta.proposalConflict ? { proposalConflict: meta.proposalConflict } : {}), ...(meta.toolRequest ? { toolRequest: meta.toolRequest } : {}) },
+    answerMeta: { messageId: String(messageId), actions: meta.actions, followUps: meta.followUps, alternatives, kind: meta.kind, syllabus: meta.syllabus, ...(meta.proposal ? { proposal: meta.proposal } : {}), ...(meta.proposalConflict ? { proposalConflict: meta.proposalConflict } : {}), ...(meta.toolRequest ? { toolRequest: meta.toolRequest } : {}), ...(meta.codeExplain !== undefined ? { route: meta.route, codeExplain: meta.codeExplain, ...(meta.reason ? { reason: meta.reason } : {}) } : {}) },
     done: { userMessageId: String(userMessageId), messageId: String(messageId) },
   };
 }

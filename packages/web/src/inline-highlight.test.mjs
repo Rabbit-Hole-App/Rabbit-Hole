@@ -86,12 +86,11 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(canvas, /pickedHighlight\(shell\.current, board\.blocks, viewRef\.current\.z\)/);
   assert.match(canvas, /highlight=\{inline\.highlight \|\| null\}/);
   assert.doesNotMatch(canvas, /onClearHighlight/, 'no chip x: the window closes it');
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /placeSourced\(\{ source, anchorY: Number\.isFinite\(besideDy\) \? source\.y \+ besideDy : null, /); // AR-C3: the highlighted line's offset is the anchor of place-sourced.js (the old besideSpot call)
   assert.doesNotMatch(editor, /Remove the highlighted text/, 'the chip has no x');
   assert.match(editor, /data-inline-close/, 'the x belongs to the window');
-  assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
-  assert.ok(editor.includes('intent.probability >= INTENT_AT'));
-  assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'), 'a picked command is handed to Chat');
+  assert.doesNotMatch(editor, /transport\.route|INTENT_AT/, 'CK-3 decision 2026-11-14: over highlighted words and the bulb passage the router is not asked; Enter runs /explain');
+  assert.ok(editor.includes('deliver(out.handoff.line, { selection, concept: title })'), 'a typed or picked command is delivered (Chat, or the explain job for /explain: CK-6)');
   assert.doesNotMatch(editor, /askChat/, 'a plain prompt with no command stays in Ctrl+K');
   assert.ok(editor.includes('highlightedCard: highlightedCardMessage()'), 'the in-editor Explain carries the whole card');
   assert.match(read('inline-ai-context.js'), /highlightedCard/);
@@ -103,8 +102,8 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   const chat = read('ChatMessages.jsx');
   assert.ok(chat.includes('data-chat-highlight-clear') && chat.includes('aria-label="Remove the highlight"') && chat.includes('onClick={markClear}'), 'the Chat chip has the x that un-highlights');
   assert.ok(chat.includes('{live && <button'), 'the x only while the mark is on');
-  assert.match(editor, /firstWords\(highlight\.text\)/);
-  assert.match(editor, /title=\{highlight\.text\}/);
+  assert.match(editor, /firstWords\(passageText\)/); // CK-2: the pill shows the passage (a highlight's words, or the bulb's)
+  assert.match(editor, /title=\{passageText\}/);
   assert.ok(editor.includes('markSet(highlight)'));
   assert.ok(read('inline-highlight-mark.js').includes("CSS.highlights.set('inline-target', new Highlight(current.live))"));
   assert.match(editor, /data-inline-scrim /);
@@ -239,10 +238,10 @@ test('wiring: the window is placed by placeBesideWords against the live words, t
   const editor = read('InlineAiEditor.jsx'), canvas = read('AdaptiveCanvas.jsx');
   assert.ok(editor.includes('placeBesideWords(marked, { w: width, h: height }, surface, { avoid: canvas.chromeRects(), edge: EDGE })'));
   assert.ok(editor.includes("document.addEventListener('scroll', again, true)") && editor.includes("window.addEventListener('resize', again)"), 'recomputed on scroll and resize');
-  assert.ok(editor.includes('canvas.frameWords(words,'));
+  assert.ok(editor.includes('canvas.frameWords(span,')); // CK-1: `words` is now the highlight or the bulb's passage; `span` its rect union
   assert.ok(editor.includes('if (!handedOff.current) restore?.()'), 'closed without sending: the camera goes back; a sent command: the new card frame takes over');
   assert.ok(canvas.includes('frameWords: (words, win) => { const free = visibleArea()') && canvas.includes('const target = cameraForWords(words, win, viewRef.current, area);'));
-  assert.ok(editor.includes('canvas.frameWords(words, { w: W, h: FRAME_ROOM, gap: 10 })'), 'the camera centres the words and the first window height, not the whole reserve');
+  assert.ok(editor.includes('canvas.frameWords(span, { w: W, h: FRAME_ROOM, gap: 10 })'), 'the camera centres the words and the first window height, not the whole reserve');
   assert.ok(canvas.includes('glideTo(target, true)'), 'the canvas\'s own short glide (none under reduced motion)');
 });
 
@@ -256,7 +255,7 @@ test('the window is placed once, against where the camera glide leaves the words
   assert.deepEqual(placeBesideWords([end], { w: 420, h: 300 }, SURF), first, 'the same rects and size give the same place on every render');
   const editor = read('InlineAiEditor.jsx');
   assert.ok(editor.includes('if (settled) return settled;'), 'the rects the window follows are the settled ones, not the live words mid-glide');
-  assert.ok(/useLayoutEffect\(\(\) => \{\s+const origin = overlay\.current\?\.getBoundingClientRect\(\);\s+if \(!highlight \|\| !origin \|\| !canvas\.frameWords\) return undefined;/.test(editor), 'framed before the first paint');
+  assert.ok(/useLayoutEffect\(\(\) => \{\s+const origin = overlay\.current\?\.getBoundingClientRect\(\);\s+if \(!words \|\| !origin \|\| !canvas\.frameWords\) return undefined;/.test(editor), 'framed before the first paint');
   assert.ok(!editor.includes('setTimeout(() => tick(n => n + 1), 420)'), 'no re-place when the glide ends');
   assert.ok(read('AdaptiveCanvas.jsx').includes('{ from: was, to: target }'), 'the canvas hands back the camera the glide ends at');
 });
@@ -273,8 +272,9 @@ test('over highlighted words the mode is only the label Explain selection: no dr
 test('the selection toolbar Ctrl+K button opens the same opener as the key, with the words and no pill', () => {
   const canvas = read('AdaptiveCanvas.jsx'), layer = read('ExplanationInteractions.jsx'), editor = read('InlineAiEditor.jsx');
   assert.ok(canvas.includes('quickAsk: () => openInlineRef.current()') && canvas.includes('openInlineRef.current = () => openInline(performance.now());'), 'openInline reads the page selection as the key path does (inlineTarget picks the highlight)');
-  assert.ok(layer.includes('const quickAsk = () => { if (bar && host?.quickAsk?.()) setBar(null); };') && layer.includes("chordLabel('quick-edit', mac)"));
-  assert.ok(!layer.includes('Ask in chat'.concat('"')) && !layer.includes('askInChat'), 'Ask in chat is gone from this toolbar');
+  assert.ok(layer.includes('const quickAsk = () => { if (bar && host?.quickAsk?.()) setBar(null); };') && read('selection-toolbar.jsx').includes("chordLabel('quick-edit', mac)"));
+  // UX-3 renamed the suggestion button "Ask here" to "Ask in chat" in this file, so the guard looks at the toolbar file, not the whole layer.
+  assert.ok(!read('selection-toolbar.jsx').includes('Ask in chat') && !layer.includes('askInChat'), 'Ask in chat is gone from this toolbar');
   assert.ok(editor.includes('cardEditReason || highlight'), 'a highlight opens as Explain selection');
   assert.ok(editor.includes('useState(preset?.command ?? null)'), 'no preset means no command pill: the router picks the command on Send');
 });

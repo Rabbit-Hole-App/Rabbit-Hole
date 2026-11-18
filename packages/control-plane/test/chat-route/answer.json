@@ -1,0 +1,330 @@
+{
+  "command": "answer",
+  "about": "A normal chat answer, no slash command: narrow definitions and lookups, follow-ups about the last reply or the selected card, advice, opinions, yes/no, questions about the tool, small talk, and requests that decline a format.",
+  "cases": [
+    {
+      "text": "Is it better to learn Python or JavaScript first?",
+      "expect": "answer"
+    },
+    {
+      "text": "Summarise the main idea of this card in two sentences.",
+      "expect": "answer"
+    },
+    {
+      "text": "What does 'idempotent' mean?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why is my explanation of recursion confusing?",
+      "expect": "answer"
+    },
+    {
+      "text": "How long should I study each day to learn a language?",
+      "expect": "answer"
+    },
+    {
+      "text": "Can Motion make audio?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why is this video wrong about vaccines?",
+      "expect": "answer"
+    },
+    {
+      "text": "Does this proof need the second assumption?",
+      "expect": "answer"
+    },
+    {
+      "text": "Thanks, that makes sense now.",
+      "expect": "answer"
+    },
+    {
+      "text": "Can you say that again more simply?",
+      "expect": "answer"
+    },
+    {
+      "text": "What is the main limitation of this approach?",
+      "expect": "answer"
+    },
+    {
+      "text": "How do I start learning about machine learning?",
+      "expect": "answer"
+    },
+    {
+      "text": "Is the answer to question three really forty-two?",
+      "expect": "answer"
+    },
+    {
+      "text": "Which of these two methods is faster, and why?",
+      "expect": "answer"
+    },
+    {
+      "text": "What would happen if the learning rate were too large?",
+      "expect": "answer"
+    },
+    {
+      "text": "What's the context window of that model?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why did you pick this method here?",
+      "expect": "answer"
+    },
+    {
+      "text": "Is Python or JavaScript better to learn first?",
+      "expect": "answer"
+    },
+    {
+      "text": "Should I use LoRA or full fine-tuning on a small dataset?",
+      "expect": "answer"
+    },
+    {
+      "text": "Which of these two is cheaper to run?",
+      "expect": "answer"
+    },
+    {
+      "text": "Which model are you running on?",
+      "expect": "answer"
+    },
+    {
+      "text": "why does that work?",
+      "history": [
+        {
+          "user": "How does a heap work?",
+          "reply": "A heap keeps the smallest item at the top of a tree.",
+          "command": null
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "thanks, makes sense",
+      "history": [
+        {
+          "user": "Find a paper on transformers",
+          "reply": "",
+          "command": "arxiv"
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "why did you pick attention as the example here?",
+      "history": [
+        {
+          "user": "How does a transformer work?",
+          "reply": "A transformer reads all tokens at once and uses attention to weigh how much each token matters to the others.",
+          "command": "explanation"
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "can you say that more simply?",
+      "history": [
+        {
+          "user": "What is LoRA?",
+          "reply": "LoRA fine-tunes a model by training small low-rank adapter matrices instead of all weights.",
+          "command": null
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "is that always bad?",
+      "history": [
+        {
+          "user": "What is overfitting?",
+          "reply": "Overfitting is when a model memorises training data and fails to generalise.",
+          "command": null
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "wait what does logits mean again",
+      "expect": "answer",
+      "persona": "Priya, CS undergrad typing fast at 2am"
+    },
+    {
+      "text": "ok thx that helped",
+      "expect": "answer",
+      "persona": "Priya, CS undergrad typing fast at 2am"
+    },
+    {
+      "text": "can u make it shorter",
+      "expect": "answer",
+      "persona": "Priya, CS undergrad typing fast at 2am",
+      "history": [
+        {
+          "user": "how does attention work",
+          "reply": "Attention lets every token look at every other token and weigh how relevant each one is, using queries, keys and values. The weights come from a softmax over dot products. Stacking many layers and heads lets the model build up context.",
+          "command": "explanation"
+        }
+      ]
+    },
+    {
+      "text": "which is cheaper to serve, 7b or 13b",
+      "expect": "answer",
+      "persona": "Marcus, senior backend engineer, impatient"
+    },
+    {
+      "text": "is flash attention worth it for us",
+      "expect": "answer",
+      "persona": "Marcus, senior backend engineer, impatient"
+    },
+    {
+      "text": "tldr of that",
+      "expect": "answer",
+      "persona": "Marcus, senior backend engineer, impatient",
+      "history": [
+        {
+          "user": "how does speculative decoding work",
+          "reply": "A small draft model proposes several tokens; the big model verifies them in one pass and keeps the ones it agrees with, so you get big-model quality at lower latency. A small draft model proposes several tokens; the big model verifies them in one pass and keeps the ones it agrees with, so you get big-model quality at lower latency. A small draft model proposes several tokens; the big model verifies them in one pass and keeps the ones it agrees with, so you get big-model quality at lower latency. ",
+          "command": "explanation"
+        }
+      ]
+    },
+    {
+      "text": "sorry, what is mean 'embedding' in one sentence",
+      "expect": "answer",
+      "persona": "Yuki, non-native English speaker"
+    },
+    {
+      "text": "can you repeat more easy",
+      "expect": "answer",
+      "persona": "Yuki, non-native English speaker",
+      "history": [
+        {
+          "user": "how do embeddings work",
+          "reply": "An embedding maps each token to a vector so that similar meanings sit close together, learned during training by predicting context.",
+          "command": "explanation"
+        }
+      ]
+    },
+    {
+      "text": "is ai gonna take my job",
+      "expect": "answer",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "wait is that right? my teacher said different",
+      "expect": "answer",
+      "persona": "Sam, high school student",
+      "history": [
+        {
+          "user": "how does gradient descent work",
+          "reply": "Gradient descent repeatedly nudges the parameters in the direction that reduces the loss, by a step size called the learning rate.",
+          "command": "explanation"
+        }
+      ]
+    },
+    {
+      "text": "Is the 0.3 temperature in your last example standard?",
+      "expect": "answer",
+      "persona": "Dr Okafor, ML researcher, precise",
+      "history": [
+        {
+          "user": "how does temperature affect sampling",
+          "reply": "Dividing the logits by a temperature below one sharpens the distribution; above one flattens it. Example: 0.3 makes the model almost greedy.",
+          "command": "explanation"
+        }
+      ]
+    },
+    {
+      "text": "Which assumption does that proof rely on?",
+      "expect": "answer",
+      "persona": "Dr Okafor, ML researcher, precise"
+    },
+    {
+      "text": "Should we build or buy for this?",
+      "expect": "answer",
+      "persona": "Lena, product manager, non-technical"
+    },
+    {
+      "text": "what does ROI look like for fine tuning",
+      "expect": "answer",
+      "persona": "Lena, product manager, non-technical",
+      "ambiguous": true
+    },
+    {
+      "text": "whats a token",
+      "expect": "answer",
+      "persona": "Tom, hobbyist on his phone",
+      "ambiguous": true
+    },
+    {
+      "text": "ok",
+      "expect": "answer",
+      "persona": "Tom, hobbyist on his phone"
+    },
+    {
+      "text": "ty 🙏",
+      "expect": "answer",
+      "persona": "Tom, hobbyist on his phone"
+    },
+    {
+      "text": "Is this level OK for 15 year olds?",
+      "expect": "answer",
+      "persona": "Ana, teacher preparing a lesson",
+      "history": [
+        {
+          "user": "how are LLMs trained",
+          "reply": "They are first pretrained on huge amounts of text to predict the next token, then tuned to follow instructions and be helpful, often with human feedback.",
+          "command": "explanation"
+        }
+      ]
+    },
+    {
+      "text": "Which part would confuse students most?",
+      "expect": "answer",
+      "persona": "Ana, teacher preparing a lesson"
+    },
+    {
+      "text": "what does api stand for",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "whats the capital of france",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is 2 to the power of 10",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "whats the max context length of gpt-4",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "how many parameters does llama 3 70b have",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what does lora stand for",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "Summarise the document I added in a few sentences.",
+      "expect": "answer"
+    },
+    {
+      "text": "What does this file say about entropy?",
+      "expect": "answer"
+    },
+    {
+      "text": "Is the second section of my notes correct?",
+      "expect": "answer"
+    },
+    {
+      "text": "How long is the Markdown file on my canvas?",
+      "expect": "answer"
+    }
+  ]
+}

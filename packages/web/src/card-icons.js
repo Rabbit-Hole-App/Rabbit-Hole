@@ -1,4 +1,4 @@
-import { AudioLines, BookOpenText, BookText, Blocks, Box, Boxes, Braces, ChartLine, Clapperboard, Code, Cuboid, Dumbbell, FileCode, FileSpreadsheet, FileText, Film, Focus, GalleryVerticalEnd, GitBranch, Globe, Heading, Image, Lightbulb, Link2, ListChecks, Minus, Network, PenTool, Pi, Presentation, Projector, Quote, Rotate3d, Route, Shapes, Spline, SquareFunction, Table2, Waypoints, Workflow } from 'lucide-react';
+import { AudioLines, BookOpenText, BookText, Blocks, Box, Boxes, Braces, ChartLine, Clapperboard, Code, Cuboid, Dumbbell, FileCode, FilePen, FileSearch, FileSpreadsheet, FileText, Film, Focus, GalleryVerticalEnd, GitBranch, Globe, Heading, Image, Lightbulb, Link2, ListChecks, Minus, Network, PenTool, Pi, Presentation, Projector, Quote, Rotate3d, Route, Shapes, Spline, SquareFunction, SquareTerminal, Table2, Waypoints, Workflow } from 'lucide-react';
 
 // One modern icon per card family (owner 2026-11-07: every card type has its own logo, not the dot the Explanation card drew). Pure: the header
 // (CardHeader.jsx) and the tests read it. Keyed by block.type; a file card (type 'file') is keyed by its kind; an unknown type gets Shapes.
@@ -17,10 +17,18 @@ export const TYPE_ICONS = {
   model3d: Box, scene: Boxes, cad: Cuboid,
   image: Image, imageGenerate: Image, video: Film, videoGenerate: Film, audio: AudioLines,
   paper: FileText, pdf: FileText, slide: Presentation, excerpt: Quote,
-  wiki: BookOpenText, webpage: Globe, notebook: BookText, 'canvas-ref': Link2,
+  wiki: BookOpenText, webpage: Globe, notebook: BookText, doc: FilePen, run: SquareTerminal, codeExplain: FileSearch, 'canvas-ref': Link2,
   divider: Minus, heading: Heading,
 };
 export const FILE_KIND_ICONS = { text: FileText, markdown: FileText, table: Table2, workbook: FileSpreadsheet, document: FileText, presentation: Presentation, image: Image, audio: AudioLines, video: Film, model: Box };
+
+// A card's type in words, for a contents chip (owner 2026-11-17 15:40): the type the icon shows. A type not here shows its icon (Shapes when unknown) and no label.
+export const TYPE_LABELS = {
+  explanation: 'Explain', snippet: 'Code', code: 'Code', 'repo-code': 'Code', notebook: 'Notebook', video: 'YouTube', paper: 'Paper', wiki: 'Wikipedia', webpage: 'Web page',
+  flow: 'Diagram', mermaid: 'Diagram', graph: 'Graph', plot: 'Graph', doc: 'Document',
+};
+// role: the Learn role a contents row carries (toc-links.js tocLinkRows); a section's notes card is a Document that reads "Notes".
+export const cardLabelOf = (type, role = null) => (role === 'notes' ? 'Notes' : TYPE_LABELS[type] || null);
 
 export function cardIconOf(block) {
   if (block?.type === 'explanation' && block.excerpt && (block.excerpt.kind === 'text' || block.excerpt.kind === 'region')) return TYPE_ICONS.excerpt; // a PDF excerpt is an explanation block (pdf-excerpt.js isExcerpt)

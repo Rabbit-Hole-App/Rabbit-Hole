@@ -2,6 +2,7 @@
 // (goals.open); the saved-goal operations (learn-goals.js) are coaching actions only, never a model call; a second press
 // while saving does nothing, a retry replays its action id, a failed save keeps the learner's words with the reason, and a
 // goal changed elsewhere comes back with its newer state.
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,5 +1,5 @@
 import { createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
+import { ArrowUp, ChevronDown, ChevronsDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey } from './ui-prefs.js';
 
@@ -17,8 +17,8 @@ import { chatSendKey } from './ui-prefs.js';
 // same controls around it, same footprint - with each caller keeping its own behaviour. Pass `dock` (and `onStop`),
 // style the leading and trailing controls with these tokens, put context pills (scope chips, "Asking about: ...") above
 // the composer, and wrap it in DOCK_WIDTH inside a DOCK_PAD strip. Contract: docs/features/rabbit-hole-commands.md.
-export const COMPOSER_ADD = 'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8';
-export const COMPOSER_PILL = 'h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5';
+export const COMPOSER_ADD = 'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8';
+export const COMPOSER_PILL = 'h-9 shrink-0 cursor-pointer rounded-full border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5';
 export const DOCK_WIDTH = 'mx-auto w-full max-w-[780px]';
 // The canvas provides a hide function around its composer (AdaptiveCanvas, owner 2026-10-13: the hide icon "should be better placed and
 // not hanging above"): the dock composer then shows Hide chat composer as one more icon button in its own row, before Send.
@@ -39,8 +39,14 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // a spacer, trailing, and Send (Stop while busy) at the far right. Its toolbar controls take COMPOSER_TOOL.
 // token (UI-16, the Learn composers): the chosen command's pill as one inline token before the text. It sits over the
 // field's first line and the text is indented by its width, so the words start right after it and wrap under it.
-export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null }) {
+export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-full px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
+// One tool button of the chat strip's pill (owner 2026-11-15: the strip is one component everywhere, the owner's canvas and a shared canvas alike): the Curious toggle, the chat toggle
+// and the shared canvas's Add and / buttons are all this. A button that does not apply stays drawn, greyed (disabled), with its name.
+export function StripTool({ label, title, on = false, disabled = false, onClick, className = '', children, ...rest }) {
+  return <button type="button" aria-label={label} title={title || label} aria-pressed={on ? true : undefined} disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={onClick} {...rest}
+    className={`${COMPOSER_TOOL}${on ? ' bg-hover text-accent hover:text-accent' : ''}${className ? ` ${className}` : ''}`}>{children}</button>;
+}
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null, pill = false, onMinimize = null }) {
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
   const submit = () => { if (!busy && !disabled && !hold && (ready || value.trim())) onSubmit(value); };
@@ -94,8 +100,20 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     </div>
   </form>;
   const frame = dock
-    ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
+    ? `${pill ? 'gap-1.5 rounded-full py-2 pr-2.5 pl-2.5' : 'gap-2.5 rounded-xl px-3 py-3.5 max-md:px-2.5 max-md:py-2.5'} border border-line-strong bg-white max-md:gap-1.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
+  // pill (the canvas strip, owner 2026-11-15, replacing the 2026-11-13 tool row): the tools (Add, the / control, the chat and Curious toggles) and Minimize are
+  // ONE white pill inside the chat box at its left, before the field; the box holds that pill, the field and Send. Minimize no longer hangs on the border.
+  if (pill) return <form data-chat-composer data-composer-pill className={`relative flex items-center ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
+    <div data-composer-tools className="flex shrink-0 items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-sm">
+      {leading}
+      {trailing}
+      {onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={onMinimize}
+        className={COMPOSER_TOOL}><ChevronsDown size={16} strokeWidth={1.7} /></button>}
+    </div>
+    {body}
+    {send}
+  </form>;
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
     {body}
