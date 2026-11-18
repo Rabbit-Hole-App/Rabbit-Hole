@@ -205,7 +205,7 @@ test('depth reaches the prompt: Detailed asks for up to about two minutes, Brief
   const seen = providers(t, { models: [reply(longScript(330))] });
   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'detailed' });
   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'brief' });
-  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 400 to 460 words, up to about 2 minutes of speech\.[^]*Do not stop before 400 words\./);
+  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 360 to 420 words, up to about 2 minutes of speech, never above 420 words\.[^]*Do not stop before 360 words\./);
   assert.match(seen.models()[1].body.messages[0].content, /Brief: write 300 to 360 words, 60 to 80 seconds of speech\. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it/);
   assert.match(lengthLine('balanced', 'gemini'), /write 360 to 420 words, about 90 seconds of speech\.[^]*Do not stop before 360 words\./);
   assert.equal(scriptRequest({ provider: 'fireworks', model: 'm' }, { depth: 'detailed', title: 'T', prose: 'P', labels: [] }).messages[0].content, scriptSystem('detailed', 'standard'));
