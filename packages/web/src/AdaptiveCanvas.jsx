@@ -79,7 +79,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, drawnBox, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
@@ -118,7 +118,7 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
-import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, learnLayout, setSpacingScale, union } from './learn-position.js';
+import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, guardLearnMoves, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -5813,6 +5813,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // the learner dragged (its anchor, block.at) keeps its place and the column flows around it. A card is shown once it stands on its slot (learn.placed, saved with it). No undo
   // step: the card's insertion was the step.
   const [learnTick, setLearnTick] = useState(0);
+  const learnGuard = useRef(learnGuardMemory());
   useLayoutEffect(() => {
     if (readOnly || localCopy) return;
     const plan = blocks.filter(block => block.learn?.slot);
@@ -5826,17 +5827,38 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (block.cardLayout) continue; // a Scrollable layout the learner chose keeps its own frame
       if (block.w !== w || (h != null && block.h !== h) || !!block.learn.fit !== fit) sizes.set(block.id, { w, ...(h != null ? { h } : {}), learn: { ...block.learn, fit } });
     }
-    if (sizes.size) { setBlocks(previous => previous.map(block => (sizes.has(block.id) ? { ...block, ...sizes.get(block.id) } : block))); return; }
-    const cards = plan.map(block => { const box = bounds[block.id] || null; return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
-    const { targets } = learnLayout({ cards, others: inlineCanvas.obstacles(plan.map(block => block.id)), W });
+    // Every write goes through the guard (learn-position.js guardLearnMoves): a fight or a loop is logged once and nothing more is written, so the page lives.
+    const guard = learnGuard.current;
+    let brake = null;
+    const issue = wanted => {
+      const { moves, fights, loop, wait: held } = guardLearnMoves(wanted, plan, guard);
+      for (const { id, ours, block } of fights) console.warn(JSON.stringify({ event: 'learn_position_fight', id, type: block.type, ours, target: wanted.get(id), box: bounds[id] || null, offsets: { dx: block.dx || 0, dy: block.dy || 0 }, at: block.at || null, cardLayout: block.cardLayout || null, learn: block.learn }));
+      if (loop) console.warn(JSON.stringify({ event: 'learn_position_loop', ids: loop, types: loop.map(id => plan.find(block => block.id === id)?.type), trace: guard.trace.filter(entry => loop.includes(entry.id)).slice(-12) }));
+      if (held != null) brake = held;
+      if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+      return moves.size;
+    };
+    if (sizes.size && issue(sizes)) return undefined;
+    // Where each card is drawn now (canvas-slots.js drawnBox): the measured box, moved by any offset written since it was measured.
+    const drawn = new Map(plan.map(block => [block.id, drawnBox(bounds[block.id] || null, block)]));
+    const cards = plan.map(block => { const box = drawn.get(block.id); return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
+    const others = inlineCanvas.obstacles(plan.map(block => block.id)), { targets, origin } = learnLayout({ cards, others, W });
     const moves = new Map();
     for (const block of plan) {
-      const target = targets.get(block.id), box = bounds[block.id];
+      const target = targets.get(block.id), box = drawn.get(block.id);
       if (!target || !box) continue;
-      const ddx = Math.round(target.x - box.x), ddy = Math.round(target.y - box.y);
-      if (ddx || ddy || !block.learn.placed) moves.set(block.id, { dx: (block.dx || 0) + ddx, dy: (block.dy || 0) + ddy, learn: { ...block.learn, placed: true } });
+      let ddx = Math.round(target.x - box.x), ddy = Math.round(target.y - box.y);
+      if (Math.abs(ddx) <= 1 && Math.abs(ddy) <= 1) ddx = ddy = 0; // within a pixel is on its slot (a sub-pixel measure never moves a card)
+      if (ddx || ddy || !block.learn.placed) {
+        moves.set(block.id, { dx: (block.dx || 0) + ddx, dy: (block.dy || 0) + ddy, learn: { ...block.learn, placed: true } });
+        // What a learn_position_loop line shows: each write's offsets, box, target and the column's origin, the last few per card.
+        guard.trace = [...guard.trace.slice(-60), { t: Math.round(performance.now()), id: block.id, offsets: [block.dx || 0, block.dy || 0], box: [box.x, box.y, box.w, box.h], target: [target.x, target.y], origin: origin && [origin.x, origin.y], others: others.length }];
+      }
     }
-    if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+    if (moves.size) issue(moves);
+    if (brake == null) return undefined;
+    const timer = setTimeout(() => setLearnTick(tick => tick + 1), brake + 50);
+    return () => clearTimeout(timer);
   }, [bounds, blocks, learnTick, readOnly, localCopy]); // eslint-disable-line react-hooks/exhaustive-deps
   // A TOC click on a section with cards (spec 3, 5): the camera to the top of those cards, centred on the column, zoom unchanged unless the view is narrower than the column.
   const showLearnBoxes = boxes => {
