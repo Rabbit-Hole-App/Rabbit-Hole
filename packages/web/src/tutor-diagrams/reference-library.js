@@ -52,6 +52,7 @@ import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 import { mleStepsReference } from './ml-mle-steps-reference.js';
 import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
+import { references as gen1Waterfall } from './gen-1-waterfall-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -101,6 +102,7 @@ export const diagramReferences = Object.freeze([
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...estimationEvaluationReferences,
   samplingTopKReference,
+  ...gen1Waterfall,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];
