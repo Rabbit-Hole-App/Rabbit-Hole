@@ -27,18 +27,36 @@ const IDENTIFIER = /^[A-Za-z_]\w*(?:\.\w+)*$/;
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const inLines = (name, anchored) => new RegExp(String.raw`(?<![\w-])${escapeRe(name)}(?!\w)`).test(anchored);
 const SHOWN_NAME = /`([^`\n]{1,80})`|(?<=^|\s)(--\w[\w-]*)|\b([a-z0-9]+_\w+|\w+\(\)|[a-z]+[A-Z]\w*)\b(?:\(\))?/g;
+const spelled = (name, text) => new RegExp(String.raw`(?<!\w)${escapeRe(name)}(?!\w)`).test(text);
+// Reviewer 19:40: a dotted `A.b` is a name the code card shows when its last part is in the anchored lines (`forward` in `def forward(`) and each earlier part is in the
+// anchored lines or anywhere in the beat's cited file(s); `Foo.forward` with no `Foo` in the file stays refused. files: [{ path, text, cited: ['110', '170-193'] }].
+const dottedShown = (name, anchored, files) => {
+  const parts = name.split('.');
+  return parts.length > 1 && spelled(parts.at(-1), anchored) && parts.slice(0, -1).every(part => spelled(part, anchored) || files.some(file => spelled(part, file.text)));
+};
+// Where a name outside the cited lines is in a cited file: its first line, for the repair note (no auto-widening). -> 'model.py:109' with the cited ranges, or null.
+const nameLine = (name, files) => {
+  for (const file of files) {
+    const k = file.text.split('\n').findIndex(line => spelled(name, line));
+    if (k >= 0) return { at: `${file.path}:${k + 1}`, cited: file.cited.join(', ') };
+  }
+  return null;
+};
 // names: true for a beat's `shows` (Reviewer 11:15): a setting, flag or function name the anchored lines spell is allowed bare or in backticks; anything left is checked as below.
-export function codeNameError(text, anchored = '', { names = false } = {}) {
-  if (names) text = String(text).replace(SHOWN_NAME, (match, ticked, flag, bare) => (inLines((ticked ?? flag ?? bare).trim().replace(/\(\)$/, ''), anchored) ? ' ' : match));
+export function codeNameError(text, anchored = '', { names = false, files = [] } = {}) {
+  if (names) text = String(text).replace(SHOWN_NAME, (match, ticked, flag, bare) => { const name = (ticked ?? flag ?? bare).trim().replace(/\(\)$/, ''); return inLines(name, anchored) || dottedShown(name, anchored, files) ? ' ' : match; });
   const path = PROSE_PATH.exec(text)?.[0]?.trim();
   if (path) return `must have no path, file name or flag (found "${path}")`;
-  const unknown = [];
+  const unknown = [], outside = [];
   const rest = String(text).replace(/`([^`\n]{1,80})`/g, (_, name) => {
     const bare = name.trim().replace(/\(\)$/, '');
-    if (!IDENTIFIER.test(bare) || !new RegExp(String.raw`(?<!\w)${bare.replace(/\./g, '\\.')}(?!\w)`).test(anchored)) unknown.push(name);
+    if (IDENTIFIER.test(bare) && (spelled(bare, anchored) || dottedShown(bare, anchored, files))) return ' ';
+    const where = IDENTIFIER.test(bare) ? nameLine(bare, files) : null;
+    if (where) outside.push(`\`${name}\` is on ${where.at}, outside the cited ${where.cited}; cite that line or drop the name`);
+    else unknown.push(name);
     return ' ';
   });
-  if (unknown.length) return `names ${unknown.map(n => `\`${n}\``).join(', ')}, which the anchored lines do not`;
+  if (unknown.length || outside.length) return [...outside, ...(unknown.length ? [`names ${unknown.map(n => `\`${n}\``).join(', ')}, which the anchored lines do not`] : [])].join('; ');
   const code = CODE_TOKEN.exec(rest)?.[0];
   return code ? `must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "${code}")` : null;
 }
@@ -107,7 +125,11 @@ export function validateBrief(input, { sectionId, first, last, anchorsExist, anc
     if (!idea || idea.length > 260 || sentencesOf(idea).length > 2) errors.push(`beat ${id}: idea is one idea in one or two short sentences, at most 260 characters`); // Reviewer 11:00, 11:15
     if (!shows) errors.push(`beat ${id}: shows says what the learner can see, compute or try`);
     const anchored = anchors.map(a => anchorText(a)).join('\n');
-    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored, { names: name === 'shows' }); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
+    // The beat's cited files (whole text, and the ranges it cites in each): only for a dotted name's earlier parts and the line a name outside the cited lines is on.
+    const cited = new Map();
+    for (const a of anchors) { const [path, range = 'all'] = a.split(/:(?=\d)/); if (!cited.has(path)) cited.set(path, []); cited.get(path).push(range); }
+    const files = [...cited].map(([path, ranges]) => ({ path, text: anchorText(path), cited: ranges })).filter(file => file.text);
+    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored, { names: name === 'shows', files }); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
     for (const a of anchors) if (!anchorsExist(a)) errors.push(`beat ${id}: anchor ${a} is not in the source`);
     if (!anchors.length && b.background !== true) errors.push(`beat ${id}: a beat with no anchors is background: true`);
     let material = null;
@@ -177,10 +199,10 @@ export async function runBrief(env, { actor, snapshot }, body, { callModel = log
   const anchorsExist = repositoryAnchors(snapshot), anchorText = repositoryAnchorText(snapshot);
   const earlierBeats = earlier.flatMap(s => s.brief.beats.map(b => ({ sectionId: s.sectionId, idea: b.idea })));
   const out = await sectionTurn(env, {
-    composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel, maxResearchSteps: 2, // two reads, then the submit fits under the cap (BLOCKERS.md)
+    composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel, maxResearchSteps: 2, maxRepairs: 2, // two reads, then the submit fits under the cap (BLOCKERS.md); two repairs (Reviewer 19:40)
     validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, anchorText, earlierBeats }),
   });
-  const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8), ...(out.submitted ? { submitted: out.submitted } : {}) }) }; // submitted: the refused brief as returned (Reviewer 11:15)
+  const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, repairs: out.repairs ?? 0, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8), ...(out.submitted ? { submitted: out.submitted } : {}) }) }; // submitted: the refused brief as returned (Reviewer 11:15)
   try { console.log(JSON.stringify(line)); } catch { /* a log line is never worth a failed answer */ }
   if (out.failed === 'unavailable') return json({ error: 'learn_section_unavailable' }, 502);
   if (out.failed === 'over_cap' && out.usage.calls === 0) return json({ error: 'learn_section_over_cap' }, 422);
