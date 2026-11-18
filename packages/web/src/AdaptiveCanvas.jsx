@@ -121,6 +121,7 @@ import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
 import { SPACING, assumedHeight, assumedTextHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
+import { walkBox, walkCamera, walkNext, walkPrev, walkStart } from './learn-walk.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -1897,6 +1898,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Selection is a list: ctrl/cmd/shift-click adds to it, so several nodes
   // move or delete together.
   const [selection, setSelection] = useState([]);
+  // Learn Walk (learn-walk-spec §1): { sectionId, stops, at } | null; the commands are walkApi, by the Position effect.
+  const [walk, setWalkState] = useState(null), walkRef = useRef(null);
+  const setWalk = next => { walkRef.current = next; setWalkState(next); };
   const selected = selection.length === 1 ? selection[0] : null; // single-target affordances
   // A view-only board keeps a selection (the card a Rabbit Hole starts from) but no card chrome for it: no pills,
   // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
@@ -2447,6 +2451,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return id;
       },
       learnItems: () => itemsRef.current.filter(item => item.learn),
+      walk: walkApi,
       // Learn sections, Position (learn-position.js): whether the column has put a section card on its slot (perform waits for it), the camera for a card just placed
       // (spec 3: the section's first card is centred once; a later card is followed only while the previous one is on screen; zoom unchanged), the dev row Arrange
       // section (the cards of one section made before Position join the column once, one undo step; a dragged card keeps its place) and the dev spacing toggle.
@@ -2940,6 +2945,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // what follows, and the camera already knows how to land on one. A contents entry frames the heading it links; one
       // with no canvas heading has nothing to frame.
       showSection: id => {
+        if (walkRef.current) setWalk(null); // any contents title click ends a walk
         const cards = blocksRef.current.filter(block => block.learn?.slot && block.tocLinks?.includes(id)), linked = cards.map(block => boundsRef.current[block.id]).filter(Boolean);
         // A section row: its h2 title (learn-walk-spec §4) and its cards.
         const title = cards.length && itemsRef.current.find(item => item.learn?.role === 'section' && item.learn.sectionId === cards[0].learn.sectionId);
@@ -3644,7 +3650,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), tocLinks: JSON.parse(linksKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, linksKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), tocLinks: JSON.parse(linksKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: (walk && blocksRef.current.find(block => block.id === walk.stops[walk.at])?.tocLinks?.[0]) || tocEntryFor(toc, viewing), walk: walk ? { cardId: walk.stops[walk.at], sectionId: walk.sectionId } : null, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, linksKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState, walk]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -5821,6 +5827,47 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const node = itemsLayer.current?.querySelector(`[data-item-id="${CSS.escape(item.id)}"]`);
     return { x: item.x, y: item.y, w: item.w || node?.offsetWidth || COLUMN, h: node?.offsetHeight || assumedTextHeight(item.text) };
   };
+  // Learn Walk (learn-walk-spec §1, learn-walk.js): one card at a time through a built section. walk: { sectionId, stops, at } | null.
+  const walkEntryOf = id => blocksRef.current.find(block => block.id === id)?.tocLinks?.[0] ?? null;
+  const showWalkStop = state => {
+    const id = state?.stops[state.at], block = id && blocksRef.current.find(entry => entry.id === id), card = id && boundsRef.current[id];
+    if (!block || !card) return;
+    const texts = itemsRef.current.filter(item => item.learn?.slot && item.learn.sectionId === block.learn.sectionId && item.learn.itemId === block.learn.itemId && (item.learn.role === 'lead' || item.learn.role === 'follow')).map(learnTextBox);
+    glideTo({ ...viewRef.current, ...walkCamera(walkBox(card, texts), controlArea(), SPACING.card) }, true);
+    setSelection([id]);
+  };
+  const walkApi = {
+    // id: a contents entry (the section row) or a section id ("1.1").
+    start: id => {
+      const linked = blocksRef.current.find(block => block.learn?.slot && block.tocLinks?.includes(id));
+      const state = walkStart(blocksRef.current, linked?.learn.sectionId || id);
+      setWalk(state); showWalkStop(state);
+      return !!state;
+    },
+    next: () => {
+      const { done, sectionDone, state } = walkNext(walkRef.current, blocksRef.current);
+      if (!done) return;
+      const entry = sectionDone && walkEntryOf(done);
+      setBlocks(previous => previous.map(block => (block.id === done && !block.learn?.done ? { ...block, learn: { ...block.learn, done: true } } : block)));
+      if (entry && !outlineFrom(blocksRef.current, tocRef.current).find(row => row.id === entry)?.done) commandsRef.current.toggleSectionDone(entry);
+      setWalk(state);
+      if (state) showWalkStop(state);
+    },
+    prev: () => { const state = walkPrev(walkRef.current); setWalk(state); showWalkStop(state); },
+    exit: () => setWalk(null),
+    state: () => walkRef.current,
+  };
+  useEffect(() => {
+    if (!walk) return undefined;
+    const key = event => {
+      const at = document.activeElement;
+      if (at && (at.tagName === 'INPUT' || at.tagName === 'TEXTAREA' || at.tagName === 'SELECT' || at.isContentEditable)) return;
+      if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); walkApi.next(); } else if (event.key === 'ArrowLeft') { event.preventDefault(); walkApi.prev(); } else if (event.key === 'Escape') walkApi.exit();
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [walk]); // eslint-disable-line react-hooks/exhaustive-deps
+  const walkTitle = walk && (itemsRef.current.find(item => item.learn?.role === 'section' && item.learn.sectionId === walk.sectionId)?.text?.replace(/^\d+(\.\d+)*\s+/, '') || walk.sectionId);
   const learnBoxOf = id => { const item = !boundsRef.current[id] && itemsRef.current.find(entry => entry.id === id && entry.learn); return item ? learnTextBox(item) : boundsRef.current[id] || null; };
   useLayoutEffect(() => {
     if (readOnly || localCopy) return;
@@ -6629,6 +6676,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
+        {walk && <div data-learn-walk role="toolbar" aria-label="Walk" className="absolute top-3 right-3 z-40 flex items-center gap-1 rounded-lg border border-line bg-white px-1.5 py-1 text-sm shadow-md">
+          <button type="button" onClick={walkApi.prev} disabled={walk.at === 0} className="rounded px-2 py-1 text-ink hover:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">Prev</button>
+          <button type="button" onClick={walkApi.exit} className="rounded px-2 py-1 text-ink hover:bg-hover">Exit</button>
+          <button type="button" onClick={walkApi.next} className="rounded bg-accent px-2 py-1 font-medium text-white hover:opacity-90">Next</button>
+          <span data-learn-walk-count className="max-w-64 truncate pr-1 pl-2 text-ink-2 tabular-nums">{walk.at + 1} / {walk.stops.length} · {walkTitle}</span>
+        </div>}
         {focus && !cardOnly && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
         {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}

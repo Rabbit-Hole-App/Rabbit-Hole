@@ -6,11 +6,12 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, Undo2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Play, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, Undo2, X } from 'lucide-react';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { cardLink } from './canvas-refs-model.js';
 import { moveTargets } from './toc-move.js';
 import { ancestorsOf, linkedCards } from './toc-links.js';
+import { walkLabelOf } from './learn-walk.js';
 import { cardIconOf, cardLabelOf } from './card-icons.js';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
@@ -40,7 +41,7 @@ export function addRowToConversation(canvasApi, id, onAddToChat, notify = () => 
   notify('Could not add this to the conversation');
   return false;
 }
-export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, tocLinks = [], onAddLink = null, flash = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null }) {
+export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, tocLinks = [], onAddLink = null, flash = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null, walk = null }) {
   // A roadmap row's manual done mark is the learner's own, kept per roadmap in this browser; it never means delivered, paid or understood.
   const rid = roadmap?.toc?.roadmapId ?? null;
   const [roadmapDone, setRoadmapDone] = useState(() => new Set());
@@ -157,23 +158,31 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
               className={`rounded-sm text-left break-words hover:text-accent ${topic || entry.level === 1 ? 'text-base leading-6 font-semibold' : 'text-sm leading-5 font-medium'} ${active ? 'text-accent' : 'text-ink'}`}>
               {entry.label}
             </button>
+            {(() => {
+              // Learn Walk (learn-walk-spec §1): a built section's Start / Continue / Start again, always shown; a chapter or an unbuilt section has none.
+              const label = !entry.roadmap && walkLabelOf(linkedCards(tocLinks, entry.id));
+              return label ? <button type="button" data-toc-walk={label} onClick={() => canvasApi.current?.walk?.start(entry.id)}
+                className="ml-2 inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 align-[1px] text-xs text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink">
+                <Play size={11} strokeWidth={2} aria-hidden />{label}</button> : null;
+            })()}
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
             {(() => {
               // The cards linked to this section: derived from the cards' own link lists, so a link made on a card shows here and one made here shows on the card.
               const cards = linkedCards(tocLinks, entry.id);
               if (!cards.length) return null;
-              const all = moreLinks.has(entry.id), shown = all ? cards : cards.slice(0, 2);
+              const all = moreLinks.has(entry.id) || cards.some(card => card.id === walk?.cardId), shown = all ? cards : cards.slice(0, 2); // a walk shows every chip of its section
               return (
                 <div data-toc-links className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {shown.map(card => {
                     // One button per chip (owner 2026-11-17 15:40): the card type's icon, its type in words, its title. The unlink X only where the contents are editable.
                     const Icon = cardIconOf({ type: card.type }), label = cardLabelOf(card.type, card.role);
                     return (
-                      <span key={card.id} data-toc-linked-card={card.id} className="group/chip inline-flex max-w-full min-w-0 items-center rounded-md border border-line bg-hover/60 text-xs text-ink hover:border-line-strong hover:bg-hover">
+                      <span key={card.id} data-toc-linked-card={card.id} data-walk-current={card.id === walk?.cardId || undefined} data-card-done={card.done || undefined} className={`group/chip inline-flex max-w-full min-w-0 items-center rounded-md border border-line bg-hover/60 text-xs text-ink hover:border-line-strong hover:bg-hover ${card.id === walk?.cardId ? 'ring-2 ring-accent' : ''}`}>
                         <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className={`inline-flex min-w-0 items-center gap-1 rounded-md py-0.5 pl-1.5 text-left ${readOnly ? 'pr-1.5' : 'pr-0.5'}`}>
                           <Icon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-2" />
                           {label && <span data-toc-card-type className="shrink-0 text-[11px] text-ink-3">{label} ·</span>}
                           <span className="max-w-44 min-w-0 truncate group-hover/chip:underline">{card.title}</span>
+                          {card.done && <Check size={12} strokeWidth={2.5} aria-label="Done" className="shrink-0 text-accent" />}
                         </button>
                         {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="mr-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
                       </span>
