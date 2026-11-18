@@ -37,9 +37,9 @@ const r2 = n => Math.round(n * 100) / 100;
 const base = structuredClone(PENDULUM_PLANS['stepper-pendulum-detailed'].scene.data);
 const spec0 = runner(base)(1, 0).diagram.args[0];
 const natural = renderTutorDiagram(spec0, 408), panel = layoutById('side-by-side').slots.panel.box;
-// amendment F: the whole panel box, aligned to its left edge; only the reset button itself (x 608 to 632, y 8 to 32) must stay clear
-const fit = fitPanel({ width: natural.width, height: natural.height }, panel, { align: 'left', clearRight: 608 });
-if (fit.x + fit.w > 608 && fit.y < 32) throw new Error(`the graph (x ${fit.x} to ${fit.x + fit.w}, y from ${fit.y}) covers the reset button`);
+// amendment F: the whole panel box, aligned to its left edge; only the reset button itself (x 604 to 628, y 12 to 36) must stay clear
+const fit = fitPanel({ width: natural.width, height: natural.height }, panel, { align: 'left', clearRight: 604 });
+if (fit.x + fit.w > 604 && fit.y < 36) throw new Error(`the graph (x ${fit.x} to ${fit.x + fit.w}, y from ${fit.y}) covers the reset button`);
 const fitted = { x: r2(fit.x), y: r2(fit.y), w: fit.w };
 const placeBox = { x: fitted.x, y: fitted.y, w: fitted.w, h: FRAME.height - fitted.y };
 const first = measure(spec0, placeBox);

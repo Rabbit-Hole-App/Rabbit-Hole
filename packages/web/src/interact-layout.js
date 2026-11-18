@@ -30,10 +30,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          4,
-          4,
-          632,
-          312
+          12.0,
+          12.0,
+          616.0,
+          299.2
         ],
         "keepClear": "reset cell"
       },
@@ -47,10 +47,10 @@ export const LAYOUTS = Object.freeze([
           9
         ],
         "box": [
-          4,
-          324,
-          632,
-          32
+          12.0,
+          319.2,
+          616.0,
+          30.4
         ],
         "count": [
           1,
@@ -68,10 +68,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          4,
-          364,
-          259,
-          32
+          12.0,
+          357.6,
+          252.0,
+          30.4
         ]
       },
       "note": {
@@ -84,10 +84,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          271,
-          364,
-          365,
-          32
+          272.0,
+          357.6,
+          356.0,
+          30.4
         ]
       },
       "reset": {
@@ -100,8 +100,8 @@ export const LAYOUTS = Object.freeze([
           1
         ],
         "box": [
-          608,
-          8,
+          604,
+          12,
           24,
           24
         ]
@@ -131,10 +131,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          4,
-          4,
-          312,
-          312
+          12.0,
+          12.0,
+          304.0,
+          299.2
         ]
       },
       "panel": {
@@ -147,10 +147,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          324,
-          4,
-          312,
-          312
+          324.0,
+          12.0,
+          304.0,
+          299.2
         ],
         "keepClear": "reset cell"
       },
@@ -164,10 +164,10 @@ export const LAYOUTS = Object.freeze([
           9
         ],
         "box": [
-          4,
-          324,
-          632,
-          32
+          12.0,
+          319.2,
+          616.0,
+          30.4
         ],
         "count": [
           1,
@@ -185,10 +185,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          4,
-          364,
-          259,
-          32
+          12.0,
+          357.6,
+          252.0,
+          30.4
         ]
       },
       "note": {
@@ -201,10 +201,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          271,
-          364,
-          365,
-          32
+          272.0,
+          357.6,
+          356.0,
+          30.4
         ]
       },
       "reset": {
@@ -217,8 +217,8 @@ export const LAYOUTS = Object.freeze([
           1
         ],
         "box": [
-          608,
-          8,
+          604,
+          12,
           24,
           24
         ]
@@ -249,10 +249,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          4,
-          4,
-          312,
-          312
+          12.0,
+          12.0,
+          304.0,
+          299.2
         ]
       },
       "panel": {
@@ -265,10 +265,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          324,
-          4,
-          312,
-          312
+          324.0,
+          12.0,
+          304.0,
+          299.2
         ],
         "keepClear": "reset cell"
       },
@@ -282,10 +282,10 @@ export const LAYOUTS = Object.freeze([
           9
         ],
         "box": [
-          4,
-          324,
-          632,
-          32
+          12.0,
+          319.2,
+          616.0,
+          30.4
         ],
         "count": [
           1,
@@ -303,10 +303,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          4,
-          364,
-          259,
-          32
+          12.0,
+          357.6,
+          252.0,
+          30.4
         ]
       },
       "note": {
@@ -319,10 +319,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          271,
-          364,
-          365,
-          32
+          272.0,
+          357.6,
+          356.0,
+          30.4
         ]
       },
       "reset": {
@@ -335,8 +335,8 @@ export const LAYOUTS = Object.freeze([
           1
         ],
         "box": [
-          608,
-          8,
+          604,
+          12,
           24,
           24
         ]
@@ -366,10 +366,10 @@ export const LAYOUTS = Object.freeze([
           4
         ],
         "box": [
-          4,
-          4,
-          632,
-          152
+          12.0,
+          12.0,
+          616.0,
+          145.6
         ],
         "keepClear": "reset cell"
       },
@@ -383,10 +383,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          4,
-          164,
-          632,
-          152
+          12.0,
+          165.6,
+          616.0,
+          145.6
         ]
       },
       "values": {
@@ -399,10 +399,10 @@ export const LAYOUTS = Object.freeze([
           9
         ],
         "box": [
-          4,
-          324,
-          632,
-          32
+          12.0,
+          319.2,
+          616.0,
+          30.4
         ],
         "count": [
           1,
@@ -420,10 +420,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          4,
-          364,
-          259,
-          32
+          12.0,
+          357.6,
+          252.0,
+          30.4
         ]
       },
       "note": {
@@ -436,10 +436,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          271,
-          364,
-          365,
-          32
+          272.0,
+          357.6,
+          356.0,
+          30.4
         ]
       },
       "reset": {
@@ -452,8 +452,8 @@ export const LAYOUTS = Object.freeze([
           1
         ],
         "box": [
-          608,
-          8,
+          604,
+          12,
           24,
           24
         ]
@@ -484,10 +484,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          4,
-          4,
-          365,
-          392
+          12.0,
+          12.0,
+          356.0,
+          376.0
         ]
       },
       "values": {
@@ -500,10 +500,10 @@ export const LAYOUTS = Object.freeze([
           4
         ],
         "box": [
-          377,
-          4,
-          259,
-          152
+          376.0,
+          12.0,
+          252.0,
+          145.6
         ],
         "count": [
           1,
@@ -522,10 +522,10 @@ export const LAYOUTS = Object.freeze([
           7
         ],
         "box": [
-          377,
-          164,
-          259,
-          112
+          376.0,
+          165.6,
+          252.0,
+          107.2
         ]
       },
       "note": {
@@ -538,10 +538,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          377,
-          284,
-          259,
-          112
+          376.0,
+          280.8,
+          252.0,
+          107.2
         ]
       },
       "reset": {
@@ -554,8 +554,8 @@ export const LAYOUTS = Object.freeze([
           1
         ],
         "box": [
-          608,
-          8,
+          604,
+          12,
           24,
           24
         ]
@@ -585,10 +585,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          4,
-          4,
-          312,
-          392
+          12.0,
+          12.0,
+          304.0,
+          376.0
         ]
       },
       "panel": {
@@ -601,10 +601,10 @@ export const LAYOUTS = Object.freeze([
           6
         ],
         "box": [
-          324,
-          4,
-          312,
-          232
+          324.0,
+          12.0,
+          304.0,
+          222.4
         ],
         "keepClear": "reset cell"
       },
@@ -618,10 +618,10 @@ export const LAYOUTS = Object.freeze([
           8
         ],
         "box": [
-          324,
-          244,
-          312,
-          72
+          324.0,
+          242.4,
+          304.0,
+          68.8
         ],
         "count": [
           1,
@@ -640,10 +640,10 @@ export const LAYOUTS = Object.freeze([
           9
         ],
         "box": [
-          324,
-          324,
-          312,
-          32
+          324.0,
+          319.2,
+          304.0,
+          30.4
         ]
       },
       "note": {
@@ -656,10 +656,10 @@ export const LAYOUTS = Object.freeze([
           10
         ],
         "box": [
-          324,
-          364,
-          312,
-          32
+          324.0,
+          357.6,
+          304.0,
+          30.4
         ]
       },
       "reset": {
@@ -672,8 +672,8 @@ export const LAYOUTS = Object.freeze([
           1
         ],
         "box": [
-          608,
-          8,
+          604,
+          12,
           24,
           24
         ]
@@ -684,8 +684,9 @@ export const LAYOUTS = Object.freeze([
 
 export const SCENE = Object.freeze({ width: 640, height: 400 });
 // The reset cell (column 12, row 1): whatever slot covers it keeps it clear.
-export const RESET_CELL = Object.freeze([587, 0, 53, 40]);
-export const GRID = Object.freeze({ columns: 12, rows: 10, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 583 });
+export const RESET_CELL = Object.freeze([580, 8, 52, 38.4]);
+// Amendment H: the grid sits inside an 8 px padding (624 x 384 at 640 x 400): a column is 52 px, a row 38.4 px; every slot is 12 px from the scene's edge and 8 px from its neighbour.
+export const GRID = Object.freeze({ columns: 12, rows: 10, padding: 8, columnWidth: 52, rowHeight: 38.4, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 576 });
 // The sizes a frame text object draws on a card with a layout (amendment G): the SDK gives a text object no typography, so every text is the body style, 14 px there (scene-style.js LAYOUT_BODY_SIZE). The doc's own sizes (section 2: label 13, number 17,
 // formula 14, note 13) stay available as DOC_TEXT_SIZES for a renderer that can draw them; a card checks its text at the size it is drawn at.
 export const DRAWN_TEXT_SIZES = Object.freeze({ value: LAYOUT_BODY_SIZE, formula: LAYOUT_BODY_SIZE, note: LAYOUT_BODY_SIZE });
@@ -719,7 +720,7 @@ export function pickLayout({ pictureCount, runs, panelRole }, { hasPanel } = {})
 
 // Section 2, the values section: 1 to 4 values divide the section's box equally with 8 px between them. A box is [x, y, w, h]; stacked (h of 64 or more) puts the label above the number, else one line with the
 // number at the right. maxRight: where the text must end (the box's right less 8, and left of the reset cell in layout 5's top value).
-const cut = (start, length, count) => { const size = (length - GRID.valueGap * (count - 1)) / count; return Array.from({ length: count }, (_, i) => [Math.round(start + i * (size + GRID.valueGap)), Math.round(size)]); };
+const cut = (start, length, count) => { const size = (length - GRID.valueGap * (count - 1)) / count; return Array.from({ length: count }, (_, i) => [Math.round((start + i * (size + GRID.valueGap)) * 100) / 100, Math.round(size * 100) / 100]); };
 export function valueBoxes(layoutId, count) {
   const layout = layoutById(layoutId);
   if (!layout) throw new LayoutError('layout_unknown', `no layout "${layoutId}"`, ['layout']);
