@@ -54,7 +54,7 @@ async function envelope(over = {}) {
   return { ...block, interactions: { version: 1, displayTextVersion: 1, contentRevision: revision,
     questions: [{ id: 'q-1', text: 'How does a tree choose its first question?' }, { id: 'q-2', text: 'What happens when a tree gets too deep?' }, { id: 'q-3', text: 'Why do the paths make rectangles?' }], terms: [] }, _body: fieldText(block, 'body') };
 }
-const narration = { status: 'ready', fileRef: { v: 1, source: { id: 'fs_audio', rev: 'rev-1' }, meta: { name: 'a.mp3', type: 'audio/mpeg', size: 10 } }, seconds: 84, script: 'A decision tree asks questions.', provider: 'fish', model: 's1', voiceId: 'v' };
+const narration = { status: 'ready', fileRef: { v: 1, source: { id: 'fs_audio', rev: 'rev-1' }, meta: { name: 'a.mp3', type: 'audio/mpeg', size: 10 } }, seconds: 84, script: 'A decision tree asks questions.', provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'v' };
 
 const settle = () => B.act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
 let root = null;

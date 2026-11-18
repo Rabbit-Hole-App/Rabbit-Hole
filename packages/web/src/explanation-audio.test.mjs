@@ -51,7 +51,7 @@ const B = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const ref = id => ({ v: 1, source: { id, rev: 'rev-1' }, meta: { name: 'explanation.mp3', type: 'audio/mpeg', size: 700000 } });
-const ready = (id = 'fs_audio', over = {}) => ({ status: 'ready', fileRef: ref(id), seconds: 84, script: 'x', provider: 'fish', model: 's1', voiceId: 'v', ...over });
+const ready = (id = 'fs_audio', over = {}) => ({ status: 'ready', fileRef: ref(id), seconds: 84, script: 'x', provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'v', ...over });
 const card = (id = 'card-1', over = {}) => ({ id, type: 'explanation', dx: 0, dy: 0, title: `Why ${id}`, body: 'A decision tree asks simple questions.', narration: ready(), ...over });
 
 const settle = () => B.act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });

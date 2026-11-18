@@ -19,7 +19,8 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { spendTransport } from './learn-spend.js';
 import { CHAIN_ENDPOINTS, anthropicReply } from './explanation-fast-chain.js';
 import { chainSteps, resolveExplanationProfile } from './explanation-models.js';
-import { ELEVEN_MODEL, elevenSpendTransport, isPaidSpendReply } from './learn-paid-transport.js';
+import { ELEVEN_MODEL, isPaidSpendReply } from './learn-paid-transport.js';
+import { NARRATION_VOICE, speakNarration } from './narration-voice.js';
 import { priceUsage } from './pricing-registry.js';
 import { paidRefusal } from './learn-paid.js';
 import { NO_CAP, admitUsage, limitsFrom } from './learn-shared-ask.js';
@@ -32,12 +33,8 @@ export const audioRoute = path => path === SCRIPT_PATH || path === VOICE_PATH;
 export const SCRIPT_PROFILE = 'google-low'; // the production written /explain profile: Gemini Flash Lite, Fireworks as the fallback
 export const SCRIPT_MAX_TOKENS = 3000; // two strings of up to about 400 words (about 550 tokens each) and the model's own reasoning
 export const SCRIPT_DEADLINE_MS = 25000; // off the card's critical path, so longer than the chain's 8 and 12 s
-export const VOICE_ID = 'cgSgspJ2msm6clMCkdW9'; // Jessica (female), chosen in AUD-2
-export const VOICE_SETTINGS = Object.freeze({ stability: 0.4, similarity_boost: 0.75, speed: 1.1 }); // a little more energetic and faster (owner); Flash v2.5 takes no style or speaker boost
-export const VOICE_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_64`;
 export const VOICE_TIMEOUT_MS = 90000;
 export const VOICE_MAX_CHARS = 4000, VOICE_MAX_BYTES = 8 * 1024 * 1024;
-export const AUDIO_BITRATE = 64000; // mp3_44100_64 is constant 64 kbps: the length is its bytes
 export const AUDIO_LIMITS = { EXPLANATION_SCRIPT_HOUR: 60, EXPLANATION_SCRIPT_DAY: 200, EXPLANATION_AUDIO_HOUR: 30, EXPLANATION_AUDIO_DAY: 100 }; // launch protection, not product policy; a worker var of the same name overrides one
 const BODY_CHARS = 9000, MORE_CHARS = 6000;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
@@ -120,9 +117,9 @@ const keyOf = (org, app, id) => `${org}|${app}|${id}`;
 
 // ---- the voice ----
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value === 'string' ? new TextEncoder().encode(value) : value))].map(n => n.toString(16).padStart(2, '0')).join('');
-export const secondsOf = bytes => Math.round((bytes * 8) / AUDIO_BITRATE);
+export const secondsOf = bytes => Math.round((bytes * 8) / NARRATION_VOICE.bitrate);
 const fileRefOf = (source, sha256, name, size) => ({ v: 1, source: { id: source, rev: sha256 }, meta: { name, type: 'audio/mpeg', size } });
-const readyNarration = (source, sha256, name, bytes) => ({ status: 'ready', fileRef: fileRefOf(source, sha256, name, bytes), seconds: secondsOf(bytes), provider: 'elevenlabs', model: ELEVEN_MODEL, voiceId: VOICE_ID });
+const readyNarration = (source, sha256, name, bytes) => ({ status: 'ready', fileRef: fileRefOf(source, sha256, name, bytes), seconds: secondsOf(bytes), provider: NARRATION_VOICE.provider, model: NARRATION_VOICE.model, voiceId: NARRATION_VOICE.voiceId });
 const failed = (code, reason) => ({ status: 'error', failed: 'audio', code, reason });
 
 // The board's owner, whose file source the audio is (the same mechanism as learn-artifact.js store() for a card's pictures). null: no owner or no board to keep it for.
@@ -138,9 +135,7 @@ async function makeVoice(env, store, id, script, sourceId) {
   const db = env.LEARN_DB;
   let response;
   try {
-    response = await elevenSpendTransport(env, script, () => fetch(VOICE_URL, { method: 'POST', signal: AbortSignal.timeout(VOICE_TIMEOUT_MS),
-      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text: script, model_id: ELEVEN_MODEL, voice_settings: VOICE_SETTINGS }) }));
+    response = await speakNarration(env, script, { signal: AbortSignal.timeout(VOICE_TIMEOUT_MS), category: 'explanation_audio' });
   } catch (error) { return failed(error?.name === 'TimeoutError' ? 'timeout' : 'provider_error', 'The voice took too long to make. Try again.'); }
   if (isPaidSpendReply(response)) return failed('spend_refused', (await response.clone().json().catch(() => null))?.error || 'This could not be made right now.');
   if (!response.ok) return failed(`http_${response.status}`, 'The voice could not be made right now. Try again.');
