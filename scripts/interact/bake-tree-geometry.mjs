@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages/web/src');
-const FRAME = { width: 640, height: 430 }, BOX = { x: 12, y: 12, w: 420 };
+const FRAME = { width: 640, height: 290 }, BOX = { x: 12, y: 12, w: 420 };
 const TREE = {
   title: 'Decision tree',
   nodes: [

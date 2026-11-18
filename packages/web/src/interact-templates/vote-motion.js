@@ -30,6 +30,6 @@ export function evaluate({time}){
   const lines=wrap(line),spec={version:1,diagram:{kind:'bar-chart',title:V.title,unit:V.unit,bars:V.classes.map((label,c)=>({label:label,value:values[c]}))}};
   const objects=[sdk.diagram(spec,{x:12,y:12,w:420}),sdk.box('callout.active.l0',450,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',461,90,head,{role:'input',opacity:1})];
   lines.forEach((value,j)=>objects.push(sdk.text('callout.active.s'+j,461,116+j*20,value,{role:'neutral',opacity:1})));
-  return {frame:sdk.frame(objects,{width:640,height:330}),quantities:{}};
+  return {frame:sdk.frame(objects,{width:640,height:300}),quantities:{}};
 }`;
 }
