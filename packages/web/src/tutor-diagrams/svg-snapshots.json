@@ -2977,19 +2977,19 @@
       "height": 332
     },
     "shape-box-plot/320": {
-      "sha256": "ceba9849871f1dcb0bb95a848f8603381d9cdfc0b1ff700fe4f1d5b363e69545",
+      "sha256": "faff0dfae8908d7f2b9929b2411b7aa33ee3306b675dfa2bf5732d0b351577ce",
       "width": 360,
-      "height": 243.5
+      "height": 266.5
     },
     "shape-box-plot/408": {
-      "sha256": "60631aabcf5a1a6f466421246ed351ab9dc50eb385b03950f2f018250ca8ba89",
+      "sha256": "0d024456b637762f710db2ef83e22a686bb2b8caba8d1ed8c3a1b626d5c61b8e",
       "width": 408,
-      "height": 243.5
+      "height": 266.5
     },
     "shape-box-plot/720": {
-      "sha256": "a8e5e80973e013ed84cfaaee3bbff23c7bffa073f8e6d81724398ff57c2c5423",
+      "sha256": "83213b1ede0183e4e2d888a94603ffe718d9161ef37f15ba65f4e66606970b08",
       "width": 720,
-      "height": 243.5
+      "height": 266.5
     },
     "shape-comparison/320": {
       "sha256": "24d8172b004a6d831cb68c8c22f5ff7bebf04066691acd34d94c314d6d2215a7",

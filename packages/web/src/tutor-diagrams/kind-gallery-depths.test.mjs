@@ -5,8 +5,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { lintDiagramContent } from './content-contract.js';
 import { mathLabel } from './math.js';
 import { parseTutorDiagram, tutorDiagramJsonSchema } from './spec.js';
+import { boxFences } from './derived.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 
+// Fences left out of a box are filled by the parser (VAR-1): the parsed spec is the written one plus the computed fences.
+const withComputedFences = spec => spec.diagram.kind !== 'box-plot' ? spec
+  : { ...spec, diagram: { ...spec.diagram, boxes: spec.diagram.boxes.map(box => box.fences ? box : { ...box, fences: { lower: boxFences(box).lower, upper: boxFences(box).upper } }) } };
 const gallery = JSON.parse(readFileSync(new URL('./kind-gallery.json', import.meta.url), 'utf8'));
 const depthGallery = JSON.parse(readFileSync(new URL('./kind-gallery-depths.json', import.meta.url), 'utf8'));
 const originalByKind = new Map(gallery.map(spec => [spec.diagram.kind, spec]));
@@ -83,7 +87,7 @@ for (const { kind, overview, standard, deep } of depthGallery) {
   for (const [depth, spec] of Object.entries({ overview, standard, deep })) {
     test(`${kind} ${depth} parses, passes the content contract and renders at all gallery widths`, () => {
       const saved = JSON.stringify(spec);
-      assert.deepEqual(parseTutorDiagram(saved), spec);
+      assert.deepEqual(parseTutorDiagram(saved), withComputedFences(spec));
       assert.deepEqual(lintDiagramContent(spec), []);
       for (const available of [320, 408, 720]) {
         const { element, width, height } = renderTutorDiagram(saved, available);
