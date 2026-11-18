@@ -1,0 +1,23 @@
+{
+ "batch": {
+  "runs": 12,
+  "firstAttemptValid": 3,
+  "firstAttemptKnown": 12,
+  "colsObjectAttempt0": 8,
+  "anyErrorAttempt0": 9,
+  "delivered": 11,
+  "moved": 9,
+  "q0": {
+   "left: column lists with no labels for the items (the repair names them; Item 1, Item 2 is never invented)": 11,
+   "left: column lists of different lengths": 4,
+   "coerced: 0": 3
+  }
+ },
+ "replay": {
+  "batch": {
+   "fences": 0,
+   "validAsWritten": 0,
+   "validAfterQ0": 0
+  }
+ }
+}
