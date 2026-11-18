@@ -1,0 +1,481 @@
+{
+ "meta": {
+  "items": 52,
+  "baseItems": 26,
+  "transformationPrompts": 10,
+  "profiles": [
+   "google-low",
+   "fireworks-low"
+  ]
+ },
+ "items": [
+  {
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 0
+  },
+  {
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 1
+  },
+  {
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "google-low",
+   "idx": 2
+  },
+  {
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "fireworks-low",
+   "idx": 3
+  },
+  {
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 4
+  },
+  {
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 5
+  },
+  {
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "google-low",
+   "idx": 6
+  },
+  {
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "fireworks-low",
+   "idx": 7
+  },
+  {
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 8
+  },
+  {
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 9
+  },
+  {
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "google-low",
+   "idx": 10
+  },
+  {
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "fireworks-low",
+   "idx": 11
+  },
+  {
+   "set": "softmax",
+   "tag": "S1",
+   "prompt": "How does softmax turn raw scores into probabilities?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 12
+  },
+  {
+   "set": "softmax",
+   "tag": "S1",
+   "prompt": "How does softmax turn raw scores into probabilities?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 13
+  },
+  {
+   "set": "softmax",
+   "tag": "S2",
+   "prompt": "What does temperature do to a softmax distribution over tokens?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 14
+  },
+  {
+   "set": "softmax",
+   "tag": "S2",
+   "prompt": "What does temperature do to a softmax distribution over tokens?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 15
+  },
+  {
+   "set": "softmax",
+   "tag": "S3",
+   "prompt": "Why do we subtract the maximum logit before applying softmax?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 16
+  },
+  {
+   "set": "softmax",
+   "tag": "S3",
+   "prompt": "Why do we subtract the maximum logit before applying softmax?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 17
+  },
+  {
+   "set": "softmax",
+   "tag": "S4",
+   "prompt": "How does top-k sampling pick the next token from the probabilities?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 18
+  },
+  {
+   "set": "softmax",
+   "tag": "S4",
+   "prompt": "How does top-k sampling pick the next token from the probabilities?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 19
+  },
+  {
+   "set": "softmax",
+   "tag": "S5",
+   "prompt": "How does top-p (nucleus) sampling differ from top-k sampling?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 20
+  },
+  {
+   "set": "softmax",
+   "tag": "S5",
+   "prompt": "How does top-p (nucleus) sampling differ from top-k sampling?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 21
+  },
+  {
+   "set": "softmax",
+   "tag": "S6",
+   "prompt": "How do logits become a probability for each word in a language model?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 22
+  },
+  {
+   "set": "softmax",
+   "tag": "S6",
+   "prompt": "How do logits become a probability for each word in a language model?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 23
+  },
+  {
+   "set": "softmax",
+   "tag": "S7",
+   "prompt": "What happens to the probabilities when the temperature is 0.5 versus 2?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 24
+  },
+  {
+   "set": "softmax",
+   "tag": "S7",
+   "prompt": "What happens to the probabilities when the temperature is 0.5 versus 2?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 25
+  },
+  {
+   "set": "softmax",
+   "tag": "S8",
+   "prompt": "How do we normalise attention scores so they sum to one?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 26
+  },
+  {
+   "set": "softmax",
+   "tag": "S8",
+   "prompt": "How do we normalise attention scores so they sum to one?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 27
+  },
+  {
+   "set": "softmax",
+   "tag": "S9",
+   "prompt": "How is the probability of a generated sequence computed from per-token probabilities?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 28
+  },
+  {
+   "set": "softmax",
+   "tag": "S9",
+   "prompt": "How is the probability of a generated sequence computed from per-token probabilities?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 29
+  },
+  {
+   "set": "softmax",
+   "tag": "S10",
+   "prompt": "Why does a larger temperature make a model output more random?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 30
+  },
+  {
+   "set": "softmax",
+   "tag": "S10",
+   "prompt": "Why does a larger temperature make a model output more random?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 31
+  },
+  {
+   "set": "transformation",
+   "tag": "T1",
+   "prompt": "what does softmax do?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 32
+  },
+  {
+   "set": "transformation",
+   "tag": "T1",
+   "prompt": "what does softmax do?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 33
+  },
+  {
+   "set": "transformation",
+   "tag": "T2",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 34
+  },
+  {
+   "set": "transformation",
+   "tag": "T2",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 35
+  },
+  {
+   "set": "transformation",
+   "tag": "T3",
+   "prompt": "what is entropy?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 36
+  },
+  {
+   "set": "transformation",
+   "tag": "T3",
+   "prompt": "what is entropy?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 37
+  },
+  {
+   "set": "transformation",
+   "tag": "T4",
+   "prompt": "what is quantization?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 38
+  },
+  {
+   "set": "transformation",
+   "tag": "T4",
+   "prompt": "what is quantization?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 39
+  },
+  {
+   "set": "transformation",
+   "tag": "T5",
+   "prompt": "how does tokenization work?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 40
+  },
+  {
+   "set": "transformation",
+   "tag": "T5",
+   "prompt": "how does tokenization work?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 41
+  },
+  {
+   "set": "transformation",
+   "tag": "T6",
+   "prompt": "what is batch normalization?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 42
+  },
+  {
+   "set": "transformation",
+   "tag": "T6",
+   "prompt": "what is batch normalization?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 43
+  },
+  {
+   "set": "transformation",
+   "tag": "T7",
+   "prompt": "how does dropout work?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 44
+  },
+  {
+   "set": "transformation",
+   "tag": "T7",
+   "prompt": "how does dropout work?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 45
+  },
+  {
+   "set": "transformation",
+   "tag": "T8",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 46
+  },
+  {
+   "set": "transformation",
+   "tag": "T8",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 47
+  },
+  {
+   "set": "transformation",
+   "tag": "T9",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 48
+  },
+  {
+   "set": "transformation",
+   "tag": "T9",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 49
+  },
+  {
+   "set": "transformation",
+   "tag": "T10",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "idx": 50
+  },
+  {
+   "set": "transformation",
+   "tag": "T10",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "fireworks-low",
+   "idx": 51
+  }
+ ]
+}
