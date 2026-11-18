@@ -65,17 +65,19 @@ test('a value under 64 px tall is one line; layout 5 keeps its top value left of
   assert.equal(valueBoxes('tall', 2)[0].maxRight, 583); assert.equal(valueBoxes('tall', 2)[1].maxRight, 628);
 });
 
-test('"Period B" with "2.01 s" fits at four values; the section is not divided again', () => {
-  assert.equal(Math.round(textWidth('Period B', DOC_TEXT_SIZES.label) + 8 + textWidth('2.01 s', DOC_TEXT_SIZES.number)), 130);
-  const fitted = fitValues('wide', Array(4).fill({ label: 'Period B', text: '2.01 s' }), DOC_TEXT_SIZES);
-  assert.equal(fitted.values.length, 4); assert.equal(fitted.dropped, 0);
+test('a value is one box with its own text "Label: value unit": the whole text is measured against the box width less 16 px', () => {
+  const text = 'Period B: 2.01 s', width = textWidth(text, DRAWN_TEXT_SIZES.value);
+  assert.equal(Math.round(width * 10) / 10, 136.2); // 15 px body text, the size a frame text draws
+  assert.equal(fitValues('wide', Array(3).fill({ text }), DRAWN_TEXT_SIZES).dropped, 0); // 189 px of room at three values
+  assert.equal(fitValues('wide', Array(4).fill({ text }), DRAWN_TEXT_SIZES).dropped, 1); // 136 px of room at four: 136.2 does not fit, the last is dropped and the box divided again
+  assert.equal(fitValues('wide', Array(4).fill({ text: 'Angle B: 19°' }), DRAWN_TEXT_SIZES).dropped, 0);
 });
 
-test('a 10-character label with a 7-character number at four values is dropped to three', () => {
-  const values = [{ label: 'Period B', text: '2.01 s' }, { label: 'Period A', text: '2.01 s' }, { label: 'Mass B', text: '1.0 kg' }, { label: 'Final loss', text: '0.00123' }];
-  assert.ok(textWidth('Final loss', DOC_TEXT_SIZES.label) + 8 + textWidth('0.00123', DOC_TEXT_SIZES.number) > 136);
-  const fitted = fitValues('wide', values, DOC_TEXT_SIZES);
-  assert.deepEqual(fitted.values.map(value => value.label), ['Period B', 'Period A', 'Mass B']); assert.equal(fitted.dropped, 1); assert.equal(fitted.boxes.length, 3);
+test('a long label with a long number at four values is dropped to three, in list order', () => {
+  const values = [{ text: 'Period B: 2.01 s' }, { text: 'Angle B: 19°' }, { text: 'Mass B: 1.0 kg' }, { text: 'Final loss: 0.00123' }];
+  assert.ok(textWidth(values[3].text, DRAWN_TEXT_SIZES.value) > 136);
+  const fitted = fitValues('wide', values, DRAWN_TEXT_SIZES);
+  assert.deepEqual(fitted.values.map(value => value.text), ['Period B: 2.01 s', 'Angle B: 19°', 'Mass B: 1.0 kg']); assert.equal(fitted.dropped, 1); assert.equal(fitted.boxes.length, 3);
 });
 
 test('formula and note: refused when they do not fit, never shrunk or cut', () => {

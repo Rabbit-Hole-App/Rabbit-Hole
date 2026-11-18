@@ -687,7 +687,7 @@ export const RESET_CELL = Object.freeze([587, 0, 53, 40]);
 export const GRID = Object.freeze({ columns: 12, rows: 8, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 583 });
 // The sizes a frame text object draws today: the SDK gives a text object no typography, so every text is the theme's body style (TEACHING_TEXT.body). The doc's own sizes (section 2: label 13, number 17,
 // formula 14, note 13) stay available as DOC_TEXT_SIZES for a renderer that can draw them; a card checks its text at the size it is drawn at.
-export const DRAWN_TEXT_SIZES = Object.freeze({ label: TEACHING_TEXT.body.size, number: TEACHING_TEXT.body.size, formula: TEACHING_TEXT.body.size, note: TEACHING_TEXT.body.size });
+export const DRAWN_TEXT_SIZES = Object.freeze({ value: TEACHING_TEXT.body.size, formula: TEACHING_TEXT.body.size, note: TEACHING_TEXT.body.size });
 export const DOC_TEXT_SIZES = Object.freeze({ label: TEACHING_TEXT.caption.size, number: TEACHING_TEXT.display.size, formula: TEACHING_TEXT.equation.size, note: TEACHING_TEXT.caption.size });
 
 export class LayoutError extends Error {
@@ -734,15 +734,12 @@ export function valueBoxes(layoutId, count) {
   return boxes.map(([bx, by, bw, bh], i) => ({ box: [bx, by, bw, bh], stacked: bh >= 64, maxRight: layoutId === 'tall' && i === 0 ? Math.min(bx + bw - GRID.textClear, GRID.resetClearRight) : bx + bw - GRID.textClear }));
 }
 
-// Section 2, text: label width + 8 px + number width must fit between the box's text edges (stacked: the wider of the two lines). When the values do not all fit, the last one is dropped and the box divided again,
-// so the order of the list is the order of importance. values: [{ label, text }] (text is the number with its unit). Returns { values, boxes, dropped }.
+// Section 2, text (amendment C): a value is ONE box with its own text "Label: value unit"; the whole text must fit the box's width minus 16 px (8 px clear of each side; layout 5's top value stays left of the reset
+// cell). When the values do not all fit, the last one is dropped and the box divided again, so the order of the list is the order of importance. values: [{ text }]. Returns { values, boxes, dropped }.
 export function fitValues(layoutId, values, sizes = DRAWN_TEXT_SIZES) {
   for (let count = Math.min(values.length, layoutById(layoutId)?.slots.values.count[1] ?? 0); count >= 1; count--) {
     const boxes = valueBoxes(layoutId, count);
-    const fits = values.slice(0, count).every(({ label, text }, i) => {
-      const { box: [bx], stacked, maxRight } = boxes[i], room = maxRight - (bx + GRID.textClear), l = textWidth(label, sizes.label), n = textWidth(text, sizes.number);
-      return (stacked ? Math.max(l, n) : l + GRID.textClear + n) <= room;
-    });
+    const fits = values.slice(0, count).every(({ text }, i) => { const { box: [bx], maxRight } = boxes[i]; return textWidth(text, sizes.value) <= maxRight - (bx + GRID.textClear); });
     if (fits) return { values: values.slice(0, count), boxes, dropped: values.length - count };
   }
   throw new LayoutError('values_none', 'not even one value fits its box', ['values']);

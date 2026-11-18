@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages/web/src');
 const load = name => import(pathToFileURL(join(SRC, name)));
-const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { fitPanel, layoutById, valueBoxes, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
+const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { fitPanel, layoutById, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
 const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { parseTutorDiagram, dropGenericUnits } = await load('tutor-diagrams/spec.js'), { layouts } = await load('tutor-diagrams/layouts.js'), { textWidth } = await load('tutor-diagrams/primitives.js');
 const { renderToStaticMarkup } = await import(pathToFileURL(join(SRC, '..', 'node_modules/react-dom/server.js')));
 
@@ -57,12 +57,11 @@ if (process.argv.includes('--measure')) {
   console.log(rows.every(row => key(row) === key(rows[0])) ? 'IDENTICAL across all nine' : 'DIFFERENT');
   console.log(`panel box ${JSON.stringify(panel)}; picture drawn at x ${rows[0].parsed ? run(1, 0).diagram.args[1].x : ''} y ${run(1, 0).diagram.args[1].y}, ${r2(rows[0].drawn.w)} x ${r2(rows[0].drawn.h)}; the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
   // every text in the frame against its box, at the size a frame text draws (the width model of the renderer)
-  const objects = run(2, 3).objects, size = DRAWN_TEXT_SIZES.label, lines = [];
-  const widthOf = o => textWidth(o.args[3], size), boxOf = id => ({ args: [id, 0, 0, valueBoxes('side-by-side', 3)[Number(id.split('.')[1])].box[2]] });
-  for (const k of [0, 1, 2]) { const b = boxOf(`value.${k}`), l = objects.find(o => o.args?.[0] === `value.${k}.label`), n = objects.find(o => o.args?.[0] === `value.${k}.number`); if (b) lines.push(`value ${k}: "${l.args[3]}" ${r2(widthOf(l))} + 8 + "${n.args[3]}" ${r2(widthOf(n))} = ${r2(widthOf(l) + 8 + widthOf(n))} of ${b.args[3] - 16}`); }
-  const formula = objects.find(o => o.args?.[0] === 'formula'); lines.push(`formula "${formula.args[3]}" ${r2(widthOf(formula))} of 243`);
-  const notes = { same: 'B matches A: same mass, same length.', mass: 'Same timing: only the mass differs.', longer: 'Slower: a longer string takes longer.', shorter: 'Faster: a shorter string is quicker.' };
-  for (const [name, sentence] of Object.entries(notes)) lines.push(`note ${name} ${r2(textWidth(sentence, size))} of 349`);
+  const objects = run(2, 3).objects, size = DRAWN_TEXT_SIZES.value, lines = [];
+  // amendment C: every value, the formula and the note is one box with its own text (or math run); the text against the box's width less 16 px
+  const boxText = id => { const o = objects.find(x => x.fn === 'box' && x.args[0] === id), opts = o.args[5] ?? {}; return { w: o.args[3], text: opts.text ?? `$${opts.runs[0].tex}$`, math: Boolean(opts.runs) }; };
+  for (const id of ['value.0', 'value.1', 'value.2', 'formula', 'note']) { const b = boxText(id); lines.push(`${id}${b.math ? ' (math run)' : ''}: "${b.text}" ${r2(textWidth(b.text, size))} of ${b.w - 16} (box ${b.w})`); }
+  for (const [name, sentence] of Object.entries(base.notes)) lines.push(`note ${name}: ${r2(textWidth(sentence, size))} of ${boxText('note').w - 16}`);
   // the stage: every ball of both pendulums over the whole 8 s at the extreme settings, against the stage box
   const stage = layoutById('side-by-side').slots.stage.box; let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
   for (const [mass, length] of [[3, 2], [0.5, 0.5], [3, 0.5], [0.5, 2]]) for (let t = 0; t <= 8; t += 0.05) for (const o of run(length, t, mass).objects) if (o.fn === 'circle' && o.args[0].startsWith('ball.')) {
