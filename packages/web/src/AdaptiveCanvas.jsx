@@ -108,6 +108,7 @@ import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { ExplanationHost } from './explanation-host.js';
+import { askScript, generateNarration, landNarration } from './explanation-audio.js';
 import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
@@ -2501,6 +2502,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
         added = openedExplanation(added); // CV-1/CV-8: a new Explanation opens whole, at the width its visual asks for (not the type's fixed 440), from every origin
+        askNarrationRef.current?.(added);
         if (added.cardLayout?.mode === 'full') whole = true;
         if (after == null) return framed(insertAtView(added, into));
         perfMark(added.id, 'insert');
@@ -5576,6 +5578,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!quiet) { if (readOnly || lockedRef.current.has(id)) return; snapshot(); }
     setBlocks(previous => patchBlock(previous, id, patch));
   };
+  // Card audio (explanation-audio.js; control plane explanation-audio.js): the script of a NEW written Explanation is asked for once, right after the card is on the canvas, and lands on it as a
+  // quiet update of just block.narration. Never blocks or delays the card, never raises a notice; only here in the owner's editable canvas (a visitor or a copy never asks), and a card that came
+  // from a saved board never does (only insertBlock, the one way a card is made, asks). The voice waits for the learner's first Play (hostRef narrate).
+  const narrationAsked = useRef(new Set());
+  const askNarrationRef = useRef(null);
+  askNarrationRef.current = card => askScript({ post: api, app: appName, editable: !readOnlyRef.current && !localCopyRef.current, asked: narrationAsked.current,
+    land: narration => setBlocks(previous => landNarration(previous, card.id, narration, { ifNone: true })) }, card);
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.
@@ -6441,6 +6450,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const taken = destination === 'card' || destination === 'follow-up' || destination === 'explore' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
       return taken !== false && admitted;
     },
+    // The audio pill's Play on a card whose voice is not made yet, or whose last step failed (ExplanationAudio.jsx GeneratePill): makes what is missing and lands the whole narration on the card.
+    narrate: async id => {
+      const card = blocksRef.current.find(entry => entry.id === id);
+      if (!card || card.type !== 'explanation' || !appName) return null;
+      const narration = await generateNarration(api, { app: appName, block: card });
+      setBlocks(previous => landNarration(previous, id, narration));
+      return narration;
+    },
     // A shared canvas (SharedBoardPage): an Explanation card's suggested question, asked by a visitor. Signed out, the page sends the visitor through sign-in and back to this canvas with the
     // question and the card kept (shared-ask.js signInForAsk). Signed in it is Ask in Chat, as the card's menu does it: the card becomes the composer's pill, the question goes in the composer, nothing is sent.
     visitorAsk: ({ id, question }) => {
@@ -6459,6 +6476,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const explanationHost = useMemo(() => ({
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
+    ...(canNote ? { narrate: id => hostRef.current.narrate(id) } : {}), // a viewer or a copy (no canNote) plays existing audio only; it never generates
     ...(canVisitorAsk ? { visitorAsk: request => hostRef.current.visitorAsk(request) } : {}),
     // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),

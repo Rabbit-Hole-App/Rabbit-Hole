@@ -35,7 +35,7 @@ globalThis.URL.revokeObjectURL = () => {};
 
 const dir = mkdtempSync(join(tmpdir(), 'explanation-audio-')), outfile = join(dir, 'explanation.cjs');
 await esbuild.build({
-  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { getPlayingCard, getTranscript, closeTranscript } from './audio-playing.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { getPlayingCard, getTranscript, closeTranscript } from './audio-playing.js'; export { ExplanationHost } from './explanation-host.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -62,7 +62,8 @@ async function mount(...blocks) {
   document.getElementById('app').replaceChildren();
   root = B.createRoot(document.getElementById('app'));
   const body = block => B.createElement(B.LearningBlockBody, { key: block.id, block, onChange() {}, onChangeQuiet() {}, onFile() {}, appName: 'demo', selected: true, readOnly: !!options.readOnly, onExpandHeight() {} });
-  await B.act(async () => root.render(B.createElement('div', { onPointerDown: options.onPointerDown }, ...blocks.map(body))));
+  const page = B.createElement('div', { onPointerDown: options.onPointerDown }, ...blocks.map(body));
+  await B.act(async () => root.render(options.host ? B.createElement(B.ExplanationHost.Provider, { value: options.host }, page) : page));
   await settle();
 }
 test.after(async () => { if (root) await B.act(async () => root.unmount()); });
@@ -307,4 +308,67 @@ test('the window shows narration.transcript (LaTeX) when there is one, else the 
   assert.equal(B.getTranscript().script, 'plain spoken words.', 'a blank transcript falls back to the script');
   await B.act(async () => root.unmount());
   root = null;
+});
+
+// Card audio generation (explanation-audio.js; the canvas offers `narrate` through ExplanationHost only where the card can be edited).
+const scripted = (over = {}) => ({ status: 'script', script: 'Spoken words here.', transcript: 'Spoken $x$ words.', seconds: 70, ...over });
+
+test('a script with no audio yet: the editor sees one Play button (no replay), nothing is read or played until it is pressed; a viewer (no host function) sees nothing', async () => {
+  reset();
+  const asked = [];
+  await mount(card('a', { narration: scripted() }), { host: { narrate: async id => { asked.push(id); return null; } } });
+  const pill = $('[data-explanation-audio]');
+  assert.equal(pill.getAttribute('data-audio-state'), 'script');
+  assert.equal(pill.querySelector('[data-audio-play]').getAttribute('title'), 'Play explanation');
+  assert.equal(pill.querySelector('[data-audio-replay]'), null);
+  assert.deepEqual([asked.length, reads.length, audios.length], [0, 0, 0]);
+  await mount(card('a', { narration: scripted() }));
+  assert.equal($('[data-explanation-audio]'), null, 'no host narrate: a visitor never generates, so there is nothing to press');
+  await mount(card('a', { narration: scripted() }), { readOnly: true, host: {} });
+  assert.equal($('[data-explanation-audio]'), null);
+  await mount(card('a', { narration: { status: 'error', failed: 'audio', reason: 'x' } }));
+  assert.equal($('[data-explanation-audio]'), null, 'a failure is for the editor only');
+});
+
+test('pressing Play on a script makes the voice (one request, button busy and disabled meanwhile), then the ready pill replaces it and starts playing', async () => {
+  reset();
+  const asked = []; let finish;
+  const host = { narrate: id => { asked.push(id); return new Promise(resolve => { finish = resolve; }); } };
+  await mount(card('a', { narration: scripted() }), { host });
+  await click($('[data-audio-play]'));
+  assert.deepEqual(asked, ['a']);
+  assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'preparing');
+  assert.ok($('[data-audio-play]').hasAttribute('disabled'));
+  assert.equal($('[data-audio-play]').getAttribute('title'), 'Preparing audio');
+  assert.match($('[data-audio-play]').innerHTML, /animate-spin/);
+  await click($('[data-audio-play]'));
+  assert.equal(asked.length, 1, 'a second press while it is being made is not a second request');
+  // the canvas lands the narration on the card, then the press's promise settles
+  await mount(card('a', { narration: ready('fs_a', { script: 'Spoken words here.', transcript: 'Spoken $x$ words.' }) }), { host });
+  finish(ready('fs_a'));
+  await settle();
+  assert.equal(toasts.length, 0, 'no notice on success');
+  assert.deepEqual(reads, ['/api/learn/files/fs_a'], 'the new file is read like any card audio');
+  assert.equal(audios[0].plays, 1, 'the Play that made the voice also plays it');
+  assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'playing');
+  assert.equal(B.getTranscript().script, 'Spoken $x$ words.', 'the transcript window shows the LaTeX transcript');
+});
+
+test('a failed step: the pill shows the same failure state as a failed playback, a notice says why, the next press runs it again; a card that is ready later is not auto-played', async () => {
+  reset();
+  const results = [{ status: 'error', failed: 'audio', code: 'not_configured', reason: 'Audio is not set up on this server yet.' }, null];
+  const asked = [];
+  const host = { narrate: async id => { asked.push(id); return results.shift() ?? null; } };
+  await mount(card('a', { narration: scripted() }), { host });
+  await click($('[data-audio-play]'));
+  assert.deepEqual(toasts.map(t => t.message), ['Audio is not set up on this server yet.']);
+  assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'script', 'the button is pressable again');
+  await mount(card('a', { narration: { ...scripted(), status: 'error', failed: 'audio', code: 'not_configured', reason: 'Audio is not set up on this server yet.' } }), { host });
+  assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'failed');
+  assert.equal($('[data-audio-play]').getAttribute('title'), 'Audio could not play. Try again.');
+  await click($('[data-audio-play]'));
+  assert.deepEqual(asked, ['a', 'a'], 'the retry asks again');
+  assert.equal(toasts.at(-1).message, 'The audio could not be made. Try again.', 'a press that got nothing back still says so');
+  await mount(card('a', { narration: ready('fs_late') }), { host });
+  assert.equal(audios.every(a => a.plays === 0), true, 'a ready narration that arrives without a press is never autoplayed');
 });
