@@ -6455,10 +6455,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return taken !== false && admitted;
     },
     // The audio pill's Play on a card whose voice is not made yet, or whose last step failed (ExplanationAudio.jsx GeneratePill): makes what is missing and lands the whole narration on the card.
-    narrate: async id => {
+    narrate: async (id, { voice = true } = {}) => {
       const card = blocksRef.current.find(entry => entry.id === id);
       if (!card || card.type !== 'explanation' || !appName) return null;
-      const narration = await generateNarration(api, { app: appName, block: card });
+      const narration = await generateNarration(api, { app: appName, block: card, voice });
       setBlocks(previous => landNarration(previous, id, narration));
       return narration;
     },
@@ -6480,7 +6480,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const explanationHost = useMemo(() => ({
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
-    ...(canNote ? { narrate: id => hostRef.current.narrate(id) } : {}), // a viewer or a copy (no canNote) plays existing audio only; it never generates
+    ...(canNote ? { narrate: (id, options) => hostRef.current.narrate(id, options) } : {}), // a viewer or a copy (no canNote) plays existing audio only; it never generates
     ...(canVisitorAsk ? { visitorAsk: request => hostRef.current.visitorAsk(request) } : {}),
     // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),

@@ -13,14 +13,18 @@ const LENGTHS = Object.freeze({
     balanced: 'Balanced: aim for about 90 seconds, about 240 to 300 words. The clarification, one or two examples, one misconception.',
     detailed: 'Detailed: aim for up to about 2 minutes, about 300 to 360 words. A fuller second explanation, examples, edge cases, the misconception, and what to try next.',
   },
-  // Gemini undershoots every word target by about a quarter (why.md section 4), so its numbers are written higher and carry a content checklist (tested as V6).
+  // Gemini writes about 0.6 (Brief), 0.7 (Balanced) and 0.9 (Detailed) of the words it is asked for (length measurement 2026-11-17, 144 real calls: raw medians 129 / 205 / 318 words against asks of
+  // 190 / 260 / 320), so its asks are the owner's targets divided by that ratio, with a content checklist and a floor sentence. The spoken length stays the owner's: about 60 to 80 s, 90 s, up to 2 minutes.
   gemini: {
-    brief: 'Brief: write 190 to 240 words, 60 to 80 seconds of speech. Include: one clarification of the hardest idea, one short worked example, and one sentence on what to notice next.',
-    balanced: 'Balanced: write 260 to 320 words, about 90 seconds of speech. Include: the clarification, two different examples, one misconception, and what to notice next.',
-    detailed: 'Detailed: write 320 to 380 words, up to about 2 minutes of speech. Include: a fuller second explanation, two different examples, an edge case, one misconception, and what to try next.',
+    brief: 'Brief: write 300 to 360 words, 60 to 80 seconds of speech. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it, and one sentence on what to notice next. Do not stop before 300 words.',
+    balanced: 'Balanced: write 360 to 420 words, about 90 seconds of speech. Include: the clarification, two different examples, one misconception, a second angle on the hardest part, and what to notice next. Do not stop before 360 words.',
+    detailed: 'Detailed: write 340 to 400 words, up to about 2 minutes of speech. Include: a fuller second explanation, two different examples, an edge case, one misconception, and what to try next.',
   },
 });
 
+// The hard floor, in words after the number check (owner 2026-11-17): a script under it is asked for once more, and still under it is an error, never short audio.
+export const FLOOR_WORDS = Object.freeze({ brief: 110, balanced: 200, detailed: 300 });
+export const floorWords = depth => FLOOR_WORDS[validDepth(depth) || DEFAULT_DEPTH];
 export const LENGTH_TARGET_WORDS = Object.freeze({ brief: [180, 240], balanced: [240, 300], detailed: [300, 360] });
 export const lengthLine = (depth, family = 'standard') => LENGTHS[family === 'gemini' ? 'gemini' : 'standard'][validDepth(depth) || DEFAULT_DEPTH];
 
@@ -41,7 +45,7 @@ WHAT TO ADD, IN THIS ORDER
 Everything must be true and consistent with the card. Add depth; never contradict the card, and do not invent facts you are not sure of.
 
 NUMBERS
-Use only numbers that appear in the card text or in the labels of its visuals, exactly as written there. Never compute anything: no sums, products, roots, percentages, rounding or conversions. If an example would need a number that is not in the card, describe it in words without a value. You may refer to a figure from the card, but never replay the card's own worked example.
+Use only numbers that appear in the card text or in the labels of its visuals, exactly as written there. Say at least one of the card's own numbers aloud, in the sentence where you explain the idea, so the explanation is tied to the card's figures. Never compute anything: no sums, products, roots, percentages, rounding or conversions. If an example would need a number that is not in the card, describe it in words without a value. Plain counting words (one, two, three, first, second, twice, half) are fine anywhere, but do not invent quantities for an example: use only the card's own numbers, or no number. Use the card's figures, but do not walk through the card's worked example step by step.
 
 STYLE: MIRROR THE CARD
 The script must sound like it was written by the same author as the card. Read the card's prose first and match:
@@ -54,17 +58,17 @@ The voice that reads the script is warm and friendly, but that is only how it is
 WRITTEN FOR THE EAR
 - Short sentences. One idea per sentence. Plain connecting words.
 - No markdown, no bullet lists, no headings, no numbered lists, no emoji, no stage directions, no sound cues.
-- In "script", no LaTeX and no symbols (no equals sign, plus, slash, caret, percent sign, brackets or currency sign). Say math aloud in words: "x squared over two", "zero point three six eight". Spell out units and abbreviations the way a person would say them.
+- In "script", no LaTeX, no symbols and no Greek letters (no equals sign, plus, slash, caret, percent sign, brackets or currency sign; say a letter such as sigma or e as a word). Say math aloud in words: "x squared over two", "zero point three six eight". Spell out units and abbreviations the way a person would say them.
 - Do not open by repeating the card's title, and never say "in this card", "as the card says" or "above". Start directly on the idea, in the card's own register.
-- Do not close with a recap of the card or a sign-off. End when the last idea is complete.
+- Do not close with a recap of the card or a sign-off.
 
 OPENING
 Vary your opening. Never start with "The hardest part" or "The part that trips" or any announcement of what is hard. Open on a concrete image, on a question the learner might be asking, or on the common misconception itself.
 
 DEPTH
-The user message gives the card's depth. This card is ${level}. Obey it in content and in length. These length targets are soft: stop when the idea is complete and never pad.
+The user message gives the card's depth. This card is ${level}. Obey it in content and in length.
 ${lengthLine(level, family)}
-Do not go over the top of the range, and do not stop under the bottom of it unless the idea is complete.
+Write at least the lower number of words and no more than the upper number.
 
 OUTPUT
 Return only JSON of this exact shape: {"script": "...", "transcript": "..."}
@@ -139,12 +143,18 @@ function runValues(tokens) {
 }
 
 // Every number spoken in a sentence, from digits and from words. A lone "one" is not read as a number: it is also the pronoun and the article ("one idea", "no one").
-export function spokenNumbers(sentence) {
+// counting: false also leaves out the spelled counting words two to ten when they stand alone ("two paths", "the other three"); they are not data. Digits, decimals, spelled-out data
+// ("zero point three six eight", "thirty seven", "twelve") and anything inside a longer number word stay. Ordinals, twice, half, double, pair and the like are not number words at all.
+function numbersIn(sentence, { counting = true } = {}) {
   const text = String(sentence ?? '');
   const found = digitNumbers(text);
-  const words = text.toLowerCase().replace(DIGITS, ' ').split(/[^a-z]+/).filter(Boolean);
+  const words = text.toLowerCase().replace(DIGITS, ' ').match(/[a-z]+|[,;:.!?()]/g) || []; // punctuation is a token, so "point three six eight, one idea" ends the number at the comma
   let run = [];
-  const flush = () => { if (run.length && !(run.length === 1 && run[0] === 'one')) found.push(...runValues(run)); run = []; };
+  const flush = () => {
+    const lone = run.length === 1 ? run[0] : null;
+    if (run.length && lone !== 'one' && !(!counting && lone && has(UNITS, lone) && UNITS[lone] >= 2 && UNITS[lone] <= 10)) found.push(...runValues(run));
+    run = [];
+  };
   for (const [index, word] of words.entries()) {
     if (isNumberWord(word) || (word === 'point' && run.length && DIGIT_WORDS.has(words[index + 1]))) run.push(word);
     else if (word === 'and' && run.length && has(UNITS, words[index + 1]) && run.some(w => has(SCALE, w))) continue; // "one hundred and five"
@@ -153,13 +163,18 @@ export function spokenNumbers(sentence) {
   flush();
   return found;
 }
+export const spokenNumbers = sentence => numbersIn(sentence);
+export const dataNumbers = sentence => numbersIn(sentence, { counting: false });
 
 // The numbers the card has: its prose, the learner's question and everything written inside its visuals, in digits or in words (a card that says "four strokes" has the number 4).
 export const cardNumbers = (...texts) => new Set(texts.flatMap(text => spokenNumbers(text)));
+// The card's data values only: what a script must speak at least one of (a card with none, only counting words, asks for no example).
+export const cardDataNumbers = (...texts) => new Set(texts.flatMap(text => dataNumbers(text)));
 
 const SYMBOLS = /[=+*/^<>[\]%\u00d7\u00f7\\$~\u00b2\u00b3\u00b9\u2070-\u209f]/;
 export const sentencesOf = text => String(text ?? '').split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
-const outside = (sentence, allowed) => spokenNumbers(sentence).some(n => !allowed.has(n));
+// Counting words are free when the card has numbers; a card with none has nothing to be outside of, so every number a script speaks is data (the old rule).
+const outside = (sentence, allowed) => numbersIn(sentence, { counting: allowed.size === 0 }).some(n => !allowed.has(n));
 const clean = text => String(text ?? '').replace(/\u2011/g, '-').replace(/\s+/g, ' ').trim();
 
 // -> { script, transcript, removed } with every sentence that speaks a number outside `allowed` (or carries a symbol in the script) taken out of both. When the two have the same number of
@@ -178,3 +193,19 @@ export function stripUnsafe(script, transcript, allowed) {
 export const wordCount = text => String(text ?? '').split(/\s+/).filter(Boolean).length;
 // The voice speaks about 180 words a minute at speed 1.1 (AUD-2: 163 to 200 across three cards); the real length comes with the audio.
 export const secondsEstimate = text => Math.round(wordCount(text) / 3);
+
+// The two rules a kept script must pass (owner 2026-11-17): the floor in words, and at least one of the card's own data numbers spoken. -> { words, failed: ['floor'?, 'example'?] }
+export function verdict(script, depth, cardData) {
+  const words = wordCount(script), failed = [];
+  if (words < floorWords(depth)) failed.push('floor');
+  if (cardData.size && !dataNumbers(script).some(n => cardData.has(n))) failed.push('example');
+  return { words, failed };
+}
+// The one extra user turn of the single re-ask; names each rule that failed.
+export function reaskMessage({ words, failed }, depth, cardData) {
+  const [low, high] = LENGTH_TARGET_WORDS[validDepth(depth) || DEFAULT_DEPTH];
+  const parts = [];
+  if (failed.includes('floor')) parts.push(`too short: ${words} words after removing sentences with outside numbers; target ${low} to ${high} words`);
+  if (failed.includes('example')) parts.push(`none of the card's own numbers (${[...cardData].slice(0, 4).join(', ')}) is spoken; say at least one of them aloud in the explanation`);
+  return `${parts.join('; and ')}; use the card's own numbers.`;
+}
