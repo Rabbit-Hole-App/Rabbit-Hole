@@ -66,7 +66,14 @@ function checkSamples(d, issue) {
   unique(d.groups.map(group => group.id), ['groups'], issue, 'Group IDs');
   if (new Set(d.samples.map(sample => sample.class).filter(Boolean)).size > 6) issue(['samples'], 'Use at most six sample classes');
   const groups = new Map(d.groups.map(group => [group.id, group]));
+  // A bootstrap draw is n rows from n rows, with replacement (exact, no tolerance; item 4, Reviewer 2026-11-17). The diagram says bootstrap in its title, caption or any label, and not
+  // m-out-of-n or subsample (those draw fewer on purpose); a replacement group draws from the whole sample set. Tagged arithmetic: the repair names the numbers.
+  const words = [d.title, d.caption, ...d.groups.map(group => group.label), ...d.samples.flatMap(sample => [sample.label, sample.class])].filter(Boolean).join(' ');
+  const bootstrap = /bootstrap/i.test(words) && !/m[- ]out[- ]of[- ]n|subsample/i.test(words);
   d.groups.forEach((group, i) => {
+    if (bootstrap && group.replacement && group.members.length !== d.samples.length) {
+      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${group.members.length}.`, { code: 'arithmetic' });
+    }
     for (const field of ['members', 'omitted']) {
       (group[field] ?? []).forEach((sampleId, j) => {
         if (!ids.includes(sampleId)) issue(['groups', i, field, j], 'Membership refers to an unknown sample ID');

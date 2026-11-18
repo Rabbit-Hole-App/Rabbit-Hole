@@ -51,7 +51,7 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 | Kind | New supported fields / variant | Primary source |
 | --- | --- | --- |
 | `heatmap` | Numeric `rows[].cells`, columns, explicit `range`, masked nulls and indexed highlights | `ml-statistical-*` |
-| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements | `ml-statistical-*` |
+| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements; when the title, caption or a label says bootstrap (not m-out-of-n or subsample), a replacement group draws exactly as many members as there are samples (arithmetic issue) | `ml-statistical-*` |
 | `histogram` | `binEdges`, count/proportion series, markers; unequal-width bins require `density` | `ml-statistical-*` |
 | `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis; stated fences must equal Q1 - 1.5 IQR and Q3 + 1.5 IQR (arithmetic issue), summary values and outliers must lie inside the author's axis, and the axis widens to hold a fence outside it | `ml-statistical-*` |
 | `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
