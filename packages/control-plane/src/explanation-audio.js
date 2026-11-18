@@ -155,6 +155,17 @@ async function makeVoice(env, store, id, script, sourceId) {
   return readyNarration(sourceId, sha256, name, bytes.length);
 }
 const pendingVoice = new Map();
+// A 15-second in-flight marker per voice (owner 2026-11-17): one row of shared_ask_events (the table the per-user caps use, no migration), inserted atomically only when no row for this file id is
+// younger than the window. The paid routes keep no KV; D1 is their coordination store (admitSpend's stable operation ids, admitUsage). shortcut: rows are never pruned, like the cap rows.
+export const MARKER_SECONDS = 15, MARKER_WAIT_MS = 20000, MARKER_POLL_MS = 1000;
+const release = (db, sourceId) => db.prepare("DELETE FROM shared_ask_events WHERE category = 'explanation_audio_inflight' AND viewer_email = ?").bind(sourceId).run().catch(() => null);
+async function claim(db, sourceId) {
+  const now = Math.floor(Date.now() / 1000);
+  const made = await db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
+    SELECT 'explanation_audio_inflight', ?1, ?2, '', '', '', 0
+    WHERE NOT EXISTS (SELECT 1 FROM shared_ask_events WHERE category = 'explanation_audio_inflight' AND viewer_email = ?2 AND asked_at > ?1 - ?3)`).bind(now, sourceId, MARKER_SECONDS).run();
+  return made.meta.changes === 1;
+}
 
 // ---- the routes ----
 export async function explanationAudioRoute(path, req, env, deps = {}) {
@@ -219,10 +230,24 @@ async function voiceRoute(req, env, body, access, deps) {
   if (!store || !env.LEARN_DB || !learnMedia(env)) { log('no_storage'); return answer(failed('no_storage', 'The voice could not be saved here.')); }
   // One file per card and script: a second call finds it and spends nothing.
   const sourceId = `fs_${(await sha(`explanation-audio:${store.org}:${store.app}:${body.id}:${await sha(script)}`)).slice(0, 24)}`;
-  const kept = await env.LEARN_DB.prepare("SELECT id, bytes, sha256, name FROM file_sources WHERE id = ? AND status = 'stored'").bind(sourceId).first().catch(() => null);
-  if (kept) { log('stored'); return answer(readyNarration(kept.id, kept.sha256, kept.name, kept.bytes)); }
+  const kept = () => env.LEARN_DB.prepare("SELECT id, bytes, sha256, name FROM file_sources WHERE id = ? AND status = 'stored'").bind(sourceId).first().catch(() => null);
+  const found = await kept();
+  if (found) { log('stored'); return answer(readyNarration(found.id, found.sha256, found.name, found.bytes)); }
   if (!pendingVoice.has(sourceId)) {
-    pendingVoice.set(sourceId, (async () => (await limited(env, 'explanation_audio', 'EXPLANATION_AUDIO', access)) || makeVoice(env, store, body.id, script, sourceId).catch(() => failed('error', 'The voice could not be made right now. Try again.')))().finally(() => pendingVoice.delete(sourceId)));
+    pendingVoice.set(sourceId, (async () => {
+      // Another isolate (a second tab) is already making this voice: wait for its file, never bill a second time.
+      if (!(await claim(env.LEARN_DB, sourceId))) {
+        for (let waited = 0; waited < (deps.waitMs ?? MARKER_WAIT_MS); waited += (deps.pollMs ?? MARKER_POLL_MS)) {
+          await new Promise(resolve => setTimeout(resolve, deps.pollMs ?? MARKER_POLL_MS));
+          const there = await kept();
+          if (there) return readyNarration(there.id, there.sha256, there.name, there.bytes);
+        }
+        return failed('in_progress', 'The audio is still being made. Try again in a moment.');
+      }
+      const made = (await limited(env, 'explanation_audio', 'EXPLANATION_AUDIO', access)) || await makeVoice(env, store, body.id, script, sourceId).catch(() => failed('error', 'The voice could not be made right now. Try again.'));
+      if (made instanceof Response || made.status !== 'ready') await release(env.LEARN_DB, sourceId); // a failure leaves no marker, so the retry is not made to wait
+      return made;
+    })().finally(() => pendingVoice.delete(sourceId)));
   }
   const narration = await pendingVoice.get(sourceId);
   if (narration instanceof Response) return narration.clone();

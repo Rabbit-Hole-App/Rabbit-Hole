@@ -463,6 +463,47 @@ test('the guard records usage: the voice is admitted at its characters, charged 
   assert.equal(priceUsage({ provider: 'elevenlabs', model: 'eleven_flash_v2_5', quantities: { input_chars: 1000 } }).unverified.join(), 'input_chars', 'an estimate row, never presented as measured');
 });
 
+test('two tabs (two isolates: a second module instance has its own in-flight map): the second Play within the window waits for the first file and is not billed; the marker is released on failure', async t => {
+  const seen = providers(t, { delay: 60 });
+  const { sqlite, LEARN_DB } = database(t);
+  const base = { ELEVENLABS_API_KEY: 'el', LEARN_DB, LEARN_MEDIA: memoryBucket(), USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' };
+  const as = () => { const scoped = withUsage(base, { feature: 'explanation_audio' }); noteUsageIdentity(scoped, { userId: 'u-alice', email: 'owner@example.com' }); return scoped; };
+  const other = await import('../src/explanation-audio.js?second-isolate');
+  const deps = { authorize: async () => access, store: async () => store, pollMs: 10, waitMs: 2000 };
+  const call = (module, deps) => module.explanationAudioRoute(VOICE_PATH, new Request(`https://x.test${VOICE_PATH}`, { method: 'POST', body: JSON.stringify(voiceBody({ id: 'two-tabs' })) }), as(), deps);
+  const [a, b] = await Promise.all([call({ explanationAudioRoute }, deps), call(other, deps)]);
+  const [first, second] = [(await a.json()).narration, (await b.json()).narration];
+  assert.equal(first.status, 'ready');
+  assert.deepEqual(second, first, 'the waiting tab gets the same file');
+  assert.equal(seen.voices().length, 1, 'one provider call');
+  assert.equal(rows(sqlite, 'usage_attempts').filter(r => r.provider === 'elevenlabs').length, 1, 'one charge');
+  assert.equal(rows(sqlite, 'file_sources').length, 1);
+  assert.equal(rows(sqlite, 'shared_ask_events').filter(r => r.category === 'explanation_audio_inflight').length, 1, 'one marker row for the file, 15 s wide');
+  // a marker with no file behind it (the first tab never finished): the second tab waits its window, then says so; nothing is billed
+  const stuck = providers(t, { delay: 0 });
+  const { LEARN_DB: db2, sqlite: sqlite2 } = database(t);
+  const env2 = { ELEVENLABS_API_KEY: 'el', SMALL_ENV: 'test', LEARN_DB: db2, LEARN_MEDIA: memoryBucket() };
+  await db2.prepare("INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository) VALUES ('explanation_audio_inflight', ?, ?, '', '', '', 0)").bind(Math.floor(Date.now() / 1000), 'fs_x').run();
+  const sourceFor = async () => { // the id the route derives: read it back from a first, unblocked call on a clean database
+    const { LEARN_DB: db3, sqlite: sqlite3 } = database(t);
+    await explanationAudioRoute(VOICE_PATH, new Request(`https://x.test${VOICE_PATH}`, { method: 'POST', body: JSON.stringify(voiceBody({ id: 'held' })) }), { ...env2, LEARN_DB: db3, LEARN_MEDIA: memoryBucket() }, deps);
+    return rows(sqlite3, 'file_sources')[0].id;
+  };
+  const id = await sourceFor();
+  sqlite2.prepare("UPDATE shared_ask_events SET viewer_email = ?").run(id);
+  const before = stuck.voices().length;
+  const waited = (await (await explanationAudioRoute(VOICE_PATH, new Request(`https://x.test${VOICE_PATH}`, { method: 'POST', body: JSON.stringify(voiceBody({ id: 'held' })) }), env2, { ...deps, waitMs: 60 })).json()).narration;
+  assert.deepEqual([waited.status, waited.code], ['error', 'in_progress']);
+  assert.equal(stuck.voices().length, before, 'the waiting tab never called the provider');
+  // a failure releases the marker so the retry is not made to wait
+  providers(t, { voice: 503 });
+  const { LEARN_DB: db4, sqlite: sqlite4 } = database(t);
+  const env4 = { ELEVENLABS_API_KEY: 'el', SMALL_ENV: 'test', LEARN_DB: db4, LEARN_MEDIA: memoryBucket() };
+  const failed = (await (await explanationAudioRoute(VOICE_PATH, new Request(`https://x.test${VOICE_PATH}`, { method: 'POST', body: JSON.stringify(voiceBody({ id: 'fails' })) }), env4, deps)).json()).narration;
+  assert.equal(failed.status, 'error');
+  assert.equal(rows(sqlite4, 'shared_ask_events').filter(r => r.category === 'explanation_audio_inflight').length, 0, 'no marker left behind by a failure');
+});
+
 test('a refused admission (an exhausted allowance) is an error answer with the person\'s explanation, and the provider is never asked', async t => {
   const seen = providers(t);
   const { LEARN_DB } = database(t);
