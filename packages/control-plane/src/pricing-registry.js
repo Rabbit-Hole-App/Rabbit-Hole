@@ -110,6 +110,9 @@ row('openai', 'gpt-transcribe', 'standard', 'audio_minute', 0.0045, PER.minute, 
 // Other billing units. Fish S1 bills UTF-8 input bytes; Scribe v2 Realtime bills audio time; Exa bills per request.
 row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED);
 row('elevenlabs', 'scribe_v2_realtime', 'standard', 'audio_hour', 0.39, PER.hour, VERIFIED, 'seconds of audio observed server side');
+// Card audio (explanation-audio.js): ElevenLabs Flash v2.5 text to speech bills characters. The $0.04 per 1,000 characters is the list price read for the AUD-1 report (2026-11-16);
+// the bill is in plan credits, so the row is an estimate, never presented as measured. PRICE_VERSION is not bumped (the gpt-transcribe precedent): nothing else prices with it.
+row('elevenlabs', 'eleven_flash_v2_5', 'standard', 'input_chars', 0.04, 1000, ESTIMATE, 'list price per 1,000 characters (AUD-1 report 2026-11-16); ElevenLabs bills plan credits', 'https://elevenlabs.io/pricing/api', '2026-11-16');
 row('exa', 'search', 'standard', 'request', 7, 1000, VERIFIED, 'type auto, up to 10 results (+$1 per 1,000 results above 10, +$1 per 1,000 pages per content type)', EXA_PRICING);
 
 const KEY = (provider, model, category, tier = 'standard') => `${provider}|${model}|${category}|${tier}`;
