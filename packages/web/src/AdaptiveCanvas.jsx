@@ -121,7 +121,7 @@ import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
 import { SPACING, assumedHeight, assumedTextHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
-import { walkBox, walkCamera, walkNext, walkParts, walkPrev, walkProgress, walkStart } from './learn-walk.js';
+import { walkCamera, walkNext, walkPrev, walkProgress, walkStart } from './learn-walk.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -206,7 +206,6 @@ const SHAPE_TOOLS = [
 // default writing reads as dark gray on a dark canvas. Only the default maps;
 // deliberate colors stay themselves (connections brighten via a dark: filter).
 const inkAware = color => (color === '#37352f' ? 'var(--learn-canvas-ink)' : color);
-const WALK_PILL_H = 48; // the Learn Walk pill's height (px), which the walk camera keeps clear of
 // An Explain-back resource input's edge: the Input's own green (--color-success), in both themes.
 const INPUT_COLOR = 'var(--color-success)';
 // A divider is a plain rule, wider than the card column so it reads as a
@@ -1165,7 +1164,7 @@ const itemBase = item => {
 
 // editOn: { id, n } - the canvas asking this item to open for typing (Enter on a selected text box). onEditStart: the
 // edit began (its undo step opens). onCommit(id, runs, how): the edit ended. onEditorApi: the open editor's handle.
-function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null, onInlineAI = null, onDiscardCode = null }) {
+function CanvasItem({ dim = false, item, zoom, cameraKey, getTooltipSpace, tool, selected, onSelect, onCommit, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null, editOn = null, onEditStart = null, onEditorApi = null, onMode = null, onLang = null, onNotebook = null, onInlineAI = null, onDiscardCode = null }) {
   const [editing, setEditing] = useState(!!item.fresh);
   // A Code box not being edited is drawn in its language's colors, once they are ready for exactly these words.
   const [colors, setColors] = useState(null);
@@ -1256,7 +1255,7 @@ function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, on
   const ink = sticky ? (value => value) : inkAware;
   return (<>
     <div data-block data-item-id={item.id} data-text-mode={item.kind === 'text' ? item.mode || 'text' : undefined}
-      style={{ left: item.x, top: item.y, opacity: item.opacity, ...(item.learn?.slot && !item.learn.placed ? { visibility: 'hidden' } : {}), ...(sticky
+      style={{ left: item.x, top: item.y, opacity: dim ? 0.3 : item.opacity, transition: 'opacity 200ms', ...(item.learn?.slot && !item.learn.placed ? { visibility: 'hidden' } : {}), ...(sticky
         // A note grows with its words rather than clipping them; its corner sets the least it can be.
         ? { width: item.w || 160, minHeight: item.h || 160, background: stickyTone(item.color).bg, borderColor: stickyTone(item.color).border, color: stickyTone(item.color).text, '--sticky-ph': stickyTone(item.color).placeholder }
         : { color: inkAware(item.color), ...textStyle(item), ...(code ? { minWidth: item.w || 96, width: 'max-content' } : item.w ? { width: item.w } : { width: 'max-content' }), ...(item.h ? { minHeight: item.h } : {}) }) }}
@@ -5831,24 +5830,29 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Learn Walk (learn-walk-spec §1, learn-walk.js): one card at a time through a built section. walk: { sectionId, stops, at } | null.
   const walkEntryOf = id => blocksRef.current.find(block => block.id === id)?.tocLinks?.[0] ?? null;
-  const showWalkStop = state => {
-    const id = state?.stops[state.at], block = id && blocksRef.current.find(entry => entry.id === id), card = id && boundsRef.current[id];
-    if (!block || !card) return;
-    const texts = itemsRef.current.filter(item => item.learn?.slot && item.learn.sectionId === block.learn.sectionId && item.learn.itemId === block.learn.itemId && (item.learn.role === 'lead' || item.learn.role === 'follow')).map(learnTextBox);
-    const frame = surface.current?.getBoundingClientRect(), header = pageHeader()?.getBoundingClientRect();
-    const spot = frame && { x: Math.round(frame.left + frame.width / 2), y: Math.round((header ? header.bottom : frame.top) + 8) };
-    if (spot) setWalkSpot(spot);
-    // The stop's box whole in the view below the pill (owner 2026-11-18 14:15): the card and the words above and below it, zoomed out when they do not fit at 1.
-    // Clear of the pill above and of the canvas's bottom strip (the composer and its suggestions), which float over the surface.
-    const area = controlArea(), clear = spot ? spot.y + WALK_PILL_H + 8 - frame.top : area.top, strip = bottomStrip.current?.getBoundingClientRect();
-    const floor = strip?.height ? strip.top - frame.top : area.bottom;
-    const composer = shell.current?.querySelector('[data-canvas-composer]')?.getBoundingClientRect(), centreX = composer?.width ? composer.left + composer.width / 2 - frame.left : null; // owner 14:40: in line with the composer
-    // A stop taller than the view at the reading size has two views (owner 2026-11-18 14:50): its top, then its end with the follow (walk.part, walk.parts).
-    const box = walkBox(card, texts), view = { ...area, top: Math.max(area.top, clear), bottom: Math.min(area.bottom, floor) }, parts = walkParts(box, view, SPACING.card), part = Math.min(state.part || 0, parts - 1);
-    glideTo({ ...viewRef.current, ...walkCamera(box, view, SPACING.card, centreX, part) }, true);
-    setSelection([id]);
-    if (state.parts !== parts || (state.part || 0) !== part) setWalk({ ...state, part, parts });
+  // Decision B (owner 2026-11-18 15:05): while a stop is current the pill carries its lead and follow, and those text items on the canvas fade to 30 %; nothing moves.
+  const walkWords = state => {
+    const id = state?.stops[state.at], block = id && blocksRef.current.find(entry => entry.id === id);
+    return block ? itemsRef.current.filter(item => item.learn?.slot && item.learn.sectionId === block.learn.sectionId && item.learn.itemId === block.learn.itemId && (item.learn.role === 'lead' || item.learn.role === 'follow')) : [];
   };
+  const walkPill = useRef(null);
+  const showWalkStop = state => {
+    const id = state?.stops[state.at];
+    if (!id || !blocksRef.current.some(entry => entry.id === id)) return;
+    const frame = surface.current?.getBoundingClientRect(), header = pageHeader()?.getBoundingClientRect();
+    if (frame) setWalkSpot({ x: Math.round(frame.left + frame.width / 2), y: Math.round((header ? header.bottom : frame.top) + 8) });
+    setSelection([id]);
+  };
+  // The camera once the pill has drawn this stop's words (its height is theirs): the card alone, fitted to the width at 0.85 to 1, centred on the composer, top-aligned under the
+  // pill; a taller card runs on below and scrolls as the canvas does.
+  const walkStopKey = walk ? `${walk.sectionId}:${walk.at}` : null;
+  useLayoutEffect(() => {
+    const id = walk?.stops[walk.at], card = id && boundsRef.current[id], frame = surface.current?.getBoundingClientRect(), pill = walkPill.current?.getBoundingClientRect();
+    if (!card || !frame) return;
+    const area = controlArea(), composer = shell.current?.querySelector('[data-canvas-composer]')?.getBoundingClientRect();
+    const centreX = composer?.width ? composer.left + composer.width / 2 - frame.left : null;
+    glideTo({ ...viewRef.current, ...walkCamera(card, { ...area, top: Math.max(area.top, pill ? pill.bottom - frame.top : area.top) }, SPACING.card, centreX) }, true);
+  }, [walkStopKey, walkSpot]); // eslint-disable-line react-hooks/exhaustive-deps
   const walkApi = {
     // id: a contents entry (the section row) or a section id ("1.1").
     start: id => {
@@ -5858,9 +5862,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return !!state;
     },
     next: () => {
-      const now = walkRef.current;
-      if (now && (now.part || 0) + 1 < (now.parts || 1)) { const end = { ...now, part: (now.part || 0) + 1 }; setWalk(end); showWalkStop(end); return; } // a tall card's end, then the next card
-      const { done, sectionDone, state: moved } = walkNext(now, blocksRef.current), state = moved && { ...moved, part: 0, parts: 1 };
+      const { done, sectionDone, state } = walkNext(walkRef.current, blocksRef.current);
       if (!done) return;
       const entry = sectionDone && walkEntryOf(done);
       setBlocks(previous => previous.map(block => (block.id === done && !block.learn?.done ? { ...block, learn: { ...block.learn, done: true } } : block)));
@@ -5868,7 +5870,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       setWalk(state);
       if (state) showWalkStop(state);
     },
-    prev: () => { const now = walkRef.current, state = now && (now.part || 0) > 0 ? { ...now, part: now.part - 1 } : walkPrev(now) && { ...walkPrev(now), part: 0, parts: 1 }; setWalk(state); showWalkStop(state); },
+    prev: () => { const state = walkPrev(walkRef.current); setWalk(state); showWalkStop(state); },
     exit: () => setWalk(null),
     state: () => walkRef.current,
   };
@@ -5883,6 +5885,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return () => window.removeEventListener('keydown', key);
   }, [walk]); // eslint-disable-line react-hooks/exhaustive-deps
   const walkTitle = walk && (itemsRef.current.find(item => item.learn?.role === 'section' && item.learn.sectionId === walk.sectionId)?.text?.replace(/^\d+(\.\d+)*\s+/, '') || walk.sectionId);
+  const walkDim = new Set(walk ? walkWords(walk).map(item => item.id) : []); // the current stop's lead and follow on the canvas, faded while the pill carries them
   const learnBoxOf = id => { const item = !boundsRef.current[id] && itemsRef.current.find(entry => entry.id === id && entry.learn); return item ? learnTextBox(item) : boundsRef.current[id] || null; };
   useLayoutEffect(() => {
     if (readOnly || localCopy) return;
@@ -6691,17 +6694,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
-        {walk && walkSpot && <div data-learn-walk role="toolbar" aria-label="Walk" style={{ position: 'fixed', left: walkSpot.x, top: walkSpot.y, height: WALK_PILL_H, transform: 'translateX(-50%)' }}
-          className="z-40 flex max-w-[min(92vw,44rem)] flex-col overflow-hidden rounded-lg border border-line bg-white text-sm text-ink shadow-md">
-          {/* One pill (owner 2026-11-18 13:33, 14:15): Prev and Next as buttons, n / N and the section title, Exit; a green bar fills as the walk goes. Nothing else moves. */}
-          <div className="flex min-h-0 flex-1 items-center gap-2 px-2">
-            <button type="button" onClick={walkApi.prev} disabled={walk.at === 0 && !walk.part} className="inline-flex items-center gap-1 rounded-md border border-line px-2.5 py-1 font-medium hover:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent"><Back size={15} aria-hidden />Prev</button>
-            <span data-learn-walk-count className="min-w-0 truncate px-1 text-ink-2 tabular-nums">{walk.at + 1} / {walk.stops.length} · {walkTitle}</span>
-            <button type="button" onClick={walkApi.next} className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1 font-medium text-white hover:opacity-90">Next<Forward size={15} aria-hidden /></button>
-            <button type="button" onClick={walkApi.exit} className="rounded-md px-2 py-1 text-ink-2 hover:bg-hover hover:text-ink">Exit</button>
-          </div>
-          <div aria-hidden className="h-1 w-full bg-hover"><div data-learn-walk-progress className="h-full transition-[width] duration-300" style={{ width: `${Math.round(walkProgress(walk) * 100)}%`, background: 'var(--color-success)' }} /></div>
-        </div>}
+        {walk && walkSpot && (() => {
+          const words = walkWords(walk), lead = words.find(item => item.learn.role === 'lead')?.text, follow = words.find(item => item.learn.role === 'follow')?.text;
+          return <div ref={walkPill} data-learn-walk role="toolbar" aria-label="Walk" style={{ position: 'fixed', left: walkSpot.x, top: walkSpot.y, transform: 'translateX(-50%)' }}
+            className="z-40 flex w-[min(92vw,720px)] flex-col overflow-hidden rounded-lg border border-line bg-white text-sm text-ink shadow-md">
+            {/* The pill is the guide while walking (owner 2026-11-18 13:33, 14:15, 15:05): Prev, n / N and the section, Next, Exit; then this stop's lead and, under a rule, its
+                follow; a green bar fills card by card. The words wrap, never scroll (a lead is at most three sentences). */}
+            <div className="flex h-12 shrink-0 items-center gap-2 px-2">
+              <button type="button" onClick={walkApi.prev} disabled={walk.at === 0} className="inline-flex items-center gap-1 rounded-md border border-line px-2.5 py-1 font-medium hover:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent"><Back size={15} aria-hidden />Prev</button>
+              <span data-learn-walk-count className="min-w-0 flex-1 truncate px-1 text-ink-2 tabular-nums">{walk.at + 1} / {walk.stops.length} · {walkTitle}</span>
+              <button type="button" onClick={walkApi.next} className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1 font-medium text-white hover:opacity-90">Next<Forward size={15} aria-hidden /></button>
+              <button type="button" onClick={walkApi.exit} className="rounded-md px-2 py-1 text-ink-2 hover:bg-hover hover:text-ink">Exit</button>
+            </div>
+            {(lead || follow) && <div data-learn-walk-words className="border-t border-line px-4 py-3 text-sm leading-relaxed">
+              {lead && <p data-learn-walk-lead className="whitespace-pre-line text-ink">{lead}</p>}
+              {lead && follow && <hr className="my-2.5 border-line" />}
+              {follow && <p data-learn-walk-follow className="whitespace-pre-line text-ink-2">{follow}</p>}
+            </div>}
+            <div aria-hidden className="h-1 w-full shrink-0 bg-hover"><div data-learn-walk-progress className="h-full transition-[width] duration-300" style={{ width: `${Math.round(walkProgress(walk) * 100)}%`, background: 'var(--color-success)' }} /></div>
+          </div>;
+        })()}
         {focus && !cardOnly && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
         {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
@@ -6937,7 +6949,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} editOn={editTarget} />
-            : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
+            : <CanvasItem key={item.id} dim={walkDim.has(item.id)} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly || localCopy ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             cameraKey={`${view.x}:${view.y}:${view.z}`} getTooltipSpace={() => { const area = visibleArea(), frame = surface.current.getBoundingClientRect(); return { left: frame.left + area.left, right: frame.left + area.right, top: frame.top + area.top, bottom: frame.top + area.bottom }; }}
             onInlineAI={readOnly ? null : () => openInline(performance.now(), true)} onDiscardCode={() => endEdit(false, 'items')} />)}
