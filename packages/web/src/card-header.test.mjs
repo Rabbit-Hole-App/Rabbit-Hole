@@ -105,8 +105,10 @@ test('a long unbroken token wraps too, and a title over 80 characters is not cut
 test('the header grows with the title: the row is top-aligned, the icon and trailing controls sit on the first line, the meta line stays one line', () => {
   const markup = render({ block: { id: 'b1', type: 'explanation', title: 'A title that needs more than one line at the narrowest card width, long enough for three' }, meta: 'Explanation', trailing: lib.createElement('span', null, 'T') });
   assert.match(markup, /items-start gap-2/, 'top-aligned: the title may take several lines');
-  assert.match(markup, /shrink-0 text-ink-2 mt-0\.5/, 'the icon sits on the first line');
-  assert.match(markup, /shrink-0 items-center gap-1 h-5/, 'the trailing controls are one first-line high');
+  // Every card title is the explanation card's size by default (owner 2026-11-18 13:03, learn-walk-spec §2): 20 px semibold with an 18 px icon.
+  assert.match(markup, /text-xl leading-tight font-semibold/, 'the default title size is lg');
+  assert.match(markup, /width="18"[^>]*shrink-0 text-ink-2 mt-\[3\.5px\]/, 'the 18 px icon sits on the first line');
+  assert.match(markup, /shrink-0 items-center gap-1 h-\[25px\]/, 'the trailing controls are one first-line high');
   assert.match(markup, /data-card-meta="true" class="mt-0\.5 truncate/, 'the meta line is unchanged: one line');
 });
 

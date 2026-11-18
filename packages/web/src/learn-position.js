@@ -45,6 +45,8 @@ export function fixedHeight(block, W) {
   return null;
 }
 // The slot a card takes before the canvas measures it (spec 5).
+// A Learn text item (a lead, a follow, a chapter or section title) before it is drawn (learn-walk-spec §3): 24 px a line of 12 words, plus 8.
+export const assumedTextHeight = text => 24 * Math.max(1, Math.ceil((String(text || '').match(/\S+/g) || []).length / 12)) + 8;
 export function assumedHeight(block, W) {
   const fixed = fixedHeight(block, W);
   if (fixed) return fixed;
@@ -55,11 +57,11 @@ export function assumedHeight(block, W) {
 }
 
 // Reading order of a plan card: chapter, section (a chapter heading first), item (composition order; notes last), role (lead, card, follow), part.
-const RANK = { chapter: -1, lead: 0, card: 1, notes: 1, follow: 2 };
+const RANK = { chapter: -1, section: -1, lead: 0, card: 1, notes: 1, follow: 2 };
 const numbers = id => String(id ?? '').split('.').map(Number);
 export function orderKey(learn) {
   const [chapter = 0, section = 0] = numbers(learn?.sectionId);
-  return [chapter || 0, learn?.role === 'chapter' ? -1 : section || 0, learn?.role === 'chapter' ? -1 : Number.isFinite(learn?.order) ? learn.order : 1e6, RANK[learn?.role] ?? 1, learn?.part || 0];
+  return [chapter || 0, learn?.role === 'chapter' ? -1 : section || 0, learn?.role === 'chapter' || learn?.role === 'section' ? -1 : Number.isFinite(learn?.order) ? learn.order : 1e6, RANK[learn?.role] ?? 1, learn?.part || 0];
 }
 export const byKey = (a, b) => { const x = orderKey(a.learn), y = orderKey(b.learn); for (let k = 0; k < x.length; k += 1) if (x[k] !== y[k]) return x[k] - y[k]; return 0; };
 const chapterOf = learn => numbers(learn?.sectionId)[0] || 0;

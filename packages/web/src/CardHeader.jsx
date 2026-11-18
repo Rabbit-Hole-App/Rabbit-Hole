@@ -12,7 +12,7 @@ export const CardRename = createContext(null);
 
 const SIZE = { sm: 'text-sm leading-5 font-semibold', lg: 'text-xl leading-tight font-semibold', xs: 'text-sm leading-5 font-medium' };
 
-export default function CardHeader({ block, meta = null, trailing = null, size = 'sm', sticky = false, className = 'px-4 pt-3 pb-2', icon = null, titleProps = {}, metaProps = {}, headerProps = {} }) {
+export default function CardHeader({ block, meta = null, trailing = null, size = 'lg', sticky = false, className = 'px-4 pt-3 pb-2', icon = null, titleProps = {}, metaProps = {}, headerProps = {} }) {
   const start = useContext(CardRename);
   const Icon = icon === false ? null : icon || cardIconOf(block), placeholder = placeholderTitle(block), canRename = !!start && renamable(block);
   // Owner 2026-11-08 (final): the title WRAPS: two lines, three on a narrow card or tile (the header's content width under NARROW_CARD_PX less 35, a container query), and an ellipsis only when it still does not

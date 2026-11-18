@@ -151,3 +151,13 @@ test('columnOwnIds: the column cards and every connector ending on one are its o
   assert.deepEqual(columnOwnIds(plan, [{ id: 'l1', from: 'a', to: 'b' }, { id: 'l2', from: 'x', to: 'a' }, { id: 'l3', from: 'x', to: 'y' }]), ['a', 'b', 'l1', 'l2']);
   assert.deepEqual(columnOwnIds(plan), ['a', 'b']);
 });
+
+// learn-walk-spec §3, §4: the chapter h1, the section h2, leads and follows are text items in the same column: h1 first, then the section gap... h2 above the first lead.
+test('learnLayout: a chapter h1 and section h2 text items head the column with the chapter and section gaps; leads, cards and follows follow in order', () => {
+  const text = (id, sectionId, role, order = null, h = 32) => ({ id, learn: { sectionId, itemId: role === 'chapter' || role === 'section' ? null : 'i1', role, slot: true, order }, w: 640, h, box: null, placed: false });
+  const cards = [text('lead', '1.1', 'lead', 0, 56), text('h2b', '1.2', 'section'), text('card', '1.1', 'card', 0, 300), text('h1', '1', 'chapter', null, 48), text('h2a', '1.1', 'section'), text('lead2', '1.2', 'lead', 0, 56)];
+  const { targets } = learnLayout({ cards, W: 640 });
+  const y = id => targets.get(id).y, gap = SPACING.card;
+  assert.deepEqual(['h1', 'h2a', 'lead', 'card', 'h2b', 'lead2'].map(y), [0, 48 + gap, 48 + gap + 32 + gap, 48 + gap + 32 + gap + 56 + gap, 48 + gap + 32 + gap + 56 + gap + 300 + SPACING.section, 48 + gap + 32 + gap + 56 + gap + 300 + SPACING.section + 32 + gap]);
+  assert.ok(positionApi.assumedTextHeight('one two three') === 32 && positionApi.assumedTextHeight('w '.repeat(13)) === 56, '24 px a line of 12 words, plus 8');
+});

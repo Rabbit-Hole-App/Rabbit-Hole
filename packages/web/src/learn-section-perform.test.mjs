@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { learnTag, performItem, tagCard } from './learn-section-perform.js';
+import { learnTag, performItem, placeChapter, placeSection, tagCard } from './learn-section-perform.js';
 import { placeholderTitle } from './card-rename.js';
 
 // A canvas that holds blocks, measures them at once and places every slot card at once (the column's job is AdaptiveCanvas's; here only what perform asks for).
@@ -60,4 +60,19 @@ test('performItem: a made card carries the item title, so no section card shows 
   assert.deepEqual(blocks.map(block => [block.type, block.title]), [['wiki', 'Tokenization'], ['notebook', 'Turn tokens into vectors'], ['explanation', 'Why ids, not letters'], ['explanation', 'The artifact title']]);
   assert.deepEqual(blocks.filter(block => block.learn).filter(placeholderTitle), []);
   assert.equal(blocks.find(block => block.type === 'notebook').ipynb_path, 'embeddings.ipynb', 'the file name is unchanged');
+});
+
+// learn-walk-spec §3, §4: a lead and a follow are canvas text items (no card, no chip); a missing lead draws nothing; chapter h1 and section h2 titles.
+test('performItem: lead and follow are text items tagged for the column; no lead, no text; chapter and section titles are h1 and h2', async () => {
+  const { api, blocks } = fakeCanvas(), texts = [];
+  api.insertLearnText = entry => { const id = `t${texts.length}`; texts.push({ id, ...entry }); return id; };
+  api.insertNotebook = block => { blocks.push(block); return block.id; };
+  const file = { path: 'a.ipynb', content: { cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 } };
+  await performItem({ canvasApi: api, perform: { op: 'notebook', files: [file], activePath: file.path }, item: { itemId: 'i1', command: 'notebook', lead: 'Read this first.', follow: 'Now you know.', title: 'T' }, ctx: { sectionId: '1.1', itemId: 'i1', order: 0 } });
+  await performItem({ canvasApi: api, perform: { op: 'notebook', files: [file], activePath: file.path }, item: { itemId: 'i2', command: 'notebook', lead: '', follow: '', title: 'U' }, ctx: { sectionId: '1.1', itemId: 'i2', order: 1 } });
+  assert.deepEqual(texts.map(entry => [entry.text, entry.level, entry.learn.role, entry.learn.itemId, entry.learn.slot, entry.learn.order]), [['Read this first.', 'body', 'lead', 'i1', true, 0], ['Now you know.', 'body', 'follow', 'i1', true, 0]]);
+  assert.equal(blocks.filter(block => block.type === 'doc').length, 0, 'no Document card for a lead or a follow');
+  assert.equal(placeChapter(api, { chapter: '1', title: 'The Big Picture' }), 't2');
+  assert.equal(placeSection(api, { sectionId: '1.1', title: 'What goes in' }), 't3');
+  assert.deepEqual(texts.slice(2).map(entry => [entry.text, entry.level, entry.learn.role, entry.learn.sectionId]), [['1 · The Big Picture', 'h1', 'chapter', '1'], ['1.1 What goes in', 'h2', 'section', '1.1']]);
 });
