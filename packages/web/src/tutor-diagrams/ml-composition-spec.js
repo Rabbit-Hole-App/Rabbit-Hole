@@ -2,7 +2,7 @@ import { plotSeriesPoints } from './ml-plot-spec.js';
 
 // Composition is deliberately one level deep. The integration owner supplies a
 // union containing every supported leaf kind, excluding both composition kinds.
-export function createShapes({ z, titled, text, id, itemList, leafDiagram, panelDiagram = leafDiagram }) {
+export function createShapes({ z, titled, text, id, numeric, itemList, leafDiagram, panelDiagram = leafDiagram }) {
   const visualState = z.strictObject({ label: text(40), diagram: leafDiagram });
   return [
     z.strictObject({
@@ -22,7 +22,9 @@ export function createShapes({ z, titled, text, id, itemList, leafDiagram, panel
     }),
     z.strictObject({
       ...titled, kind: z.literal('transformation'), variant: z.literal('visual').optional(),
-      before: z.union([itemList, visualState]), after: z.union([itemList, visualState]), operation: text(72),
+      // op 'softmax' (derived.js): after = softmax(before / t); after.items may then be left out and are computed. `t` is an optional positive temperature.
+      before: z.union([itemList, visualState]), after: z.union([itemList.extend({ items: itemList.shape.items.optional() }), visualState]), operation: text(72),
+      op: z.enum(['softmax']).optional(), t: numeric.positive().optional(),
       links: z.array(z.strictObject({ from: z.int().min(0).max(4), to: z.int().min(0).max(4), label: text(42).optional() })).min(1).max(8).optional(),
       identity: z.strictObject({
         mode: z.enum(['preserved', 'mapped']), note: text(140),
@@ -68,7 +70,8 @@ function identities(diagram) {
 
 function validateTransformation(diagram, issue) {
   if (diagram.variant !== 'visual') {
-    for (const side of ['before', 'after']) if (!diagram[side].items) issue([side], 'A list transformation needs an item list');
+    for (const side of ['before', 'after']) if (!diagram[side].items && !(side === 'after' && diagram.op === 'softmax')) issue([side], 'A list transformation needs an item list');
+    if (diagram.op && !diagram.before.items) issue(['op'], 'op needs a list of before items');
     if (diagram.identity) issue(['identity'], 'Identity notes require the visual variant');
     return;
   }
