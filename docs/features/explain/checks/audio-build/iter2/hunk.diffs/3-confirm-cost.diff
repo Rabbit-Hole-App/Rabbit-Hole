@@ -1,0 +1,257 @@
+commit a8673c7974db32842234470cbe8e16cef8d751ad
+Author: yudhisteer <yudhisteer.chin@gmail.com>
+Date:   Tue Nov 17 18:06:59 2026 -0800
+
+    Card audio: the first Play asks first and shows the voice cost in AI units (ConfirmDialog, shared usageLine wording), a card with no script makes the free script step first
+
+diff --git a/packages/web/src/AdaptiveCanvas.jsx b/packages/web/src/AdaptiveCanvas.jsx
+index 93b3b131d..654c69407 100644
+--- a/packages/web/src/AdaptiveCanvas.jsx
++++ b/packages/web/src/AdaptiveCanvas.jsx
+@@ -6451,10 +6451,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
+       return taken !== false && admitted;
+     },
+     // The audio pill's Play on a card whose voice is not made yet, or whose last step failed (ExplanationAudio.jsx GeneratePill): makes what is missing and lands the whole narration on the card.
+-    narrate: async id => {
++    narrate: async (id, { voice = true } = {}) => {
+       const card = blocksRef.current.find(entry => entry.id === id);
+       if (!card || card.type !== 'explanation' || !appName) return null;
+-      const narration = await generateNarration(api, { app: appName, block: card });
++      const narration = await generateNarration(api, { app: appName, block: card, voice });
+       setBlocks(previous => landNarration(previous, id, narration));
+       return narration;
+     },
+@@ -6476,7 +6476,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
+   const explanationHost = useMemo(() => ({
+     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
+     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
+-    ...(canNote ? { narrate: id => hostRef.current.narrate(id) } : {}), // a viewer or a copy (no canNote) plays existing audio only; it never generates
++    ...(canNote ? { narrate: (id, options) => hostRef.current.narrate(id, options) } : {}), // a viewer or a copy (no canNote) plays existing audio only; it never generates
+     ...(canVisitorAsk ? { visitorAsk: request => hostRef.current.visitorAsk(request) } : {}),
+     // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
+     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
+diff --git a/packages/web/src/ExplanationAudio.jsx b/packages/web/src/ExplanationAudio.jsx
+index 3d254a7c8..1fc73a86d 100644
+--- a/packages/web/src/ExplanationAudio.jsx
++++ b/packages/web/src/ExplanationAudio.jsx
+@@ -4,12 +4,14 @@
+ // The file is read like the card's figures (IllustrationFigure.jsx followSource: file-source-client loadSource, so the same scope, headers and retries) but only on the first press, so a board of
+ // cards downloads no audio until one is played. One audio element per card; one card plays at a time (`playing`); never autoplay.
+ import { useContext, useEffect, useRef, useState } from 'react';
++import { createPortal } from 'react-dom';
+ import { Loader2, Pause, Play, RotateCcw } from 'lucide-react';
+ import { followSource } from './IllustrationFigure.jsx';
+ import { clearPlayingCard, closeTranscript, openTranscript, restartTranscript, setPlayingCard, updateTranscript } from './audio-playing.js';
+ import { ExplanationHost } from './explanation-host.js';
+ import { wantPlay } from './explanation-audio.js';
+-import { toast } from './ui.jsx';
++import { ConfirmDialog, toast } from './ui.jsx';
++import { UNKNOWN_PRICE, usageLine } from './GenerationProposalCard.jsx';
+ 
+ let playing = null; // the audio element that is playing now; starting another pauses it
+ 
+@@ -83,23 +85,37 @@ function AudioPill({ narration, cardId }) {
+ // The Play button of a card whose voice is not made yet ('script') or whose last step failed ('error'): its press makes what is missing (host.narrate, a paid step the press confirms), then the
+ // ready pill takes its place and starts. A failure says why in a notice and leaves the button to press again.
+ function GeneratePill({ narration, cardId, narrate }) {
+-  const [busy, setBusy] = useState(false), alive = useRef(true);
++  const [busy, setBusy] = useState(false), [confirming, setConfirming] = useState(false), alive = useRef(true);
+   useEffect(() => () => { alive.current = false; }, []);
+   const failed = narration.status === 'error';
+   const label = busy ? 'Preparing audio' : failed ? 'Audio could not play. Try again.' : 'Play explanation';
++  const done = made => { if (alive.current) setBusy(false); return made; };
++  // The voice is paid: the press asks first and shows its cost in AI units (the server's figure, as the other paid features show theirs: GenerationProposalCard usageLine). A card with no script yet
++  // (its free step failed) makes the script first, then asks.
+   const press = async () => {
+     if (busy) return;
+-    setBusy(true); wantPlay.add(cardId);
++    if (narration.script) { setConfirming(true); return; }
++    setBusy(true);
++    let made = null;
++    try { made = await narrate(cardId, { voice: false }); } catch { /* the notice below says it */ }
++    done(made);
++    if (made?.status === 'script') setConfirming(true); else toast(made?.reason || 'The audio could not be made. Try again.');
++  };
++  const generate = async () => {
++    setConfirming(false); setBusy(true); wantPlay.add(cardId);
+     let made = null;
+     try { made = await narrate(cardId); } catch { /* the notice below says it */ }
+     if (made?.status !== 'ready') { wantPlay.delete(cardId); toast(made?.reason || 'The audio could not be made. Try again.'); }
+-    if (alive.current) setBusy(false);
++    done(made);
+   };
++  const cost = usageLine(narration);
+   return (
+     <span data-explanation-audio data-audio-state={busy ? 'preparing' : failed ? 'failed' : 'script'} onPointerDown={stop} className={PILL}>
+       <button type="button" data-audio-play title={label} aria-label={label} aria-busy={busy || undefined} disabled={busy} onClick={press} className={BUTTON}>
+         {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+       </button>
++      {confirming && createPortal(
++        <ConfirmDialog title="Make the audio" body={<span data-audio-confirm>{`This uses paid generation. ${cost || UNKNOWN_PRICE}`}</span>} confirmLabel="Generate" confirmVariant="inverse" confirmDisabled={!cost} onConfirm={generate} onCancel={() => setConfirming(false)} />, document.body)}
+     </span>
+   );
+ }
+diff --git a/packages/web/src/explanation-audio-client.test.mjs b/packages/web/src/explanation-audio-client.test.mjs
+index 15c5bdb4c..14266f098 100644
+--- a/packages/web/src/explanation-audio-client.test.mjs
++++ b/packages/web/src/explanation-audio-client.test.mjs
+@@ -8,7 +8,7 @@ import { SCRIPT_URL, VOICE_URL, askScript, generateNarration, landNarration, nar
+ const PROSE = 'A bootstrap sample leaves a row out with chance 0.368, so about 63 percent of the rows are in the sample that is drawn each time.';
+ const card = (id = 'c1', over = {}) => ({ id, type: 'explanation', title: 'Bootstrap', body: `${PROSE}\n\n\`\`\`rh-diagram\n{"kind":"line"}\n\`\`\``, depth: 'detailed', promptUsed: '/explain why 63 percent?', ...over });
+ const READY = { status: 'ready', fileRef: { v: 1, source: { id: 'fs_1', rev: 'r' }, meta: { name: 'a.mp3', type: 'audio/mpeg', size: 9 } }, seconds: 90, provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'v' };
+-const SCRIPTED = { script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds_estimate: 70, scriptBy: { provider: 'google', model: 'gemini-3.5-flash-lite' } };
++const SCRIPTED = { script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds_estimate: 70, scriptBy: { provider: 'google', model: 'gemini-3.5-flash-lite' }, voice_estimate_credits: 2, check: { reasked: true, firstRawWords: 120, firstStrippedWords: 110, rawWords: 215, strippedWords: 205, failed: [] } };
+ // A fake post: answers by route, records every call.
+ function fake({ script = SCRIPTED, voice = { narration: READY } } = {}) {
+   const calls = [];
+@@ -50,7 +50,7 @@ test('the script is asked for once per new card, in the owner\'s editable canvas
+   assert.equal(f.calls[0].path, SCRIPT_URL);
+   assert.deepEqual(f.calls[0].body, { app: 'canvas-1', id: 'c1', ...scriptInput(card('c1')) });
+   release(); await new Promise(resolve => setTimeout(resolve, 0));
+-  assert.deepEqual(landed, [{ status: 'script', script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds: 70, scriptBy: SCRIPTED.scriptBy }]);
++  assert.deepEqual(landed, [{ status: 'script', script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds: 70, scriptBy: SCRIPTED.scriptBy, estimate_credits: 2, scriptCheck: SCRIPTED.check }], 'the voice cost in AI units and the length check travel with the script');
+   assert.equal(askScript({ post: f.post, app: 'canvas-1', editable: true, asked, land() {} }, card('c2')), true, 'another new card asks again');
+ });
+ 
+@@ -85,6 +85,14 @@ test('requestVoice sends the script (never the transcript) with the Play as the
+   assert.equal((await requestVoice(fake({ voice: {} }).post, { app: 'a', block })).code, 'no_audio');
+ });
+ 
++test('voice: false stops after the free script step, so the Play can show the cost before anything is spent', async () => {
++  const f = fake();
++  const made = await generateNarration(f.post, { app: 'a', block: card('c20'), voice: false });
++  assert.deepEqual([made.status, made.estimate_credits, f.scripts().length, f.voices().length], ['script', 2, 1, 0]);
++  const again = await generateNarration(f.post, { app: 'a', block: card('c21', { narration: made }), voice: false });
++  assert.deepEqual([again.status, f.scripts().length, f.voices().length], ['script', 1, 0], 'a script that exists is not asked for again');
++});
++
+ test('first Play with a script: only the voice is made, and the whole narration (script, transcript, file) comes back to save', async () => {
+   const f = fake();
+   const block = card('c1', { narration: { status: 'script', script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds: 70, scriptBy: SCRIPTED.scriptBy } });
+@@ -142,8 +150,8 @@ const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'u
+ test('the canvas asks from insertBlock, the one way a card is made, after the card is opened; the voice host function exists only where the card can be edited', () => {
+   assert.match(canvas, /added = openedExplanation\(added\);[^\n]*\n\s*askNarrationRef\.current\?\.\(added\);/, 'asked as the card is placed; never awaited, so the card is never delayed');
+   assert.match(canvas, /askNarrationRef\.current = card => askScript\(\{ post: api, app: appName, editable: !readOnlyRef\.current && !localCopyRef\.current,/);
+-  assert.match(canvas, /\.\.\.\(canNote \? \{ narrate: id => hostRef\.current\.narrate\(id\) \} : \{\}\)/, 'canNote is !readOnly && !localCopy: a viewer has no narrate');
++  assert.match(canvas, /\.\.\.\(canNote \? \{ narrate: \(id, options\) => hostRef\.current\.narrate\(id, options\) \} : \{\}\)/, 'canNote is !readOnly && !localCopy: a viewer has no narrate');
+   assert.match(canvas, /const canAsk = [^\n]*canNote = !readOnly && !localCopy/);
+-  assert.match(canvas, /generateNarration\(api, \{ app: appName, block: card \}\)/);
++  assert.match(canvas, /generateNarration\(api, \{ app: appName, block: card, voice \}\)/);
+   assert.equal((canvas.match(/askNarrationRef\.current\?\./g) || []).length, 1, 'no other place asks: an old card loaded from a saved board is never given a script');
+ });
+diff --git a/packages/web/src/explanation-audio.js b/packages/web/src/explanation-audio.js
+index 1e30d66c6..bf8f2b7f6 100644
+--- a/packages/web/src/explanation-audio.js
++++ b/packages/web/src/explanation-audio.js
+@@ -1,6 +1,6 @@
+ // The Explanation card's spoken add-on, the canvas side (docs/features/explain.md "Card audio"; routes: control-plane explanation-audio.js). Pure helpers and the two calls; the canvas
+ // (AdaptiveCanvas.jsx) wires them and the pill (ExplanationAudio.jsx) shows them. The server writes no board, so the answers land on the card here, as block.narration:
+-//   { status: 'script', script, transcript, seconds, scriptBy }                         the script exists, no audio yet (made right after the card is delivered)
++//   { status: 'script', script, transcript, seconds, scriptBy, estimate_credits, scriptCheck }  the script exists, no audio yet (made right after the card is delivered)
+ //   { status: 'preparing' }                                                              shown by the pill while the voice is made; never saved
+ //   { status: 'ready', fileRef, seconds, script, transcript, provider, model, voiceId }  the voice exists: play it
+ //   { status: 'error', failed: 'script' | 'audio', code, reason, ...what was already made }  one step failed; a retry runs only that step
+@@ -29,7 +29,9 @@ const reasonOf = error => (typeof error?.message === 'string' && error.message &
+ export async function requestScript(post, { app, block }) {
+   try {
+     const answer = await post(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ app, id: String(block.id), ...scriptInput(block) }) });
+-    if (typeof answer?.script === 'string' && answer.script.trim()) return { status: 'script', script: answer.script, transcript: answer.transcript || answer.script, seconds: answer.seconds_estimate, ...(answer.scriptBy ? { scriptBy: answer.scriptBy } : {}) };
++    // estimate_credits: what the voice will cost, in AI units (the server's own figure), shown by the first Play's confirmation; scriptCheck: the length check's counts, kept for review.
++    if (typeof answer?.script === 'string' && answer.script.trim()) return { status: 'script', script: answer.script, transcript: answer.transcript || answer.script, seconds: answer.seconds_estimate, ...(answer.scriptBy ? { scriptBy: answer.scriptBy } : {}),
++      ...(Number.isFinite(answer.voice_estimate_credits) ? { estimate_credits: answer.voice_estimate_credits } : {}), ...(answer.check ? { scriptCheck: answer.check } : {}) };
+     return errorOf('script', answer?.outcome || 'no_script', answer?.reason || 'The audio script could not be made. Try again.');
+   } catch (error) { return errorOf('script', 'request_failed', reasonOf(error)); }
+ }
+@@ -53,7 +55,8 @@ export function askScript({ post, app, editable, asked, land }, card) {
+ 
+ // Play on a card whose audio is not ready: the failed step, or the missing ones, run and the whole narration comes back to save. A second press for the same card shares the first.
+ const inflight = new Map();
+-export function generateNarration(post, { app, block }) {
++// voice: false stops after the script (the free step), so the Play can show the voice's cost before anything is spent.
++export function generateNarration(post, { app, block, voice = true }) {
+   if (inflight.has(block.id)) return inflight.get(block.id);
+   const run = (async () => {
+     let narration = withoutError(block.narration);
+@@ -62,8 +65,9 @@ export function generateNarration(post, { app, block }) {
+       if (made.status === 'error') return made;
+       narration = { ...narration, ...made };
+     }
+-    const voice = await requestVoice(post, { app, block: { ...block, narration } });
+-    return { ...narration, ...voice }; // a failed voice keeps the script, so the retry is the voice alone
++    if (!voice) return narration;
++    const spoken = await requestVoice(post, { app, block: { ...block, narration } });
++    return { ...narration, ...spoken }; // a failed voice keeps the script, so the retry is the voice alone
+   })().finally(() => inflight.delete(block.id));
+   inflight.set(block.id, run);
+   return run;
+diff --git a/packages/web/src/explanation-audio.test.mjs b/packages/web/src/explanation-audio.test.mjs
+index c13e567fc..8013b44db 100644
+--- a/packages/web/src/explanation-audio.test.mjs
++++ b/packages/web/src/explanation-audio.test.mjs
+@@ -311,7 +311,10 @@ test('the window shows narration.transcript (LaTeX) when there is one, else the
+ });
+ 
+ // Card audio generation (explanation-audio.js; the canvas offers `narrate` through ExplanationHost only where the card can be edited).
+-const scripted = (over = {}) => ({ status: 'script', script: 'Spoken words here.', transcript: 'Spoken $x$ words.', seconds: 70, ...over });
++const scripted = (over = {}) => ({ status: 'script', script: 'Spoken words here.', transcript: 'Spoken $x$ words.', seconds: 70, estimate_credits: 3, ...over });
++// The paid confirmation (ConfirmDialog, portalled to the body): Play asks first and shows the cost in AI units; this presses its Generate or Cancel.
++const dialog = () => $('[role="dialog"]');
++const pressIn = (label, root = dialog()) => click([...root.querySelectorAll('button')].find(button => button.textContent.trim() === label));
+ 
+ test('a script with no audio yet: the editor sees one Play button (no replay), nothing is read or played until it is pressed; a viewer (no host function) sees nothing', async () => {
+   reset();
+@@ -336,7 +339,17 @@ test('pressing Play on a script makes the voice (one request, button busy and di
+   const host = { narrate: id => { asked.push(id); return new Promise(resolve => { finish = resolve; }); } };
+   await mount(card('a', { narration: scripted() }), { host });
+   await click($('[data-audio-play]'));
++  assert.deepEqual(asked, [], 'Play asks first: nothing is spent on the press itself');
++  assert.equal(dialog().getAttribute('aria-label'), 'Make the audio');
++  assert.equal($('[data-audio-confirm]').textContent, 'This uses paid generation. Estimated cost: 3 AI units', 'the voice cost in AI units, the servers figure, in the shared wording');
++  assert.ok(!/\$|dollar/i.test(dialog().textContent), 'credits only, never dollars');
++  await pressIn('Cancel');
++  assert.equal(dialog(), null);
++  assert.deepEqual(asked, [], 'Cancel spends nothing');
++  await click($('[data-audio-play]'));
++  await pressIn('Generate');
+   assert.deepEqual(asked, ['a']);
++  assert.equal(dialog(), null);
+   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'preparing');
+   assert.ok($('[data-audio-play]').hasAttribute('disabled'));
+   assert.equal($('[data-audio-play]').getAttribute('title'), 'Preparing audio');
+@@ -361,14 +374,36 @@ test('a failed step: the pill shows the same failure state as a failed playback,
+   const host = { narrate: async id => { asked.push(id); return results.shift() ?? null; } };
+   await mount(card('a', { narration: scripted() }), { host });
+   await click($('[data-audio-play]'));
++  await pressIn('Generate');
+   assert.deepEqual(toasts.map(t => t.message), ['Audio is not set up on this server yet.']);
+   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'script', 'the button is pressable again');
+   await mount(card('a', { narration: { ...scripted(), status: 'error', failed: 'audio', code: 'not_configured', reason: 'Audio is not set up on this server yet.' } }), { host });
+   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'failed');
+   assert.equal($('[data-audio-play]').getAttribute('title'), 'Audio could not play. Try again.');
+   await click($('[data-audio-play]'));
++  await pressIn('Generate'); // a retry asks again before spending
+   assert.deepEqual(asked, ['a', 'a'], 'the retry asks again');
+   assert.equal(toasts.at(-1).message, 'The audio could not be made. Try again.', 'a press that got nothing back still says so');
+   await mount(card('a', { narration: ready('fs_late') }), { host });
+   assert.equal(audios.every(a => a.plays === 0), true, 'a ready narration that arrives without a press is never autoplayed');
+ });
++
++test('the confirmation of a card whose script failed: the free script step runs first, then the paid confirmation; without a quoted cost there is no Generate', async () => {
++  reset();
++  const asked = [];
++  const host = { narrate: async (id, options) => { asked.push([id, options]); return scripted({ estimate_credits: 5 }); } };
++  await mount(card('a', { narration: { status: 'error', failed: 'script', code: 'empty', reason: 'x' } }), { host });
++  await click($('[data-audio-play]'));
++  assert.deepEqual(asked, [['a', { voice: false }]], 'the script step only, no voice');
++  await mount(card('a', { narration: scripted({ estimate_credits: 5 }) }), { host });
++  await click($('[data-audio-play]'));
++  assert.equal($('[data-audio-confirm]').textContent, 'This uses paid generation. Estimated cost: 5 AI units');
++  await pressIn('Cancel');
++  await mount(card('a', { narration: scripted({ estimate_credits: undefined }) }), { host });
++  await click($('[data-audio-play]'));
++  assert.match($('[data-audio-confirm]').textContent, /Price not available yet$/, 'a price the server cannot quote is said, never shown as zero');
++  const generate = [...dialog().querySelectorAll('button')].find(b => b.textContent.trim() === 'Generate');
++  assert.ok(generate.hasAttribute('disabled'));
++  await pressIn('Cancel');
++  assert.equal(asked.length, 1);
++});
