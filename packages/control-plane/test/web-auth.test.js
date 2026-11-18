@@ -549,6 +549,9 @@ test('LOCAL_NO_SIGNIN: on a test instance a request with no session is the one l
   assert.equal(first.email, 'owner@rabbithole.test');
   assert.equal(again.uid, first.uid, 'the same user every time');
   assert.equal(local.q('SELECT count(*) n FROM users')[0].n, 1);
+  local.q("INSERT INTO users (id, email, session_epoch, created_at) VALUES ('old', 'old@corp.test', 0, 0)");
+  const oldCookie = await sign({ t: 'sess', uid: 'old', email: 'old@corp.test', ep: 0, exp: now() + 3600 }, KEY);
+  assert.equal((await sessionOf(new Request(`${ORIGIN}/`, { headers: { Cookie: `small_session=${oldCookie}` } }), local)).uid, first.uid, 'an old session cookie is ignored: still the local user');
   assert.equal(await sessionOf(bare(), withDb(t, { ...PROD, LOCAL_NO_SIGNIN: 'true' })), null, 'never in production');
   assert.equal(await sessionOf(bare(), withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'dev', TEST_BYPASS_SECRET: SECRET, LOCAL_NO_SIGNIN: 'true' })), null, 'never on a public dev control plane');
   assert.equal(await sessionOf(bare(), withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET })), null, 'off unless asked');
