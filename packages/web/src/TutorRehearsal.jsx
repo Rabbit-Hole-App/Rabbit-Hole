@@ -18,6 +18,7 @@ import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
 import { performItem, placeChapter } from './learn-section-perform.js';
+import { briefAndCompose, compositionForMake } from './learn-section-load.js';
 import { SPACING_SCALES } from './learn-position.js';
 import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 
@@ -274,16 +275,11 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   const failSection = (failed, out) => sectionPatch({ stage: 'failed', failed, words: out?.words && !internal(out.words) ? out.words : null });
   const loadSection = async (sectionId, from = 'brief') => {
     patch(old => ({ section: { ...(old.section?.id === sectionId ? old.section : { cards: {} }), id: sectionId, stage: from, failed: null, words: null } }));
-    if (from === 'brief') {
-      const out = await sectionPost({ action: 'learn_section_brief', sectionId });
-      if (!live.current || st.current.section?.id !== sectionId) return;
-      if (!out?.brief) { failSection('brief', out); return; }
-      sectionPatch({ brief: out.brief, stage: 'compose' });
-    }
-    const out = await sectionPost({ action: 'learn_section_compose', sectionId });
-    if (!live.current || st.current.section?.id !== sectionId) return;
-    if (!out?.composition) { failSection('compose', out); return; }
-    sectionPatch({ composition: out.composition, stage: 'ready', next: null });
+    const alive = () => live.current && st.current.section?.id === sectionId;
+    const got = await briefAndCompose(sectionPost, sectionId, { from, onBrief: brief => { if (alive()) sectionPatch({ brief, stage: 'compose' }); } });
+    if (!alive()) return;
+    if (got.failed) { failSection(got.failed, got.out); return; }
+    sectionPatch({ composition: got.composition, stage: 'ready', next: null });
   };
   // The dev row Next section, and Skip this section: the server moves the current section on; then its brief and composition.
   const nextSection = async () => {
@@ -302,11 +298,12 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     const sectionId = sec.id, alive = () => live.current && st.current.section?.id === sectionId;
     sectionPatch({ stage: 'making', failed: null, words: null });
     let composition = sec.composition;
-    if (!composition) { // after a reload: the stored composition (the server answers it without a model call)
-      const out = await sectionPost({ action: 'learn_section_compose', sectionId });
+    if (!composition) { // after a reload: the stored composition; a section with no brief gets its brief and composition first (learn-section-load.js)
+      const got = await compositionForMake(sectionPost, sectionId, { onLoading: () => { if (alive()) sectionPatch({ stage: 'brief' }); }, onBrief: brief => { if (alive()) sectionPatch({ brief, stage: 'compose' }); } });
       if (!alive()) return;
-      composition = out?.composition || null;
-      if (composition) sectionPatch({ composition });
+      if (got.failed) { failSection(got.failed, got.out); return; }
+      composition = got.composition;
+      sectionPatch({ composition, stage: 'making' });
     }
     // ponytail: a Make press after a reload starts again at the first item (the browser does not read made[] back); the server's next order is kept from there.
     let itemId = sec.next || composition?.items?.[0]?.id || null;
