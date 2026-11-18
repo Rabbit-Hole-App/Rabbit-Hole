@@ -1,0 +1,1284 @@
+{
+  "job": {
+    "id": "ej_147b85dc9796442d884d16e37ca71144",
+    "version": 1,
+    "boardId": "70d7306f-0705-462c-8f0a-4a201462c1ef",
+    "cardId": "6515265b-0be2-47db-92ea-9636f1351fd6",
+    "requestClass": "simple",
+    "stage": "ready",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "accepted",
+    "failure": null,
+    "recovery": [],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": {
+      "jobId": "ej_147b85dc9796442d884d16e37ca71144",
+      "resultId": "er_414ab420c55741c0888775d29372e08d",
+      "cardId": "6515265b-0be2-47db-92ea-9636f1351fd6",
+      "canvas": {
+        "boardId": "70d7306f-0705-462c-8f0a-4a201462c1ef"
+      },
+      "promptRef": "156d82d39012e9f6",
+      "revision": "xr_0299853746b44aa882abfbb3279ceb33",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "3a36f0362c3eedf2f4a3e1e2204bd53bd2e83dcb6af068bc1c6e2abe1f6d760c",
+      "sourceHash": "e0d8868ee243dc094345d3d10feecf2baceed1006264b0b16f1f9a95a9d468c1",
+      "manifestHash": "f84708ea037a50448d2a462c4c0a5a3dc1e98429ab490441a9656550b34b4335",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+        "envelopeHash": "3f8aa89f43c44f3a82f50ec2c9792757beb2cfa88350058c1d9b7b7c7074c8eb",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      },
+      "program": {
+        "kind": "explain_program",
+        "schemaVersion": 1,
+        "runtimeVersion": "quickjs-release-sync@0.32.0",
+        "sdkVersion": "sdk-8",
+        "rendererVersion": "renderer-5",
+        "runtimePolicyVersion": "policy-1",
+        "permissionProfileVersion": "perm-1",
+        "fingerprints": {
+          "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+          "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+          "renderer": "renderer-5"
+        },
+        "dependencies": [],
+        "manifest": {
+          "title": "Follow one point down the tree",
+          "summary": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.",
+          "assumptions": [
+            "The tree is fixed: the first test is x ≤ 4, the second y ≤ 2."
+          ],
+          "description": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.",
+          "inputs": [
+            {
+              "type": "number",
+              "id": "x",
+              "label": "x",
+              "unit": "units",
+              "default": 6,
+              "min": 0,
+              "max": 8,
+              "step": 0.5
+            },
+            {
+              "type": "number",
+              "id": "y",
+              "label": "y",
+              "unit": "units",
+              "default": 1,
+              "min": 0,
+              "max": 8,
+              "step": 0.5
+            }
+          ],
+          "duration": 6,
+          "timeline": {
+            "label": "Time",
+            "displayOffset": 0,
+            "playbackRate": 1,
+            "markers": []
+          },
+          "readouts": [],
+          "capabilities": [
+            "time_playback",
+            "number_inputs",
+            "figures"
+          ]
+        },
+        "source": "const T={\"title\":\"Decision tree\",\"nodes\":[{\"id\":\"root\",\"label\":\"x ≤ 4?\",\"role\":\"decision\"},{\"id\":\"rootl\",\"label\":\"Class 0 · 4 rows\",\"role\":\"outcome\"},{\"id\":\"rootr\",\"label\":\"y ≤ 2?\",\"role\":\"decision\"},{\"id\":\"rootrl\",\"label\":\"Class 0 · 1 row\",\"role\":\"outcome\"},{\"id\":\"rootrr\",\"label\":\"Class 1 · 3 rows\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"root\",\"to\":\"rootl\",\"label\":\"Yes\"},{\"from\":\"root\",\"to\":\"rootr\",\"label\":\"No\"},{\"from\":\"rootr\",\"to\":\"rootrl\",\"label\":\"Yes\"},{\"from\":\"rootr\",\"to\":\"rootrr\",\"label\":\"No\"}],\"root\":\"root\",\"tests\":{\"root\":{\"input\":\"x\",\"max\":4,\"yes\":\"rootl\",\"no\":\"rootr\"},\"rootr\":{\"input\":\"y\",\"max\":2,\"yes\":\"rootrl\",\"no\":\"rootrr\"}},\"prediction\":{\"rootl\":\"Class 0\",\"rootrl\":\"Class 0\",\"rootrr\":\"Class 1\"},\"duration\":6,\"geometry\":{\"frame\":{\"width\":640,\"height\":290},\"box\":{\"x\":12,\"y\":12,\"w\":420},\"scale\":0.69,\"rendered\":{\"width\":420,\"height\":401},\"nodes\":{\"root\":{\"centre\":[157.59,74.39],\"box\":[81.33,48.74,152.52,51.3]},\"rootl\":{\"centre\":[86.53,165.21],\"box\":[21.71,140.25,129.64,49.92]},\"rootr\":{\"centre\":[228.65,165.21],\"box\":[163.83,139.56,129.64,51.3]},\"rootrl\":{\"centre\":[86.53,255.34],\"box\":[21.71,235.93,129.64,38.82]},\"rootrr\":{\"centre\":[228.65,255.34],\"box\":[163.83,230.38,129.64,49.92]}},\"edges\":{\"root:rootl\":[[157.59,100.04],[157.59,112.87],[86.53,112.87],[86.53,140.25]],\"root:rootr\":[[157.59,100.04],[157.59,112.87],[228.65,112.87],[228.65,139.56]],\"rootr:rootrl\":[[228.65,190.86],[228.65,203.69],[86.53,203.69],[86.53,235.93]],\"rootr:rootrr\":[[228.65,190.86],[228.65,203.69],[228.65,203.69],[228.65,230.38]]}}};\nconst wrap=text=>{const lines=[];let line='';for(const word of text.split(/\\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};\nconst G=T.geometry,MOVE=1.1,HOLD=1.2,EDGE=(a,b)=>G.edges[a+':'+b];\nconst route=inputs=>{const path=[T.root],says=[];let at=T.root;while(T.tests[at]){const t=T.tests[at],v=inputs[t.input],yes=v<=t.max;says.push({node:at,text:v+' ≤ '+t.max+' is '+(yes?'true':'false')+': take '+(yes?'Yes':'No')+'.'});at=yes?t.yes:t.no;path.push(at);}return {path,says};};\nconst along=(points,f)=>{let total=0;const lens=[];for(let i=1;i<points.length;i++){const l=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);lens.push(l);total+=l;}let d=f*total;for(let i=0;i<lens.length;i++){if(d<=lens[i]||i===lens.length-1){const u=lens[i]?Math.min(1,d/lens[i]):1;return [points[i][0]+u*(points[i+1][0]-points[i][0]),points[i][1]+u*(points[i+1][1]-points[i][1])];}d-=lens[i];}return points[0];};\nexport function evaluate({inputs,time}){\n  const t=Math.min(Math.max(time||0,0),T.duration),{path,says}=route(inputs),n=path.length,dwell=(T.duration-(n-1)*MOVE-HOLD)/(n-1);\n  // stop k holds from start[k] to start[k]+dwell (the last holds to the end); the slide k to k+1 follows each hold but the last\n  const start=path.map((_,k)=>k*(dwell+MOVE));\n  let pos=G.nodes[path[0]].centre,reached=1,phase=0,sliding=false;\n  for(let k=0;k<n;k++){\n    if(t>=start[k]){reached=k+1;pos=G.nodes[path[k]].centre;phase=k;sliding=false;}\n    if(k<n-1&&t>=start[k]+dwell){const edge=[G.nodes[path[k]].centre].concat(EDGE(path[k],path[k+1]),[G.nodes[path[k+1]].centre]),f=Math.min(1,(t-start[k]-dwell)/MOVE);pos=along(edge,f);if(f<1){sliding=true;reached=k+1;phase=k;}}\n  }\n  const leaf=!sliding&&reached===n,flow={kind:'flow',title:T.title,nodes:T.nodes,edges:T.edges};\n  if(reached>=2)flow.highlightPath=path.slice(0,reached);\n  const head=leaf?'Prediction':'Test '+(phase+1),line=leaf?'The tree predicts '+T.prediction[path[n-1]].toLowerCase()+'.':says[phase].text;\n  const lines=wrap(line),b=G.box,objects=[sdk.diagram({version:1,diagram:flow},{x:b.x,y:b.y,w:b.w}),\n    sdk.circle('dot',pos[0],pos[1],18,{role:'output'}),\n    sdk.box('callout.active.l0',450,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',461,90,head,{role:'input',opacity:1})];\n  lines.forEach((value,j)=>objects.push(sdk.text('callout.active.s'+j,461,116+j*20,value,{role:'neutral',opacity:1})));\n  return {frame:sdk.frame(objects,{width:G.frame.width,height:G.frame.height}),quantities:{x:inputs.x,y:inputs.y}};\n}",
+        "sourceHash": "e0d8868ee243dc094345d3d10feecf2baceed1006264b0b16f1f9a95a9d468c1",
+        "manifestHash": "f84708ea037a50448d2a462c4c0a5a3dc1e98429ab490441a9656550b34b4335",
+        "bundleHash": "3a36f0362c3eedf2f4a3e1e2204bd53bd2e83dcb6af068bc1c6e2abe1f6d760c"
+      },
+      "execution": {
+        "allowed": true
+      }
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 130,
+      "proposalMs": 269,
+      "generateToResultMs": 433,
+      "processingMs": 572,
+      "approvalWaitMs": 754,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 37,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 12,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "ms": 24,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 66,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "ms": 754,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "ms": 116,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 16,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 301,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 10,
+          "outcome": "accepted"
+        }
+      ]
+    },
+    "createdAt": 1794975568916,
+    "updatedAt": 1794975570372,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "block": {
+    "type": "animation",
+    "id": "6515265b-0be2-47db-92ea-9636f1351fd6",
+    "title": "Follow one point down the tree",
+    "program": {
+      "kind": "explain_program",
+      "resultId": "er_414ab420c55741c0888775d29372e08d",
+      "bundleHash": "3a36f0362c3eedf2f4a3e1e2204bd53bd2e83dcb6af068bc1c6e2abe1f6d760c"
+    },
+    "interact": {
+      "version": 1,
+      "planHash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+      "composition": {
+        "version": 1,
+        "planHash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+        "depth": "brief",
+        "title": "Follow one point down the tree",
+        "cardDescription": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.",
+        "instructions": "Press play, or change x and y to send the point down another branch.",
+        "order": [
+          "title",
+          "description",
+          "main",
+          "transport",
+          "controls"
+        ],
+        "supporting": [],
+        "main": {
+          "artifact": {
+            "kind": "program",
+            "hash": "3a36f0362c3eedf2f4a3e1e2204bd53bd2e83dcb6af068bc1c6e2abe1f6d760c"
+          },
+          "runtime": {
+            "renderer": "program",
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "programTuple": {
+              "schemaVersion": 1,
+              "sdkVersion": "sdk-8",
+              "rendererVersion": "renderer-5",
+              "runtimeVersion": "quickjs-release-sync@0.32.0",
+              "runtimePolicyVersion": "policy-1",
+              "permissionProfileVersion": "perm-1",
+              "fingerprints": {
+                "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+                "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+                "renderer": "renderer-5"
+              }
+            },
+            "requiredHelpers": [],
+            "requiredCapabilities": [
+              "time_playback",
+              "number_inputs",
+              "figures"
+            ],
+            "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+          },
+          "mode": "experiment",
+          "readoutIds": [],
+          "inputDefaults": {
+            "x": 6,
+            "y": 1
+          },
+          "controls": [
+            {
+              "id": "play",
+              "type": "playback",
+              "label": "Play",
+              "nativeControlId": "program.playback",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "playback",
+                  "labels": {
+                    "paused": "Play",
+                    "playing": "Pause",
+                    "ended": "Replay"
+                  }
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "tree"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "dot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "labels": {
+                "paused": "Play",
+                "playing": "Pause",
+                "ended": "Replay"
+              }
+            },
+            {
+              "id": "scrub",
+              "type": "scrubber",
+              "label": "Time",
+              "nativeControlId": "program.scrubber",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "scrubber",
+                  "unit": "s",
+                  "step": 0.01
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "tree"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "dot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "s",
+              "step": 0.01
+            },
+            {
+              "id": "x",
+              "type": "number",
+              "label": "x",
+              "nativeControlId": "program.number",
+              "binding": {
+                "kind": "input",
+                "id": "x"
+              },
+              "row": "controls",
+              "native": {
+                "in": "manifest.inputs",
+                "declaration": {
+                  "type": "number",
+                  "id": "x",
+                  "label": "x",
+                  "unit": "units",
+                  "default": 6,
+                  "min": 0,
+                  "max": 8,
+                  "step": 0.5
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "tree"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "dot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "units",
+              "default": 6,
+              "min": 0,
+              "max": 8,
+              "step": 0.5,
+              "onChange": "recompute_still"
+            },
+            {
+              "id": "y",
+              "type": "number",
+              "label": "y",
+              "nativeControlId": "program.number",
+              "binding": {
+                "kind": "input",
+                "id": "y"
+              },
+              "row": "controls",
+              "native": {
+                "in": "manifest.inputs",
+                "declaration": {
+                  "type": "number",
+                  "id": "y",
+                  "label": "y",
+                  "unit": "units",
+                  "default": 1,
+                  "min": 0,
+                  "max": 8,
+                  "step": 0.5
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "tree"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "dot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "units",
+              "default": 1,
+              "min": 0,
+              "max": 8,
+              "step": 0.5,
+              "onChange": "recompute_still"
+            },
+            {
+              "id": "resetAll",
+              "type": "reset",
+              "label": "Reset",
+              "nativeControlId": "program.reset",
+              "binding": {
+                "kind": "reset"
+              },
+              "row": "controls",
+              "native": {
+                "in": "card.reset",
+                "declaration": null
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "tree"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "dot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ]
+            }
+          ],
+          "timeline": {
+            "label": "Time",
+            "unit": "s",
+            "end": {
+              "op": "literal",
+              "value": 6
+            },
+            "displayOffset": {
+              "op": "literal",
+              "value": 0
+            },
+            "markers": [],
+            "playbackRate": 1,
+            "initialTime": 0,
+            "initialPlayback": "paused",
+            "step": 0.01
+          },
+          "onInputChange": "reset_pause"
+        },
+        "envelopeHash": "3f8aa89f43c44f3a82f50ec2c9792757beb2cfa88350058c1d9b7b7c7074c8eb"
+      }
+    },
+    "explain": {
+      "jobId": "ej_147b85dc9796442d884d16e37ca71144",
+      "resultId": "er_414ab420c55741c0888775d29372e08d",
+      "cardId": "6515265b-0be2-47db-92ea-9636f1351fd6",
+      "canvas": {
+        "boardId": "70d7306f-0705-462c-8f0a-4a201462c1ef"
+      },
+      "promptRef": "156d82d39012e9f6",
+      "revision": "xr_0299853746b44aa882abfbb3279ceb33",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "3a36f0362c3eedf2f4a3e1e2204bd53bd2e83dcb6af068bc1c6e2abe1f6d760c",
+      "sourceHash": "e0d8868ee243dc094345d3d10feecf2baceed1006264b0b16f1f9a95a9d468c1",
+      "manifestHash": "f84708ea037a50448d2a462c4c0a5a3dc1e98429ab490441a9656550b34b4335",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+        "envelopeHash": "3f8aa89f43c44f3a82f50ec2c9792757beb2cfa88350058c1d9b7b7c7074c8eb",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      }
+    }
+  },
+  "scenePlan": {
+    "version": 1,
+    "hash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+    "revision": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "depth": "brief",
+      "title": "Follow one point down the tree",
+      "story": "A learner sends a point, J at x = 6 and y = 1 to start, down a small fitted decision tree. A dot rests on the root while the first test is read out with the point's own numbers, slides along the branch the answer chooses, rests on the next test, then slides to a class and shows the tree's prediction. The lit path grows as the dot passes each node, and changing x or y sends the dot down another branch.",
+      "cardDescription": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.",
+      "learningGoal": "A decision tree classifies a point by answering one yes or no test per node, from the root to a class.",
+      "instructions": "Press play, or change x and y to send the point down another branch.",
+      "supportingVisuals": [],
+      "scene": {
+        "description": "Family stepper-states. A decision tree drawn by the flow renderer with a dot that travels the route of one point, and a callout that reads each test.\nA 640 px scene with a 6 s timeline and two number inputs.",
+        "runtime": {
+          "renderer": "program",
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "programTuple": {
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "rendererVersion": "renderer-5",
+            "runtimeVersion": "quickjs-release-sync@0.32.0",
+            "runtimePolicyVersion": "policy-1",
+            "permissionProfileVersion": "perm-1",
+            "fingerprints": {
+              "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+              "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+              "renderer": "renderer-5"
+            }
+          },
+          "requiredHelpers": [],
+          "requiredCapabilities": [
+            "time_playback",
+            "number_inputs",
+            "figures"
+          ],
+          "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+        },
+        "entities": [
+          {
+            "id": "tree",
+            "label": "Decision tree",
+            "purpose": "The fitted tree with the route taken so far lit."
+          },
+          {
+            "id": "dot",
+            "label": "Point J",
+            "purpose": "The dot that stands for the point and travels its route."
+          },
+          {
+            "id": "callout",
+            "label": "Test readout",
+            "purpose": "The test the dot is at and its verdict, then the prediction."
+          }
+        ],
+        "quantities": [
+          {
+            "id": "x",
+            "label": "x",
+            "unit": "units",
+            "meaning": "The x value of the point.",
+            "reference": "Read against the test at each node.",
+            "formula": "x"
+          },
+          {
+            "id": "y",
+            "label": "y",
+            "unit": "units",
+            "meaning": "The y value of the point.",
+            "reference": "Read against the test at each node.",
+            "formula": "y"
+          }
+        ],
+        "observations": [
+          {
+            "id": "route",
+            "text": "Each test sends the point one way; two answers reach a class.",
+            "quantityIds": [
+              "x",
+              "y"
+            ],
+            "readoutIds": []
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "root",
+            "label": "At the root",
+            "time": {
+              "op": "literal",
+              "value": 0.6
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "At the root"
+          },
+          {
+            "id": "second",
+            "label": "At the second test",
+            "time": {
+              "op": "literal",
+              "value": 3
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "At the second test"
+          },
+          {
+            "id": "leaf",
+            "label": "At the class",
+            "time": {
+              "op": "literal",
+              "value": 5.5
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "At the class"
+          }
+        ],
+        "readoutIds": [],
+        "template": "stepper-tree-motion",
+        "slots": {},
+        "words": {},
+        "data": {
+          "title": "Decision tree",
+          "nodes": [
+            {
+              "id": "root",
+              "label": "x ≤ 4?",
+              "role": "decision"
+            },
+            {
+              "id": "rootl",
+              "label": "Class 0 · 4 rows",
+              "role": "outcome"
+            },
+            {
+              "id": "rootr",
+              "label": "y ≤ 2?",
+              "role": "decision"
+            },
+            {
+              "id": "rootrl",
+              "label": "Class 0 · 1 row",
+              "role": "outcome"
+            },
+            {
+              "id": "rootrr",
+              "label": "Class 1 · 3 rows",
+              "role": "outcome"
+            }
+          ],
+          "edges": [
+            {
+              "from": "root",
+              "to": "rootl",
+              "label": "Yes"
+            },
+            {
+              "from": "root",
+              "to": "rootr",
+              "label": "No"
+            },
+            {
+              "from": "rootr",
+              "to": "rootrl",
+              "label": "Yes"
+            },
+            {
+              "from": "rootr",
+              "to": "rootrr",
+              "label": "No"
+            }
+          ],
+          "root": "root",
+          "tests": {
+            "root": {
+              "input": "x",
+              "max": 4,
+              "yes": "rootl",
+              "no": "rootr"
+            },
+            "rootr": {
+              "input": "y",
+              "max": 2,
+              "yes": "rootrl",
+              "no": "rootrr"
+            }
+          },
+          "prediction": {
+            "rootl": "Class 0",
+            "rootrl": "Class 0",
+            "rootrr": "Class 1"
+          },
+          "duration": 6,
+          "geometry": {
+            "frame": {
+              "width": 640,
+              "height": 290
+            },
+            "box": {
+              "x": 12,
+              "y": 12,
+              "w": 420
+            },
+            "scale": 0.69,
+            "rendered": {
+              "width": 420,
+              "height": 401
+            },
+            "nodes": {
+              "root": {
+                "centre": [
+                  157.59,
+                  74.39
+                ],
+                "box": [
+                  81.33,
+                  48.74,
+                  152.52,
+                  51.3
+                ]
+              },
+              "rootl": {
+                "centre": [
+                  86.53,
+                  165.21
+                ],
+                "box": [
+                  21.71,
+                  140.25,
+                  129.64,
+                  49.92
+                ]
+              },
+              "rootr": {
+                "centre": [
+                  228.65,
+                  165.21
+                ],
+                "box": [
+                  163.83,
+                  139.56,
+                  129.64,
+                  51.3
+                ]
+              },
+              "rootrl": {
+                "centre": [
+                  86.53,
+                  255.34
+                ],
+                "box": [
+                  21.71,
+                  235.93,
+                  129.64,
+                  38.82
+                ]
+              },
+              "rootrr": {
+                "centre": [
+                  228.65,
+                  255.34
+                ],
+                "box": [
+                  163.83,
+                  230.38,
+                  129.64,
+                  49.92
+                ]
+              }
+            },
+            "edges": {
+              "root:rootl": [
+                [
+                  157.59,
+                  100.04
+                ],
+                [
+                  157.59,
+                  112.87
+                ],
+                [
+                  86.53,
+                  112.87
+                ],
+                [
+                  86.53,
+                  140.25
+                ]
+              ],
+              "root:rootr": [
+                [
+                  157.59,
+                  100.04
+                ],
+                [
+                  157.59,
+                  112.87
+                ],
+                [
+                  228.65,
+                  112.87
+                ],
+                [
+                  228.65,
+                  139.56
+                ]
+              ],
+              "rootr:rootrl": [
+                [
+                  228.65,
+                  190.86
+                ],
+                [
+                  228.65,
+                  203.69
+                ],
+                [
+                  86.53,
+                  203.69
+                ],
+                [
+                  86.53,
+                  235.93
+                ]
+              ],
+              "rootr:rootrr": [
+                [
+                  228.65,
+                  190.86
+                ],
+                [
+                  228.65,
+                  203.69
+                ],
+                [
+                  228.65,
+                  203.69
+                ],
+                [
+                  228.65,
+                  230.38
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "mode": {
+        "kind": "experiment",
+        "initialState": "Point J at x = 6 and y = 1; the dot on the root, time 0 s, paused.",
+        "fixedValues": {},
+        "adjustableIds": [
+          "x",
+          "y"
+        ],
+        "timeline": {
+          "label": "Time",
+          "unit": "s",
+          "start": 0,
+          "end": {
+            "op": "literal",
+            "value": 6
+          },
+          "displayOffset": {
+            "op": "literal",
+            "value": 0
+          },
+          "markers": [],
+          "initialTime": 0,
+          "initialPlayback": "paused",
+          "playbackRate": 1
+        },
+        "onInputChange": "reset_pause"
+      },
+      "controls": [
+        {
+          "id": "play",
+          "label": "Play",
+          "purpose": "Run the card and replay it.",
+          "selectionReason": "Time carries the change, and the one supported transport drives every linked view.",
+          "nativeControlId": "program.playback",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tree"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "dot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "playback",
+          "binding": {
+            "kind": "timeline"
+          },
+          "labels": {
+            "paused": "Play",
+            "playing": "Pause",
+            "ended": "Replay"
+          }
+        },
+        {
+          "id": "scrub",
+          "label": "Time",
+          "purpose": "Stop on any moment of the card.",
+          "selectionReason": "A scrubber lets the learner stop on the moment being compared.",
+          "nativeControlId": "program.scrubber",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tree"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "dot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "scrubber",
+          "binding": {
+            "kind": "timeline"
+          },
+          "unit": "s",
+          "step": 0.01
+        },
+        {
+          "id": "x",
+          "label": "x",
+          "purpose": "Move the point left or right across the first test.",
+          "selectionReason": "The value varies continuously and each side of the test sends the point down a different branch.",
+          "nativeControlId": "program.number",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tree"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "dot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "number",
+          "binding": {
+            "kind": "input",
+            "id": "x"
+          },
+          "unit": "units",
+          "default": 6,
+          "min": 0,
+          "max": 8,
+          "step": 0.5,
+          "onChange": "recompute_still"
+        },
+        {
+          "id": "y",
+          "label": "y",
+          "purpose": "Move the point up or down across the second test.",
+          "selectionReason": "The value varies continuously and each side of the test sends the point down a different branch.",
+          "nativeControlId": "program.number",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tree"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "dot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "number",
+          "binding": {
+            "kind": "input",
+            "id": "y"
+          },
+          "unit": "units",
+          "default": 1,
+          "min": 0,
+          "max": 8,
+          "step": 0.5,
+          "onChange": "recompute_still"
+        },
+        {
+          "id": "resetAll",
+          "label": "Reset",
+          "purpose": "Return to the defaults.",
+          "selectionReason": "Replay keeps the settings; Reset restores them.",
+          "nativeControlId": "program.reset",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tree"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "dot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "reset",
+          "binding": {
+            "kind": "reset"
+          },
+          "effect": "Restores x = 6, y = 1 and time 0, paused."
+        }
+      ],
+      "assumptions": [
+        "The tree is fixed: the first test is x ≤ 4, the second y ≤ 2."
+      ],
+      "limitations": [
+        "One small tree; real trees are deeper and are fitted from data."
+      ],
+      "claims": []
+    },
+    "open": [],
+    "carried": [],
+    "fit": {
+      "styleVersion": "card-description-v1:estimate"
+    },
+    "review": {
+      "verdict": "pass",
+      "scores": [
+        5,
+        5
+      ],
+      "reviews": 1,
+      "revisions": 1
+    }
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "follow one point down a decision tree: which way does it go at each test",
+      "depth": "brief"
+    },
+    "findings": [
+      {
+        "round": 0,
+        "stage": "reviewing",
+        "accepted": true,
+        "findings": [],
+        "review": "shadow"
+      }
+    ],
+    "candidates": [],
+    "settings": {
+      "presentation": "experiment"
+    },
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794975568916,
+        "firstFeedback": 1794975569046,
+        "proposalReady": 1794975569185,
+        "generate": 1794975569939,
+        "result": 1794975570372
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794975569046,
+          "endedAt": 1794975569083,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1794975569083,
+          "endedAt": 1794975569095,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "startedAt": 1794975569095,
+          "endedAt": 1794975569119,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794975569119,
+          "endedAt": 1794975569185,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "startedAt": 1794975569185,
+          "endedAt": 1794975569939,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "startedAt": 1794975569939,
+          "endedAt": 1794975570055,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1794975570055,
+          "endedAt": 1794975570071,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1794975570071,
+          "endedAt": 1794975570372,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 10,
+          "outcome": "accepted"
+        }
+      ],
+      "v": 2
+    },
+    "ledger": {
+      "jobId": "ej_147b85dc9796442d884d16e37ca71144",
+      "planHash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+      "depth": "brief",
+      "result": "ready",
+      "stopReason": "accepted",
+      "oracleId": null,
+      "oracleChecked": 0,
+      "oracleFailed": 0,
+      "bindingProblems": 0,
+      "overlapProblems": 0,
+      "repairs": 0,
+      "repairCauses": "",
+      "profile": "opus-baseline",
+      "fixture": "stepper-tree-motion-brief",
+      "authorModel": "template",
+      "fallbackFired": false,
+      "judgeVerdict": null,
+      "judgeMajor": null,
+      "judgeCostUsd": null,
+      "costUsd": null,
+      "msSteer": null,
+      "msAuthor": null,
+      "msValidate": 2,
+      "msRun": 274,
+      "msCheck": 4,
+      "msCompose": 27,
+      "msReview": null,
+      "msRepair": null,
+      "msTotal": 433,
+      "msJudge": null,
+      "timing": "v2",
+      "buildKind": "template",
+      "msHopWait": 126,
+      "judgeFindingsPath": null,
+      "designModel": null,
+      "designKind": null,
+      "msFill": null,
+      "designFallback": null,
+      "designCalls": null,
+      "msDesign": null,
+      "designCostUsd": null,
+      "pickFamily": null,
+      "pickConfidence": null,
+      "msPick": null,
+      "approvedBy": "learner",
+      "pickProbabilities": null,
+      "prompt": "follow one point down a decision tree: which way does it go at each test"
+    }
+  }
+}

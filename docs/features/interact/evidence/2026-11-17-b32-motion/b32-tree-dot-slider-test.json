@@ -1,0 +1,18 @@
+{
+  "before": {
+    "time": "0",
+    "x": "6",
+    "text": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome. Press play, or change x and y to send the point down another branch. Decision tree Yes No Yes No x ≤ 4? Class 0 · 4rows y ≤ 2? Class 0 · 1 row Class 1 · 3rows Test 1 6 ≤ 4 is false: take No. Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome. Play 0.00s x: 6.0 units y: 1.0 units"
+  },
+  "playing": {
+    "time": "1.5"
+  },
+  "afterMove": {
+    "time": "1.55",
+    "x": "2",
+    "text": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome. Press play, or change x and y to send the point down another branch. Decision tree Yes No Yes No x ≤ 4? Class 0 · 4rows y ≤ 2? Class 0 · 1 row Class 1 · 3rows Test 1 2 ≤ 4 is true: take Yes. Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome. Play 1.55s x: 2.0 units y: 1.0 units"
+  },
+  "later": {
+    "time": "1.55"
+  }
+}

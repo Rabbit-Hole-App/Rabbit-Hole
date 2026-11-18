@@ -28,8 +28,7 @@ export function validateFlowPaths({ nodes, edges, highlightPath }, issue) {
     if (edges.some(edge => edge.to === path[0])) {
       return issue([...where, 0], 'The highlighted path must start at the start node of the flow');
     }
-    // A single path may stop part-way (brief 31: a step-through that traces a point one test at a time); the pair still ends at one shared terminal, checked below.
-    if (paired && edges.some(edge => edge.from === path.at(-1))) {
+    if (edges.some(edge => edge.from === path.at(-1))) {
       return issue([...where, path.length - 1], 'The highlighted path must end at a node with no outgoing edge');
     }
   }

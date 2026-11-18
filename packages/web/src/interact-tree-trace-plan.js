@@ -1,6 +1,7 @@
 // Brief 31 proof plan: the fitted tree of ml-trees-grown-tree re-expressed as a flow, with one point (J: x = 6, y = 1) traced down it one test at a time. Built from the merge-sort plan's
 // frozen skeleton (runtime, mode, control shapes) so only what differs is written here. ponytail: one pinned plan, brief depth only, no brief schema and no model fill.
 import { STEPPER_PLANS } from './interact-stepper-plans.js';
+import { TREE_GEOMETRY } from './interact-tree-motion-geometry.js';
 
 const steps = [
   { label: 'Start at the root', callout: 'Point J: x = 6, y = 1. Start at the root test.' },
@@ -14,7 +15,7 @@ const data = {
     { id: 'rootrl', label: 'Class 0 · 1 row', role: 'outcome' }, { id: 'rootrr', label: 'Class 1 · 3 rows', role: 'outcome' },
   ],
   edges: [{ from: 'root', to: 'rootl', label: 'Yes' }, { from: 'root', to: 'rootr', label: 'No' }, { from: 'rootr', to: 'rootrl', label: 'Yes' }, { from: 'rootr', to: 'rootrr', label: 'No' }],
-  steps,
+  steps, geometry: TREE_GEOMETRY,
 };
 const affects = [{ scope: 'main', kind: 'entity', id: 'tree' }, { scope: 'main', kind: 'entity', id: 'callout' }];
 

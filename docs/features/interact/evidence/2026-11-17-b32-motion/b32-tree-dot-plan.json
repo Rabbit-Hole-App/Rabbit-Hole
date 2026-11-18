@@ -1,0 +1,565 @@
+{
+  "version": 1,
+  "hash": "c0004d6499ebc317965bd9a32e87ec7e2e39269b5212f9d595c4fcb4cf046a61",
+  "revision": 1,
+  "plan": {
+    "schemaVersion": 1,
+    "depth": "brief",
+    "title": "Follow one point down the tree",
+    "story": "A learner sends a point, J at x = 6 and y = 1 to start, down a small fitted decision tree. A dot rests on the root while the first test is read out with the point's own numbers, slides along the branch the answer chooses, rests on the next test, then slides to a class and shows the tree's prediction. The lit path grows as the dot passes each node, and changing x or y sends the dot down another branch.",
+    "cardDescription": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.",
+    "learningGoal": "A decision tree classifies a point by answering one yes or no test per node, from the root to a class.",
+    "instructions": "Press play, or change x and y to send the point down another branch.",
+    "supportingVisuals": [],
+    "scene": {
+      "description": "Family stepper-states. A decision tree drawn by the flow renderer with a dot that travels the route of one point, and a callout that reads each test.\nA 640 px scene with a 6 s timeline and two number inputs.",
+      "runtime": {
+        "renderer": "program",
+        "schemaVersion": 1,
+        "sdkVersion": "sdk-8",
+        "programTuple": {
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "rendererVersion": "renderer-5",
+          "runtimeVersion": "quickjs-release-sync@0.32.0",
+          "runtimePolicyVersion": "policy-1",
+          "permissionProfileVersion": "perm-1",
+          "fingerprints": {
+            "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+            "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+            "renderer": "renderer-5"
+          }
+        },
+        "requiredHelpers": [],
+        "requiredCapabilities": [
+          "time_playback",
+          "number_inputs",
+          "figures"
+        ],
+        "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+      },
+      "entities": [
+        {
+          "id": "tree",
+          "label": "Decision tree",
+          "purpose": "The fitted tree with the route taken so far lit."
+        },
+        {
+          "id": "dot",
+          "label": "Point J",
+          "purpose": "The dot that stands for the point and travels its route."
+        },
+        {
+          "id": "callout",
+          "label": "Test readout",
+          "purpose": "The test the dot is at and its verdict, then the prediction."
+        }
+      ],
+      "quantities": [
+        {
+          "id": "x",
+          "label": "x",
+          "unit": "units",
+          "meaning": "The x value of the point.",
+          "reference": "Read against the test at each node.",
+          "formula": "x"
+        },
+        {
+          "id": "y",
+          "label": "y",
+          "unit": "units",
+          "meaning": "The y value of the point.",
+          "reference": "Read against the test at each node.",
+          "formula": "y"
+        }
+      ],
+      "observations": [
+        {
+          "id": "route",
+          "text": "Each test sends the point one way; two answers reach a class.",
+          "quantityIds": [
+            "x",
+            "y"
+          ],
+          "readoutIds": []
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "root",
+          "label": "At the root",
+          "time": {
+            "op": "literal",
+            "value": 0.6
+          },
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "At the root"
+        },
+        {
+          "id": "second",
+          "label": "At the second test",
+          "time": {
+            "op": "literal",
+            "value": 3
+          },
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "At the second test"
+        },
+        {
+          "id": "leaf",
+          "label": "At the class",
+          "time": {
+            "op": "literal",
+            "value": 5.5
+          },
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "At the class"
+        }
+      ],
+      "readoutIds": [],
+      "template": "stepper-tree-motion",
+      "slots": {},
+      "words": {},
+      "data": {
+        "title": "Decision tree",
+        "nodes": [
+          {
+            "id": "root",
+            "label": "x ≤ 4?",
+            "role": "decision"
+          },
+          {
+            "id": "rootl",
+            "label": "Class 0 · 4 rows",
+            "role": "outcome"
+          },
+          {
+            "id": "rootr",
+            "label": "y ≤ 2?",
+            "role": "decision"
+          },
+          {
+            "id": "rootrl",
+            "label": "Class 0 · 1 row",
+            "role": "outcome"
+          },
+          {
+            "id": "rootrr",
+            "label": "Class 1 · 3 rows",
+            "role": "outcome"
+          }
+        ],
+        "edges": [
+          {
+            "from": "root",
+            "to": "rootl",
+            "label": "Yes"
+          },
+          {
+            "from": "root",
+            "to": "rootr",
+            "label": "No"
+          },
+          {
+            "from": "rootr",
+            "to": "rootrl",
+            "label": "Yes"
+          },
+          {
+            "from": "rootr",
+            "to": "rootrr",
+            "label": "No"
+          }
+        ],
+        "root": "root",
+        "tests": {
+          "root": {
+            "input": "x",
+            "max": 4,
+            "yes": "rootl",
+            "no": "rootr"
+          },
+          "rootr": {
+            "input": "y",
+            "max": 2,
+            "yes": "rootrl",
+            "no": "rootrr"
+          }
+        },
+        "prediction": {
+          "rootl": "Class 0",
+          "rootrl": "Class 0",
+          "rootrr": "Class 1"
+        },
+        "duration": 6,
+        "geometry": {
+          "frame": {
+            "width": 640,
+            "height": 290
+          },
+          "box": {
+            "x": 12,
+            "y": 12,
+            "w": 420
+          },
+          "scale": 0.69,
+          "rendered": {
+            "width": 420,
+            "height": 401
+          },
+          "nodes": {
+            "root": {
+              "centre": [
+                157.59,
+                74.39
+              ],
+              "box": [
+                81.33,
+                48.74,
+                152.52,
+                51.3
+              ]
+            },
+            "rootl": {
+              "centre": [
+                86.53,
+                165.21
+              ],
+              "box": [
+                21.71,
+                140.25,
+                129.64,
+                49.92
+              ]
+            },
+            "rootr": {
+              "centre": [
+                228.65,
+                165.21
+              ],
+              "box": [
+                163.83,
+                139.56,
+                129.64,
+                51.3
+              ]
+            },
+            "rootrl": {
+              "centre": [
+                86.53,
+                255.34
+              ],
+              "box": [
+                21.71,
+                235.93,
+                129.64,
+                38.82
+              ]
+            },
+            "rootrr": {
+              "centre": [
+                228.65,
+                255.34
+              ],
+              "box": [
+                163.83,
+                230.38,
+                129.64,
+                49.92
+              ]
+            }
+          },
+          "edges": {
+            "root:rootl": [
+              [
+                157.59,
+                100.04
+              ],
+              [
+                157.59,
+                112.87
+              ],
+              [
+                86.53,
+                112.87
+              ],
+              [
+                86.53,
+                140.25
+              ]
+            ],
+            "root:rootr": [
+              [
+                157.59,
+                100.04
+              ],
+              [
+                157.59,
+                112.87
+              ],
+              [
+                228.65,
+                112.87
+              ],
+              [
+                228.65,
+                139.56
+              ]
+            ],
+            "rootr:rootrl": [
+              [
+                228.65,
+                190.86
+              ],
+              [
+                228.65,
+                203.69
+              ],
+              [
+                86.53,
+                203.69
+              ],
+              [
+                86.53,
+                235.93
+              ]
+            ],
+            "rootr:rootrr": [
+              [
+                228.65,
+                190.86
+              ],
+              [
+                228.65,
+                203.69
+              ],
+              [
+                228.65,
+                203.69
+              ],
+              [
+                228.65,
+                230.38
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "mode": {
+      "kind": "experiment",
+      "initialState": "Point J at x = 6 and y = 1; the dot on the root, time 0 s, paused.",
+      "fixedValues": {},
+      "adjustableIds": [
+        "x",
+        "y"
+      ],
+      "timeline": {
+        "label": "Time",
+        "unit": "s",
+        "start": 0,
+        "end": {
+          "op": "literal",
+          "value": 6
+        },
+        "displayOffset": {
+          "op": "literal",
+          "value": 0
+        },
+        "markers": [],
+        "initialTime": 0,
+        "initialPlayback": "paused",
+        "playbackRate": 1
+      },
+      "onInputChange": "reset_pause"
+    },
+    "controls": [
+      {
+        "id": "play",
+        "label": "Play",
+        "purpose": "Run the card and replay it.",
+        "selectionReason": "Time carries the change, and the one supported transport drives every linked view.",
+        "nativeControlId": "program.playback",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "dot"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "playback",
+        "binding": {
+          "kind": "timeline"
+        },
+        "labels": {
+          "paused": "Play",
+          "playing": "Pause",
+          "ended": "Replay"
+        }
+      },
+      {
+        "id": "scrub",
+        "label": "Time",
+        "purpose": "Stop on any moment of the card.",
+        "selectionReason": "A scrubber lets the learner stop on the moment being compared.",
+        "nativeControlId": "program.scrubber",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "dot"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "scrubber",
+        "binding": {
+          "kind": "timeline"
+        },
+        "unit": "s",
+        "step": 0.01
+      },
+      {
+        "id": "x",
+        "label": "x",
+        "purpose": "Move the point left or right across the first test.",
+        "selectionReason": "The value varies continuously and each side of the test sends the point down a different branch.",
+        "nativeControlId": "program.number",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "dot"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "number",
+        "binding": {
+          "kind": "input",
+          "id": "x"
+        },
+        "unit": "units",
+        "default": 6,
+        "min": 0,
+        "max": 8,
+        "step": 0.5,
+        "onChange": "recompute_still"
+      },
+      {
+        "id": "y",
+        "label": "y",
+        "purpose": "Move the point up or down across the second test.",
+        "selectionReason": "The value varies continuously and each side of the test sends the point down a different branch.",
+        "nativeControlId": "program.number",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "dot"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "number",
+        "binding": {
+          "kind": "input",
+          "id": "y"
+        },
+        "unit": "units",
+        "default": 1,
+        "min": 0,
+        "max": 8,
+        "step": 0.5,
+        "onChange": "recompute_still"
+      },
+      {
+        "id": "resetAll",
+        "label": "Reset",
+        "purpose": "Return to the defaults.",
+        "selectionReason": "Replay keeps the settings; Reset restores them.",
+        "nativeControlId": "program.reset",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "dot"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "reset",
+        "binding": {
+          "kind": "reset"
+        },
+        "effect": "Restores x = 6, y = 1 and time 0, paused."
+      }
+    ],
+    "assumptions": [
+      "The tree is fixed: the first test is x ≤ 4, the second y ≤ 2."
+    ],
+    "limitations": [
+      "One small tree; real trees are deeper and are fitted from data."
+    ],
+    "claims": []
+  },
+  "open": [],
+  "carried": [],
+  "fit": {
+    "styleVersion": "card-description-v1:estimate"
+  },
+  "review": {
+    "verdict": "pass",
+    "scores": [
+      5,
+      5
+    ],
+    "reviews": 1,
+    "revisions": 1
+  }
+}

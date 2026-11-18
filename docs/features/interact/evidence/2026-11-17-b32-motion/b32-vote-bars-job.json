@@ -1,0 +1,785 @@
+{
+  "job": {
+    "id": "ej_15cbe55fe2cc4a6190ef6676389c1735",
+    "version": 1,
+    "boardId": "70d7306f-0705-462c-8f0a-4a201462c1ef",
+    "cardId": "d49ed2aa-fe77-490c-a962-9a0be2051ccf",
+    "requestClass": "simple",
+    "stage": "ready",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "accepted",
+    "failure": null,
+    "recovery": [],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": {
+      "jobId": "ej_15cbe55fe2cc4a6190ef6676389c1735",
+      "resultId": "er_bbf39d6f59fc441690973d7d96e662b7",
+      "cardId": "d49ed2aa-fe77-490c-a962-9a0be2051ccf",
+      "canvas": {
+        "boardId": "70d7306f-0705-462c-8f0a-4a201462c1ef"
+      },
+      "promptRef": "3a5ff2103543ba9a",
+      "revision": "xr_064cfa7e096d4969916623eec2e1ffa0",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "0a99634de0a79c377083a212d864d22ef37cf7c8b8dec81b159a6b50add1ae47",
+      "sourceHash": "3534886e2d711035c2143fdd301dc48253dd99bcb950b5fec1aed3a8beb852a1",
+      "manifestHash": "85df382eaa1f95d5238710b436c5966f89cca41a57951b330fbc4e3ece068946",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+        "envelopeHash": "fcff5d6cdcb2caaaf33dfc08869d3bfa56541f719ed5b757a395453f0413dbc8",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      },
+      "program": {
+        "kind": "explain_program",
+        "schemaVersion": 1,
+        "runtimeVersion": "quickjs-release-sync@0.32.0",
+        "sdkVersion": "sdk-8",
+        "rendererVersion": "renderer-5",
+        "runtimePolicyVersion": "policy-1",
+        "permissionProfileVersion": "perm-1",
+        "fingerprints": {
+          "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+          "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+          "renderer": "renderer-5"
+        },
+        "dependencies": [],
+        "manifest": {
+          "title": "Let the trees vote",
+          "summary": "Three trees each predict the class of row J. Every vote lifts the bar of the class it chose, and the class with the most votes is the forest's answer.",
+          "assumptions": [
+            "The three trees and their votes are the lesson forest's for row J."
+          ],
+          "description": "Three trees each predict the class of row J. Every vote lifts the bar of the class it chose, and the class with the most votes is the forest's answer.",
+          "inputs": [],
+          "duration": 6,
+          "timeline": {
+            "label": "Time",
+            "displayOffset": 0,
+            "playbackRate": 1,
+            "markers": []
+          },
+          "readouts": [],
+          "capabilities": [
+            "time_playback",
+            "figures"
+          ]
+        },
+        "source": "const V={\"title\":\"Votes for row J\",\"unit\":\"votes\",\"classes\":[\"Class 0\",\"Class 1\"],\"votes\":[{\"tree\":\"Tree 1\",\"rule\":\"x ≤ 4\",\"class\":0},{\"tree\":\"Tree 2\",\"rule\":\"y ≤ 4\",\"class\":1},{\"tree\":\"Tree 3\",\"rule\":\"x ≤ 5\",\"class\":1}],\"duration\":6};\nconst wrap=text=>{const lines=[];let line='';for(const word of text.split(/\\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};\nconst PERIOD=V.duration/V.votes.length,LEAD=0.3,GROW=1.0,ease=u=>u*u*(3-2*u);\nexport function evaluate({time}){\n  const t=Math.min(Math.max(time||0,0),V.duration),grown=V.votes.map((_,k)=>ease(Math.min(1,Math.max(0,(t-k*PERIOD-LEAD)/GROW))));\n  const values=V.classes.map((_,c)=>V.votes.reduce((sum,v,k)=>sum+(v.class===c?grown[k]:0),0));\n  const last=V.votes.findIndex((_,k)=>t>=k*PERIOD+LEAD&&(k===V.votes.length-1||t<(k+1)*PERIOD+LEAD)),done=t>=V.duration-0.7;\n  const totals=V.classes.map((_,c)=>V.votes.filter(v=>v.class===c).length),win=totals.indexOf(Math.max.apply(null,totals));\n  const head=done?'Result':last<0?'Votes':V.votes[last].tree,line=done?V.classes[win]+' wins, '+totals[win]+' votes to '+(V.votes.length-totals[win])+'.':last<0?'Each tree votes for one class.':V.votes[last].tree+' ('+V.votes[last].rule+') votes '+V.classes[V.votes[last].class]+'.';\n  const lines=wrap(line),spec={version:1,diagram:{kind:'bar-chart',title:V.title,unit:V.unit,bars:V.classes.map((label,c)=>({label:label,value:values[c]}))}};\n  const objects=[sdk.diagram(spec,{x:12,y:12,w:420}),sdk.box('callout.active.l0',450,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',461,90,head,{role:'input',opacity:1})];\n  lines.forEach((value,j)=>objects.push(sdk.text('callout.active.s'+j,461,116+j*20,value,{role:'neutral',opacity:1})));\n  return {frame:sdk.frame(objects,{width:640,height:300}),quantities:{}};\n}",
+        "sourceHash": "3534886e2d711035c2143fdd301dc48253dd99bcb950b5fec1aed3a8beb852a1",
+        "manifestHash": "85df382eaa1f95d5238710b436c5966f89cca41a57951b330fbc4e3ece068946",
+        "bundleHash": "0a99634de0a79c377083a212d864d22ef37cf7c8b8dec81b159a6b50add1ae47"
+      },
+      "execution": {
+        "allowed": true
+      }
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 168,
+      "proposalMs": 265,
+      "generateToResultMs": 242,
+      "processingMs": 340,
+      "approvalWaitMs": 2301,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 26,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 15,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "ms": 14,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 43,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "ms": 2301,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "ms": 116,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 12,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 114,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 5,
+          "outcome": "accepted"
+        }
+      ]
+    },
+    "createdAt": 1794975583081,
+    "updatedAt": 1794975585889,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "block": {
+    "type": "animation",
+    "id": "d49ed2aa-fe77-490c-a962-9a0be2051ccf",
+    "title": "Let the trees vote",
+    "program": {
+      "kind": "explain_program",
+      "resultId": "er_bbf39d6f59fc441690973d7d96e662b7",
+      "bundleHash": "0a99634de0a79c377083a212d864d22ef37cf7c8b8dec81b159a6b50add1ae47"
+    },
+    "interact": {
+      "version": 1,
+      "planHash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+      "composition": {
+        "version": 1,
+        "planHash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+        "depth": "balanced",
+        "title": "Let the trees vote",
+        "cardDescription": "Three trees each predict the class of row J. Every vote lifts the bar of the class it chose, and the class with the most votes is the forest's answer.",
+        "instructions": "Press play, or drag the time to watch each vote arrive.",
+        "order": [
+          "title",
+          "description",
+          "main",
+          "transport"
+        ],
+        "supporting": [],
+        "main": {
+          "artifact": {
+            "kind": "program",
+            "hash": "0a99634de0a79c377083a212d864d22ef37cf7c8b8dec81b159a6b50add1ae47"
+          },
+          "runtime": {
+            "renderer": "program",
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "programTuple": {
+              "schemaVersion": 1,
+              "sdkVersion": "sdk-8",
+              "rendererVersion": "renderer-5",
+              "runtimeVersion": "quickjs-release-sync@0.32.0",
+              "runtimePolicyVersion": "policy-1",
+              "permissionProfileVersion": "perm-1",
+              "fingerprints": {
+                "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+                "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+                "renderer": "renderer-5"
+              }
+            },
+            "requiredHelpers": [],
+            "requiredCapabilities": [
+              "time_playback",
+              "figures"
+            ],
+            "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+          },
+          "mode": "time",
+          "readoutIds": [],
+          "inputDefaults": {},
+          "controls": [
+            {
+              "id": "play",
+              "type": "playback",
+              "label": "Play",
+              "nativeControlId": "program.playback",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "playback",
+                  "labels": {
+                    "paused": "Play",
+                    "playing": "Pause",
+                    "ended": "Replay"
+                  }
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "chart"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "labels": {
+                "paused": "Play",
+                "playing": "Pause",
+                "ended": "Replay"
+              }
+            },
+            {
+              "id": "scrub",
+              "type": "scrubber",
+              "label": "Time",
+              "nativeControlId": "program.scrubber",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "scrubber",
+                  "unit": "s",
+                  "step": 0.01
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "chart"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "s",
+              "step": 0.01
+            }
+          ],
+          "timeline": {
+            "label": "Time",
+            "unit": "s",
+            "end": {
+              "op": "literal",
+              "value": 6
+            },
+            "displayOffset": {
+              "op": "literal",
+              "value": 0
+            },
+            "markers": [],
+            "playbackRate": 1,
+            "initialTime": 0,
+            "initialPlayback": "paused",
+            "step": 0.01
+          },
+          "onInputChange": "reset_pause"
+        },
+        "envelopeHash": "fcff5d6cdcb2caaaf33dfc08869d3bfa56541f719ed5b757a395453f0413dbc8"
+      }
+    },
+    "explain": {
+      "jobId": "ej_15cbe55fe2cc4a6190ef6676389c1735",
+      "resultId": "er_bbf39d6f59fc441690973d7d96e662b7",
+      "cardId": "d49ed2aa-fe77-490c-a962-9a0be2051ccf",
+      "canvas": {
+        "boardId": "70d7306f-0705-462c-8f0a-4a201462c1ef"
+      },
+      "promptRef": "3a5ff2103543ba9a",
+      "revision": "xr_064cfa7e096d4969916623eec2e1ffa0",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "0a99634de0a79c377083a212d864d22ef37cf7c8b8dec81b159a6b50add1ae47",
+      "sourceHash": "3534886e2d711035c2143fdd301dc48253dd99bcb950b5fec1aed3a8beb852a1",
+      "manifestHash": "85df382eaa1f95d5238710b436c5966f89cca41a57951b330fbc4e3ece068946",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+        "envelopeHash": "fcff5d6cdcb2caaaf33dfc08869d3bfa56541f719ed5b757a395453f0413dbc8",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      }
+    }
+  },
+  "scenePlan": {
+    "version": 1,
+    "hash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+    "revision": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "depth": "balanced",
+      "title": "Let the trees vote",
+      "story": "A learner watches a small forest vote on one held-out row, J. Each tree predicts a class in turn, and the bar of that class grows from its old count to the new one while a callout names the tree that just voted. When the last vote is in, the class with the most votes is the forest's answer, so the vote is the evidence to read off the bars.",
+      "cardDescription": "Three trees each predict the class of row J. Every vote lifts the bar of the class it chose, and the class with the most votes is the forest's answer.",
+      "learningGoal": "A forest answers with the class that most of its trees vote for.",
+      "instructions": "Press play, or drag the time to watch each vote arrive.",
+      "supportingVisuals": [],
+      "scene": {
+        "description": "Family stepper-states. A bar chart with one bar per class that grows as each tree votes, and a callout that names the tree that just voted.\nA 640 px scene with a 6 s timeline and no inputs.",
+        "runtime": {
+          "renderer": "program",
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "programTuple": {
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "rendererVersion": "renderer-5",
+            "runtimeVersion": "quickjs-release-sync@0.32.0",
+            "runtimePolicyVersion": "policy-1",
+            "permissionProfileVersion": "perm-1",
+            "fingerprints": {
+              "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+              "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+              "renderer": "renderer-5"
+            }
+          },
+          "requiredHelpers": [],
+          "requiredCapabilities": [
+            "time_playback",
+            "figures"
+          ],
+          "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+        },
+        "entities": [
+          {
+            "id": "chart",
+            "label": "Vote bars",
+            "purpose": "One bar per class, growing as each vote arrives."
+          },
+          {
+            "id": "callout",
+            "label": "Vote readout",
+            "purpose": "The tree that just voted and, at the end, the winning class."
+          }
+        ],
+        "quantities": [],
+        "observations": [
+          {
+            "id": "winner",
+            "text": "The class with the most votes wins.",
+            "quantityIds": [],
+            "readoutIds": []
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "first",
+            "label": "First vote in",
+            "time": {
+              "op": "literal",
+              "value": 1.5
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "First vote in"
+          },
+          {
+            "id": "second",
+            "label": "Second vote in",
+            "time": {
+              "op": "literal",
+              "value": 3.5
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Second vote in"
+          },
+          {
+            "id": "last",
+            "label": "All votes in",
+            "time": {
+              "op": "literal",
+              "value": 5.8
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "All votes in"
+          }
+        ],
+        "readoutIds": [],
+        "template": "stepper-vote-motion",
+        "slots": {},
+        "words": {},
+        "data": {
+          "title": "Votes for row J",
+          "unit": "votes",
+          "classes": [
+            "Class 0",
+            "Class 1"
+          ],
+          "votes": [
+            {
+              "tree": "Tree 1",
+              "rule": "x ≤ 4",
+              "class": 0
+            },
+            {
+              "tree": "Tree 2",
+              "rule": "y ≤ 4",
+              "class": 1
+            },
+            {
+              "tree": "Tree 3",
+              "rule": "x ≤ 5",
+              "class": 1
+            }
+          ],
+          "duration": 6
+        }
+      },
+      "mode": {
+        "kind": "time",
+        "initialState": "No votes yet, time 0 s, paused.",
+        "fixedValues": {},
+        "adjustableIds": [],
+        "timeline": {
+          "label": "Time",
+          "unit": "s",
+          "start": 0,
+          "end": {
+            "op": "literal",
+            "value": 6
+          },
+          "displayOffset": {
+            "op": "literal",
+            "value": 0
+          },
+          "markers": [],
+          "initialTime": 0,
+          "initialPlayback": "paused",
+          "playbackRate": 1
+        },
+        "onInputChange": "reset_pause"
+      },
+      "controls": [
+        {
+          "id": "play",
+          "label": "Play",
+          "purpose": "Run the card and replay it.",
+          "selectionReason": "Time carries the change, and the one supported transport drives every linked view.",
+          "nativeControlId": "program.playback",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "chart"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "playback",
+          "binding": {
+            "kind": "timeline"
+          },
+          "labels": {
+            "paused": "Play",
+            "playing": "Pause",
+            "ended": "Replay"
+          }
+        },
+        {
+          "id": "scrub",
+          "label": "Time",
+          "purpose": "Stop on any moment of the card.",
+          "selectionReason": "A scrubber lets the learner stop on the moment being compared.",
+          "nativeControlId": "program.scrubber",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "chart"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "scrubber",
+          "binding": {
+            "kind": "timeline"
+          },
+          "unit": "s",
+          "step": 0.01
+        }
+      ],
+      "assumptions": [
+        "The three trees and their votes are the lesson forest's for row J."
+      ],
+      "limitations": [
+        "Three trees; a real forest has many more."
+      ],
+      "claims": []
+    },
+    "open": [],
+    "carried": [],
+    "fit": {
+      "styleVersion": "card-description-v1:estimate"
+    },
+    "review": {
+      "verdict": "pass",
+      "scores": [
+        5,
+        5
+      ],
+      "reviews": 1,
+      "revisions": 1
+    }
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does a random forest combine the votes of its trees",
+      "depth": "balanced"
+    },
+    "findings": [
+      {
+        "round": 0,
+        "stage": "reviewing",
+        "accepted": true,
+        "findings": [],
+        "review": "shadow"
+      }
+    ],
+    "candidates": [],
+    "settings": {
+      "presentation": "time"
+    },
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794975583081,
+        "firstFeedback": 1794975583249,
+        "proposalReady": 1794975583346,
+        "generate": 1794975585647,
+        "result": 1794975585889
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794975583248,
+          "endedAt": 1794975583274,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1794975583274,
+          "endedAt": 1794975583289,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "startedAt": 1794975583289,
+          "endedAt": 1794975583303,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794975583303,
+          "endedAt": 1794975583346,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "startedAt": 1794975583346,
+          "endedAt": 1794975585647,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "startedAt": 1794975585647,
+          "endedAt": 1794975585763,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1794975585763,
+          "endedAt": 1794975585775,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1794975585775,
+          "endedAt": 1794975585889,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 5,
+          "outcome": "accepted"
+        }
+      ],
+      "v": 2
+    },
+    "ledger": {
+      "jobId": "ej_15cbe55fe2cc4a6190ef6676389c1735",
+      "planHash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+      "depth": "balanced",
+      "result": "ready",
+      "stopReason": "accepted",
+      "oracleId": null,
+      "oracleChecked": 0,
+      "oracleFailed": 0,
+      "bindingProblems": 0,
+      "overlapProblems": 0,
+      "repairs": 0,
+      "repairCauses": "",
+      "profile": "opus-baseline",
+      "fixture": "stepper-vote-motion-balanced",
+      "authorModel": "template",
+      "fallbackFired": false,
+      "judgeVerdict": null,
+      "judgeMajor": null,
+      "judgeCostUsd": null,
+      "costUsd": null,
+      "msSteer": null,
+      "msAuthor": null,
+      "msValidate": 1,
+      "msRun": 88,
+      "msCheck": 1,
+      "msCompose": 9,
+      "msReview": null,
+      "msRepair": null,
+      "msTotal": 242,
+      "msJudge": null,
+      "timing": "v2",
+      "buildKind": "template",
+      "msHopWait": 143,
+      "judgeFindingsPath": null,
+      "designModel": null,
+      "designKind": null,
+      "msFill": null,
+      "designFallback": null,
+      "designCalls": null,
+      "msDesign": null,
+      "designCostUsd": null,
+      "pickFamily": null,
+      "pickConfidence": null,
+      "msPick": null,
+      "approvedBy": "learner",
+      "pickProbabilities": null,
+      "prompt": "how does a random forest combine the votes of its trees"
+    }
+  }
+}

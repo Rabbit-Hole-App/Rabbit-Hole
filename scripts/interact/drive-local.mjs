@@ -24,7 +24,8 @@ const BASE = opt('base', 'http://127.0.0.1:8878').replace(/\/$/, ''), EMAIL = op
 const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b27')), CANVAS_FILE = opt('canvas-file', `${SPEC_DIR}/ml-canvas.json`);
 // brief 31: --steps <n> advances the card's step slider n-1 times after the card screenshot, saving <id>-stateK.png per state and every flow node's rendered box in <id>-nodes.json.
 // brief 32: --times 0.6,1.8,3 sets the card's time scrubber to each moment (a timed card), saving <id>-t<k>.png, the diagram's SVG and every flow node's box in <id>-times.json; --slider-test plays the card, then moves its x slider to 2 and records what changed.
-const TIMES = opt('times', '').split(',').filter(Boolean).map(Number), SLIDER_TEST = flag('slider-test'), STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
+// brief 33: --settings "B mass=2,B length=1;B mass=1,B length=2" sets the card's sliders (by their aria-label) before each run of --times; files get -s<k> in their names.
+const GROUPS = opt('settings', '').split(';').filter(Boolean), TIMES = opt('times', '').split(',').filter(Boolean).map(Number), SLIDER_TEST = flag('slider-test'), STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
 if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
 if (!check && !promptsFile) fail(`--prompts <list.json> is required (or --check). ${USAGE}`, 2);
 if (!(stopUsd > 0)) fail(`--stop-usd is a positive number. ${USAGE}`, 2);
@@ -157,12 +158,17 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
       }
       if (TIMES.length) {
         const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), moments = [];
+        for (const [gi, group] of (GROUPS.length ? GROUPS : ['']).entries()) {
+        if (group) for (const pair of group.split(',')) { const [label, value] = pair.split('='); await card.locator(`input[type="range"][aria-label="${label}"]`).first().fill(value); }
+        await page.waitForTimeout(600);
+        const sfx = GROUPS.length ? `-s${gi + 1}` : '';
         for (const [k, t] of TIMES.entries()) {
           await scrub.fill(String(t)); await page.waitForTimeout(700);
-          await card.screenshot({ path: `${OUT}/${tag}-t${k + 1}.png` });
-          moments.push({ time: t, scrub: await scrub.inputValue(), box: await card.boundingBox(), fit: await card.evaluate(e => ({ scrollHeight: e.scrollHeight, clientHeight: e.clientHeight, scrollWidth: e.scrollWidth, clientWidth: e.clientWidth })), nodes: await card.locator('[data-tutor-node]').evaluateAll(els => els.map(e => { const b = e.getBoundingClientRect(); return { id: e.getAttribute('data-tutor-node'), onPath: e.hasAttribute('data-tutor-path'), cx: b.x + b.width / 2, cy: b.y + b.height / 2, x: b.x, y: b.y, w: b.width, h: b.height }; })),
+          await card.screenshot({ path: `${OUT}/${tag}${sfx}-t${k + 1}.png` });
+          moments.push({ settings: group, text: (await card.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(-260), time: t, scrub: await scrub.inputValue(), box: await card.boundingBox(), fit: await card.evaluate(e => ({ scrollHeight: e.scrollHeight, clientHeight: e.clientHeight, scrollWidth: e.scrollWidth, clientWidth: e.clientWidth })), nodes: await card.locator('[data-tutor-node]').evaluateAll(els => els.map(e => { const b = e.getBoundingClientRect(); return { id: e.getAttribute('data-tutor-node'), onPath: e.hasAttribute('data-tutor-path'), cx: b.x + b.width / 2, cy: b.y + b.height / 2, x: b.x, y: b.y, w: b.width, h: b.height }; })),
             svg: await card.locator('[data-tutor-diagram]').first().evaluate(e => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, texts: [...e.querySelectorAll('text')].map(x => x.textContent), rects: [...e.querySelectorAll('rect')].map(x => ({ x: +x.getAttribute('x'), y: +x.getAttribute('y'), w: +x.getAttribute('width'), h: +x.getAttribute('height') })) }; }).catch(() => null),
             dot: await card.evaluate(c => [...c.querySelectorAll('*')].filter(e => [...e.attributes].some(a => /(^|[^a-z])dot($|[^a-z])/.test(a.value))).slice(0, 6).map(e => { const b = e.getBoundingClientRect(); return { tag: e.tagName, attrs: Object.fromEntries([...e.attributes].map(a => [a.name, String(a.value).slice(0, 60)])), cx: b.x + b.width / 2, cy: b.y + b.height / 2, w: b.width, h: b.height }; })) });
+        }
         }
         r.files.times = save(`${tag}-times.json`, moments);
       }
