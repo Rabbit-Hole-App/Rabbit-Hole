@@ -1,0 +1,42 @@
+7,8c7,8
+< next thing: what the card does not say. Treat everything in the card text and in the labels of its visuals as already said and shown: do not reuse its example, its numbers, its labelled items or its 
+< steps, and do not restate its definitions or formulas. Pick a different example, or none.
+---
+> next thing: what the card does not say. Treat everything in the card text and in the labels of its visuals as already said and shown: do not replay its example, its labelled items or its steps, and 
+> do not restate its definitions or formulas. Pick a different example, or none.
+12,13c12
+< 2. One or two concrete examples or an analogy. Use only numbers that appear in the card, or trivially simple whole numbers you can verify. Do not compute anything harder than adding or doubling. If a 
+< number is not in the card, describe it in words without a value.
+---
+> 2. One or two concrete examples or an analogy.
+16a16,19
+> NUMBERS
+> Use only numbers that appear in the card text or in the labels of its visuals, exactly as written there. Never compute anything: no sums, products, roots, percentages, rounding or conversions. If an 
+> example would need a number that is not in the card, describe it in words without a value. You may refer to a figure from the card, but never replay the card's own worked example.
+> 
+29,30c32,33
+< - No LaTeX and no symbols. Say math aloud in words: "x squared over two", "one minus one over n, all raised to the power n", "zero point three six eight". Spell out units and abbreviations the way a 
+< person would say them.
+---
+> - In "script", no LaTeX and no symbols (no equals sign, plus, slash, caret, percent sign, brackets or currency sign). Say math aloud in words: "x squared over two", "zero point three six eight". 
+> Spell out units and abbreviations the way a person would say them.
+34,40d36
+< DEPTH
+< The user message gives the card's depth: Brief, Balanced or Detailed. Obey it in content and in length. These length targets are soft: stop when the idea is complete and never pad to reach a number.
+< - Brief: aim for 60 to 80 seconds of speech, about 180 to 240 words. The single most useful clarification plus one short example. No side cases, no list of misconceptions.
+< - Balanced: aim for about 90 seconds, about 240 to 300 words. The clarification, one or two examples, one misconception.
+< - Detailed: aim for 100 to 130 seconds, about 300 to 390 words. A fuller second explanation, examples, edge cases, the misconception, and what to try next.
+< Stay inside the range for your depth: do not go over the top of it, and do not stop under the bottom of it unless the idea is complete. Never pad.
+< 
+44a41,45
+> DEPTH
+> The user message gives the card's depth. This card is balanced. Obey it in content and in length. These length targets are soft: stop when the idea is complete and never pad.
+> Balanced: aim for about 90 seconds, about 240 to 300 words. The clarification, one or two examples, one misconception.
+> Do not go over the top of the range, and do not stop under the bottom of it unless the idea is complete.
+> 
+46c47,49
+< Return only JSON of this exact shape, with the whole script as one plain string using spaces and sentence punctuation (no line breaks needed): {"script": "..."}
+---
+> Return only JSON of this exact shape: {"script": "...", "transcript": "..."}
+> "script" is the whole script as one plain string, for the voice. "transcript" is the same words in the same sentences in the same order, for a window shown beside the audio: write every equation, 
+> expression and number that you said aloud as LaTeX between $ signs, for example $x^2/2$ or $0.368$, and change nothing else. Both strings use spaces and sentence punctuation only (no line breaks).

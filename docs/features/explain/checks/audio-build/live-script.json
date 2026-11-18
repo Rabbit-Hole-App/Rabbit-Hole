@@ -1,0 +1,9 @@
+{
+ "script": "Imagine tossing a coin where the chance of heads changes with every toss. That is similar to how each row competes for a spot in your bootstrap sample. But drawing with replacement means duplicates are allowed, which pushes other rows out entirely. Think of dealing a hand of cards from a single deck where you shuffle the card back in after every draw. You might pull the same ace three times and leave the king behind in the deck.",
+ "transcript": "Imagine tossing a coin where the chance of heads changes with every toss. That is similar to how each row competes for a spot in your bootstrap sample. But drawing with replacement means duplicates are allowed, which pushes other rows out entirely. Think of dealing a hand of cards from a single deck where you shuffle the card back in after every draw. You might pull the same ace three times and leave the king behind in the deck.",
+ "seconds_estimate": 26,
+ "scriptBy": {
+  "provider": "google",
+  "model": "gemini-3.5-flash-lite"
+ }
+}

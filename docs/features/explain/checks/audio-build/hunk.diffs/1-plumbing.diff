@@ -1,0 +1,99 @@
+commit 77c4b74b2960820ad022b5cd9cbef1276fecd3a2
+Author: yudhisteer <yudhisteer.chin@gmail.com>
+Date:   Tue Nov 17 16:41:45 2026 -0800
+
+    Card audio: ElevenLabs Flash price row, elevenSpendTransport, explanation_script (free) and explanation_audio (charged) usage features
+
+diff --git a/packages/control-plane/src/learn-paid-transport.js b/packages/control-plane/src/learn-paid-transport.js
+index 54159726d..bce9b0ac0 100644
+--- a/packages/control-plane/src/learn-paid-transport.js
++++ b/packages/control-plane/src/learn-paid-transport.js
+@@ -53,6 +53,29 @@ export async function fishSpendTransport(env, text, transport) {
+   return response;
+ }
+ 
++// ElevenLabs Flash v2.5 text to speech for a card's audio (explanation-audio.js): billed per input character (pricing-registry.js input_chars). Admitted before the call at the characters it
++// sends, so the learner's allowance and the platform guard both see it; a delivered response settles at the reservation, a failed one keeps it as unknown cost (no refund assumed).
++export const ELEVEN_MODEL = 'eleven_flash_v2_5';
++export async function elevenSpendTransport(env, text, transport) {
++  if (!spendEnforced(env)) return transport();
++  const price = priceUsage({ provider: 'elevenlabs', model: ELEVEN_MODEL, quantities: { input_chars: text.length } });
++  if (!price) return paidSpendReply('spend_bound_unavailable');
++  const reservedUsd = price.micros / 1e6;
++  const opId = operationId('explanation_audio');
++  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'explanation_audio', reservedUsd, kind: 'media', provider: 'elevenlabs', model: ELEVEN_MODEL });
++  if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
++  let response;
++  try { response = await transport(); }
++  catch (error) {
++    await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'elevenlabs', model: ELEVEN_MODEL, error: 'transport' });
++    await settleAttempt(env, gate.attemptId, { status: 'failed' });
++    throw error;
++  }
++  await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'elevenlabs', model: ELEVEN_MODEL, error: response.ok ? null : `http_${response.status}` });
++  await settleAttempt(env, gate.attemptId, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? price.micros : null, price: response.ok ? price : null });
++  return response;
++}
++
+ // A priced tool call outside spendTransport (Exa search): admitted before the call like any provider call, then settled once
+ // with the provider's reported cost, or held as unknown when it reports none or fails. Null where spend is not enforced
+ // (SMALL_ENV=test). A refusal throws before the call, its message the person's explanation.
+diff --git a/packages/control-plane/src/learn-usage.js b/packages/control-plane/src/learn-usage.js
+index ebdd32a39..78e1e5d5a 100644
+--- a/packages/control-plane/src/learn-usage.js
++++ b/packages/control-plane/src/learn-usage.js
+@@ -19,7 +19,7 @@ const KIND = Symbol('usage attempt kind');
+ export const FEATURES = ['ask', 'auto', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
+   'explore_find', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
+   'image', 'image_generate', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
+-  'webpage_capture', 'explanation_summary', 'learn_intro', 'learn_fit', 'learn_plan', 'learn_section'];
++  'webpage_capture', 'explanation_summary', 'explanation_script', 'explanation_audio', 'learn_intro', 'learn_fit', 'learn_plan', 'learn_section'];
+ export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
+ 
+ // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.
+@@ -27,7 +27,8 @@ export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evalu
+ // 2026-10-21), so it is recorded apart from the learner's allowance, cost unknown, never 0. Authoring its source is not this.
+ // 'webpage_capture' is the webpage card's screening (owner brief 2026-10-22: platform-paid, no credits, no cost shown).
+ // 'explanation_summary' is a new Explanation's collapsed-preview summary (explanation-summary.js): one tiny call the learner did not ask for, recorded, never charged.
+-const FREE_FEATURES = new Set(['assess', 'grade', 'attempt_assessment', 'render', 'webpage_capture', 'explanation_summary']);
++// 'explanation_script' is the card audio's script (explanation-audio.js), made right after the card is delivered without a press: recorded, never charged. 'explanation_audio' is the voice, made on the learner's first Play: charged.
++const FREE_FEATURES = new Set(['assess', 'grade', 'attempt_assessment', 'render', 'webpage_capture', 'explanation_summary', 'explanation_script']);
+ // Entry points a signed-out visitor may reach on a public link (owner D2.4): platform-funded, never the canvas owner.
+ // Not shared Next Steps: no AI generation for signed-out viewers (owner R3 decision, 2026-10-16; the route answers 401).
+ const PUBLIC_FEATURES = new Set(['shared_ask']);
+@@ -45,6 +46,8 @@ const ROUTES = [
+   [/^\/api\/learn\/home-ask$/, 'home_ask'],
+   [/^\/api\/learn\/artifact$/, 'artifact'],
+   [/^\/api\/learn\/explanation-summary$/, 'explanation_summary'],
++  [/^\/api\/learn\/explanation-audio\/script$/, 'explanation_script'],
++  [/^\/api\/learn\/explanation-audio\/voice$/, 'explanation_audio'],
+   [/^\/api\/learn\/board$/, 'board'],
+   [/^\/api\/learn\/inline\/route$/, 'inline_route'],
+   [/^\/api\/learn\/inline\/decide$/, 'inline_decide'],
+diff --git a/packages/control-plane/src/pricing-registry.js b/packages/control-plane/src/pricing-registry.js
+index 7361bac47..9105a322d 100644
+--- a/packages/control-plane/src/pricing-registry.js
++++ b/packages/control-plane/src/pricing-registry.js
+@@ -110,6 +110,9 @@ row('openai', 'gpt-transcribe', 'standard', 'audio_minute', 0.0045, PER.minute,
+ // Other billing units. Fish S1 bills UTF-8 input bytes; Scribe v2 Realtime bills audio time; Exa bills per request.
+ row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED);
+ row('elevenlabs', 'scribe_v2_realtime', 'standard', 'audio_hour', 0.39, PER.hour, VERIFIED, 'seconds of audio observed server side');
++// Card audio (explanation-audio.js): ElevenLabs Flash v2.5 text to speech bills characters. The $0.04 per 1,000 characters is the list price read for the AUD-1 report (2026-11-16);
++// the bill is in plan credits, so the row is an estimate, never presented as measured. PRICE_VERSION is not bumped (the gpt-transcribe precedent): nothing else prices with it.
++row('elevenlabs', 'eleven_flash_v2_5', 'standard', 'input_chars', 0.04, 1000, ESTIMATE, 'list price per 1,000 characters (AUD-1 report 2026-11-16); ElevenLabs bills plan credits', 'https://elevenlabs.io/pricing/api', '2026-11-16');
+ row('exa', 'search', 'standard', 'request', 7, 1000, VERIFIED, 'type auto, up to 10 results (+$1 per 1,000 results above 10, +$1 per 1,000 pages per content type)', EXA_PRICING);
+ 
+ const KEY = (provider, model, category, tier = 'standard') => `${provider}|${model}|${category}|${tier}`;
+diff --git a/packages/web/src/account-usage.js b/packages/web/src/account-usage.js
+index 0e0ad1b3d..e9fe225bd 100644
+--- a/packages/web/src/account-usage.js
++++ b/packages/web/src/account-usage.js
+@@ -76,7 +76,7 @@ const FEATURE_LABELS = {
+   ask: 'Chat', auto: 'Chat', shared_ask: 'Chat on shared canvases', home_ask: 'Home questions',
+   tutor: 'Tutor', tutor_evaluate: 'Tutor', attempt_assessment: 'Tutor', handoff: 'Tutor', next_steps: 'Next steps', shared_next_steps: 'Next steps',
+   inline_route: 'Ctrl+K edits', inline_decide: 'Ctrl+K edits', inline_generate: 'Ctrl+K edits',
+-  journey: 'Learning paths', course: 'Courses', artifact: 'Generated cards', explanation_summary: 'Generated cards', board: 'Generated cards', scene: '3D scenes',
++  journey: 'Learning paths', course: 'Courses', artifact: 'Generated cards', explanation_summary: 'Generated cards', explanation_script: 'Generated cards', explanation_audio: 'Narration', board: 'Generated cards', scene: '3D scenes',
+   image: 'Images', video: 'Videos', transcribe: 'Transcription', tts: 'Narration', voice_tts: 'Voice mode', voice_scribe: 'Voice mode',
+   search: 'Search', explore_find: 'Explore search', assess: 'Practice checks', grade: 'Practice checks',
+ };

@@ -1,0 +1,272 @@
+[
+ {
+  "variant": "gemini V6",
+  "id": "precision-recall",
+  "depth": "Brief",
+  "sentences": 10,
+  "removed": 0,
+  "wordsBefore": 136,
+  "wordsAfter": 136,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V6",
+  "id": "gradient-descent",
+  "depth": "Brief",
+  "sentences": 10,
+  "removed": 0,
+  "wordsBefore": 148,
+  "wordsAfter": 148,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V6",
+  "id": "ml-trees-bootstrap-coverage",
+  "depth": "Balanced",
+  "sentences": 10,
+  "removed": 2,
+  "wordsBefore": 243,
+  "wordsAfter": 178,
+  "sample": "Why does drawing with replacement leave out roughly thirty seven percent of your data ever"
+ },
+ {
+  "variant": "gemini V6",
+  "id": "ref-box-plot-iqr-fences",
+  "depth": "Balanced",
+  "sentences": 12,
+  "removed": 0,
+  "wordsBefore": 203,
+  "wordsAfter": 203,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V6",
+  "id": "four-stroke",
+  "depth": "Balanced",
+  "sentences": 8,
+  "removed": 2,
+  "wordsBefore": 162,
+  "wordsAfter": 110,
+  "sample": "Only one of the four strokes actually creates power for the car, while the other three str"
+ },
+ {
+  "variant": "gemini V6",
+  "id": "softmax",
+  "depth": "Detailed",
+  "sentences": 14,
+  "removed": 6,
+  "wordsBefore": 251,
+  "wordsAfter": 152,
+  "sample": "This creates a challenge when you need to turn them into mutually exclusive choices that m"
+ },
+ {
+  "variant": "gemini V6",
+  "id": "bst",
+  "depth": "Detailed",
+  "sentences": 13,
+  "removed": 0,
+  "wordsBefore": 240,
+  "wordsAfter": 240,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V6",
+  "id": "water-cycle",
+  "depth": "Detailed",
+  "sentences": 16,
+  "removed": 1,
+  "wordsBefore": 290,
+  "wordsAfter": 278,
+  "sample": "Once that moisture hits the ground, it takes one of two paths."
+ },
+ {
+  "variant": "gemini V6",
+  "id": "gradient-descent",
+  "depth": "Detailed",
+  "sentences": 19,
+  "removed": 0,
+  "wordsBefore": 306,
+  "wordsAfter": 306,
+  "sample": ""
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "precision-recall",
+  "depth": "Brief",
+  "sentences": 10,
+  "removed": 4,
+  "wordsBefore": 190,
+  "wordsAfter": 139,
+  "sample": "Think of a test that marks ten emails as spam."
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "gradient-descent",
+  "depth": "Brief",
+  "sentences": 11,
+  "removed": 0,
+  "wordsBefore": 190,
+  "wordsAfter": 190,
+  "sample": ""
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "ml-trees-bootstrap-coverage",
+  "depth": "Balanced",
+  "sentences": 14,
+  "removed": 1,
+  "wordsBefore": 295,
+  "wordsAfter": 273,
+  "sample": "The same pattern holds for any size: the omission probability settles near thirty‑six perc"
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "ref-box-plot-iqr-fences",
+  "depth": "Balanced",
+  "sentences": 12,
+  "removed": 4,
+  "wordsBefore": 243,
+  "wordsAfter": 151,
+  "sample": "To locate the fences you multiply that range by one point five, giving seven point five, a"
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "four-stroke",
+  "depth": "Balanced",
+  "sentences": 16,
+  "removed": 1,
+  "wordsBefore": 300,
+  "wordsAfter": 271,
+  "sample": "The part that most learners miss is that only one of those four motions actually creates t"
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "softmax",
+  "depth": "Detailed",
+  "sentences": 17,
+  "removed": 5,
+  "wordsBefore": 349,
+  "wordsAfter": 249,
+  "sample": "For a concrete picture, picture three scores: three, one, and zero."
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "bst",
+  "depth": "Detailed",
+  "sentences": 16,
+  "removed": 6,
+  "wordsBefore": 348,
+  "wordsAfter": 266,
+  "sample": "Consider a tree that already contains the numbers eight, three, ten, one, and six."
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "water-cycle",
+  "depth": "Detailed",
+  "sentences": 13,
+  "removed": 0,
+  "wordsBefore": 300,
+  "wordsAfter": 300,
+  "sample": ""
+ },
+ {
+  "variant": "fireworks V5",
+  "id": "gradient-descent",
+  "depth": "Detailed",
+  "sentences": 19,
+  "removed": 1,
+  "wordsBefore": 395,
+  "wordsAfter": 366,
+  "sample": "If the learning rate were three, you would step six units past the valley, ending on the o"
+ },
+ {
+  "variant": "gemini V5",
+  "id": "precision-recall",
+  "depth": "Brief",
+  "sentences": 9,
+  "removed": 2,
+  "wordsBefore": 196,
+  "wordsAfter": 141,
+  "sample": "If you pull out ten stones and call them all gold, but only five actually are, your precis"
+ },
+ {
+  "variant": "gemini V5",
+  "id": "gradient-descent",
+  "depth": "Brief",
+  "sentences": 5,
+  "removed": 0,
+  "wordsBefore": 99,
+  "wordsAfter": 99,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V5",
+  "id": "ml-trees-bootstrap-coverage",
+  "depth": "Balanced",
+  "sentences": 8,
+  "removed": 1,
+  "wordsBefore": 187,
+  "wordsAfter": 157,
+  "sample": "But the mathematics of drawing with replacement ensures that roughly thirty seven percent "
+ },
+ {
+  "variant": "gemini V5",
+  "id": "ref-box-plot-iqr-fences",
+  "depth": "Balanced",
+  "sentences": 13,
+  "removed": 1,
+  "wordsBefore": 238,
+  "wordsAfter": 219,
+  "sample": "The box shows the middle fifty percent of your values, spanning from the first quartile to"
+ },
+ {
+  "variant": "gemini V5",
+  "id": "four-stroke",
+  "depth": "Balanced",
+  "sentences": 7,
+  "removed": 2,
+  "wordsBefore": 139,
+  "wordsAfter": 90,
+  "sample": "The trick is that the heavy crankshaft keeps spinning from momentum, carrying the piston t"
+ },
+ {
+  "variant": "gemini V5",
+  "id": "softmax",
+  "depth": "Detailed",
+  "sentences": 13,
+  "removed": 0,
+  "wordsBefore": 227,
+  "wordsAfter": 227,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V5",
+  "id": "bst",
+  "depth": "Detailed",
+  "sentences": 9,
+  "removed": 0,
+  "wordsBefore": 147,
+  "wordsAfter": 147,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V5",
+  "id": "water-cycle",
+  "depth": "Detailed",
+  "sentences": 13,
+  "removed": 0,
+  "wordsBefore": 219,
+  "wordsAfter": 219,
+  "sample": ""
+ },
+ {
+  "variant": "gemini V5",
+  "id": "gradient-descent",
+  "depth": "Detailed",
+  "sentences": 10,
+  "removed": 0,
+  "wordsBefore": 183,
+  "wordsAfter": 183,
+  "sample": ""
+ }
+]

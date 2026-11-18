@@ -1,0 +1,21 @@
+{
+ "status": "ready",
+ "fileRef": {
+  "v": 1,
+  "source": {
+   "id": "fs_247f973c672e42906b9c105a",
+   "rev": "5678a990a53525abe715ee13c131a138d5e68d7f808f29556941379d0a4fac07"
+  },
+  "meta": {
+   "name": "explanation-audio.mp3",
+   "type": "audio/mpeg",
+   "size": 175167
+  }
+ },
+ "seconds": 22,
+ "provider": "elevenlabs",
+ "model": "eleven_flash_v2_5",
+ "voiceId": "cgSgspJ2msm6clMCkdW9",
+ "script": "Imagine tossing a coin where the chance of heads changes with every toss. That is similar to how each row competes for a spot in your bootstrap sample. But drawing with replacement means duplicates are allowed, which pushes other rows out entirely. Think of dealing a hand of cards from a single deck where you shuffle the card back in after every draw. You might pull the same ace three times and leave the king behind in the deck.",
+ "transcript": "Imagine tossing a coin where the chance of heads changes with every toss. That is similar to how each row competes for a spot in your bootstrap sample. But drawing with replacement means duplicates are allowed, which pushes other rows out entirely. Think of dealing a hand of cards from a single deck where you shuffle the card back in after every draw. You might pull the same ace three times and leave the king behind in the deck."
+}
