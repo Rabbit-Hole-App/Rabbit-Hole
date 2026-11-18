@@ -1,0 +1,979 @@
+{
+  "canvas": "canvas-88605663",
+  "url": "http://127.0.0.1:8878/apps/canvas-88605663",
+  "failure": null,
+  "events": [
+    {
+      "t": 0,
+      "what": "signed in (no sign-in)",
+      "email": "user@b1a6c0b052cb7c76c391f125cb4be19b.rabbithole.invalid"
+    },
+    {
+      "t": 1.5,
+      "what": "canvas",
+      "canvas": "canvas-88605663",
+      "url": "http://127.0.0.1:8878/apps/canvas-88605663"
+    },
+    {
+      "t": 6.8,
+      "what": "indexed"
+    },
+    {
+      "t": 47.1,
+      "what": "catalogue ready"
+    },
+    {
+      "t": 49.5,
+      "what": "learn option",
+      "option": "GPT transformer model and attention"
+    },
+    {
+      "t": 49.5,
+      "what": "depth Standard (balanced)"
+    },
+    {
+      "t": 88.1,
+      "what": "plan drafted"
+    },
+    {
+      "t": 88.2,
+      "what": "accept"
+    },
+    {
+      "t": 107.2,
+      "what": "1.1 ready (brief + compose)"
+    },
+    {
+      "t": 107.2,
+      "what": "BUILD pressed"
+    },
+    {
+      "t": 169.2,
+      "what": "POSITION GUARD",
+      "event": "learn_position_loop",
+      "ids": [
+        "82e6d450-6255-497a-a041-2ddaa3124601"
+      ],
+      "types": [
+        "doc"
+      ],
+      "trace": [
+        {
+          "t": 121609,
+          "id": "82e6d450-6255-497a-a041-2ddaa3124601",
+          "offsets": [
+            15140,
+            1639
+          ],
+          "box": [
+            15140,
+            7504,
+            640,
+            338
+          ],
+          "target": [
+            16500,
+            7504
+          ],
+          "origin": [
+            16500,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 121625,
+          "id": "82e6d450-6255-497a-a041-2ddaa3124601",
+          "offsets": [
+            16500,
+            1639
+          ],
+          "box": [
+            16500,
+            7504,
+            640,
+            338
+          ],
+          "target": [
+            17860,
+            7504
+          ],
+          "origin": [
+            17860,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 121640,
+          "id": "82e6d450-6255-497a-a041-2ddaa3124601",
+          "offsets": [
+            17860,
+            1639
+          ],
+          "box": [
+            17860,
+            7504,
+            640,
+            338
+          ],
+          "target": [
+            19220,
+            7504
+          ],
+          "origin": [
+            19220,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 121656,
+          "id": "82e6d450-6255-497a-a041-2ddaa3124601",
+          "offsets": [
+            19220,
+            1639
+          ],
+          "box": [
+            19220,
+            7504,
+            640,
+            338
+          ],
+          "target": [
+            20580,
+            7504
+          ],
+          "origin": [
+            20580,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        }
+      ]
+    },
+    {
+      "t": 170.3,
+      "what": "POSITION GUARD",
+      "event": "learn_position_loop",
+      "ids": [
+        "71239a55-86f4-4289-8a30-933824fde507",
+        "3ec839ac-6ef1-4d97-b80e-3512403de36a",
+        "7b5ebeea-88f8-4606-8c8b-737630ef25e1",
+        "831019f3-9f01-4fc3-884e-127d7d05bbdc",
+        "b308ef6e-f3b4-41ab-949b-b279e9490844",
+        "ebe97370-0767-4141-aaa7-fdebbd1a831d",
+        "fac5062a-2754-42cf-932f-8b7d6dfb8b80",
+        "214a82cd-6e7e-4874-92d5-c811cbff55ab",
+        "d0fb871f-bbeb-4309-85a2-931d29a2d3f3",
+        "0e9e0f57-bec0-4a8e-9c7f-705cbe1ca52f",
+        "314dcf82-1bb1-4642-908f-ffea60e040e9",
+        "57efead4-42e3-4576-a5e7-3e3f9df42a33",
+        "b2647030-9308-4514-a5d1-09f713948bec",
+        "61785e40-7cad-4066-b3a7-e7abe1a3a30a",
+        "f55f0740-efeb-4066-8d7e-4f2f9d85d66f",
+        "a1837c8b-3715-4e7a-8f23-f2df325b6008"
+      ],
+      "types": [
+        "repo-code",
+        "explanation",
+        "flow",
+        "doc",
+        "doc",
+        "doc",
+        "doc",
+        "notebook",
+        "doc",
+        "doc",
+        "doc",
+        "doc",
+        "doc",
+        "doc",
+        "repo-code",
+        "repo-code"
+      ],
+      "trace": [
+        {
+          "t": 122724,
+          "id": "b308ef6e-f3b4-41ab-949b-b279e9490844",
+          "offsets": [
+            32820,
+            128
+          ],
+          "box": [
+            32820,
+            1904,
+            640,
+            292
+          ],
+          "target": [
+            34180,
+            1904
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "ebe97370-0767-4141-aaa7-fdebbd1a831d",
+          "offsets": [
+            32820,
+            766
+          ],
+          "box": [
+            32820,
+            2854,
+            640,
+            311
+          ],
+          "target": [
+            34180,
+            2854
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "fac5062a-2754-42cf-932f-8b7d6dfb8b80",
+          "offsets": [
+            32820,
+            786
+          ],
+          "box": [
+            32820,
+            3205,
+            640,
+            263
+          ],
+          "target": [
+            34180,
+            3205
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "214a82cd-6e7e-4874-92d5-c811cbff55ab",
+          "offsets": [
+            32820,
+            1737
+          ],
+          "box": [
+            32820,
+            4439,
+            640,
+            785
+          ],
+          "target": [
+            34180,
+            4439
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "d0fb871f-bbeb-4309-85a2-931d29a2d3f3",
+          "offsets": [
+            32820,
+            218
+          ],
+          "box": [
+            32820,
+            3725,
+            640,
+            315
+          ],
+          "target": [
+            34180,
+            3725
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "0e9e0f57-bec0-4a8e-9c7f-705cbe1ca52f",
+          "offsets": [
+            32820,
+            238
+          ],
+          "box": [
+            32820,
+            4080,
+            640,
+            319
+          ],
+          "target": [
+            34180,
+            4080
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "314dcf82-1bb1-4642-908f-ffea60e040e9",
+          "offsets": [
+            32820,
+            1083
+          ],
+          "box": [
+            32820,
+            5264,
+            640,
+            288
+          ],
+          "target": [
+            34180,
+            5264
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "57efead4-42e3-4576-a5e7-3e3f9df42a33",
+          "offsets": [
+            32820,
+            1103
+          ],
+          "box": [
+            32820,
+            5592,
+            640,
+            345
+          ],
+          "target": [
+            34180,
+            5592
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "b2647030-9308-4514-a5d1-09f713948bec",
+          "offsets": [
+            32820,
+            1748
+          ],
+          "box": [
+            32820,
+            6602,
+            640,
+            289
+          ],
+          "target": [
+            34180,
+            6602
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "61785e40-7cad-4066-b3a7-e7abe1a3a30a",
+          "offsets": [
+            32820,
+            1768
+          ],
+          "box": [
+            32820,
+            6931,
+            640,
+            344
+          ],
+          "target": [
+            34180,
+            6931
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "f55f0740-efeb-4066-8d7e-4f2f9d85d66f",
+          "offsets": [
+            32820,
+            1788
+          ],
+          "box": [
+            32820,
+            7315,
+            640,
+            149
+          ],
+          "target": [
+            34180,
+            7315
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        },
+        {
+          "t": 122724,
+          "id": "a1837c8b-3715-4e7a-8f23-f2df325b6008",
+          "offsets": [
+            33500,
+            1619
+          ],
+          "box": [
+            33500,
+            7315,
+            640,
+            149
+          ],
+          "target": [
+            34860,
+            7315
+          ],
+          "origin": [
+            34180,
+            1508
+          ],
+          "first": "71239a55",
+          "others": 8
+        }
+      ]
+    },
+    {
+      "t": 191.1,
+      "what": "making done"
+    },
+    {
+      "t": 191.1,
+      "what": "position settled",
+      "last_placed": 178.4
+    },
+    {
+      "t": 197.2,
+      "what": "canvas blocks",
+      "total": 21,
+      "section": 21,
+      "other": []
+    },
+    {
+      "t": 197.2,
+      "what": "page errors",
+      "errors": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "831019f3-9f01-4fc3-884e-127d7d05bbdc",
+      "type": "doc",
+      "sectionId": "1",
+      "itemId": null,
+      "role": "chapter",
+      "slot": true,
+      "order": null,
+      "since": 1795033276063,
+      "fit": true,
+      "placed": true,
+      "seen": 108,
+      "placedAt": 108
+    },
+    {
+      "id": "b308ef6e-f3b4-41ab-949b-b279e9490844",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "lead",
+      "slot": true,
+      "order": 0,
+      "since": 1795033288471,
+      "fit": true,
+      "placed": true,
+      "seen": 120.6,
+      "placedAt": 120.6
+    },
+    {
+      "id": "3ec839ac-6ef1-4d97-b80e-3512403de36a",
+      "type": "explanation",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "card",
+      "slot": true,
+      "order": 0,
+      "since": 1795033291679,
+      "placed": true,
+      "seen": 123.8,
+      "placedAt": 123.8
+    },
+    {
+      "id": "ebe97370-0767-4141-aaa7-fdebbd1a831d",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "follow",
+      "slot": true,
+      "order": 0,
+      "since": 1795033291755,
+      "fit": true,
+      "placed": true,
+      "seen": 123.8,
+      "placedAt": 123.8
+    },
+    {
+      "id": "71239a55-86f4-4289-8a30-933824fde507",
+      "type": "repo-code",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "card",
+      "slot": true,
+      "order": 1,
+      "since": 1795033297876,
+      "fit": false,
+      "placed": true,
+      "seen": 129.8,
+      "placedAt": 129.8
+    },
+    {
+      "id": "fac5062a-2754-42cf-932f-8b7d6dfb8b80",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "lead",
+      "slot": true,
+      "order": 1,
+      "since": 1795033297826,
+      "fit": true,
+      "placed": true,
+      "seen": 129.8,
+      "placedAt": 129.8
+    },
+    {
+      "id": "d0fb871f-bbeb-4309-85a2-931d29a2d3f3",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "follow",
+      "slot": true,
+      "order": 1,
+      "since": 1795033297974,
+      "fit": true,
+      "placed": true,
+      "seen": 129.8,
+      "placedAt": 129.8
+    },
+    {
+      "id": "214a82cd-6e7e-4874-92d5-c811cbff55ab",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "card",
+      "slot": true,
+      "order": 2,
+      "since": 1795033308143,
+      "fit": false,
+      "placed": true,
+      "seen": 139.9,
+      "placedAt": 139.9
+    },
+    {
+      "id": "0e9e0f57-bec0-4a8e-9c7f-705cbe1ca52f",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "lead",
+      "slot": true,
+      "order": 2,
+      "since": 1795033308106,
+      "fit": true,
+      "placed": true,
+      "seen": 139.9,
+      "placedAt": 139.9
+    },
+    {
+      "id": "314dcf82-1bb1-4642-908f-ffea60e040e9",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "follow",
+      "slot": true,
+      "order": 2,
+      "since": 1795033308227,
+      "fit": true,
+      "placed": true,
+      "seen": 139.9,
+      "placedAt": 139.9
+    },
+    {
+      "id": "57efead4-42e3-4576-a5e7-3e3f9df42a33",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "lead",
+      "slot": true,
+      "order": 3,
+      "since": 1795033321794,
+      "fit": true,
+      "placed": true,
+      "seen": 153.7,
+      "placedAt": 153.7
+    },
+    {
+      "id": "7b5ebeea-88f8-4606-8c8b-737630ef25e1",
+      "type": "flow",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "card",
+      "slot": true,
+      "order": 3,
+      "since": 1795033328879,
+      "fit": false,
+      "placed": true,
+      "seen": 161,
+      "placedAt": 161
+    },
+    {
+      "id": "b2647030-9308-4514-a5d1-09f713948bec",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "follow",
+      "slot": true,
+      "order": 3,
+      "since": 1795033328975,
+      "fit": true,
+      "placed": true,
+      "seen": 161,
+      "placedAt": 161
+    },
+    {
+      "id": "61785e40-7cad-4066-b3a7-e7abe1a3a30a",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "lead",
+      "slot": true,
+      "order": 4,
+      "since": 1795033336708,
+      "fit": true,
+      "placed": true,
+      "seen": 168.7,
+      "placedAt": 168.7
+    },
+    {
+      "id": "f55f0740-efeb-4066-8d7e-4f2f9d85d66f",
+      "type": "repo-code",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "card",
+      "slot": true,
+      "order": 4,
+      "since": 1795033336754,
+      "fit": false,
+      "placed": true,
+      "seen": 168.7,
+      "placedAt": 168.7
+    },
+    {
+      "id": "a1837c8b-3715-4e7a-8f23-f2df325b6008",
+      "type": "repo-code",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "card",
+      "slot": true,
+      "order": 4,
+      "since": 1795033336754,
+      "part": 2,
+      "fit": false,
+      "placed": true,
+      "seen": 168.7,
+      "placedAt": 168.7
+    },
+    {
+      "id": "82e6d450-6255-497a-a041-2ddaa3124601",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "follow",
+      "slot": true,
+      "order": 4,
+      "since": 1795033336959,
+      "seen": 168.7,
+      "placedAt": 169.9
+    },
+    {
+      "id": "ed367b21-bf30-4f0c-8c7d-910f9db5bb02",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i6",
+      "role": "lead",
+      "slot": true,
+      "order": 5,
+      "since": 1795033346374,
+      "fit": true,
+      "placed": true,
+      "seen": 178.4,
+      "placedAt": 178.4
+    },
+    {
+      "id": "8b479984-b45c-4d81-896f-fc2f0d5487d5",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i6",
+      "role": "follow",
+      "slot": true,
+      "order": 5,
+      "since": 1795033346512,
+      "fit": true,
+      "placed": true,
+      "seen": 178.4,
+      "placedAt": 178.4
+    },
+    {
+      "id": "d3616393-60cb-4d53-a3bb-7008fbe0da48",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "lead",
+      "slot": true,
+      "order": 6,
+      "since": 1795033359372,
+      "fit": true,
+      "placed": true,
+      "seen": 191.3,
+      "placedAt": 191.3
+    },
+    {
+      "id": "b2687ac2-9923-413c-938c-7a02f82716d8",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "card",
+      "slot": true,
+      "order": 6,
+      "since": 1795033359446,
+      "fit": true,
+      "placed": true,
+      "seen": 191.3,
+      "placedAt": 191.3
+    }
+  ],
+  "log": [
+    {
+      "t": 50.1,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": null,
+      "fellBack": false,
+      "status": 400,
+      "stopReason": null,
+      "outcome": "failed",
+      "error": "http_error",
+      "durationMs": 219
+    },
+    {
+      "t": 87.9,
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 3,
+      "estimate_usd": [
+        0.069888,
+        0.069764,
+        0.070266
+      ],
+      "cap_usd": 0.1,
+      "ms": 38033,
+      "outcome": "ok",
+      "ops": 24
+    },
+    {
+      "t": 100.3,
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.054067,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    },
+    {
+      "t": 107.4,
+      "event": "learn_section_compose",
+      "section": "1.1",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.018135,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 119.7,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 3,
+      "repairs": 2,
+      "usd": 0.032479,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 120.6,
+      "event": "learn_model",
+      "task": "artifact",
+      "provider": "anthropic",
+      "requested": "accounts/fireworks/models/gpt-oss-120b",
+      "source": "request",
+      "fallback": "none",
+      "prompt": "4FqYxZ7gsyOI",
+      "served": null,
+      "fellBack": false,
+      "status": null,
+      "stopReason": null,
+      "outcome": "unknown",
+      "error": "transport_thrown",
+      "durationMs": 191
+    },
+    {
+      "t": 126.5,
+      "event": "learn_model",
+      "task": "learn_section",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "soyUshlcjtJZ",
+      "served": "claude-sonnet-5-5",
+      "fellBack": false,
+      "status": 200,
+      "stopReason": "tool_use",
+      "outcome": "completed",
+      "error": null,
+      "durationMs": 3281
+    },
+    {
+      "t": 129.3,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i2",
+      "command": "code",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.023326,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 139.5,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i3",
+      "command": "notebook",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.026423,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 153.1,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i4",
+      "command": "diagram",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.038521,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 168.2,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i5",
+      "command": "code",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.021642,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 177.9,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i6",
+      "command": "code",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.017046,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 190.8,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.033495,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

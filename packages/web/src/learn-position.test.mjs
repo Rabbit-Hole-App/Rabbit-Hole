@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPACING, assumedHeight, columnWidth, docWords, fixedHeight, learnLayout, orderKey, setSpacingScale, spacing, union } from './learn-position.js';
+import { SPACING, assumedHeight, columnWidth, docWords, fixedHeight, learnLayout, orderKey, setSpacingScale, spacing, union, columnOwnIds } from './learn-position.js';
 import * as positionApi from './learn-position.js';
 
 const G = SPACING.card;
@@ -143,4 +143,11 @@ test('moves spread over time are never a loop', () => {
     assert.equal(out.moves.size, 1);
     Object.assign(block, out.moves.get('c'));
   }
+});
+
+// 8878 build of 1.1, 2026-11-18 12:20: the connector between a two-part code item's cards moved with the column and was counted as an obstacle, so the column shifted right every pass.
+test('columnOwnIds: the column cards and every connector ending on one are its own, a connector between two other cards is not', () => {
+  const plan = [{ id: 'a' }, { id: 'b' }];
+  assert.deepEqual(columnOwnIds(plan, [{ id: 'l1', from: 'a', to: 'b' }, { id: 'l2', from: 'x', to: 'a' }, { id: 'l3', from: 'x', to: 'y' }]), ['a', 'b', 'l1', 'l2']);
+  assert.deepEqual(columnOwnIds(plan), ['a', 'b']);
 });
