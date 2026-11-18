@@ -51,6 +51,7 @@ import { references as compositionDistributionShift } from './composition-distri
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 import { mleStepsReference } from './ml-mle-steps-reference.js';
+import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -99,6 +100,7 @@ export const diagramReferences = Object.freeze([
   ...compositionAttention, ...compositionModelEvaluation,
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...estimationEvaluationReferences,
+  samplingTopKReference,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];
