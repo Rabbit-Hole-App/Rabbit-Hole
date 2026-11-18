@@ -1,0 +1,13 @@
+bar groups in 0..1 with a wording hit, by word (distinct cards):
+  attention {"n":54,"sumsTo1":52,"off":2}
+  distribution {"n":14,"sumsTo1":14,"off":0}
+  probability {"n":39,"sumsTo1":38,"off":1}
+  softmax {"n":39,"sumsTo1":38,"off":1}
+  proportion {"n":1,"sumsTo1":0,"off":1}
+  normalized {"n":1,"sumsTo1":1,"off":0}
+the ones that do not sum to 1:
+  attention: "Attention weights across different heads" | Head A focuses on syntactic position, while Head B captures semantic context. | 0.65, 0.38 sum 1.03
+  attention: "Illustrative attention weight per head" | Head 1 distributes weight differently than Head 2, showing distinct focus. | 0.6, 0.55 sum 1.15
+  proportion: "Selection frequency across resamples" | Illustrative bar‑chart; each bar shows the proportion of resamples in which a feature was chosen. | 0.92, 0.55, 0.18 sum 1.65
+  probability: "Softmax probabilities at different temperatures" | Compare categories on the shared scale at $T=0.5$ and $T=2.0$. | 0.63, 0.23, 0.09 sum 0.95
+  softmax: "Softmax probabilities at different temperatures" | Compare categories on the shared scale at $T=0.5$ and $T=2.0$. | 0.63, 0.23, 0.09 sum 0.95

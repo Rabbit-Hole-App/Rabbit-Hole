@@ -1,0 +1,2 @@
+cards 1586 | evidence-checker wrong statements 5 | also found by the product rule 5 | only the evidence checker 0
+evidence-checker equations evaluated: latex 143 plain 0

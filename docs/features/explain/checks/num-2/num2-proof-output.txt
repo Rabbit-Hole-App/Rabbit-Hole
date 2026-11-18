@@ -1,0 +1,20 @@
+distinct delivered card bodies: 1586
+prose equation flags: 5 on 4 distinct cards
+  EQ  [results-combined.jsonl#222/after] fireworks :: 0.5*0.8+0.5*(-0.5) = 0.34  (computed 0.15, stated 0.34) :: Can you show the numbers when forward diffusion adds known n
+      sentence: The numbers follow the formula $x_{t+1}=\sqrt{\alpha}\,x_t+(1-\alpha)\,\epsilon$, with $\alpha=0.5$ in this toy example. || For instance, the top‑left cell: $0.5\times0.8+0.5\times(-0.5)=0.34$.
+  EQ  [results.jsonl#87/before] google :: 6 - 5.25 = -0.25  (computed 0.75, stated -0.25) :: How do IQR fences flag outliers in a box plot? Use the data 
+      sentence: Next, we calculate the interquartile range as $IQR = Q_3 - Q_1$, which gives $9.5 - 6 = 3.5$. || The lower fence is $6 - 5.25 = -0.25$ and the upper fence is $9.5 + 5.25 = 18.75$.
+  EQ  [results.jsonl#87/before] google :: 9.5 + 5.25 = 18.75  (computed 14.75, stated 18.75) :: How do IQR fences flag outliers in a box plot? Use the data 
+      sentence: Next, we calculate the interquartile range as $IQR = Q_3 - Q_1$, which gives $9.5 - 6 = 3.5$. || The lower fence is $6 - 5.25 = -0.25$ and the upper fence is $9.5 + 5.25 = 18.75$.
+  EQ  [results.jsonl#133/before] google :: 104 + 24.75 = 130.25  (computed 128.75, stated 130.25) :: What does the 1.5 x IQR rule do to a box plot of response ti
+      sentence: Given the sorted values 80, 85, 90, 92, 95, 99, 104, 110, and 300 ms, the median is 95 ms and the quartiles are $Q_1 = 87.5$ ms and $Q_3 = 104$ ms. || The interquartile range is $\mathrm{IQR} = Q_3 - Q_1 = 16.5$ ms. || This yields an upper fence of $104 + 24.75 = 130.25$ ms and a lower fence of $87.5 - 24.75 = 62.75$ ms.
+  EQ  [results.jsonl#134/before] google :: 105 + 26.25 = 130.375  (computed 131.25, stated 130.375) :: What does the 1.5 x IQR rule do to a box plot of response ti
+      sentence: The interquartile range is $\text{IQR} = 105 - 87.5 = 17.5$ ms. || Multiplying by $1.5$ gives $26.25$, placing the upper fence at $105 + 26.25 = 130.375$ ms.
+distribution bar flags: 1 on 1 distinct cards
+  BAR [results.jsonl#1032/after2] google :: "Softmax probabilities at different temperatures" word=Softmax T = 1.0 values 0.63, 0.23, 0.09 sum 0.95 :: What does the temperature do in softmax? Show the scores 2.0
+
+BENCH 222 after: FAILS explanation_bad_numbers: the card states wrong numbers (the text states "0.5*0.8+0.5*(-0.5) = 0.34" but the left side computes to 0.15: state the computed result, or fix the numbers it uses, everywhere the card states them)
+
+BENCH 297 after: FAILS explanation_bad_numbers: the card states wrong numbers (the text states "0.5*0.8+0.5*(-0.5) = 0.34" but the left side computes to 0.15: state the computed result, or fix the numbers it uses, everywhere the card states them)
+
+BENCH 280 after: passes (no NUM-2 issue)
