@@ -1,0 +1,87 @@
+{
+  "title": "Causal Masking in the Transformer Decoder",
+  "visuals": [
+    {
+      "k": "diagram",
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "title": "Causal masking before softmax",
+          "caption": "Across six positions, add $M_{ij}=-\\infty$ when $j>i$ and $0$ otherwise. Gray cells show the blocked scores.",
+          "kind": "heatmap",
+          "columns": [
+            {
+              "heading": "the 1",
+              "items": [
+                "1.209"
+              ]
+            },
+            {
+              "heading": "cat 2",
+              "items": [
+                "0.496",
+                "3.33"
+              ]
+            },
+            {
+              "heading": "sat 3",
+              "items": [
+                "-0.381",
+                "2.145",
+                "0.923"
+              ]
+            },
+            {
+              "heading": "on 4",
+              "items": [
+                "-0.685",
+                "-0.528",
+                "-0.706",
+                "-0.588"
+              ]
+            },
+            {
+              "heading": "the 5",
+              "items": [
+                "-0.479",
+                "-0.893",
+                "-0.776",
+                "-0.427",
+                "-0.255"
+              ]
+            },
+            {
+              "heading": "mat 6",
+              "items": [
+                "0.387",
+                "0.396",
+                "0.452",
+                "0.335",
+                "0.338",
+                "0.208"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "body": "To prevent future leakage, the decoder applies a causal mask directly to the attention scores before computing the softmax normalisation.\n\n[[visual:0]]\n\nBy setting $M_{ij} = -\\infty$ for all key positions $j$ greater than query position $i$, the model forces those specific attention weights to zero.\n\nThis ensures that during autoregressive generation, each token can only attend to past and present tokens in the sequence.",
+  "questions": [
+    "What happens to the softmax output when all future scores are set to negative infinity?",
+    "Why is causal masking unnecessary in standard transformer encoder blocks?",
+    "How does KV caching interact with causal masking during inference?"
+  ],
+  "terms": [
+    {
+      "t": "causal mask",
+      "d": "A matrix added to attention scores in a decoder to prevent tokens from attending to subsequent tokens.",
+      "n": 0
+    },
+    {
+      "t": "softmax",
+      "d": "An activation function that normalizes a vector of scores into a probability distribution summing to one.",
+      "n": 0
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "title": "Causal Masking in Transformer Decoders",
+  "visuals": [
+    {
+      "k": "diagram",
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "title": "Causal mask on decoder scores",
+          "caption": "The mask hides later keys. The sat row can score the, cat and sat.",
+          "kind": "heatmap",
+          "columns": [
+            {
+              "heading": "the 1",
+              "items": [
+                "1.209",
+                "null",
+                "null",
+                "null",
+                "null",
+                "null"
+              ]
+            },
+            {
+              "heading": "cat 2",
+              "items": [
+                "0.496",
+                "3.33",
+                "null",
+                "null",
+                "null",
+                "null"
+              ]
+            },
+            {
+              "heading": "sat 3",
+              "items": [
+                "-0.381",
+                "2.145",
+                "0.923",
+                "null",
+                "null",
+                "null"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "body": "When generating text word by word, a transformer decoder prevents cheating by applying a causal mask to its attention scores. This mask ensures that query positions can only attend to key positions up to and including the current step. Future tokens are blocked from receiving any attention mass during training.\n\n[[visual:1]]\n\nNotice how the upper triangle of the score matrix contains null entries where future keys are hidden from earlier queries. Before the softmax operation computes attention weights, these future positions are set to negative infinity. This guarantees they receive zero weight after normalization.\n\nBy enforcing this triangular visibility constraint, the model learns to predict the next token using only past context. This mechanism is essential for autoregressive language generation.",
+  "questions": [
+    "What happens to the negative infinity values during softmax?",
+    "Why is causal masking unnecessary in the encoder?",
+    "How does KV caching speed up inference with masked attention?"
+  ],
+  "terms": [
+    {
+      "t": "causal mask",
+      "d": "A matrix applied to attention scores to prevent a sequence position from attending to future positions.",
+      "n": 0
+    },
+    {
+      "t": "softmax",
+      "d": "A function that turns raw scores into probabilities summing to one across allowed keys.",
+      "n": 0
+    }
+  ]
+}

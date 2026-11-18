@@ -1,0 +1,13 @@
+idx | cell | depth | kind | columns | rows | range  (attempt 0, Gemini, batch arm, 12 runs)
+1 | 1 | balanced | heatmap | {heading,items}[1] {heading,items}[2] {heading,items}[3] {heading,items}[4] {heading,items}[5] {heading,items}[6] | 0 | false
+2 | 2 | detailed | heatmap | {heading,items}[1] {heading,items}[2] {heading,items}[3] {heading,items}[4] {heading,items}[5] {heading,items}[6] | 0 | false
+3 | 3 | balanced | heatmap | {heading,items}[2] {heading,items}[2] {heading,items}[2] | 0 | false
+6 | 6 | balanced | matrix | str str str str | 3 | false
+12 | 1 | balanced | heatmap | {heading,items}[6] {heading,items}[6] {heading,items}[6] {heading,items}[6] {heading,items}[6] {heading,items}[6] | 0 | false
+13 | 2 | detailed | heatmap | {heading,items}[1] | 0 | false
+14 | 3 | balanced | heatmap | {heading,items}[4] {heading,items}[4] {heading,items}[4] | 0 | false
+17 | 6 | balanced | matrix | str str str str | 3 | false
+23 | 1 | balanced | heatmap | {heading,items}[1] {heading,items}[1] {heading,items}[1] {heading,items}[1] {heading,items}[1] {heading,items}[1] | 0 | false
+24 | 2 | detailed | heatmap | {heading,items}[1] {heading,items}[2] {heading,items}[3] {heading,items}[4] {heading,items}[5] {heading,items}[6] | 0 | false
+25 | 3 | balanced | heatmap | {heading,items}[4] {heading,items}[4] {heading,items}[4] | 0 | false
+28 | 6 | balanced | matrix | str str str str | 3 | false

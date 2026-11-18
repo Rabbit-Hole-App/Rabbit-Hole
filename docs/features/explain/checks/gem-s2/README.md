@@ -31,7 +31,7 @@ a confusion matrix and the three saved cards stay left, no Item n, no comparison
 - Correction to the fallbacks report: "attempt-0 columns received object error 0/12" is a harness bug (run.mjs regex `columns.d+`, backslashes lost; its README says it was fixed, the file is not). From the saved
   events the error occurred in 11/12 BEFORE and 8/12 AFTER runs of the GEM-S1 cells (17/33 and 14/33 over all cells). So Q0 does see the shape on almost every run; it is the missing row labels, not a missing key, that
   keeps first-attempt-valid at 1/12.
-- The attempt-0 specs themselves are not saved anywhere (events keep the error text, which lists at most three issues, so even "rows absent" is not shown by it).
+- (Superseded by the 12-run capture: raw attempt-0 answers are in raw-attempt0/.) The attempt-0 specs themselves are not saved anywhere (events keep the error text, which lists at most three issues, so even "rows absent" is not shown by it).
 
 ## Hunks that touch lines SIMP-1 / GEM-S1 touched
 
