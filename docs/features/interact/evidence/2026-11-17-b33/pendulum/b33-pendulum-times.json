@@ -1,0 +1,902 @@
+[
+  {
+    "settings": "B mass=2,B length=1",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.01 s per swing Play 0.80s B mass: 2.0 kg B length: 1.0 m",
+    "time": 0.8,
+    "scrub": "0.8",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.5919189453125,
+      "y": 277.63153076171875,
+      "w": 375.13616943359375,
+      "h": 386.65765380859375,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 419.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 156,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 208,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 218.45,
+          "y": 350.45,
+          "w": 8.1,
+          "h": 8.1
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 57.98800000000004,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 168,
+          "y": 255,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 234,
+          "y": 255,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=2,B length=1",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.01 s per swing Play 2.00s B mass: 2.0 kg B length: 1.0 m",
+    "time": 2,
+    "scrub": "2",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.5919189453125,
+      "y": 277.63153076171875,
+      "w": 375.13616943359375,
+      "h": 386.65765380859375,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 419.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 156,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 208,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 218.45,
+          "y": 350.45,
+          "w": 8.1,
+          "h": 8.1
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 57.98800000000004,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 188,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 159.5,
+          "y": 232,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=2,B length=1",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.01 s per swing Play 3.50s B mass: 2.0 kg B length: 1.0 m",
+    "time": 3.5,
+    "scrub": "3.5",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.5919189453125,
+      "y": 277.63153076171875,
+      "w": 375.13616943359375,
+      "h": 386.65765380859375,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 419.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 156,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 208,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 218.45,
+          "y": 350.45,
+          "w": 8.1,
+          "h": 8.1
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 57.98800000000004,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 121.5,
+          "y": 60.168000000000006,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 306.5,
+          "y": 243.168,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=2,B length=1",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.01 s per swing Play 5.50s B mass: 2.0 kg B length: 1.0 m",
+    "time": 5.5,
+    "scrub": "5.5",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.5919189453125,
+      "y": 277.63153076171875,
+      "w": 375.13616943359375,
+      "h": 386.65765380859375,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 419.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 156,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 208,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 218.45,
+          "y": 350.45,
+          "w": 8.1,
+          "h": 8.1
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 57.98800000000004,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 191.5,
+          "y": 61.99199999999999,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 125.5,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=2,B length=1",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.01 s per swing Play 7.50s B mass: 2.0 kg B length: 1.0 m",
+    "time": 7.5,
+    "scrub": "7.5",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.5919189453125,
+      "y": 277.63153076171875,
+      "w": 375.13616943359375,
+      "h": 386.65765380859375,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 419.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 156,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 208,
+          "y": 343.5,
+          "w": 44,
+          "h": 22
+        },
+        {
+          "x": 218.45,
+          "y": 350.45,
+          "w": 8.1,
+          "h": 8.1
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 57.98800000000004,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 261.5,
+          "y": 63.816,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 195.5,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.84 s per swing Play 0.80s B mass: 1.0 kg B length: 2.0 m",
+    "time": 0.8,
+    "scrub": "0.8",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.6376953125,
+      "y": 277.67730712890625,
+      "w": 412.40460205078125,
+      "h": 386.5660400390625,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 381.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 112.89999999999999,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 168,
+          "y": 255,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 117.5,
+          "y": 54.15199999999999,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.84 s per swing Play 2.00s B mass: 1.0 kg B length: 2.0 m",
+    "time": 2,
+    "scrub": "2",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.6376953125,
+      "y": 277.67730712890625,
+      "w": 412.40460205078125,
+      "h": 386.5660400390625,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 381.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 112.89999999999999,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 342,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 298,
+          "y": 255,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.84 s per swing Play 3.50s B mass: 1.0 kg B length: 2.0 m",
+    "time": 3.5,
+    "scrub": "3.5",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.6376953125,
+      "y": 277.67730712890625,
+      "w": 412.40460205078125,
+      "h": 386.5660400390625,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 381.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 112.89999999999999,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 306.5,
+          "y": 243.168,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 121.5,
+          "y": 47.16,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.84 s per swing Play 5.50s B mass: 1.0 kg B length: 2.0 m",
+    "time": 5.5,
+    "scrub": "5.5",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.6376953125,
+      "y": 277.67730712890625,
+      "w": 412.40460205078125,
+      "h": 386.5660400390625,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 381.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 112.89999999999999,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 125.5,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 332.5,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": " Time (s) A B A B Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. A: 2.01 s per swing B: 2.84 s per swing Play 7.50s B mass: 1.0 kg B length: 2.0 m",
+    "time": 7.5,
+    "scrub": "7.5",
+    "box": {
+      "x": -55,
+      "y": 157,
+      "width": 870,
+      "height": 652
+    },
+    "fit": {
+      "scrollHeight": 652,
+      "clientHeight": 652,
+      "scrollWidth": 870,
+      "clientWidth": 870
+    },
+    "nodes": [],
+    "svg": {
+      "x": 388.6376953125,
+      "y": 277.67730712890625,
+      "w": 412.40460205078125,
+      "h": 386.5660400390625,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "A",
+        "B",
+        "A",
+        "B"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 381.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 112.89999999999999,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 129.5,
+          "y": 42,
+          "w": 29,
+          "h": 23
+        },
+        {
+          "x": 305.5,
+          "y": 255,
+          "w": 29,
+          "h": 23
+        }
+      ]
+    },
+    "dot": []
+  }
+]
