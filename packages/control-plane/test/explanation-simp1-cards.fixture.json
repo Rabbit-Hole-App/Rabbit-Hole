@@ -1,0 +1,55 @@
+{
+ "_source": "Real prose and issue text of saved section-6 fallback cards (/c/s/sprint2-evidence/card-numbers/section-6/fallback-trace/fallback-cards.json). The author's invalid spec was not saved (the server replaced it), so each test rebuilds an invalid spec that gives the saved issue text.",
+ "cards": {
+  "18": {
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "plannerKind": "tree",
+   "issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes.0.label: A circle carries at most two characters; diagram.nodes.1.label: A leaf square carries no label; diagram.nodes.1.label: A circle carries at most two characters)",
+   "title": "Tree split and Gini impurity",
+   "before": "Imagine sorting a mixed box of toys into separate piles by type. Gini impurity is a score that measures how mixed up a group of items is.\n\nA score of zero means the group is completely pure and contains only one kind of thing.",
+   "after": "When items are split into different branches, we want each branch to become less mixed than before. The impurity score helps decision trees decide the best way to divide data into clear groups.\n\nLower scores mean the sorting worked well and the resulting piles are clean.",
+   "savedReplacement": "flow"
+  },
+  "76": {
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "plannerKind": "transformation",
+   "issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+   "title": "Forward diffusion with known noise",
+   "before": "Forward diffusion corrupts a clean latent vector by mixing it with sampled Gaussian noise according to predefined noise schedules.\n\nEach step scales the original signal down while scaling the noise up to preserve variance.",
+   "after": "Examining individual cells shows how the clean value and noise combine linearly to form the noisy latent. The resulting tensor serves as the training target for the denoising network.",
+   "savedReplacement": "flow"
+  },
+  "159": {
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "plannerKind": "flow",
+   "issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.edges: A flow cannot contain a cycle or unreachable nodes)",
+   "title": "Steps down a hill to find the lowest spot",
+   "before": "Imagine you are blindfolded on a hilly terrain and want to walk down to the lowest valley. You feel the slope with your feet and step in the direction that goes down most steeply.\n\nBy repeating this small step again and again, you eventually reach the bottom.",
+   "after": "Gradient descent is a computer algorithm that does the exact same thing to find the best settings for a task. The slope is called the error, and the goal is to reach zero error by tweaking parameters.",
+   "savedReplacement": "flow"
+  },
+  "194": {
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "plannerKind": "token-links",
+   "issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+   "title": "Causal mask on decoder scores",
+   "before": "The transformer decoder prevents models from reading future context by applying a causal mask to attention scores. When predicting the word sat, the model must not access later words like on or mat.\n\nLook for the masked cells in the upper right triangle of the heatmap below where future positions are blocked.",
+   "after": "This matrix sets forbidden positions to negative infinity before the softmax function runs. Because softmax exponentiates these values, the blocked future positions receive exactly zero weight.\n\nAs a result, each query position can only attend to current and preceding tokens in the sequence.",
+   "savedReplacement": "flow"
+  },
+  "203": {
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "plannerKind": "token-links",
+   "issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+   "title": "Causal masking before softmax",
+   "before": "The decoder prevents attending to future tokens by adding an additive causal mask $M$ to the attention scores before the softmax operation.\n\nFor query position $i$ and key position $j$, the mask value is $M_{ij} = 0$ if $j \\le i$ and $M_{ij} = -\\infty$ if $j > i$.\n\nExamine the heatmap below to see how upper-triangle entries receive negative infinity.",
+   "after": "When exponentiated during row-wise $\\operatorname{softmax}$, these $-\\infty$ entries evaluate to zero weight. This ensures that token representations only depend on past and present positions.",
+   "savedReplacement": "flow"
+  }
+ }
+}

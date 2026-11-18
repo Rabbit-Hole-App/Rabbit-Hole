@@ -594,9 +594,17 @@ function matrixAsComparison(d, labels) {
   if (columns.some(c => !c.items.length)) return null;
   return tryParse({ version: 1, diagram: { kind: 'comparison', title: fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0] ?? cols[0]} and ${cols[1]}`, 90), ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}), columns } });
 }
+// SIMP-1: a binary tree the schema rejects (a circle over two characters, a labelled leaf square) is drawn as the ordinary tree: the same nodes, parents and labels, with layout, sides, roles and fills removed.
+// A tree with an unlabelled node or another layout is not rebuilt (null: the card fails the step instead).
+function simplifiedTree(d) {
+  if (d.layout !== 'binary' || !Array.isArray(d.nodes) || d.nodes.some(n => typeof n?.label !== 'string')) return null;
+  const { layout, ...rest } = d;
+  return tryParse({ version: 1, diagram: { ...rest, nodes: d.nodes.map(({ side, role, fill, ...node }) => node) } });
+}
 export function simplifiedDiagram(lines, prefer = 'flow', sink = null) {
   let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
   if (!d || typeof d !== 'object') return null;
+  if (d.kind === 'tree') return simplifiedTree(d);
   const list = LABEL_LISTS.map(k => d[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
   const all = list.map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60));
   const labels = [...new Set(all)].slice(0, 12);
@@ -618,6 +626,10 @@ export function simplifiedDiagram(lines, prefer = 'flow', sink = null) {
 }
 // simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified, kinds (of the simplified) }
 const titleOf = lines => { try { return JSON.parse(lines.join('\n'))?.diagram?.title ?? ''; } catch { return ''; } };
+const kindOf = lines => { try { return JSON.parse(lines.join('\n'))?.diagram?.kind; } catch { return undefined; } };
+// SIMP-1: a failed diagram is rebuilt only in its own family: a flow, cycle or sequence as a smaller flow, cycle or sequence; a binary tree as the ordinary tree (simplifiedTree). Any other kind (matrix, token-links,
+// heatmap, transformation, plots...) is never turned into a flow or a comparison: it is dropped, and learn-artifact.js then fails the step (explanation_missing_visual) so the next provider runs.
+const SIMPLIFIABLE = ['flow', 'cycle', 'sequence', 'tree'];
 function dropFrom(md, simplify = false, prefer = 'flow') {
   const out = [], kinds = [], keeps = [], elements = []; let open = null, dropped = 0;
   for (const line of String(md ?? '').split('\n')) {
@@ -626,9 +638,9 @@ function dropFrom(md, simplify = false, prefer = 'flow') {
       if (/^\s*```/.test(line)) {
         if (open.lang === DIAGRAM && !parses(open.lines)) {
           dropped++;
-          const spec = simplify && simplifiedDiagram(open.lines, prefer, elements);
+          const spec = simplify && SIMPLIFIABLE.includes(kindOf(open.lines)) && simplifiedDiagram(open.lines, prefer, elements);
           keeps[keeps.length - 1] = Boolean(spec);
-          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); } else droppedElement('diagram', titleOf(open.lines), simplify ? 'invalid and fewer than two readable labels' : 'invalid', elements);
+          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); } else droppedElement('diagram', titleOf(open.lines), simplify ? 'invalid and fewer than two readable labels, or not a flow, cycle, sequence or tree' : 'invalid', elements);
         } else out.push(...open.raw);
         open = null;
       } else open.lines.push(line);
