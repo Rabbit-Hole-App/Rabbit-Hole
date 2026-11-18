@@ -1,0 +1,44 @@
+commit ba19c838765439b07ba2ce70ac4fdc5644b718ab
+Author: yudhisteer <yudhisteer.chin@gmail.com>
+Date:   Tue Nov 17 16:24:33 2026 -0800
+
+    Softmax list rounding clause: at most one value past its half-unit, within a full unit, and the values sum to 1
+
+diff --git a/packages/web/src/tutor-diagrams/spec.js b/packages/web/src/tutor-diagrams/spec.js
+index 11b6d5503..a1ba8d6e2 100644
+--- a/packages/web/src/tutor-diagrams/spec.js
++++ b/packages/web/src/tutor-diagrams/spec.js
+@@ -330,10 +330,10 @@ function checkSoftmaxList(d, issue) {
+     return;
+   }
+   const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
+-  const off = units => after.some((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9);
+-  // Rounding clause (Reviewer 2026-11-17): values written to sum to exactly 1 may each be off by one full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
+-  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && !off(2);
+-  if (off(1) && !roundedToOne) {
++  const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;
++  // Rounding clause (Reviewer 2026-11-17, tightened): values written to sum to exactly 1 pass when at most ONE value is past its half-unit and that one is within a full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
++  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && beyond(1) <= 1 && beyond(2) === 0;
++  if (beyond(1) && !roundedToOne) {
+     const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
+     issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
+   }
+diff --git a/packages/web/src/tutor-diagrams/spec.test.mjs b/packages/web/src/tutor-diagrams/spec.test.mjs
+index 55b280273..93fe1ada9 100644
+--- a/packages/web/src/tutor-diagrams/spec.test.mjs
++++ b/packages/web/src/tutor-diagrams/spec.test.mjs
+@@ -293,11 +293,11 @@ test('softmax list transformation: a gated card that calls its after values prob
+   assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.5', '0.3', '0.1'], { title: 'Masked softmax' })), [], 'not called probabilities: no sum check');
+ });
+ 
+-test('softmax list transformation: rounding clause: values summing to exactly 1 may be one full unit off, otherwise the half-unit rule decides', () => {
++test('softmax list transformation: rounding clause: values summing to exactly 1 pass when only one is past its half-unit (and within a full unit), otherwise the half-unit rule decides', () => {
+   assert.deepEqual(softmaxIssues(softmax(['1', '1', '1'], ['0.33', '0.33', '0.34'])), [], 'true 0.3333: 0.34 is 0.0067 away, under one unit');
+   assert.equal(arithmetic(softmaxIssues(softmax(['1', '1', '1'], ['0.33', '0.33', '0.35']))).length, 1, 'sum is 1.01, so the half-unit rule decides');
+   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.66', '0.24', '0.04']))).length, 1, 'sum 0.94, 0.04 against 0.099');
+   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.70', '0.26', '0.04']))).length, 1, 'sum 1.00 but 0.04 is 0.059 away: more than one unit');
+-  // Effect on a real archive card: sum is 1.00 and 0.10 is 0.00997 from the true 0.09003, inside one unit, so the clause lets it through (0.66 vs 0.6652 and 0.24 vs 0.2447 are too).
+-  assert.deepEqual(softmaxIssues(softmax(['2', '1', '0'], ['0.66', '0.24', '0.10'])), []);
++  // Tightened (Reviewer): sum 1.00 but TWO values are past half a unit (0.66 vs 0.665241 is 0.005241; 0.10 vs 0.090031 is 0.009969), so the half-unit rule decides and it fails.
++  assert.equal(arithmetic(softmaxIssues(softmax(['2', '1', '0'], ['0.66', '0.24', '0.10']))).length, 1);
+ });
