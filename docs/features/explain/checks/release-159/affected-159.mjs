@@ -1,0 +1,13 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const R = 'C:/s/r159-int';
+const git = (...a) => execFileSync('git', ['-C', R, ...a], { encoding: 'utf8', maxBuffer: 1 << 28 }).trim();
+const { affectedTests } = await import(pathToFileURL(R + '/scripts/mvp-fast-path.mjs').href);
+const base = '2aeca536d19346699535c3cb599b01651c6c8d2e';
+const changed = git('diff', '--name-only', '--diff-filter=ACMR', base, 'HEAD').split('\n').filter(Boolean);
+const tests = new Map(git('ls-files', '--', '*.test.mjs', '*.test.js').split('\n').filter(Boolean).map(p => [p, readFileSync(R + '/' + p, 'utf8')]));
+const plan = affectedTests(changed, tests);
+console.log('changed files:', changed.length);
+for (const p of plan) console.log(`\n== ${p.cwd}: ${p.ran.length} test files${p.ran[0]?.startsWith('all ') ? ' (WHOLE SUITE)' : ''}\n` + p.ran.join('\n') + '\n-- uncovered (no test imports them by relative path):\n' + (p.uncovered.join('\n') || 'none'));
+console.log('\nchanged files outside any suite:', changed.filter(f => !/^packages\/web\/src\//.test(f) && !/^packages\/control-plane\/(?!.*\.md$)/.test(f)).join(', '));
