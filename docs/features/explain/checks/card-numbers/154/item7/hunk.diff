@@ -1,0 +1,17 @@
+commit 0359cf511ea353c899690d345030b7d08d38a707
+Author: yudhisteer <yudhisteer.chin@gmail.com>
+Date:   Tue Nov 17 16:13:38 2026 -0800
+
+    Document that the 09-bootstrap-roots recorded run fails the draw-count rule by design
+
+diff --git a/docs/features/explain/topics/decision-trees/fixture/pack.human/09-bootstrap-roots/README.md b/docs/features/explain/topics/decision-trees/fixture/pack.human/09-bootstrap-roots/README.md
+new file mode 100644
+index 000000000..e46601a7d
+--- /dev/null
++++ b/docs/features/explain/topics/decision-trees/fixture/pack.human/09-bootstrap-roots/README.md
+@@ -0,0 +1,5 @@
++# 09-bootstrap-roots: recorded run, not a pass fixture
++
++This recorded run draws 6 rows from 8 (a bootstrap sample draws n = 8). It therefore fails the 154 bootstrap draw-count rule (`checkSamples` in `packages/web/src/tutor-diagrams/ml-statistical-spec.js`) BY DESIGN.
++
++It is a byte-for-byte recorded run copied from `explain/demo-lesson04` at 33ccd9a25, not a pass fixture. Do not correct it.
