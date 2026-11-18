@@ -448,7 +448,8 @@ function lr3Elements(diagram) {
   return diagram.series.reduce((n, series) => n + (series.points ? series.points.length : series.samples.y.length), 0) + (diagram.annotations || []).length;
 }
 const lr3Routes = [
-  ['9', 'ml-logistic-regression-softmax', ['softmax', 'probabilities sum', 'multi class'], ['panels', 'panels', 'panels']],
+  ['9', 'ml-logistic-regression-softmax', ['softmax', 'probabilities sum', 'multi class'], ['panels', 'panels', 'panels'],
+    ['logits to probabilities', 'what is softmax and how']],
   ['10', 'ml-logistic-regression-accuracy-trap', ['class imbalance', 'accuracy trap', 'zero recall'], ['bar-chart', 'bar-chart', 'bar-chart']],
   ['11', 'ml-logistic-regression-confusion-matrix', ['confusion matrix', 'true positive', 'false negative'], ['matrix', 'matrix', 'matrix']],
   ['12', 'ml-logistic-regression-threshold-tradeoff', ['threshold tuning', 'precision recall', 'tradeoff'], ['matrix', 'coordinate-plot', 'coordinate-plot']],
@@ -468,13 +469,13 @@ test('logistic-regression batch metrics independently reproduce derived and roun
   }
 });
 test('logistic-regression batch preserves own prompts, short keywords and provenance at every depth', () => {
-  for (const [promptId, referenceId, keywords, kinds] of lr3Routes) {
+  for (const [promptId, referenceId, keywords, kinds, learnerPhrases = []] of lr3Routes) {
     const ref = references.find(item => item.id === referenceId);
     const row = replay.prompts.find(item => String(item.id) === promptId);
     assert.ok(ref && row);
     assert.strictEqual(row.referenceId, referenceId);
     assert.ok(ref.prompts.includes(row.prompt));
-    assert.deepStrictEqual(ref.keywords, keywords);
+    assert.deepStrictEqual(ref.keywords, [...keywords, ...learnerPhrases]);
     assert.deepStrictEqual(ref.shortKeywords, keywords);
     assert.strictEqual(row.paraphrases.length, 5);
     assert.strictEqual(new Set(row.paraphrases).size, 5);
