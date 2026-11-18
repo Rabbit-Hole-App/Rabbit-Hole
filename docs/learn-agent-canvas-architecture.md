@@ -448,7 +448,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 | Video generation (paid) | FAL `fal-ai/bytedance/seedance/v1/lite` | `video-provider.js` | `FAL_API_KEY`, `LEARN_VIDEO_PROVIDER` |
 | Maths animation (paid) | private Manim worker | `math-provider.js` | `MATH_WORKER_URL`, `MATH_WORKER_TOKEN` |
 | Blender scene (paid) | private Blender worker | `learn-scene.js` | `SCENE_WORKER_URL`, `SCENE_WORKER_TOKEN` |
-| Narration (paid) | fish.audio `s1` | `dev-worker.js` `/api/learn/tts` | `FISH_AUDIO_API_KEY` |
+| Narration (paid) | ElevenLabs `eleven_flash_v2_5`, voice Jessica (the one narrator, `narration-voice.js`) | `dev-worker.js` `/api/learn/tts` | `ELEVENLABS_API_KEY` |
 | Stock photos | Pexels | `pexels.js` | `PEXELS_API_KEY` |
 | Graphs | Desmos (client) | `/api/learn/graph-config` | `DESMOS_API_KEY` |
 
@@ -461,7 +461,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 
 **What is configured on the session clone** (`small-cp-dev-small-parallel`, secret names read 2026-09-29):
 - **Set:** `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `DESMOS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY`, `LEARN_BENCH_SECRET`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`.
-- **Not set:** `OPENAI_API_KEY`, so cards and the whiteboard use `claude-opus-5` here, and image generation and transcription are unavailable. `FISH_AUDIO_API_KEY` (no narration) and `PEXELS_API_KEY` (no stock photos, and the whiteboard gets no photo tools).
+- **Not set:** `OPENAI_API_KEY`, so cards and the whiteboard use `claude-opus-5` here, and image generation and transcription are unavailable. `ELEVENLABS_API_KEY` (no narration) and `PEXELS_API_KEY` (no stock photos, and the whiteboard gets no photo tools).
 - **`SCENE_WORKER_URL`** is a plain var in the wrangler file, not a secret.
 - Shared `small-cp-dev` and production were not read. Whatever keys they hold, cards and the whiteboard run `claude-opus-5` unless `LEARN_PLAN_MODEL` is set.
 
@@ -714,7 +714,7 @@ The chat never starts paid work, and nothing autoplays.
 | Maths animation | Video card Render, `/animate` | `POST /api/learn/video` (math op) | same DO → Manim worker |
 | Blender scene | Scene card Build, `/3d` | `POST /api/learn/scene` | `LearnScenes` DO → Blender worker |
 | Image | Image card Generate | `POST /api/learn/image` | dev worker → OpenAI `gpt-image-1` |
-| Narration | Narration card, whiteboard "Read it aloud" | `POST /api/learn/tts` | dev worker → fish.audio |
+| Narration | Narration card, whiteboard "Read it aloud" | `POST /api/learn/tts` | dev worker → ElevenLabs (`narration-voice.js`) |
 
 ## 14. Persistence, bindings and serving
 
@@ -957,7 +957,7 @@ All in `packages/control-plane/src/`.
 | Card maker limits | `learn-artifact.js` | args 1000, context 8000, body 20000, 4000 max tokens, one repair |
 | Worker vars | `packages/web/wrangler.dev.jsonc`, `wrangler.parallel.jsonc` | `SUBSCRIPTION_ONLY`, `SUBSCRIPTION_OWNER_EMAIL`, `LEARN_VIDEO_PROVIDER=fal-seedance-lite`, `LEARN_VIDEO_RESOLUTION=480p`, `SCENE_WORKER_URL` |
 | Worker bindings | same files; `packages/control-plane/wrangler.jsonc` for production | see [section 14](#14-persistence-bindings-and-serving) |
-| Secrets (names) | `wrangler secret` per worker | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `OPENAI_API_KEY`, `EXA_API_KEY`, `PEXELS_API_KEY`, `DESMOS_API_KEY`, `FAL_API_KEY`, `FISH_AUDIO_API_KEY`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`, `SUBSCRIPTION_BRIDGE_URL`, `SUBSCRIPTION_BRIDGE_TOKEN`, `LEARN_BENCH_SECRET`, `LEARN_PREVIEW_SECRET`, `MASTER_KEY` |
+| Secrets (names) | `wrangler secret` per worker | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `OPENAI_API_KEY`, `EXA_API_KEY`, `PEXELS_API_KEY`, `DESMOS_API_KEY`, `FAL_API_KEY`, `ELEVENLABS_API_KEY`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`, `SUBSCRIPTION_BRIDGE_URL`, `SUBSCRIPTION_BRIDGE_TOKEN`, `LEARN_BENCH_SECRET`, `LEARN_PREVIEW_SECRET`, `MASTER_KEY` |
 | Build flags | `packages/web` build env (`import.meta.env`) | `VITE_COACHING_DEV` (Learn on; dev-only palette items), `VITE_BYOC_DEV`, `VITE_NOTEBOOK_ORIGIN`, `VITE_TLDRAW_LICENSE_KEY` (whiteboard), `VITE_PRIVATE_BYOC`, `VITE_SMALL_ENV` |
 | Insert palette | `packages/web/src/learn-insert-palette.js` | groups, More, dev-only items |
 | Slash commands | `packages/web/src/agent/slash.js` | commands, families, paid list |

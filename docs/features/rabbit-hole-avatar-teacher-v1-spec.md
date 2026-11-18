@@ -366,7 +366,7 @@ Voice Tutor speech and clip audio never overlap. Later, narrated Motion uses the
 
 **The seams:**
 - `createVoiceSession({ stt, tts, tutor })` in `packages/web/src/voice-session.js`. Its states are off, listening, thinking and speaking. It already calls `tts.stop()`, `stt.pause()` and `stt.resume()` on interrupts and on the speaking-to-listening transition.
-- `createScribeStt` in `voice-stt.js` has `pause` and `resume`; `createFishTts` in `voice-tts.js` has `speak` and `stop`.
+- `createScribeStt` in `voice-stt.js` has `pause` and `resume`; `createNarratorTts` in `voice-tts.js` has `speak` and `stop`.
 - `LearnVoice.jsx` exposes the session to the page: `state`, `enter`, `exit`, `interrupt`, `say`.
 
 AV5/AV6 adds a session-level hold and release around clip playback, on those same calls. The session half is built (§33): `hold()` returns `release()`; the clip player that calls them is AV5.
