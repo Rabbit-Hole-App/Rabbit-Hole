@@ -2,7 +2,7 @@
 // One Sonnet turn (learn-section-research.js sectionTurn) composed as base + tasks/learn-section-brief.md + uses/learn_concept.md, its submit_section_brief input
 // checked HERE (validateBrief, never trusted), one re-ask, then the failure sentence. Nothing here names a repository or a topic.
 //
-//   validateBrief(input, { sectionId, first, last, anchorsExist, anchorText, earlierBeats }) -> { value: brief } | { errors }
+//   validateBrief(input, { sectionId, first, last, anchorsExist, earlierBeats }) -> { value: brief } | { errors }
 //   repositoryAnchors(snapshot) -> anchor => boolean ("path", "path:line" or "path:start-end" inside this snapshot)
 //   briefMessage({ plan, section, previous, focus, anchorsText }) -> the A §2 user message
 //   anchorExcerpt(snapshot, files, budget) -> the anchor lines for the message, widened to the enclosing symbol, budget lines in all
@@ -16,49 +16,15 @@ import { learnPlanOf, readSection, readSections, saveProgress, updateSection, wi
 
 export const BRIEF_CAP_USD = 0.15, ANCHOR_LINES = 300, BRIEF_SEARCHES = 2;
 export const SECTION_BRIEF_FAILED = 'I couldn\'t plan this section cleanly. Try again, or skip to the next section.'; // A §5
-// A path, a file name, a flag or a code name (backticks, snake_case, calls, camelCase): never in a beat's idea or shows, nor in a request that is not code.
+// The one rule for words around code, every section stage (Reviewer 2026-11-17 20:35, owner 20:27): "Write in plain words. A name from the code may appear in backticks.
+// Never a path, a file name or a flag." Only a path, a file name or a flag is refused: that is what damages a card for a learner. Names, bare or in backticks, dotted or not,
+// and expressions all pass; whether a name is on the card's lines is prose quality, read on the cards, not checked here.
 const PATH_PART = String.raw`\b[\w.-]+\/[\w.-]+\/[\w./-]*|\b[\w-]+\/[\w-]+\.\w+|\b[\w-]+\.(?:py|js|mjs|ts|jsx|tsx|json|md|txt|bin|pkl|pt|toml|ya?ml|c|h|cpp|rs|go|ipynb|csv|sh)\b|(?:^|\s)--\w`;
-export const CODE_TOKEN = new RegExp(String.raw`${'`'}|${PATH_PART}|\b[a-z0-9]+_\w+\b|\b\w+\(\)|\b[a-z]+[A-Z]\w*\b`);
-// A path, a file name or a flag only: never in the words around a card or in a document's prose (code names may appear there as the code uses them).
 export const PROSE_PATH = new RegExp(PATH_PART);
-// Reviewer 10:50: an identifier that is in the anchored lines may appear in backticks; paths, file names and flags never, and any other code name stays refused.
-// -> null when the text is acceptable, else what is wrong with it.
-const IDENTIFIER = /^[A-Za-z_]\w*(?:\.\w+)*$/;
-const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-export const inLines = (name, anchored) => new RegExp(String.raw`(?<![\w-])${escapeRe(name)}(?!\w)`).test(anchored);
-const SHOWN_NAME = /`([^`\n]{1,80})`|(?<=^|\s)(--\w[\w-]*)|\b([a-z0-9]+_\w+|\w+\(\)|[a-z]+[A-Z]\w*)\b(?:\(\))?/g;
-const spelled = (name, text) => new RegExp(String.raw`(?<!\w)${escapeRe(name)}(?!\w)`).test(text);
-// Reviewer 19:40: a dotted `A.b` is a name the code card shows when its last part is in the anchored lines (`forward` in `def forward(`) and each earlier part is in the
-// anchored lines or anywhere in the beat's cited file(s); `Foo.forward` with no `Foo` in the file stays refused. files: [{ path, text, cited: ['110', '170-193'] }].
-const dottedShown = (name, anchored, files) => {
-  const parts = name.split('.');
-  return parts.length > 1 && spelled(parts.at(-1), anchored) && parts.slice(0, -1).every(part => spelled(part, anchored) || files.some(file => spelled(part, file.text)));
-};
-// Where a name outside the cited lines is in a cited file: its first line, for the repair note (no auto-widening). -> 'model.py:109' with the cited ranges, or null.
-const nameLine = (name, files) => {
-  for (const file of files) {
-    const k = file.text.split('\n').findIndex(line => spelled(name, line));
-    if (k >= 0) return { at: `${file.path}:${k + 1}`, cited: file.cited.join(', ') };
-  }
-  return null;
-};
-// names: true for a beat's `shows` (Reviewer 11:15): a setting, flag or function name the anchored lines spell is allowed bare or in backticks; anything left is checked as below.
-export function codeNameError(text, anchored = '', { names = false, files = [] } = {}) {
-  if (names) text = String(text).replace(SHOWN_NAME, (match, ticked, flag, bare) => { const name = (ticked ?? flag ?? bare).trim().replace(/\(\)$/, ''); return inLines(name, anchored) || dottedShown(name, anchored, files) ? ' ' : match; });
-  const path = PROSE_PATH.exec(text)?.[0]?.trim();
-  if (path) return `must have no path, file name or flag (found "${path}")`;
-  const unknown = [], outside = [];
-  const rest = String(text).replace(/`([^`\n]{1,80})`/g, (_, name) => {
-    const bare = name.trim().replace(/\(\)$/, '');
-    if (IDENTIFIER.test(bare) && (spelled(bare, anchored) || dottedShown(bare, anchored, files))) return ' ';
-    const where = IDENTIFIER.test(bare) ? nameLine(bare, files) : null;
-    if (where) outside.push(`\`${name}\` is on ${where.at}, outside the cited ${where.cited}; cite that line or drop the name`);
-    else unknown.push(name);
-    return ' ';
-  });
-  if (unknown.length || outside.length) return [...outside, ...(unknown.length ? [`names ${unknown.map(n => `\`${n}\``).join(', ')}, which the anchored lines do not`] : [])].join('; ');
-  const code = CODE_TOKEN.exec(rest)?.[0];
-  return code ? `must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "${code}")` : null;
+// -> null when the text is acceptable, else what is wrong with it. The export name is kept: the brief, compose and the explanation make step call it.
+export function codeNameError(text) {
+  const path = PROSE_PATH.exec(String(text ?? ''))?.[0]?.trim();
+  return path ? `must have no path, file name or flag (found "${path}")` : null;
 }
 const MATERIAL_KINDS = ['paper', 'video', 'article'];
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -89,15 +55,6 @@ export const SUBMIT_BRIEF_TOOL = {
   },
 };
 
-// -> anchor => the text of its lines ('' when it is not in the snapshot): what codeNameError checks a backticked name against.
-export function repositoryAnchorText(snapshot) {
-  const files = snapshot?.files || {};
-  return anchor => {
-    const m = /^(.+?)(?::(\d+)(?:-(\d+))?)?$/.exec(str(anchor));
-    if (!m || !Object.hasOwn(files, m[1])) return '';
-    return m[2] ? files[m[1]].split('\n').slice(Number(m[2]) - 1, Number(m[3] || m[2])).join('\n') : files[m[1]];
-  };
-}
 export function repositoryAnchors(snapshot) {
   const files = snapshot?.files || {};
   return anchor => {
@@ -109,7 +66,7 @@ export function repositoryAnchors(snapshot) {
   };
 }
 
-export function validateBrief(input, { sectionId, first, last, anchorsExist, anchorText = () => '', earlierBeats = [] }) {
+export function validateBrief(input, { sectionId, first, last, anchorsExist, earlierBeats = [] }) {
   const errors = [], o = isObject(input) ? input : {};
   const from = str(o.from), to = str(o.to);
   if (first && from) errors.push('from must be empty: this is the first section');
@@ -124,12 +81,7 @@ export function validateBrief(input, { sectionId, first, last, anchorsExist, anc
     const anchors = Array.isArray(b.anchors) ? b.anchors.map(str).filter(Boolean) : [];
     if (!idea || idea.length > 260 || sentencesOf(idea).length > 2) errors.push(`beat ${id}: idea is one idea in one or two short sentences, at most 260 characters`); // Reviewer 11:00, 11:15
     if (!shows) errors.push(`beat ${id}: shows says what the learner can see, compute or try`);
-    const anchored = anchors.map(a => anchorText(a)).join('\n');
-    // The beat's cited files (whole text, and the ranges it cites in each): only for a dotted name's earlier parts and the line a name outside the cited lines is on.
-    const cited = new Map();
-    for (const a of anchors) { const [path, range = 'all'] = a.split(/:(?=\d)/); if (!cited.has(path)) cited.set(path, []); cited.get(path).push(range); }
-    const files = [...cited].map(([path, ranges]) => ({ path, text: anchorText(path), cited: ranges })).filter(file => file.text);
-    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored, { names: name === 'shows', files }); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
+    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
     for (const a of anchors) if (!anchorsExist(a)) errors.push(`beat ${id}: anchor ${a} is not in the source`);
     if (!anchors.length && b.background !== true) errors.push(`beat ${id}: a beat with no anchors is background: true`);
     let material = null;
@@ -196,11 +148,11 @@ export async function runBrief(env, { actor, snapshot }, body, { callModel = log
   const composed = composeTutorPrompt({ task: 'learn-section-brief', use: 'learn_concept' });
   const user = briefMessage({ book: bookTitle(plan.learn), section, index, sections: plan.sections, previous, focus: plan.learn.focus, anchorsText: anchorExcerpt(snapshot, section.files) });
   const ctx = { env, snapshot, turn: newTurn(), limits: { search_material: BRIEF_SEARCHES }, deps: researchDeps };
-  const anchorsExist = repositoryAnchors(snapshot), anchorText = repositoryAnchorText(snapshot);
+  const anchorsExist = repositoryAnchors(snapshot);
   const earlierBeats = earlier.flatMap(s => s.brief.beats.map(b => ({ sectionId: s.sectionId, idea: b.idea })));
   const out = await sectionTurn(env, {
     composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel, maxResearchSteps: 2, maxRepairs: 2, // two reads, then the submit fits under the cap (BLOCKERS.md); two repairs (Reviewer 19:40)
-    validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, anchorText, earlierBeats }),
+    validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, earlierBeats }),
   });
   const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, repairs: out.repairs ?? 0, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8), ...(out.submitted ? { submitted: out.submitted } : {}) }) }; // submitted: the refused brief as returned (Reviewer 11:15)
   try { console.log(JSON.stringify(line)); } catch { /* a log line is never worth a failed answer */ }

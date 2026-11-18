@@ -54,8 +54,7 @@ export async function validate(input, ctx) {
     if (!read) continue;
     blocks.push({ header: `${read.path}:${read.start}-${read.end} @ ${ctx.commit}`, lines: read.lines.map((line, i) => `${read.start + i}: ${line}`) });
   }
-  const anchored = blocks.filter(b => !b.pair).map(b => b.lines.join('\n')).join('\n');
-  const wrong = codeNameError(prompt, anchored);
+  const wrong = codeNameError(prompt); // the one rule (Reviewer 20:35): only a path, a file name or a flag is refused
   if (wrong) return { error: `prompt ${wrong}: the source lines travel with it separately` };
   const allowed = new Set(`${blocks.map(b => b.lines.join('\n')).join('\n')}\n${JSON.stringify(ctx.brief)}\n${ctx.item.request}\n${ctx.record || ''}`.match(NUMBER) || []);
   const invented = (prompt.match(NUMBER) || []).filter(n => !allowed.has(n));
