@@ -109,7 +109,7 @@ import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply
 import { ExplanationHost } from './explanation-host.js';
 import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
-import { holdsTocLink, resolvedLinks, sectionChoices, tocLinkRows, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
+import { holdsTocLink, resolvedLinks, sectionChoices, tocChipName, tocLinkRows, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
@@ -2972,7 +2972,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const outlineKey = JSON.stringify(outline);
   const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
   // [[cardId, title, entryIds, type, role]] for the cards that link to contents sections (toc-links.js tocLinkRows, linkedCards): the Table of contents' side of each link.
-  const linksKey = JSON.stringify(tocLinkRows(blocks, block => objectName(block, describeBlock(block))));
+  const linksKey = JSON.stringify(tocLinkRows(blocks, block => tocChipName(block, describeBlock(block))));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
