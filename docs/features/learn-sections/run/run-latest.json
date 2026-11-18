@@ -1,0 +1,334 @@
+{
+  "canvas": "canvas-0b43c413",
+  "url": "http://127.0.0.1:8878/apps/canvas-0b43c413",
+  "failure": "section 1.1 refused again after one Try again",
+  "events": [
+    {
+      "t": 0.1,
+      "what": "signed in (no sign-in)",
+      "email": "owner@rabbithole.test"
+    },
+    {
+      "t": 0.2,
+      "what": "canvas",
+      "canvas": "canvas-0b43c413",
+      "url": "http://127.0.0.1:8878/apps/canvas-0b43c413"
+    },
+    {
+      "t": 0.3,
+      "what": "indexed"
+    },
+    {
+      "t": 0.4,
+      "what": "catalogue ready"
+    },
+    {
+      "t": 3.1,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 3.1,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "t": 3.2,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 3.2,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "t": 3.3,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 3.4,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 3.7,
+      "what": "learn option",
+      "option": "GPT transformer architecture and attention"
+    },
+    {
+      "t": 3.8,
+      "what": "depth Standard (balanced)"
+    },
+    {
+      "t": 9.9,
+      "what": "console warning",
+      "text": "This page is using a Desmos API key that is only for non-commercial, personal projects. If you would like to use the Desmos API for commercial purposes (e.g., as part of a business, or in an app or product that you charge users for), contact us at partnerships@desmos.com."
+    },
+    {
+      "t": 13.4,
+      "what": "console warning",
+      "text": "Memory storage fallback enabled: contents and settings may not be saved"
+    },
+    {
+      "t": 14,
+      "what": "console warning",
+      "text": "Disabling terminals plugin because they are not available on the server"
+    },
+    {
+      "t": 25.5,
+      "what": "plan drafted"
+    },
+    {
+      "t": 25.7,
+      "what": "accept"
+    },
+    {
+      "t": 63.2,
+      "what": "1.1 refused: Try again"
+    },
+    {
+      "t": 63.5,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 63.5,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 78.7,
+      "what": "console error",
+      "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+      "t": 78.7,
+      "what": "FAILED",
+      "error": "section 1.1 refused again after one Try again"
+    }
+  ],
+  "cards": [],
+  "log": [
+    {
+      "t": 4.9,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": null,
+      "fellBack": false,
+      "status": 400,
+      "stopReason": null,
+      "outcome": "failed",
+      "error": "http_error",
+      "durationMs": 526
+    },
+    {
+      "t": 23.4,
+      "event": "interact_design_pinned",
+      "job": "ej_fd9188f2d3e24e0daa933982eb3dac35",
+      "fixture": "stepper-tree-motion-brief",
+      "note": "design stages answered by the fixture plan; no design model call"
+    },
+    {
+      "t": 23.4,
+      "event": "interact_alarm",
+      "ms": 129,
+      "active": true,
+      "jobs": [
+        [
+          "3dac35",
+          "queued",
+          "awaiting_approval",
+          129
+        ]
+      ],
+      "recoveryMs": 5000,
+      "armed": 1794974755219,
+      "now": 1794974750266
+    },
+    {
+      "t": 24.4,
+      "event": "interact_alarm",
+      "ms": 1,
+      "active": false,
+      "jobs": [],
+      "recoveryMs": null,
+      "armed": 1794974781297,
+      "now": 1794974751299
+    },
+    {
+      "t": 25.3,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": "claude-sonnet-5-5",
+      "fellBack": false,
+      "status": 200,
+      "stopReason": "tool_use",
+      "outcome": "completed",
+      "error": null,
+      "durationMs": 20546
+    },
+    {
+      "t": 25.3,
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 2,
+      "estimate_usd": [
+        0.069904,
+        0.06978
+      ],
+      "cap_usd": 0.1,
+      "ms": 21083,
+      "outcome": "ok",
+      "ops": 26
+    },
+    {
+      "t": 28.1,
+      "event": "learn_model",
+      "task": "learn_section",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "soyUshlcjtJZ",
+      "served": "claude-sonnet-5-5",
+      "fellBack": false,
+      "status": 200,
+      "stopReason": "tool_use",
+      "outcome": "completed",
+      "error": null,
+      "durationMs": 2009
+    },
+    {
+      "t": 38.6,
+      "event": "interact_design_pinned",
+      "job": "ej_e2ccf1dd36fa40409f45be7ac7454dfb",
+      "fixture": "stepper-vote-motion-balanced",
+      "note": "design stages answered by the fixture plan; no design model call"
+    },
+    {
+      "t": 38.6,
+      "event": "interact_alarm",
+      "ms": 70,
+      "active": true,
+      "jobs": [
+        [
+          "454dfb",
+          "queued",
+          "awaiting_approval",
+          70
+        ]
+      ],
+      "recoveryMs": 5000,
+      "armed": 1794974770469,
+      "now": 1794974765503
+    },
+    {
+      "t": 41.1,
+      "event": "interact_alarm",
+      "ms": 129,
+      "active": true,
+      "jobs": [
+        [
+          "454dfb",
+          "authoring",
+          "ready",
+          128
+        ]
+      ],
+      "recoveryMs": 5000,
+      "armed": 1794974772927,
+      "now": 1794974768033
+    },
+    {
+      "t": 42,
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 4,
+      "repairs": 1,
+      "usd": 0.080984,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    },
+    {
+      "t": 63.1,
+      "event": "learn_section_compose",
+      "section": "1.1",
+      "calls": 3,
+      "repairs": 2,
+      "usd": 0.05778,
+      "cap_usd": 0.1,
+      "outcome": "invalid",
+      "errors": [
+        "item i3: the request for explanation names `logits, _ = self(idx_cond)`, `logits[:, -1, :]`, which the anchored lines do not"
+      ],
+      "submitted": {
+        "items": [
+          {
+            "id": "i1",
+            "beatId": "b1",
+            "command": "explanation",
+            "request": "Explain in plain words that a GPT does one job: given the tokens so far, score every possible next token; text is that job repeated, each chosen token added to the input. Base it on the docstring of generate, which says it completes the sequence `max_new_tokens` times, feeding predictions back in.",
+            "why": "A definition and an argument anchored to a docstring are best read.",
+            "requirements": null
+          },
+          {
+            "id": "i2",
+            "beatId": "b2",
+            "command": "code",
+            "request": "Show a tiny example of encoding a prompt: encode a short string to a list of integer ids with a simple character-level encode, then wrap it as a tensor with [None, ...] to get shape (1, t). Print the ids and the shape for the prompt 'Hello'.",
+            "why": "Seeing real ids and the shape makes the batch-of-one idea concrete.",
+            "source": "example",
+            "requirements": null
+          },
+          {
+            "id": "i3",
+            "beatId": "b3",
+            "command": "explanation",
+            "request": "Walk through one generation step: `logits, _ = self(idx_cond)` gives scores of shape (batch, t, vocab); `logits[:, -1, :]` keeps only the last position because it predicts the next token; then dividing by temperature. Use a small worked example with 3 tokens in the sequence and a vocabulary of 5, showing which row is kept.",
+            "why": "A line-by-line mapping with a small shape example is a reading task.",
+            "requirements": null
+          },
+          {
+            "id": "i4",
+            "beatId": "b4",
+            "command": "notebook",
+            "content": "authored",
+            "request": "Numpy notebook: take 5 made-up logits [2.0, 1.0, 0.5, 0.0, -1.0]. Apply temperature (0.5, 1, 2), optional top-k of 2 by setting the rest to -inf, then softmax, and draw one sample by those probabilities with numpy. Print probabilities for each setting so the learner can change temperature and top-k and rerun.",
+            "why": "Trying the values by hand shows how temperature and top-k reshape the odds before drawing.",
+            "requirements": null
+          },
+          {
+            "id": "i5",
+            "beatId": "b5",
+            "command": "notebook",
+            "content": "authored",
+            "request": "Numpy notebook simulating the generate loop with a fake model that returns random scores over a vocabulary of 10. Start with ids [1,2,3], window size 4, loop 6 times: crop to the last 4 ids, pick next, concatenate onto the sequence. Print the full sequence and the cropped input each step. Mention the real window defaults to 1024.",
+            "why": "Running the loop shows growth and cropping step by step.",
+            "requirements": null
+          },
+          {
+            "id": "i6",
+            "beatId": "b6",
+            "command": "explanation",
+            "request": "Explain how the sampling script, per sample, calls the model's generate with the starting tensor, the number of new tokens, temperature and top-k to get ids, then decodes the first row back into text that is printed. End by saying the next section reads the settings that fix the model's size.",
+            "why": "A short reading closes the loop from ids back to text.",
+            "requirements": null
+          }
+        ]
+      }
+    }
+  ]
+}

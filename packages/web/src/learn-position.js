@@ -119,3 +119,18 @@ export function learnLayout({ cards, others = [], W = W_MAX, space = spacing() }
   }
   return { targets: lay(origin).targets, origin };
 }
+
+// A slot card the canvas has not measured 5 s after it was put down (learn.since, learnTag) is shown anyway at its assumed height, and settles when it is measured
+// (Reviewer 2026-11-17 20:30 §7.3): a card that cannot be measured is one the learner can at least see, never one that stays invisible. bounds: id -> box.
+// -> { late: ids to mark placed now, wait: ms until the next card is due, or null }
+export const LEARN_SHOW_MS = 5000;
+export function lateSlots(blocks, bounds, now = Date.now()) {
+  const late = [];
+  let wait = null;
+  for (const block of blocks || []) {
+    if (!block.learn?.slot || block.learn.placed || block.at || bounds?.[block.id] || !Number.isFinite(block.learn.since)) continue;
+    const due = block.learn.since + LEARN_SHOW_MS - now;
+    if (due <= 0) late.push(block.id); else wait = wait == null ? due : Math.min(wait, due);
+  }
+  return { late, wait };
+}

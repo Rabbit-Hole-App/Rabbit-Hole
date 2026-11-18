@@ -156,6 +156,7 @@ export const SENTENCES = {
   sectionSkip: 'Skip this section',
   sectionPlanning: 'Planning this section',
   sectionMaking: 'Making this section',
+  sectionCardLate: 'The card for this step did not arrive. Try again or skip this section.', // Reviewer 2026-11-17 20:30 §7.2: one item's card took more than 90 s
   sectionNext: 'Next section',
   sectionMake: 'Build this section', // Reviewer 2026-11-16 12:10: the row ships to users
 };

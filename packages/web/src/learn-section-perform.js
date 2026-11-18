@@ -14,13 +14,14 @@ import { insertCodeCards, repoCodeCard } from './code-card.js';
 import { newNotebookBlock } from './learn-notebook.js';
 
 const LINK_COLOR = '#2383e2'; // the code-explain satellites' connector colour (code-explain-insert.js)
-const frame = () => new Promise(resolve => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => resolve()) : setTimeout(resolve, 16)));
+// One animation frame or 50 ms, whichever comes first (Reviewer 20:30 §7.1): a hidden page pauses requestAnimationFrame, and every wait here counts frames.
+export const frame = () => new Promise(resolve => { setTimeout(resolve, 50); globalThis.requestAnimationFrame?.(() => resolve()); });
 // A card just inserted is measured after it renders; placing beside it waits for that, a few seconds at most.
 async function drawn(canvasApi, id, tries = 120) {
   for (let k = 0; id && k < tries; k += 1) { if (canvasApi.measured?.(id)) return id; await frame(); }
   return id && canvasApi.measured?.(id) ? id : null;
 }
-export const learnTag = (ctx, role, part = 0) => ({ sectionId: ctx.sectionId, itemId: ctx.itemId, role, slot: true, order: Number.isFinite(ctx.order) ? ctx.order : null,
+export const learnTag = (ctx, role, part = 0) => ({ sectionId: ctx.sectionId, itemId: ctx.itemId, role, slot: true, order: Number.isFinite(ctx.order) ? ctx.order : null, since: Date.now(), // since: when it was put down (§7.3)
   ...(part ? { part } : {}), ...(role === 'card' && ctx.afterItem ? { after: ctx.afterItem } : {}) });
 // The section's contents entry on a card (toc-links.js: block.tocLinks), written with the card so the item stays one undo step.
 const linkTo = (ctx, held = []) => (ctx.entry && !held.includes(ctx.entry) ? { tocLinks: [...held, ctx.entry] } : {});
@@ -150,14 +151,20 @@ export async function performItem({ canvasApi, slash, perform, item, ctx = {} })
   // The camera (spec 3): ctx.first (the first card of a Build this section press) is centred once; every later card is followed only while the one before it is on screen.
   let shown = ctx.first ? null : ctx.previous || null;
   const reveal = async id => { if (id && (await placed(canvasApi, id))) { canvasApi.learnReveal?.(id, shown); shown = id; } };
+  const stage = name => ctx.onStage?.(name); // how far this item got: lead, card, tagged, placed, follow (the timeout log, §7.2)
   const lead = await placeDoc(canvasApi, item?.lead, ctx, 'lead', ctx.previous || null);
   await reveal(lead);
+  stage('lead');
   const made = await makeCard({ canvasApi, slash, perform, ctx, beside: lead || ctx.previous || null });
+  stage('card');
   if (made.cardId) await tagCard(canvasApi, made.cardId, ctx, 'card', !held.has(made.cardId));
+  stage('tagged');
   await reveal(made.cardId);
+  stage('placed');
   if (ctx.after && made.cardId) await linkCards(canvasApi, ctx.after, made.cardId); // pairing: this item was made for the text of that earlier item
   const follow = await placeDoc(canvasApi, item?.follow, ctx, 'follow', made.last || made.cardId || lead || ctx.previous || null);
   await reveal(follow);
+  stage('follow');
   const { last, ...done } = made;
   return { ...done, last: follow || last || made.cardId || lead || ctx.previous || null };
 }
