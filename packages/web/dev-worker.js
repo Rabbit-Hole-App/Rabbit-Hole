@@ -80,6 +80,7 @@ import { analyticsRoute } from '../control-plane/src/publication-analytics.js';
 import { runCleanup } from '../control-plane/src/publication-analytics-purge.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { explanationSummaryRoute } from '../control-plane/src/explanation-summary.js';
+import { audioRoute, explanationAudioRoute } from '../control-plane/src/explanation-audio.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
 import { chatKeepFetch } from '../control-plane/src/chat-keep-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
@@ -382,6 +383,8 @@ const routes = {
     if (path === '/api/learn/artifact') return artifactFetch(req, env);
     // The collapsed Explanation card's summary: one small model call (explanation-summary.js), authorized like the artifact route.
     if (path === '/api/learn/explanation-summary') return explanationSummaryRoute(path, req, env);
+    // The card's spoken add-on (explanation-audio.js): its script right after the card is delivered, its voice on the first Play.
+    if (audioRoute(path)) return explanationAudioRoute(path, req, env);
     // The inline AI editor (docs/features/inline-ai-editor.md): JEV routing, the streamed note or edit, and its telemetry.
     if (path === '/api/learn/inline/route') return inlineRouteFetch(req, env);
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);
