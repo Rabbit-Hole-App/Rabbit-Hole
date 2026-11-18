@@ -20,18 +20,18 @@ import { spendTransport } from './learn-spend.js';
 import { CHAIN_ENDPOINTS, anthropicReply } from './explanation-fast-chain.js';
 import { chainSteps, resolveExplanationProfile } from './explanation-models.js';
 import { ELEVEN_MODEL, elevenSpendTransport, isPaidSpendReply } from './learn-paid-transport.js';
+import { priceUsage } from './pricing-registry.js';
 import { paidRefusal } from './learn-paid.js';
 import { NO_CAP, admitUsage, limitsFrom } from './learn-shared-ask.js';
 import { learnMedia } from './learn-storage.js';
 import { validDepth, DEFAULT_DEPTH } from './chat-depth.js';
-import { cardNumbers, scriptSystem, scriptUser, secondsEstimate, splitCard, stripUnsafe, wordCount } from './explanation-audio-script.js';
+import { cardDataNumbers, cardNumbers, reaskMessage, scriptSystem, scriptUser, secondsEstimate, splitCard, stripUnsafe, verdict, wordCount } from './explanation-audio-script.js';
 
 export const SCRIPT_PATH = '/api/learn/explanation-audio/script', VOICE_PATH = '/api/learn/explanation-audio/voice';
 export const audioRoute = path => path === SCRIPT_PATH || path === VOICE_PATH;
 export const SCRIPT_PROFILE = 'google-low'; // the production written /explain profile: Gemini Flash Lite, Fireworks as the fallback
 export const SCRIPT_MAX_TOKENS = 3000; // two strings of up to about 400 words (about 550 tokens each) and the model's own reasoning
 export const SCRIPT_DEADLINE_MS = 25000; // off the card's critical path, so longer than the chain's 8 and 12 s
-export const MIN_WORDS = 40; // a script left shorter than this after the number check is not an add-on worth voicing
 export const VOICE_ID = 'cgSgspJ2msm6clMCkdW9'; // Jessica (female), chosen in AUD-2
 export const VOICE_SETTINGS = Object.freeze({ stability: 0.4, similarity_boost: 0.75, speed: 1.1 }); // a little more energetic and faster (owner); Flash v2.5 takes no style or speaker boost
 export const VOICE_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_64`;
@@ -52,34 +52,63 @@ export function scriptRequest(step, input) {
     response_format: { type: 'json_schema', json_schema: { name: 'audio_script', strict: true, schema: SCHEMA } } };
 }
 
-// -> { script, transcript, seconds_estimate, scriptBy, removed } or { script: null, outcome }. input: { depth, question, title, prose, labels, allowed } already checked.
+// One model call on one step. -> { content } (the model's JSON text) or { outcome }.
+async function askStep(env, step, request, org, identity) {
+  const { url } = CHAIN_ENDPOINTS[step.provider];
+  let seen = null;
+  try {
+    const response = await spendTransport(env, request, step.model, org, async () => {
+      const abort = new AbortController(), timer = setTimeout(() => abort.abort(), SCRIPT_DEADLINE_MS);
+      try {
+        const sent = await fetch(url, { method: 'POST', signal: abort.signal, headers: { Authorization: `Bearer ${env[step.credentialRef]}`, 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
+        if (!sent.ok) return sent;
+        const reply = await sent.json();
+        seen = reply?.choices?.[0]?.message?.content;
+        const { model, usage } = anthropicReply(reply, 'script');
+        return Response.json({ model, usage });
+      } finally { clearTimeout(timer); }
+    }, { provider: step.provider, category: 'explanation_script', ...identity });
+    if (!response.ok) return { outcome: (await response.clone().json().catch(() => null))?.code || `http_${response.status}` }; // our own admission refusals carry a code
+    return { content: seen };
+  } catch (error) { return { outcome: error?.name === 'AbortError' ? 'timeout' : 'error' }; }
+}
+// The model's JSON -> { rawWords, kept } with the number check applied, or null when it is unreadable or empty.
+function readScript(content, input) {
+  let parsed = null;
+  try { parsed = JSON.parse(content); } catch { /* an unreadable answer is a failed step */ }
+  if (typeof parsed?.script !== 'string' || !parsed.script.trim()) return null;
+  return { rawWords: wordCount(parsed.script), kept: stripUnsafe(parsed.script, typeof parsed.transcript === 'string' ? parsed.transcript : '', input.allowed) };
+}
+// The voice's cost in AI units, from the registry row (rounded up): what the first Play's confirmation shows. null when it cannot be priced.
+export const voiceCredits = script => { const price = priceUsage({ provider: 'elevenlabs', model: ELEVEN_MODEL, quantities: { input_chars: script.length } }); return price ? Math.ceil(price.micros / 10_000) : null; };
+
+// -> { script, transcript, seconds_estimate, scriptBy, removed, check } or { script: null, outcome, check }. input: { depth, question, title, prose, labels, allowed, cardData } already checked.
+// The kept script must pass the floor and speak one of the card's numbers (verdict). One call to a step that fails them is followed by ONE bounded re-ask to the same model with the first
+// answer and a user turn naming the failed rule(s) (owner 2026-11-17, superseding "no model retry in v1"); still failing after it, the script is an error, never short audio.
 export async function writeScript(env, input, org, identity = {}) {
   const steps = chainSteps(resolveExplanationProfile(SCRIPT_PROFILE).roles.author).filter(step => env[step.credentialRef]);
-  let outcome = 'no_credential';
+  let outcome = 'no_credential', reasked = false;
   for (const step of steps) {
-    const { url } = CHAIN_ENDPOINTS[step.provider], request = scriptRequest(step, input);
-    let seen = null;
-    try {
-      const response = await spendTransport(env, request, step.model, org, async () => {
-        const abort = new AbortController(), timer = setTimeout(() => abort.abort(), SCRIPT_DEADLINE_MS);
-        try {
-          const sent = await fetch(url, { method: 'POST', signal: abort.signal, headers: { Authorization: `Bearer ${env[step.credentialRef]}`, 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
-          if (!sent.ok) return sent;
-          const reply = await sent.json();
-          seen = reply?.choices?.[0]?.message?.content;
-          const { model, usage } = anthropicReply(reply, 'script');
-          return Response.json({ model, usage });
-        } finally { clearTimeout(timer); }
-      }, { provider: step.provider, category: 'explanation_script', ...identity });
-      if (!response.ok) { outcome = (await response.clone().json().catch(() => null))?.code || `http_${response.status}`; continue; } // our own admission refusals carry a code
-      let parsed = null;
-      try { parsed = JSON.parse(seen); } catch { /* an unreadable answer is a failed step */ }
-      if (typeof parsed?.script !== 'string' || !parsed.script.trim()) { outcome = 'empty'; continue; }
-      const kept = stripUnsafe(parsed.script, typeof parsed.transcript === 'string' ? parsed.transcript : '', input.allowed);
-      if (wordCount(kept.script) < MIN_WORDS) return { script: null, outcome: 'too_short', removed: kept.removed, scriptBy: { provider: step.provider, model: step.model } }; // no retry in v1
-      // The window shows the script's own words when the model sent no transcript, or one the check emptied.
-      return { script: kept.script, transcript: kept.transcript || kept.script, seconds_estimate: secondsEstimate(kept.script), scriptBy: { provider: step.provider, model: step.model }, removed: kept.removed };
-    } catch (error) { outcome = error?.name === 'AbortError' ? 'timeout' : 'error'; }
+    const request = scriptRequest(step, input), by = { provider: step.provider, model: step.model };
+    const first = await askStep(env, step, request, org, identity);
+    if (first.outcome) { outcome = first.outcome; continue; }
+    let read = readScript(first.content, input);
+    if (!read) { outcome = 'empty'; continue; }
+    const before = { firstRawWords: read.rawWords, firstStrippedWords: wordCount(read.kept.script) };
+    let check = verdict(read.kept.script, input.depth, input.cardData);
+    const firstFailed = check.failed;
+    if (check.failed.length && !reasked) {
+      reasked = true;
+      const again = await askStep(env, step, { ...request, messages: [...request.messages, { role: 'assistant', content: first.content }, { role: 'user', content: reaskMessage(check, input.depth, input.cardData) }] }, org, identity);
+      if (again.outcome) { outcome = again.outcome; continue; }
+      read = readScript(again.content, input);
+      if (!read) { outcome = 'empty'; continue; }
+      check = verdict(read.kept.script, input.depth, input.cardData);
+    }
+    const info = { reasked, ...before, ...(reasked ? { firstFailed } : {}), rawWords: read.rawWords, strippedWords: check.words, failed: check.failed };
+    if (check.failed.length) return { script: null, outcome: check.failed.includes('floor') ? 'too_short' : 'no_card_number', removed: read.kept.removed, scriptBy: by, check: info };
+    // The window shows the script's own words when the model sent no transcript, or one the check emptied.
+    return { script: read.kept.script, transcript: read.kept.transcript || read.kept.script, seconds_estimate: secondsEstimate(read.kept.script), scriptBy: by, removed: read.kept.removed, check: info };
   }
   return { script: null, outcome };
 }
@@ -167,16 +196,16 @@ async function scriptRoute(env, body, access) {
   if (!card.prose) return bad();
   // The check and the set are one synchronous step, so two requests for one card share one call (and one cap count).
   if (!pending.has(key)) {
-    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question) };
+    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, card.visualText, body.title, body.question) };
     pending.set(key, (async () => (await limited(env, 'explanation_script', 'EXPLANATION_SCRIPT', access)) || writeScript(env, input, access.org, { userId: access.user_id || access.email }))().finally(() => pending.delete(key)));
   }
   const done = await pending.get(key);
   if (done instanceof Response) return done.clone();
-  if (!done.script) { log(done.outcome, { removed: done.removed ?? 0 }); return json({ script: null, outcome: done.outcome, reason: 'The audio script could not be made. Try again.' }); }
+  if (!done.script) { log(done.outcome, { removed: done.removed ?? 0, ...(done.check ?? {}) }); return json({ script: null, outcome: done.outcome, reason: 'The audio script could not be made. Try again.', ...(done.check ? { check: done.check } : {}) }); }
   if (memo.size >= MEMO_MAX) memo.delete(memo.keys().next().value);
-  const answer = { script: done.script, transcript: done.transcript, seconds_estimate: done.seconds_estimate, scriptBy: done.scriptBy };
+  const answer = { script: done.script, transcript: done.transcript, seconds_estimate: done.seconds_estimate, scriptBy: done.scriptBy, voice_estimate_credits: voiceCredits(done.script), check: done.check };
   memo.set(key, answer);
-  log('ok', { provider: done.scriptBy.provider, words: wordCount(done.script), removed: done.removed });
+  log('ok', { provider: done.scriptBy.provider, words: wordCount(done.script), removed: done.removed, ...done.check });
   return json(answer);
 }
 
