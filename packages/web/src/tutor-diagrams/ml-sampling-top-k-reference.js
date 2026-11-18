@@ -18,7 +18,7 @@ const overview = groupedBars('Keeping only the likeliest tokens',
 const standard = groupedBars(`Full softmax and top-${k} sampling`,
   `The kept tokens originally hold ${keptMassPercent}% of the probability. Divide each kept probability by that total.`);
 const deep = groupedBars(`Top-${k} renormalizes the kept mass`,
-  `For a kept token, $p_i^{\\prime}=p_i/\\sum_{j\\in K}p_j$. For “${tokens[0]}”, $${fullPercent[0]}\\%/${keptMassPercent}\\%=${filteredPercent[0]}\\%$.`);
+  `For a kept token, $p_i'=p_i/\\sum_{j\\in K}p_j$. For "${tokens[0]}", ${fullPercent[0]}% / ${keptMassPercent}% = ${filteredPercent[0]}%.`);
 
 export const samplingTopKReference = {
   id: 'ml-sampling-top-k',
