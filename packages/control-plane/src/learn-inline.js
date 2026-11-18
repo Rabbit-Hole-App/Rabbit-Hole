@@ -36,6 +36,8 @@ import { diagramOf, validateDiagram } from '../../web/src/inline-diagram.js';
 import { commandInput } from '../../web/src/inline-ai-route.js';
 import { artifactContext } from '../../web/src/inline-ai-transport.js';
 import { generateArtifact } from './learn-artifact.js';
+import { archiveExplanation } from './learn-storage.js';
+import { DEPTH_COMMANDS } from './chat-depth.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { inlineRepositoryEvidence } from './inline-evidence.js';
 
@@ -194,7 +196,7 @@ export function checkDiagram(input) {
 
 // A card or media capability decided to proceed: its /command's own handler (learn-artifact.js), with no insert. /photos (route `image`)
 // and /motion make nothing here (a photo search and a paid proposal the editor stages without a model).
-async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures = [], imageSource = null }) {
+async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures = [], imageSource = null, app = null, board = null }) {
   if (route === 'image' || route === 'motion') return json({ error: 'This output is staged in the editor, not generated here.', code: 'invalid' }, 400);
   const command = commandOf(decided);
   const input = commandInput({ route, via: command ? 'command' : 'jev', args: command?.args || '' }, { prompt: decided.prompt, context });
@@ -203,12 +205,18 @@ async function inlineCard({ env, allowed, decided, route, context, revise, reque
   const selection = first ? { kind: 'canvas_object', id: String(first.id), title: String(first.text || first.kind || first.type).slice(0, 200) } : null;
   let docs;
   try { docs = await documents(env, allowed, null, { query: String(decided.prompt ?? '') }); } catch (error) { return json({ error: `Context documents: ${error.message}`, code: 'error' }, 502); }
+  // GEN-1 G6: an explanation card made from Ctrl+K gets its own requestSeed and the archive record the typed route writes (learn-artifact.js artifactFetch), so it varies and is reproducible; the other routes are unchanged.
+  const requestSeed = crypto.randomUUID(), trace = { requestSeed }, seeded = DEPTH_COMMANDS.includes(route);
+  const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: allowed.user_id ?? null, app, board,
+    request: { command: route, args: input.args, selection, hasContext: Boolean(context), depth: null, sourceRefId: null }, source: 'inline', requestId, ...trace, outcome, ...extra });
   try {
     const sources = [...docs, ...pictures];
-    const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(sources.length ? { documents: sources } : {}), ...(imageSource ? { imageSource } : {}) });
+    const out = await artifact(env, { ...(seeded ? { requestSeed } : {}), command: route, args: input.args, selection, context: artifactContext(context, revise), ...(sources.length ? { documents: sources } : {}), ...(imageSource ? { imageSource } : {}) }, seeded ? { trace } : undefined);
+    if (seeded) await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });
     log({ stage: 'generate', request_id: requestId, mode: 'explain', route, outcome: out.result, total_ms: Date.now() - started });
     return json(out);
   } catch (error) {
+    if (seeded) await archive('error', { error: String(error?.message || error).slice(0, 300), code: error?.code ?? null });
     log({ stage: 'generate', request_id: requestId, mode: 'explain', route, outcome: 'error', total_ms: Date.now() - started });
     return json({ error: error.message || 'Generation failed.', code: 'error' }, 502);
   }
@@ -304,7 +312,7 @@ export async function inlineGenerateFetch(req, env, { authorize = authorizedBoar
   }
   const imageExtraction = !edit && !!imageSource && (equation || shapes);
   if (imageExtraction) tool = imageExtractionTool(tool);
-  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures, imageSource });
+  if (!edit && route !== 'note' && !shapes && !equation) return inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures, imageSource, app: typeof body.app === 'string' ? body.app : null, board: typeof body.board === 'string' ? body.board : null });
   // Signed selected IDs identify saved cards; caller-supplied measurements/URLs are never trusted.
   // This deterministic inspection adds no model or executor request.
   if (!edit && !creation && !sourceComputation) {
