@@ -53,6 +53,7 @@ import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 import { mleStepsReference } from './ml-mle-steps-reference.js';
 import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
 import { references as gen1Waterfall } from './gen-1-waterfall-references.js';
+import { references as gen1TAccount } from './gen-1-t-account-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -103,6 +104,7 @@ export const diagramReferences = Object.freeze([
   ...estimationEvaluationReferences,
   samplingTopKReference,
   ...gen1Waterfall,
+  ...gen1TAccount,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];
