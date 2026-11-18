@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "hash": "108d69fc772acf2a23af96503b2e8f226c3fcc4041f74b442e61052d23e51329",
+  "revision": 1,
+  "plan": {
+    "schemaVersion": 1,
+    "depth": "balanced",
+    "title": "Let the trees vote",
+    "story": "A learner watches a small forest vote on one held-out row, J. Each tree predicts a class in turn, and the bar of that class grows from its old count to the new one while a callout names the tree that just voted. When the last vote is in, the class with the most votes is the forest's answer, so the vote is the evidence to read off the bars.",
+    "cardDescription": "Three trees each predict the class of row J. Every vote lifts the bar of the class it chose, and the class with the most votes is the forest's answer.",
+    "learningGoal": "A forest answers with the class that most of its trees vote for.",
+    "instructions": "Press play, or drag the time to watch each vote arrive.",
+    "supportingVisuals": [],
+    "scene": {
+      "description": "Family stepper-states. A bar chart with one bar per class that grows as each tree votes, and a callout that names the tree that just voted.\nA 640 px scene with a 6 s timeline and no inputs.",
+      "runtime": {
+        "renderer": "program",
+        "schemaVersion": 1,
+        "sdkVersion": "sdk-8",
+        "programTuple": {
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "rendererVersion": "renderer-5",
+          "runtimeVersion": "quickjs-release-sync@0.32.0",
+          "runtimePolicyVersion": "policy-1",
+          "permissionProfileVersion": "perm-1",
+          "fingerprints": {
+            "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+            "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+            "renderer": "renderer-5"
+          }
+        },
+        "requiredHelpers": [],
+        "requiredCapabilities": [
+          "time_playback",
+          "figures"
+        ],
+        "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+      },
+      "entities": [
+        {
+          "id": "chart",
+          "label": "Vote bars",
+          "purpose": "One bar per class, growing as each vote arrives."
+        },
+        {
+          "id": "callout",
+          "label": "Vote readout",
+          "purpose": "The tree that just voted and, at the end, the winning class."
+        }
+      ],
+      "quantities": [],
+      "observations": [
+        {
+          "id": "winner",
+          "text": "The class with the most votes wins.",
+          "quantityIds": [],
+          "readoutIds": []
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "first",
+          "label": "First vote in",
+          "time": {
+            "op": "literal",
+            "value": 1.5
+          },
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "First vote in"
+        },
+        {
+          "id": "second",
+          "label": "Second vote in",
+          "time": {
+            "op": "literal",
+            "value": 3.5
+          },
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "Second vote in"
+        },
+        {
+          "id": "last",
+          "label": "All votes in",
+          "time": {
+            "op": "literal",
+            "value": 5.8
+          },
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "All votes in"
+        }
+      ],
+      "readoutIds": [],
+      "template": "stepper-vote-motion",
+      "slots": {},
+      "words": {},
+      "data": {
+        "title": "Votes for row J",
+        "unit": "votes",
+        "classes": [
+          "Class 0",
+          "Class 1"
+        ],
+        "votes": [
+          {
+            "tree": "Tree 1",
+            "rule": "x ≤ 4",
+            "class": 0
+          },
+          {
+            "tree": "Tree 2",
+            "rule": "y ≤ 4",
+            "class": 1
+          },
+          {
+            "tree": "Tree 3",
+            "rule": "x ≤ 5",
+            "class": 1
+          }
+        ],
+        "duration": 6
+      }
+    },
+    "mode": {
+      "kind": "time",
+      "initialState": "No votes yet, time 0 s, paused.",
+      "fixedValues": {},
+      "adjustableIds": [],
+      "timeline": {
+        "label": "Time",
+        "unit": "s",
+        "start": 0,
+        "end": {
+          "op": "literal",
+          "value": 6
+        },
+        "displayOffset": {
+          "op": "literal",
+          "value": 0
+        },
+        "markers": [],
+        "initialTime": 0,
+        "initialPlayback": "paused",
+        "playbackRate": 1
+      },
+      "onInputChange": "reset_pause"
+    },
+    "controls": [
+      {
+        "id": "play",
+        "label": "Play",
+        "purpose": "Run the card and replay it.",
+        "selectionReason": "Time carries the change, and the one supported transport drives every linked view.",
+        "nativeControlId": "program.playback",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "chart"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "playback",
+        "binding": {
+          "kind": "timeline"
+        },
+        "labels": {
+          "paused": "Play",
+          "playing": "Pause",
+          "ended": "Replay"
+        }
+      },
+      {
+        "id": "scrub",
+        "label": "Time",
+        "purpose": "Stop on any moment of the card.",
+        "selectionReason": "A scrubber lets the learner stop on the moment being compared.",
+        "nativeControlId": "program.scrubber",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "chart"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "scrubber",
+        "binding": {
+          "kind": "timeline"
+        },
+        "unit": "s",
+        "step": 0.01
+      }
+    ],
+    "assumptions": [
+      "The three trees and their votes are the lesson forest's for row J."
+    ],
+    "limitations": [
+      "Three trees; a real forest has many more."
+    ],
+    "claims": []
+  },
+  "open": [],
+  "carried": [],
+  "fit": {
+    "styleVersion": "card-description-v1:estimate"
+  },
+  "review": {
+    "verdict": "pass",
+    "scores": [
+      5,
+      5
+    ],
+    "reviews": 1,
+    "revisions": 1
+  }
+}
