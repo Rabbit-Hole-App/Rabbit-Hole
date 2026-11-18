@@ -25,3 +25,10 @@ The clone deploy must pass before the launcher: run `bash C:/s/spec/release-queu
 
 ## Owner command (a launcher; it sets MVP_ALLOWED_SHA, runs the check, the release, then deletes MVP_ALLOWED_SHA)
 C:\s\spec\release-queue\release-158-audio-play.cmd   (only after the preview passes and the Reviewer has read this report)
+
+## Preview, update 2026-11-18 about 1:00 PM PT (lead)
+The preview deploy to rabbit-hole-web-dev-r158-int failed five times before it passed. From the wrangler logs, two different causes, neither a code defect of this release:
+- code 10067 "No more than 500 Durable Object namespaces are allowed" (one attempt, 20:43 UTC): the Cloudflare account is at its Durable Object namespace limit. Fix applied: deleted the three preview clones of already-released releases (rabbit-hole-web-dev-r154-int, -r155-int, -r157-int; throwaway, released). Other sessions' clones were not touched.
+- code 10021 "Script startup exceeded CPU time limit" (attempts at 20:47 UTC and later): the same refusal that stopped 151 twice and the first 157 preview. 158 removes code relative to 157 and 157 reached production, so this looks like noise near the limit, not growth; it is NOT measured (START-1: the owner's startup-profile number for 157/158 is still missing; no lazy-loading until it exists).
+- The earlier "fetch failed" attempts (the agent's) were network.
+Attempt 6, after the clone deletions, passed: MVP preview of 2aeca536 at https://rabbit-hole-web-dev-r158-int.tryrabbithole.workers.dev (build 5cbba33a0c7c, MVP record 08bbc6d7e5b9cd0d); the clone returns 200. Main was still 1cffe2ef8; pins and launcher carry 2aeca536d19346699535c3cb599b01651c6c8d2e. The production launcher deploys to the production workers and can still hit code 10021.
