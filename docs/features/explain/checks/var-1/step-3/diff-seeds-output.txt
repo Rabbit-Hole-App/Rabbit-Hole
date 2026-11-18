@@ -1,0 +1,20 @@
+
+== fixture-mean-baseline  (seeds request-aaaa / request-bbbb)  lint: passes
+unchanged paths: 21 of 27 (structure, axes, labels, caption, titles)
+changed paths: 6
+  varied input   series.0.points.0.y                4                          -> 5
+  varied input   series.0.points.2.y                7                          -> 1
+  varied input   series.0.points.3.y                4                          -> 3
+  varied input   series.0.points.4.y                1                          -> 6
+  token label    annotations.0.label                Mean prediction of 4.8     -> Mean prediction of 4.6
+  derived number annotations.0.value                4.8                        -> 4.6
+unexpected changes (a path that is neither input, derived nor token label): 0
+
+== fixture-box  (seeds request-aaaa / request-bbbb)  lint: passes
+unchanged paths: 9 of 13 (structure, axes, labels, caption, titles)
+changed paths: 4
+  varied input   boxes.0.median                     10                         -> 9
+  varied input   boxes.0.q3                         12                         -> 13
+  derived number boxes.0.fences.lower               -1                         -> -2
+  derived number boxes.0.fences.upper               20                         -> 22
+unexpected changes (a path that is neither input, derived nor token label): 0
