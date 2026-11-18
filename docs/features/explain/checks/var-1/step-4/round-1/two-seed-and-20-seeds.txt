@@ -1,0 +1,83 @@
+
+== log-feature-scale  lint: passes  (4 varied paths; derived fields: 0)
+seeds request-0 / request-1: unchanged paths 17 of 20 (structure, axes, titles, labels, captions); changed 3; unexpected (changed but not a varied path) 0
+  path                            written   seedA     seedB
+  series.0.points.0.y             0.5       0.6       0.9
+  series.0.points.1.y             1.5       1.6       1.6  (same in both seeds)
+  series.0.points.2.y             2.5       2.3       2.6
+  series.0.points.3.y             3.5       3.5       3.7
+20 seeds x 1 spec(s): parse + draw at 320/408/720 + pattern: all pass; 20 distinct draws in 20 seeds
+
+== learning-curves  lint: passes  (8 varied paths; derived fields: 0)
+seeds request-0 / request-1: unchanged paths 24 of 30 (structure, axes, titles, labels, captions); changed 6; unexpected (changed but not a varied path) 0
+  path                            written   seedA     seedB
+  series.0.points.0.y             0.05      0.06      0.05
+  series.0.points.1.y             0.1       0.1       0.1  (same in both seeds)
+  series.0.points.2.y             0.14      0.12      0.13
+  series.0.points.3.y             0.16      0.17      0.17  (same in both seeds)
+  series.1.points.0.y             0.45      0.48      0.44
+  series.1.points.1.y             0.32      0.32      0.33
+  series.1.points.2.y             0.24      0.26      0.25
+  series.1.points.3.y             0.2       0.2       0.21
+20 seeds x 1 spec(s): parse + draw at 320/408/720 + pattern: all pass; 20 distinct draws in 20 seeds
+
+== search-grid-and-random  lint: passes  (6 varied paths; derived fields: 0)
+seeds request-0 / request-1: unchanged paths 39 of 44 (structure, axes, titles, labels, captions); changed 5; unexpected (changed but not a varied path) 0
+  path                            written   seedA     seedB
+  series.1.points.0.x             0.03      0.03      0.02
+  series.1.points.1.x             0.16      0.26      0.1
+  series.1.points.2.x             0.7       0.7       1
+  series.1.points.3.x             2.6       3.2       2.4
+  series.1.points.4.x             8         9         9  (same in both seeds)
+  series.1.points.5.x             35        55        30
+20 seeds x 1 spec(s): parse + draw at 320/408/720 + pattern: all pass; 20 distinct draws in 20 seeds
+
+== probability-calibration  lint: passes  (5 varied paths; derived fields: 0)
+seeds request-0 / request-1: unchanged paths 25 of 28 (structure, axes, titles, labels, captions); changed 3; unexpected (changed but not a varied path) 0
+  path                            written   seedA     seedB
+  series.0.points.0.y             0.05      0.06      0.06  (same in both seeds)
+  series.0.points.1.y             0.2       0.17      0.14
+  series.0.points.2.y             0.4       0.4       0.36
+  series.0.points.3.y             0.6       0.55      0.55  (same in both seeds)
+  series.0.points.4.y             0.8       0.83      0.7
+20 seeds x 1 spec(s): parse + draw at 320/408/720 + pattern: all pass; 20 distinct draws in 20 seeds
+
+== acf-pacf-stems  lint: passes  (6 varied paths; derived fields: 0)
+seeds request-0 / request-1: unchanged paths 26 of 31 (structure, axes, titles, labels, captions); changed 5; unexpected (changed but not a varied path) 0
+  path                            written   seedA     seedB
+  series.0.points.1.y             0.7       0.6       0.8
+  series.0.points.2.y             0.45      0.4       0.5
+  series.0.points.3.y             0.2       0.1       0.2
+  series.0.points.4.y             -0.1      -0.1      -0.1  (same in both seeds)
+  series.0.points.5.y             -0.25     -0.4      -0.3
+  series.0.points.6.y             -0.15     -0.15     -0.05
+20 seeds x 1 spec(s): parse + draw at 320/408/720 + pattern: all pass; 19 distinct draws in 20 seeds
+
+== ml-stable-diffusion-encoder-evaluation  lint: passes  (16 varied paths; derived fields: 0)
+seeds request-0 / request-1: unchanged paths 17 of 31 (structure, axes, titles, labels, captions); changed 14; unexpected (changed but not a varied path) 0
+  path                            written   seedA     seedB
+  series.0.points.0.x             0.28      0.26      0.28
+  series.0.points.0.y             0.49      0.51      0.45
+  series.0.points.1.x             0.46      0.42      0.47
+  series.0.points.1.y             0.31      0.33      0.31
+  series.0.points.2.x             0.56      0.57      0.55
+  series.0.points.2.y             0.3       0.28      0.28  (same in both seeds)
+  series.0.points.3.x             0.64      0.6       0.66
+  series.0.points.3.y             0.34      0.32      0.35
+  series.1.points.0.x             0.36      0.4       0.36
+  series.1.points.0.y             0.43      0.43      0.44
+  series.1.points.1.x             0.55      0.56      0.55
+  series.1.points.1.y             0.24      0.26      0.23
+  series.1.points.2.x             0.66      0.67      0.69
+  series.1.points.2.y             0.2       0.18      0.22
+  series.1.points.3.x             0.74      0.75      0.75  (same in both seeds)
+  series.1.points.3.y             0.26      0.24      0.28
+20 seeds x 3 spec(s): parse + draw at 320/408/720 + pattern: all pass; 20 distinct draws in 20 seeds; B error >= A error at step 1 in 0 of 20 seeds (the text claims no winner)
+
+SUMMARY
+{"id":"log-feature-scale","lint":0,"paths":4,"changed":3,"unexpected":0,"failures":0,"distinct":20}
+{"id":"learning-curves","lint":0,"paths":8,"changed":6,"unexpected":0,"failures":0,"distinct":20}
+{"id":"search-grid-and-random","lint":0,"paths":6,"changed":5,"unexpected":0,"failures":0,"distinct":20}
+{"id":"probability-calibration","lint":0,"paths":5,"changed":3,"unexpected":0,"failures":0,"distinct":20}
+{"id":"acf-pacf-stems","lint":0,"paths":6,"changed":5,"unexpected":0,"failures":0,"distinct":19}
+{"id":"ml-stable-diffusion-encoder-evaluation","lint":0,"paths":16,"changed":14,"unexpected":0,"failures":0,"distinct":20}
