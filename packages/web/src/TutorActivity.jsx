@@ -109,9 +109,12 @@ export function NextActivity({ chat, board, goal, view, onClose }) {
 // gets a new one. A failed save keeps the answer here and says so; nothing is cleared.
 // shownActivity(state): the activity this card shows, else null. The entry's Continue (use-learn-coaching.jsx) shows the
 // saved prompt only when this card does not, so a prompt is never above the composer twice.
+const activeOf = state => state?.activities?.find(a => a.activityId === state.activeActivityId && a.goalId === state.activeGoalId) || null;
+// A Learn-plan goal (Learn from it: checkpoint.learn; owner 2026-11-17 "a clean canvas always", Reviewer 19:55 §5): the goal is kept, its practice card is never shown.
+export const learnPlanActive = state => !!activeOf(state)?.checkpoint?.learn;
 export const shownActivity = state => {
-  const activity = state?.activities?.find(a => a.activityId === state.activeActivityId && a.goalId === state.activeGoalId) || null;
-  return activity && ['in_progress', 'awaiting_feedback', 'feedback_ready'].includes(activity.status) ? activity : null;
+  const activity = activeOf(state);
+  return activity && !activity.checkpoint?.learn && ['in_progress', 'awaiting_feedback', 'feedback_ready'].includes(activity.status) ? activity : null;
 };
 // A codebase activity (owner brief 2026-10-21): the title and the teaching question, then its sources (Start here, More relevant
 // code, Source details: TutorCodebase.jsx CodebaseSources), then the answer's citations as removable pills (tutor-citations.js)

@@ -51,7 +51,8 @@ export async function startGoal({ chat, board, repository, goalId, text, learn =
   try {
     const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text, ...(learn ? { learn } : {}) });
     if (out.route === 'not_found') return { note: `I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.` };
-    for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
+    // A Learn-plan goal (learn set) keeps its goal record and places no code cards: the canvas stays clean until Build this section (owner 2026-11-17, Reviewer 19:55 §5).
+    if (!learn) for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
       window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));
     }
     await chat.coaching.reload?.();
