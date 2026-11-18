@@ -122,6 +122,7 @@ const results = []; let spent = 0, stopped = null;
 for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
   await setDepth(promptDepth ?? depth);
   const tag = String(id), known = new Set((await jobsOf()).map(j => j.id)), plans0 = await page.locator('[data-generation-proposal] [data-proposal-generate]').count();
+  await page.evaluate(() => document.querySelectorAll('[data-program-card]').forEach(e => e.setAttribute('data-seen', '1'))); // brief 32: the new card is the one not marked yet (several cards on one canvas)
   await box.click(); await box.fill(`/interactive ${prompt}`); await page.waitForTimeout(200);
   const tSent = Date.now(); await box.press('Enter'); log(tag, 'sent');
   const r = { id: tag, prompt, expect: expect ?? 'fit', depth: promptDepth ?? depth, jobId: null, stage: null, stopReason: null, pick: null, fill: null, build: null, promptToCardMs: null, usd: null, files: {} };
@@ -143,7 +144,7 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
   if (!r.jobId) { r.jobId = job?.id ?? null; }
   Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s'), network: end ? undefined : net.splice(0) });
   if (end?.stage === 'ready') {
-    const card = page.locator('[data-program-card]').last();
+    const fresh = page.locator('[data-program-card]:not([data-seen])'), card = await fresh.count() ? fresh.last() : page.locator('[data-program-card]').last();
     try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`;
       if (STEPS > 1) {
         const slider = card.locator('input[type="range"]').first(), states = [];

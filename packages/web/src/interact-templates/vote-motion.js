@@ -19,7 +19,7 @@ export function source(ctx) {
   const vote = ctx.geometry?.vote;
   if (!vote) { const e = new Error('vote-motion requires its validated votes'); e.code = 'part_binding'; e.path = 'geometry.vote'; throw e; }
   return `const V=${JSON.stringify(vote)};
-const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
+const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
 const PERIOD=V.duration/V.votes.length,LEAD=0.3,GROW=1.0,ease=u=>u*u*(3-2*u);
 export function evaluate({time}){
   const t=Math.min(Math.max(time||0,0),V.duration),grown=V.votes.map((_,k)=>ease(Math.min(1,Math.max(0,(t-k*PERIOD-LEAD)/GROW))));

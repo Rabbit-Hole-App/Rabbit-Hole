@@ -30,7 +30,7 @@ export function source(ctx) {
   const tree = ctx.geometry?.tree;
   if (!tree) { const e = new Error('tree-motion requires its validated tree'); e.code = 'part_binding'; e.path = 'geometry.tree'; throw e; }
   return `const T=${JSON.stringify(tree)};
-const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
+const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
 const G=T.geometry,MOVE=1.1,HOLD=1.2,EDGE=(a,b)=>G.edges[a+':'+b];
 const route=inputs=>{const path=[T.root],says=[];let at=T.root;while(T.tests[at]){const t=T.tests[at],v=inputs[t.input],yes=v<=t.max;says.push({node:at,text:v+' ≤ '+t.max+' is '+(yes?'true':'false')+': take '+(yes?'Yes':'No')+'.'});at=yes?t.yes:t.no;path.push(at);}return {path,says};};
 const along=(points,f)=>{let total=0;const lens=[];for(let i=1;i<points.length;i++){const l=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);lens.push(l);total+=l;}let d=f*total;for(let i=0;i<lens.length;i++){if(d<=lens[i]||i===lens.length-1){const u=lens[i]?Math.min(1,d/lens[i]):1;return [points[i][0]+u*(points[i+1][0]-points[i][0]),points[i][1]+u*(points[i+1][1]-points[i][1])];}d-=lens[i];}return points[0];};
