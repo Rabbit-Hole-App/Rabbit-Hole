@@ -744,10 +744,10 @@ function correctedTimeline(raw) {
 //  a) every column is an object holding an `items` or `cells` array, all of one length: the author wrote the table column by column. It is transposed: each column object becomes a row (its heading,
 //     label, text or title -> the row heading; its items -> the row's cells); the former rows' headings become the column headings when there are as many as items; with no such labels nothing is coerced (never "Item 1" to "Item n": release 126).
 //     A heatmap needs numeric cells (numbers or numeric strings), and its range is derived as the minimum and maximum of them. Former rows that carry cells of their own: not transposed.
-//  b) column objects with no array: each becomes its text (heading, then label, text, title).
+//  b) column objects with no array: each becomes its text (heading, then label, text, title, name: GEM-S1).
 //  c) a plain matrix (no teaching layout, no emphasis, no states) with ids on its rows loses the ids, which nothing refers to.
 // -> { raw, counts } | { left: reason } (a column object was seen and could not be coerced: logged, left to the repair) | null (nothing of this kind).
-const columnText = column => [column?.heading, column?.label, column?.text, column?.title].find(value => typeof value === 'string' && value.trim());
+const columnText = column => [column?.heading, column?.label, column?.text, column?.title, column?.name].find(value => typeof value === 'string' && value.trim());
 const isObject = value => value && typeof value === 'object' && !Array.isArray(value);
 const numericCell = value => (typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'string' && value.trim() && Number.isFinite(Number(value)) ? Number(value) : value === null ? null : undefined);
 function coercedMatrixShape(raw) {
