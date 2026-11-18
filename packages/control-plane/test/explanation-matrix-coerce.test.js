@@ -134,3 +134,22 @@ test('idempotent and inert: a second pass changes nothing, and a valid matrix or
   for (const spec of [ok, cycle]) { const md = body(spec); assert.equal(correctDiagrams(md).md, md); assert.equal(markdownVisuals(md).diagrams.length, 1); }
   assert.equal(events().length, 5, 'no new event');
 });
+
+// GEM-S2 (Reviewer, after release 154): the shape Gemini sends, columns { heading, items } and no rows, cannot become a valid matrix or heatmap without inventing something. Both schemas need a row label for
+// every row (matrix rows[].heading, heatmap rows[].label, spec.js and ml-statistical-spec.js) and the object carries none; its headings are the columns' labels and its items their entries, nothing else.
+// So Q0 leaves it for the repair, as before. Two tempting fixes are pinned as NOT done: copying the column headings down as row labels because the table is square (an attention heatmap is, a confusion
+// matrix labelled Actual / Predicted is not), and rebuilding it as a comparison (the schema fits it, but SIMP-1 decided a matrix is never turned into a comparison).
+test('GEM-S2: columns { heading, items } with no rows stay left even when the table is square; no row label is copied from the column headings and no comparison is built', t => {
+  const events = capture(t);
+  const square = { version: 1, diagram: { kind: 'heatmap', title: 'Causal mask', range: { min: 0, max: 1 }, columns: [{ heading: 'the', items: ['1', '0', '0'] }, { heading: 'cat', items: ['0.4', '0.6', '0'] }, { heading: 'sat', items: ['0.2', '0.3', '0.5'] }] } };
+  const confusion = matrix([{ heading: 'Predicted positive', items: ['TP 3', 'FP 1'] }, { heading: 'Predicted negative', items: ['FN 1', 'TN 3'] }]);
+  for (const spec of [square, confusion, CARD_27, CARD_28, GINI_03]) {
+    assert.ok(!valid(spec));
+    const md = body(spec), out = correctDiagrams(md);
+    assert.equal(out.md, md, 'left as the author wrote it');
+    assert.ok(!out.corrections?.matrix_coerced && !out.corrections?.comparison);
+  }
+  assert.deepEqual(events().map(e => [e.diagram, e.action, /no labels for the items/.test(e.reason)]), [['heatmap', 'left', true], ['matrix', 'left', true], ['heatmap', 'left', true], ['matrix', 'left', true], ['matrix', 'left', true]]);
+  // what the objects do fit is the comparison schema (heading, items), which Q0 does not build: it is a different kind from the planned one.
+  assert.ok(valid({ version: 1, diagram: { kind: 'comparison', title: 'T', columns: CARD_28.diagram.columns } }));
+});
