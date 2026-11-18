@@ -2,7 +2,7 @@
 // the pruning and the copy semantics, and that a link survives a save and a reload without ever reaching the server's canvas-reference index.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_TOC_LINKS, ancestorsOf, holdsTocLink, linkedCards, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
+import { MAX_TOC_LINKS, ancestorsOf, holdsTocLink, linkedCards, resolvedLinks, sectionChoices, tocChipName, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { persistBoard, lightBlocks } from './canvas-persist.js';
 import { outlineFrom, removeTocEntry } from './learn-outline-model.js';
 import { boardRefs } from '../../control-plane/src/canvas-refs.js';
@@ -117,4 +117,11 @@ test('the links are saved with the card: a save and a reload keep block.tocLinks
   const many = boardRefs({ blocks: [{ id: 'c2', tocLinks: Array.from({ length: 50 }, (_, i) => 'e' + i) }] });
   assert.deepEqual(many, [], 'fifty section links are not fifty canvas references and cannot trip too_many_refs');
   assert.deepEqual(outlineFrom([{ id: 'h1', type: 'heading', text: 'Intro', level: 1 }]).map(entry => entry.id), ['h1'], 'the entry ids a link names are the outline entry ids');
+});
+
+test('a titled notebook chip shows its title, not its file name; an untitled one keeps the described name (owner 2026-11-18)', () => {
+  const described = { kind: 'Notebook', title: 'embeddings.ipynb' };
+  assert.equal(tocChipName({ type: 'notebook', title: 'Turn tokens into vectors', ipynb_path: 'embeddings.ipynb' }, described), 'Turn tokens into vectors');
+  assert.equal(tocChipName({ type: 'notebook', ipynb_path: 'embeddings.ipynb' }, described), 'embeddings.ipynb');
+  assert.equal(tocChipName({ type: 'doc', title: 'Why ids, not letters' }, { kind: 'Document' }), 'Why ids, not letters');
 });

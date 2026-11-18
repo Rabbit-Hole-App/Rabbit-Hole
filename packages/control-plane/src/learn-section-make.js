@@ -17,6 +17,7 @@ import { readDepth } from './learn-user-settings.js';
 import { SECTION_TOOLS } from './chat-tools.js';
 import { newTurn, sectionTurn } from './learn-section-research.js';
 import { PROSE_PATH, anchorExcerpt } from './learn-section-brief.js';
+import { cutTitle } from '../../web/src/card-rename.js';
 import { learnPlanOf, readSection, readSections, saveProgress, updateSection, withStatus } from './learn-section-store.js';
 import { recordedRun } from './learn-section-record.js';
 
@@ -60,14 +61,33 @@ export function checkFlow(input) {
   return { lead, follow, errors, leadDefault };
 }
 
-export const submitItemTool = module => ({
+// Section card titles (owner 2026-11-18 11:50, section-card-titles-spec.md): the card, its lead and its follow each get a title. A title is never a reason to refuse:
+// missing, over 60 characters or naming a path falls back with no repair turn. Code keeps its label; video, Wikipedia, paper and web page keep the source's title.
+export const TITLED = new Set(['explanation', 'notebook', 'document', 'diagram', 'graph']);
+const TITLE_CHARS = 60, TITLE_RULE = 'A title in plain words, at most 6 words, that says what this card is about. No file names.';
+const titleField = what => ({ type: 'string', description: `${what}: ${TITLE_RULE}` });
+const firstSentence = text => String(text || '').trim().split(/(?<=[.!?])\s/)[0];
+const goodTitle = value => { const title = str(value); return title && title.length <= TITLE_CHARS && !PROSE_PATH.test(title) ? title : ''; };
+// -> { title?, leadTitle, followTitle? }
+export function itemTitles(input, { item, beat, section, lead, follow }) {
+  const titles = { leadTitle: goodTitle(input?.leadTitle) || cutTitle(firstSentence(lead), TITLE_CHARS) };
+  if (follow) titles.followTitle = goodTitle(input?.followTitle) || cutTitle(firstSentence(follow), TITLE_CHARS);
+  if (item.id === NOTES) titles.title = `Notes: ${section.title}`;
+  else if (TITLED.has(item.command)) titles.title = goodTitle(input?.title) || cutTitle(beat?.idea || item.request, TITLE_CHARS);
+  return titles;
+}
+
+export const submitItemTool = (module, command = null) => ({
   name: 'submit_item',
-  description: 'Return this item: the lead before the card, the follow after it, and the fields of its tool.',
+  description: 'Return this item: the lead before the card, the follow after it, their titles, and the fields of its tool.',
   input_schema: {
     type: 'object', additionalProperties: false, required: ['lead', ...(module.required || [])],
     properties: {
       lead: { type: 'string', description: `One to three short paragraphs before the card: what to look at and why it follows from the previous beat. At most ${LEAD_WORDS} words.` },
       follow: { type: 'string', description: `After the card, when it needs one: what they just saw and the hand-over to the next beat. At most ${FOLLOW_WORDS} words.` },
+      leadTitle: titleField('The lead\'s title'),
+      followTitle: titleField('The follow\'s title, when there is a follow'),
+      ...(TITLED.has(command) ? { title: titleField('The card\'s title') } : {}),
       ...(module.fields || {}),
     },
   },
@@ -151,22 +171,22 @@ export async function runMake(env, { actor, snapshot, repo }, body, { callModel 
   const user = makeMessage({ item, beat, section, brief, taught, notCover, depth, earlier, anchorsText: anchorExcerpt(snapshot, beat?.anchors || []), recorded });
   const cap = capUsd ?? (item.command === 'notebook' ? NOTEBOOK_CAP_USD : MAKE_CAP_USD);
   const out = await sectionTurn(env, {
-    composed, user, submit: submitItemTool(module), research: module.tools || [], ctx, capUsd: cap, callModel, maxResearchSteps: 2, maxRepairs: 2, // as the brief: room under the cap for the submit (BLOCKERS.md); two repairs (Reviewer 20:30 §8)
+    composed, user, submit: submitItemTool(module, item.command), research: module.tools || [], ctx, capUsd: cap, callModel, maxResearchSteps: 2, maxRepairs: 2, // as the brief: room under the cap for the submit (BLOCKERS.md); two repairs (Reviewer 20:30 §8)
     validate: async input => {
       const flow = checkFlow(input);
       let checked = null;
       try { checked = await module.validate(input, ctx); } catch (error) { checked = { error: `the item could not be checked: ${String(error?.message || error).slice(0, 200)}` }; }
       const errors = [...flow.errors, ...(checked?.error ? [checked.error] : checked?.perform ? [] : ['the tool returned nothing to make'])];
-      return errors.length ? { errors } : { value: { lead: flow.lead, follow: flow.follow, leadDefault: flow.leadDefault, perform: checked.perform, record: checked.record || null } };
+      return errors.length ? { errors } : { value: { lead: flow.lead, follow: flow.follow, leadDefault: flow.leadDefault, perform: checked.perform, record: checked.record || null, titles: itemTitles(input, { item, beat, section, lead: flow.lead, follow: flow.follow }) } };
     },
   });
   const usd = Number(out.usage.usd.toFixed(6));
   try { console.log(JSON.stringify({ event: 'learn_section_make', section: section.id, item: item.id, command: item.command, calls: out.usage.calls, repairs: out.repairs ?? 0, usd, cap_usd: cap, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8) }) })); } catch { /* never worth a failed answer */ }
   if (out.failed === 'unavailable') return json({ error: 'learn_section_unavailable' }, 502);
   if (!out.ok) return skip(skipNote(item.command), { reason: out.failed, errors: out.errors.slice(0, 6), usd, calls: out.usage.calls });
-  const { lead, follow, leadDefault, perform, record: extra } = out.ok;
-  await record({ itemId: item.id, command: item.command, lead, follow, ...(leadDefault ? { leadDefault } : {}), perform, record: extra, usd, calls: out.usage.calls, model: LEARN_TASKS.learn_section.model, layers: composed.layers, searches: ctx.turn.searches });
-  return json({ item: { itemId: item.id, command: item.command, lead, follow }, perform, next });
+  const { lead, follow, leadDefault, perform, record: extra, titles } = out.ok;
+  await record({ itemId: item.id, command: item.command, lead, follow, ...titles, ...(leadDefault ? { leadDefault } : {}), perform, record: extra, usd, calls: out.usage.calls, model: LEARN_TASKS.learn_section.model, layers: composed.layers, searches: ctx.turn.searches });
+  return json({ item: { itemId: item.id, command: item.command, lead, follow, ...titles }, perform, next });
 }
 
 const ID = v => typeof v === 'string' && v.length >= 1 && v.length <= 200;
