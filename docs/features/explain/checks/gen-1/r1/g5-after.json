@@ -1,0 +1,4777 @@
+{
+ "limit": 362,
+ "withInteractions": {
+  "single": [
+   {
+    "kinds": [
+     "flow"
+    ],
+    "gemini": 28,
+    "nonGemini": 28,
+    "geminiKinds": [
+     "flow"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison"
+    ],
+    "gemini": 22,
+    "nonGemini": 22,
+    "geminiKinds": [
+     "comparison"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence"
+    ],
+    "gemini": 26,
+    "nonGemini": 26,
+    "geminiKinds": [
+     "sequence"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle"
+    ],
+    "gemini": 20,
+    "nonGemini": 20,
+    "geminiKinds": [
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship"
+    ],
+    "gemini": 27,
+    "nonGemini": 27,
+    "geminiKinds": [
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers"
+    ],
+    "gemini": 22,
+    "nonGemini": 22,
+    "geminiKinds": [
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline"
+    ],
+    "gemini": 48,
+    "nonGemini": 48,
+    "geminiKinds": [
+     "timeline"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot"
+    ],
+    "gemini": 104,
+    "nonGemini": 104,
+    "geminiKinds": [
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart"
+    ],
+    "gemini": 28,
+    "nonGemini": 28,
+    "geminiKinds": [
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account"
+    ],
+    "gemini": 27,
+    "nonGemini": 27,
+    "geminiKinds": [
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall"
+    ],
+    "gemini": 24,
+    "nonGemini": 24,
+    "geminiKinds": [
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "matrix"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument"
+    ],
+    "gemini": 27,
+    "nonGemini": 27,
+    "geminiKinds": [
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure"
+    ],
+    "gemini": 29,
+    "nonGemini": 29,
+    "geminiKinds": [
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sample-set"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "histogram"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "box-plot"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tensor"
+    ],
+    "gemini": 26,
+    "nonGemini": 26,
+    "geminiKinds": [
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "token-links"
+    ],
+    "gemini": 25,
+    "nonGemini": 25,
+    "geminiKinds": [
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "block-stack"
+    ],
+    "gemini": 58,
+    "nonGemini": 58,
+    "geminiKinds": [
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   }
+  ],
+  "pairs": [
+   {
+    "kinds": [
+     "flow",
+     "comparison"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "flow",
+     "comparison"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "tree"
+    ],
+    "gemini": 53,
+    "nonGemini": 53,
+    "geminiKinds": [
+     "flow",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "sequence"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "flow",
+     "sequence"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "cycle"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "flow",
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "relationship"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "flow",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "transformation"
+    ],
+    "gemini": 44,
+    "nonGemini": 44,
+    "geminiKinds": [
+     "flow",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "layers"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "flow",
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "timeline"
+    ],
+    "gemini": 60,
+    "nonGemini": 60,
+    "geminiKinds": [
+     "flow",
+     "timeline"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "coordinate-plot"
+    ],
+    "gemini": 116,
+    "nonGemini": 116,
+    "geminiKinds": [
+     "flow",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "bar-chart"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "flow",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "number-line"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "flow",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "t-account"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "flow",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "waterfall"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "flow",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "matrix"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "flow",
+     "matrix"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "argument"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "flow",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "figure"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "flow",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "heatmap"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "flow",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "sample-set"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "flow",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "histogram"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "flow",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "box-plot"
+    ],
+    "gemini": 49,
+    "nonGemini": 49,
+    "geminiKinds": [
+     "flow",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "tensor"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "flow",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "token-links"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "flow",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "flow",
+     "block-stack"
+    ],
+    "gemini": 70,
+    "nonGemini": 70,
+    "geminiKinds": [
+     "flow",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "tree"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "comparison",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "sequence"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "comparison",
+     "sequence"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "cycle"
+    ],
+    "gemini": 26,
+    "nonGemini": 26,
+    "geminiKinds": [
+     "comparison",
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "relationship"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "comparison",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "transformation"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "comparison",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "layers"
+    ],
+    "gemini": 28,
+    "nonGemini": 28,
+    "geminiKinds": [
+     "comparison",
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "timeline"
+    ],
+    "gemini": 54,
+    "nonGemini": 54,
+    "geminiKinds": [
+     "comparison",
+     "timeline"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "coordinate-plot"
+    ],
+    "gemini": 110,
+    "nonGemini": 110,
+    "geminiKinds": [
+     "comparison",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "bar-chart"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "comparison",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "number-line"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "comparison",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "t-account"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "comparison",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "waterfall"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "comparison",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "matrix"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "comparison",
+     "matrix"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "argument"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "comparison",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "figure"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "comparison",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "heatmap"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "comparison",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "sample-set"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "comparison",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "histogram"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "comparison",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "box-plot"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "comparison",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "tensor"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "comparison",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "token-links"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "comparison",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "comparison",
+     "block-stack"
+    ],
+    "gemini": 64,
+    "nonGemini": 64,
+    "geminiKinds": [
+     "comparison",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "sequence"
+    ],
+    "gemini": 51,
+    "nonGemini": 51,
+    "geminiKinds": [
+     "sequence",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "cycle"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "cycle",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "relationship"
+    ],
+    "gemini": 52,
+    "nonGemini": 52,
+    "geminiKinds": [
+     "tree",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "transformation"
+    ],
+    "gemini": 57,
+    "nonGemini": 57,
+    "geminiKinds": [
+     "tree",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "layers"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "layers",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "timeline"
+    ],
+    "gemini": 73,
+    "nonGemini": 73,
+    "geminiKinds": [
+     "timeline",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "coordinate-plot"
+    ],
+    "gemini": 129,
+    "nonGemini": 129,
+    "geminiKinds": [
+     "tree",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "bar-chart"
+    ],
+    "gemini": 53,
+    "nonGemini": 53,
+    "geminiKinds": [
+     "tree",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "number-line"
+    ],
+    "gemini": 55,
+    "nonGemini": 55,
+    "geminiKinds": [
+     "tree",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "t-account"
+    ],
+    "gemini": 52,
+    "nonGemini": 52,
+    "geminiKinds": [
+     "tree",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "waterfall"
+    ],
+    "gemini": 49,
+    "nonGemini": 49,
+    "geminiKinds": [
+     "tree",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "matrix"
+    ],
+    "gemini": 60,
+    "nonGemini": 60,
+    "geminiKinds": [
+     "matrix",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "argument"
+    ],
+    "gemini": 52,
+    "nonGemini": 52,
+    "geminiKinds": [
+     "tree",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "figure"
+    ],
+    "gemini": 54,
+    "nonGemini": 54,
+    "geminiKinds": [
+     "figure",
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "heatmap"
+    ],
+    "gemini": 56,
+    "nonGemini": 56,
+    "geminiKinds": [
+     "tree",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "sample-set"
+    ],
+    "gemini": 56,
+    "nonGemini": 56,
+    "geminiKinds": [
+     "tree",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "histogram"
+    ],
+    "gemini": 55,
+    "nonGemini": 55,
+    "geminiKinds": [
+     "tree",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "box-plot"
+    ],
+    "gemini": 62,
+    "nonGemini": 62,
+    "geminiKinds": [
+     "tree",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "tensor"
+    ],
+    "gemini": 51,
+    "nonGemini": 51,
+    "geminiKinds": [
+     "tree",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "token-links"
+    ],
+    "gemini": 50,
+    "nonGemini": 50,
+    "geminiKinds": [
+     "tree",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tree",
+     "block-stack"
+    ],
+    "gemini": 83,
+    "nonGemini": 83,
+    "geminiKinds": [
+     "tree",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "cycle"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "sequence",
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "relationship"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "sequence",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "transformation"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "sequence",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "layers"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "sequence",
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "timeline"
+    ],
+    "gemini": 58,
+    "nonGemini": 58,
+    "geminiKinds": [
+     "timeline",
+     "sequence"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "coordinate-plot"
+    ],
+    "gemini": 114,
+    "nonGemini": 114,
+    "geminiKinds": [
+     "sequence",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "bar-chart"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "sequence",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "number-line"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "sequence",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "t-account"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "sequence",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "waterfall"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "sequence",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "matrix"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "sequence",
+     "matrix"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "argument"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "sequence",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "figure"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "sequence",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "heatmap"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "sequence",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "sample-set"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "sequence",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "histogram"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "sequence",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "box-plot"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "sequence",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "tensor"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "sequence",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "token-links"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "sequence",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sequence",
+     "block-stack"
+    ],
+    "gemini": 68,
+    "nonGemini": 68,
+    "geminiKinds": [
+     "sequence",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "relationship"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "cycle",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "transformation"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "cycle",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "layers"
+    ],
+    "gemini": 26,
+    "nonGemini": 26,
+    "geminiKinds": [
+     "layers",
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "timeline"
+    ],
+    "gemini": 52,
+    "nonGemini": 52,
+    "geminiKinds": [
+     "timeline",
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "coordinate-plot"
+    ],
+    "gemini": 108,
+    "nonGemini": 108,
+    "geminiKinds": [
+     "cycle",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "bar-chart"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "cycle",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "number-line"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "cycle",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "t-account"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "cycle",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "waterfall"
+    ],
+    "gemini": 28,
+    "nonGemini": 28,
+    "geminiKinds": [
+     "cycle",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "matrix"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "matrix",
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "argument"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "cycle",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "figure"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "cycle",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "heatmap"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "cycle",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "sample-set"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "cycle",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "histogram"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "cycle",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "box-plot"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "cycle",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "tensor"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "cycle",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "token-links"
+    ],
+    "gemini": 29,
+    "nonGemini": 29,
+    "geminiKinds": [
+     "cycle",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "cycle",
+     "block-stack"
+    ],
+    "gemini": 62,
+    "nonGemini": 62,
+    "geminiKinds": [
+     "cycle",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "transformation"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "relationship",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "layers"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "layers",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "timeline"
+    ],
+    "gemini": 59,
+    "nonGemini": 59,
+    "geminiKinds": [
+     "timeline",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "coordinate-plot"
+    ],
+    "gemini": 115,
+    "nonGemini": 115,
+    "geminiKinds": [
+     "relationship",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "bar-chart"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "relationship",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "number-line"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "relationship",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "t-account"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "relationship",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "waterfall"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "relationship",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "matrix"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "matrix",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "argument"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "relationship",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "figure"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "figure",
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "heatmap"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "relationship",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "sample-set"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "relationship",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "histogram"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "relationship",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "box-plot"
+    ],
+    "gemini": 48,
+    "nonGemini": 48,
+    "geminiKinds": [
+     "relationship",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "tensor"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "relationship",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "token-links"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "relationship",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "relationship",
+     "block-stack"
+    ],
+    "gemini": 69,
+    "nonGemini": 69,
+    "geminiKinds": [
+     "relationship",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "layers"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "layers",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "timeline"
+    ],
+    "gemini": 64,
+    "nonGemini": 64,
+    "geminiKinds": [
+     "timeline",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "coordinate-plot"
+    ],
+    "gemini": 120,
+    "nonGemini": 120,
+    "geminiKinds": [
+     "transformation",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "bar-chart"
+    ],
+    "gemini": 44,
+    "nonGemini": 44,
+    "geminiKinds": [
+     "transformation",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "number-line"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "transformation",
+     "number-line"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "t-account"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "transformation",
+     "t-account"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "waterfall"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "transformation",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "matrix"
+    ],
+    "gemini": 51,
+    "nonGemini": 51,
+    "geminiKinds": [
+     "matrix",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "argument"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "transformation",
+     "argument"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "figure"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "figure",
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "heatmap"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "transformation",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "sample-set"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "transformation",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "histogram"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "transformation",
+     "histogram"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "box-plot"
+    ],
+    "gemini": 53,
+    "nonGemini": 53,
+    "geminiKinds": [
+     "transformation",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "tensor"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "transformation",
+     "tensor"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "token-links"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "transformation",
+     "token-links"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "transformation",
+     "block-stack"
+    ],
+    "gemini": 74,
+    "nonGemini": 74,
+    "geminiKinds": [
+     "transformation",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "timeline"
+    ],
+    "gemini": 54,
+    "nonGemini": 54,
+    "geminiKinds": [
+     "timeline",
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "coordinate-plot"
+    ],
+    "gemini": 110,
+    "nonGemini": 110,
+    "geminiKinds": [
+     "layers",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "bar-chart"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "layers",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "number-line"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "layers",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "t-account"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "layers",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "waterfall"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "layers",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "matrix"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "matrix",
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "argument"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "layers",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "figure"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "layers",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "heatmap"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "layers",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "sample-set"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "layers",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "histogram"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "layers",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "box-plot"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "layers",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "tensor"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "layers",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "token-links"
+    ],
+    "gemini": 31,
+    "nonGemini": 31,
+    "geminiKinds": [
+     "layers",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers",
+     "block-stack"
+    ],
+    "gemini": 64,
+    "nonGemini": 64,
+    "geminiKinds": [
+     "layers",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "coordinate-plot"
+    ],
+    "gemini": 136,
+    "nonGemini": 136,
+    "geminiKinds": [
+     "timeline",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "bar-chart"
+    ],
+    "gemini": 60,
+    "nonGemini": 60,
+    "geminiKinds": [
+     "timeline",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "number-line"
+    ],
+    "gemini": 62,
+    "nonGemini": 62,
+    "geminiKinds": [
+     "timeline",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "t-account"
+    ],
+    "gemini": 59,
+    "nonGemini": 59,
+    "geminiKinds": [
+     "timeline",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "waterfall"
+    ],
+    "gemini": 56,
+    "nonGemini": 56,
+    "geminiKinds": [
+     "timeline",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "matrix"
+    ],
+    "gemini": 67,
+    "nonGemini": 67,
+    "geminiKinds": [
+     "timeline",
+     "matrix"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "argument"
+    ],
+    "gemini": 59,
+    "nonGemini": 59,
+    "geminiKinds": [
+     "timeline",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "figure"
+    ],
+    "gemini": 61,
+    "nonGemini": 61,
+    "geminiKinds": [
+     "timeline",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "heatmap"
+    ],
+    "gemini": 63,
+    "nonGemini": 63,
+    "geminiKinds": [
+     "timeline",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "sample-set"
+    ],
+    "gemini": 63,
+    "nonGemini": 63,
+    "geminiKinds": [
+     "timeline",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "histogram"
+    ],
+    "gemini": 62,
+    "nonGemini": 62,
+    "geminiKinds": [
+     "timeline",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "box-plot"
+    ],
+    "gemini": 69,
+    "nonGemini": 69,
+    "geminiKinds": [
+     "timeline",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "tensor"
+    ],
+    "gemini": 58,
+    "nonGemini": 58,
+    "geminiKinds": [
+     "timeline",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "token-links"
+    ],
+    "gemini": 57,
+    "nonGemini": 57,
+    "geminiKinds": [
+     "timeline",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "timeline",
+     "block-stack"
+    ],
+    "gemini": 90,
+    "nonGemini": 90,
+    "geminiKinds": [
+     "timeline",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "bar-chart"
+    ],
+    "gemini": 116,
+    "nonGemini": 116,
+    "geminiKinds": [
+     "coordinate-plot",
+     "bar-chart"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "number-line"
+    ],
+    "gemini": 118,
+    "nonGemini": 118,
+    "geminiKinds": [
+     "number-line",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "t-account"
+    ],
+    "gemini": 115,
+    "nonGemini": 115,
+    "geminiKinds": [
+     "coordinate-plot",
+     "t-account"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "waterfall"
+    ],
+    "gemini": 112,
+    "nonGemini": 112,
+    "geminiKinds": [
+     "coordinate-plot",
+     "waterfall"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "matrix"
+    ],
+    "gemini": 123,
+    "nonGemini": 123,
+    "geminiKinds": [
+     "matrix",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "argument"
+    ],
+    "gemini": 115,
+    "nonGemini": 115,
+    "geminiKinds": [
+     "argument",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "figure"
+    ],
+    "gemini": 117,
+    "nonGemini": 117,
+    "geminiKinds": [
+     "figure",
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "heatmap"
+    ],
+    "gemini": 119,
+    "nonGemini": 119,
+    "geminiKinds": [
+     "coordinate-plot",
+     "heatmap"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "sample-set"
+    ],
+    "gemini": 119,
+    "nonGemini": 119,
+    "geminiKinds": [
+     "coordinate-plot",
+     "sample-set"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "histogram"
+    ],
+    "gemini": 118,
+    "nonGemini": 118,
+    "geminiKinds": [
+     "coordinate-plot",
+     "histogram"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "box-plot"
+    ],
+    "gemini": 125,
+    "nonGemini": 125,
+    "geminiKinds": [
+     "coordinate-plot",
+     "box-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "tensor"
+    ],
+    "gemini": 114,
+    "nonGemini": 114,
+    "geminiKinds": [
+     "coordinate-plot",
+     "tensor"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "token-links"
+    ],
+    "gemini": 113,
+    "nonGemini": 113,
+    "geminiKinds": [
+     "coordinate-plot",
+     "token-links"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "coordinate-plot",
+     "block-stack"
+    ],
+    "gemini": 146,
+    "nonGemini": 146,
+    "geminiKinds": [
+     "coordinate-plot",
+     "block-stack"
+    ],
+    "derive": true,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "number-line"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "number-line",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "t-account"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "bar-chart",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "waterfall"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "bar-chart",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "matrix"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "matrix",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "argument"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "argument",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "figure"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "figure",
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "heatmap"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "bar-chart",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "sample-set"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "bar-chart",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "histogram"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "bar-chart",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "box-plot"
+    ],
+    "gemini": 49,
+    "nonGemini": 49,
+    "geminiKinds": [
+     "bar-chart",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "tensor"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "bar-chart",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "token-links"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "bar-chart",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "bar-chart",
+     "block-stack"
+    ],
+    "gemini": 70,
+    "nonGemini": 70,
+    "geminiKinds": [
+     "bar-chart",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "t-account"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "number-line",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "waterfall"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "number-line",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "matrix"
+    ],
+    "gemini": 49,
+    "nonGemini": 49,
+    "geminiKinds": [
+     "matrix",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "argument"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "argument",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "figure"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "figure",
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "heatmap"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "number-line",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "sample-set"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "number-line",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "histogram"
+    ],
+    "gemini": 44,
+    "nonGemini": 44,
+    "geminiKinds": [
+     "number-line",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "box-plot"
+    ],
+    "gemini": 51,
+    "nonGemini": 51,
+    "geminiKinds": [
+     "number-line",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "tensor"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "number-line",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "token-links"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "number-line",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "number-line",
+     "block-stack"
+    ],
+    "gemini": 72,
+    "nonGemini": 72,
+    "geminiKinds": [
+     "number-line",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "waterfall"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "t-account",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "matrix"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "matrix",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "argument"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "argument",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "figure"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "figure",
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "heatmap"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "t-account",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "sample-set"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "t-account",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "histogram"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "t-account",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "box-plot"
+    ],
+    "gemini": 48,
+    "nonGemini": 48,
+    "geminiKinds": [
+     "t-account",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "tensor"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "t-account",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "token-links"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "t-account",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "t-account",
+     "block-stack"
+    ],
+    "gemini": 69,
+    "nonGemini": 69,
+    "geminiKinds": [
+     "t-account",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "matrix"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "matrix",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "argument"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "argument",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "figure"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "figure",
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "heatmap"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "waterfall",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "sample-set"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "waterfall",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "histogram"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "waterfall",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "box-plot"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "waterfall",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "tensor"
+    ],
+    "gemini": 34,
+    "nonGemini": 34,
+    "geminiKinds": [
+     "waterfall",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "token-links"
+    ],
+    "gemini": 33,
+    "nonGemini": 33,
+    "geminiKinds": [
+     "waterfall",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "waterfall",
+     "block-stack"
+    ],
+    "gemini": 66,
+    "nonGemini": 66,
+    "geminiKinds": [
+     "waterfall",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "argument"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "matrix",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "figure"
+    ],
+    "gemini": 48,
+    "nonGemini": 48,
+    "geminiKinds": [
+     "matrix",
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "heatmap"
+    ],
+    "gemini": 50,
+    "nonGemini": 50,
+    "geminiKinds": [
+     "matrix",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "sample-set"
+    ],
+    "gemini": 50,
+    "nonGemini": 50,
+    "geminiKinds": [
+     "matrix",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "histogram"
+    ],
+    "gemini": 49,
+    "nonGemini": 49,
+    "geminiKinds": [
+     "matrix",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "box-plot"
+    ],
+    "gemini": 56,
+    "nonGemini": 56,
+    "geminiKinds": [
+     "matrix",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "tensor"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "matrix",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "token-links"
+    ],
+    "gemini": 44,
+    "nonGemini": 44,
+    "geminiKinds": [
+     "matrix",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "matrix",
+     "block-stack"
+    ],
+    "gemini": 77,
+    "nonGemini": 77,
+    "geminiKinds": [
+     "matrix",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "figure"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "figure",
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "heatmap"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "argument",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "sample-set"
+    ],
+    "gemini": 42,
+    "nonGemini": 42,
+    "geminiKinds": [
+     "argument",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "histogram"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "argument",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "box-plot"
+    ],
+    "gemini": 48,
+    "nonGemini": 48,
+    "geminiKinds": [
+     "argument",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "tensor"
+    ],
+    "gemini": 37,
+    "nonGemini": 37,
+    "geminiKinds": [
+     "argument",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "token-links"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "argument",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "argument",
+     "block-stack"
+    ],
+    "gemini": 69,
+    "nonGemini": 69,
+    "geminiKinds": [
+     "argument",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "heatmap"
+    ],
+    "gemini": 44,
+    "nonGemini": 44,
+    "geminiKinds": [
+     "figure",
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "sample-set"
+    ],
+    "gemini": 44,
+    "nonGemini": 44,
+    "geminiKinds": [
+     "figure",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "histogram"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "figure",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "box-plot"
+    ],
+    "gemini": 50,
+    "nonGemini": 50,
+    "geminiKinds": [
+     "figure",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "tensor"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "figure",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "token-links"
+    ],
+    "gemini": 38,
+    "nonGemini": 38,
+    "geminiKinds": [
+     "figure",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "figure",
+     "block-stack"
+    ],
+    "gemini": 71,
+    "nonGemini": 71,
+    "geminiKinds": [
+     "figure",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap",
+     "sample-set"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "heatmap",
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap",
+     "histogram"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "heatmap",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap",
+     "box-plot"
+    ],
+    "gemini": 52,
+    "nonGemini": 52,
+    "geminiKinds": [
+     "heatmap",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap",
+     "tensor"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "heatmap",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap",
+     "token-links"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "heatmap",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "heatmap",
+     "block-stack"
+    ],
+    "gemini": 73,
+    "nonGemini": 73,
+    "geminiKinds": [
+     "heatmap",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sample-set",
+     "histogram"
+    ],
+    "gemini": 45,
+    "nonGemini": 45,
+    "geminiKinds": [
+     "sample-set",
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sample-set",
+     "box-plot"
+    ],
+    "gemini": 52,
+    "nonGemini": 52,
+    "geminiKinds": [
+     "sample-set",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sample-set",
+     "tensor"
+    ],
+    "gemini": 41,
+    "nonGemini": 41,
+    "geminiKinds": [
+     "sample-set",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sample-set",
+     "token-links"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "sample-set",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "sample-set",
+     "block-stack"
+    ],
+    "gemini": 73,
+    "nonGemini": 73,
+    "geminiKinds": [
+     "sample-set",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "histogram",
+     "box-plot"
+    ],
+    "gemini": 51,
+    "nonGemini": 51,
+    "geminiKinds": [
+     "histogram",
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "histogram",
+     "tensor"
+    ],
+    "gemini": 40,
+    "nonGemini": 40,
+    "geminiKinds": [
+     "histogram",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "histogram",
+     "token-links"
+    ],
+    "gemini": 39,
+    "nonGemini": 39,
+    "geminiKinds": [
+     "histogram",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "histogram",
+     "block-stack"
+    ],
+    "gemini": 72,
+    "nonGemini": 72,
+    "geminiKinds": [
+     "histogram",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "box-plot",
+     "tensor"
+    ],
+    "gemini": 47,
+    "nonGemini": 47,
+    "geminiKinds": [
+     "box-plot",
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "box-plot",
+     "token-links"
+    ],
+    "gemini": 46,
+    "nonGemini": 46,
+    "geminiKinds": [
+     "box-plot",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "box-plot",
+     "block-stack"
+    ],
+    "gemini": 79,
+    "nonGemini": 79,
+    "geminiKinds": [
+     "box-plot",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tensor",
+     "token-links"
+    ],
+    "gemini": 35,
+    "nonGemini": 35,
+    "geminiKinds": [
+     "tensor",
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "tensor",
+     "block-stack"
+    ],
+    "gemini": 68,
+    "nonGemini": 68,
+    "geminiKinds": [
+     "tensor",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   },
+   {
+    "kinds": [
+     "token-links",
+     "block-stack"
+    ],
+    "gemini": 67,
+    "nonGemini": 67,
+    "geminiKinds": [
+     "token-links",
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": true
+   }
+  ]
+ },
+ "noInteractions": {
+  "single": [
+   {
+    "kinds": [
+     "flow"
+    ],
+    "gemini": 23,
+    "nonGemini": 23,
+    "geminiKinds": [
+     "flow"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "comparison"
+    ],
+    "gemini": 17,
+    "nonGemini": 17,
+    "geminiKinds": [
+     "comparison"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "tree"
+    ],
+    "gemini": 36,
+    "nonGemini": 36,
+    "geminiKinds": [
+     "tree"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "sequence"
+    ],
+    "gemini": 21,
+    "nonGemini": 21,
+    "geminiKinds": [
+     "sequence"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "cycle"
+    ],
+    "gemini": 15,
+    "nonGemini": 15,
+    "geminiKinds": [
+     "cycle"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "relationship"
+    ],
+    "gemini": 22,
+    "nonGemini": 22,
+    "geminiKinds": [
+     "relationship"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "transformation"
+    ],
+    "gemini": 27,
+    "nonGemini": 27,
+    "geminiKinds": [
+     "transformation"
+    ],
+    "derive": false,
+    "op": true,
+    "t": true
+   },
+   {
+    "kinds": [
+     "layers"
+    ],
+    "gemini": 17,
+    "nonGemini": 17,
+    "geminiKinds": [
+     "layers"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "timeline"
+    ],
+    "gemini": 43,
+    "nonGemini": 43,
+    "geminiKinds": [
+     "timeline"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "coordinate-plot"
+    ],
+    "gemini": 99,
+    "nonGemini": 99,
+    "geminiKinds": [
+     "coordinate-plot"
+    ],
+    "derive": true,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "bar-chart"
+    ],
+    "gemini": 23,
+    "nonGemini": 23,
+    "geminiKinds": [
+     "bar-chart"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "number-line"
+    ],
+    "gemini": 25,
+    "nonGemini": 25,
+    "geminiKinds": [
+     "number-line"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "t-account"
+    ],
+    "gemini": 22,
+    "nonGemini": 22,
+    "geminiKinds": [
+     "t-account"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "waterfall"
+    ],
+    "gemini": 19,
+    "nonGemini": 19,
+    "geminiKinds": [
+     "waterfall"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "matrix"
+    ],
+    "gemini": 30,
+    "nonGemini": 30,
+    "geminiKinds": [
+     "matrix"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "argument"
+    ],
+    "gemini": 22,
+    "nonGemini": 22,
+    "geminiKinds": [
+     "argument"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "figure"
+    ],
+    "gemini": 24,
+    "nonGemini": 24,
+    "geminiKinds": [
+     "figure"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "heatmap"
+    ],
+    "gemini": 26,
+    "nonGemini": 26,
+    "geminiKinds": [
+     "heatmap"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "sample-set"
+    ],
+    "gemini": 26,
+    "nonGemini": 26,
+    "geminiKinds": [
+     "sample-set"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "histogram"
+    ],
+    "gemini": 25,
+    "nonGemini": 25,
+    "geminiKinds": [
+     "histogram"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "box-plot"
+    ],
+    "gemini": 32,
+    "nonGemini": 32,
+    "geminiKinds": [
+     "box-plot"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "tensor"
+    ],
+    "gemini": 21,
+    "nonGemini": 21,
+    "geminiKinds": [
+     "tensor"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "token-links"
+    ],
+    "gemini": 20,
+    "nonGemini": 20,
+    "geminiKinds": [
+     "token-links"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   },
+   {
+    "kinds": [
+     "block-stack"
+    ],
+    "gemini": 53,
+    "nonGemini": 53,
+    "geminiKinds": [
+     "block-stack"
+    ],
+    "derive": false,
+    "op": false,
+    "t": false
+   }
+  ]
+ }
+}

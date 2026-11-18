@@ -1,0 +1,22 @@
+explanation-batch1-fixes ℹ tests 5 ℹ fail 0 
+explanation-benchmark ℹ tests 23 ℹ fail 0 
+explanation-diagram-corrections ℹ tests 20 ℹ fail 0 
+explanation-formula-series ℹ tests 5 ℹ fail 0 
+explanation-illustration-references ℹ tests 15 ℹ fail 0 
+explanation-interactions ℹ tests 11 ℹ fail 0 
+explanation-model-profiles ℹ tests 7 ℹ fail 0 
+explanation-plan-kind-from-reference ℹ tests 12 ℹ fail 0 
+explanation-prompt-cleanup ℹ tests 11 ℹ fail 0 
+explanation-prose-pass ℹ tests 9 ℹ fail 0 
+explanation-reference-batch2a ℹ tests 9 ℹ fail 0 
+explanation-reference-batch2b ℹ tests 6 ℹ fail 0 
+explanation-reference-batch2c ℹ tests 5 ℹ fail 0 
+explanation-reference-batch3 ℹ tests 15 ℹ fail 0 
+explanation-reference-batch3a ℹ tests 5 ℹ fail 0 
+explanation-reference-batch3b ℹ tests 5 ℹ fail 0 
+explanation-reference-batch3c ℹ tests 5 ℹ fail 0 
+explanation-reference-batch4a ℹ tests 2 ℹ fail 0 
+explanation-second-visual ℹ tests 7 ℹ fail 0 
+explanation-tokens ℹ tests 11 ℹ fail 0 
+explanation-visuals ℹ tests 17 ℹ fail 0 
+
