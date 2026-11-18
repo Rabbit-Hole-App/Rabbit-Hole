@@ -3,6 +3,7 @@
 // set is a server constant (ROADMAP_FORMATS) passed as a trusted option; it is never read from a body, a client-writable job or the
 // model. Typed and Quick Edit /explain are untouched (startExplain first). This module never writes a board, a job or a URL.
 import { generateArtifact, prepareArtifactAuthorRequest } from '../learn-artifact.js';
+import { archiveExplanation } from '../learn-storage.js';
 import { CHAT_GEMINI, MODEL, autoModel, loggedModel, planUsesOpenAI } from '../learn-models.js';
 import { planModel } from '../ask.js';
 import { requestSpendBound } from '../learn-spend.js';
@@ -61,12 +62,19 @@ export function authorInput(rec, limits = ROADMAP_LIMITS, env = {}) {
   const visuals = format === 'explanation' ? (rec.visualRequirements ?? deriveVisualRequirements(requirementText({ original: said?.original, revisions: said?.revisions }))) : null;
   if (visuals?.unsupported) return { failed: fail('unsupported_capability', 'required_visual_unsupported', { error: visuals.unsupported }) };
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
-  // planned: true keeps generateArtifact from running the JEV planner prototype (EXPLANATION_PLANNER) at dispatch: the quote hashed the request WITHOUT a plan, so a body that gained one would
-  // never match it (request_mismatch, every card failed; found on the first live course run, owner 2026-11-14). The roadmap has its own planner.
-  return { input: { planned: true, command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
+  // GEN-1 G6: no `planned` flag any more. Its reason (the quote hashed a body without a plan, so a planned dispatch never matched: owner 2026-11-14) went with the equality check, so
+  // generateArtifact runs the planner once for the card as the typed route does (one TypeSafe call, 1.2 s timeout, outside the card's hold and meter) and the roadmap gets the same kind draw.
+  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
     format,
     options: { only: [format], systemSuffix: roadmapCardSuffix({ ...rec, format }), repairs: 0, title: rec.stepTitle, profile: resolveExplanationProfile(cardProfileId(env)) } };
 }
+
+// GEN-1 G6: the dispatch body is not the quoted body: it carries the card's own seed (other numbers in a varied example), the planner's statement and kind bundle, and (R2 and later) a block of
+// up to EXAMPLES_BLOCK_MAX_CHARS of examples. So the quote bounds the worst such body: the quoted one with room for a full examples block and the plan's delta added to its system text.
+// '一' is three UTF-8 bytes, the dearest character the byte-priced bound (learn-spend.js requestSpendBound) can see, so the room holds whatever the examples and the plan write.
+export const EXAMPLES_BLOCK_MAX_CHARS = 14_000; // = MAX_CONTEXT of explanation-references.js (a test pins both)
+export const PLAN_DELTA_MAX_CHARS = 10_000; // the most the plan's statement, shape example and kind bundle add over an unplanned body, in 3-byte characters: measured 24,356 bytes (roadmap-gemini) over the library prompts x 24 kinds, rounded up to 30,000 bytes; a test re-measures
+const worstCaseBody = body => (typeof body.system === 'string' ? { ...body, system: body.system + '一'.repeat(EXAMPLES_BLOCK_MAX_CHARS + PLAN_DELTA_MAX_CHARS) } : body);
 
 // CORE.05: the quote of the actual full first author request of an accepted record. Zero model calls.
 // -> { outcome: 'quoted', boundMicros, requestFingerprint, provider, model } | a failure
@@ -76,7 +84,7 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
   const prepared = prepareArtifactAuthorRequest(env, built.input, built.options);
   if (prepared.result) return fail('unsupported_capability', String(prepared.result));
   // EXP-13: an explanation step's hold also covers its pictures (two, three attempts each) at the image quote; a deployment that cannot price a picture adds nothing and makes none.
-  const route = authorRoute(env, prepared.model), author = boundOf(prepared.body, route), boundMicros = author + (built.format === 'explanation' && Number.isSafeInteger(author) ? figuresBoundMicros(env) : 0);
+  const route = authorRoute(env, prepared.model), author = boundOf(worstCaseBody(prepared.body), route), boundMicros = author + (built.format === 'explanation' && Number.isSafeInteger(author) ? figuresBoundMicros(env) : 0);
   if (!Number.isSafeInteger(boundMicros) || boundMicros <= 0) return fail('unsupported_capability', 'unpriced_request');
   // EXP-11-C02: the profile the request was built from rides with the quote, for the accepted record to keep (the model is already in the fingerprint).
   return { outcome: 'quoted', boundMicros, requestFingerprint: await requestFingerprint(prepared.body, route), provider: route.provider, model: route.model, ...(prepared.profile ? { profile: await explanationProfileBinding(prepared.profile) } : {}) };
@@ -86,7 +94,7 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
 //   deps.loadAccepted(env, access, ref) -> null | { cardId, stepId, proposalId, proposalVersion, format, stepTitle, stepGoal,
 //       passageText, documentText (the whole document when it fits the whole-source limit, else null), claimsToCover, outcome,
 //       learnerInstruction, teachingScope, sourceRef (R3 publicRef or null), language, depth, retry, requestFingerprint?, boundMicros? }
-//       (requestFingerprint/boundMicros: the acceptance quote; when present the outgoing body must match it or nothing is sent)
+//       (requestFingerprint/boundMicros: the acceptance quote; when present the outgoing body must stay under boundMicros or nothing is sent; the fingerprint is kept as the audit of the quoted body)
 //   deps.withProviderCall(env, { proposalId, proposalVersion, cardId, stage, call, retry, authorizationId }) -> env carrying the
 //       deterministic operation identity (State/Money's withRoadmapProviderCall). Required: without it nothing is spent.
 //   deps.callModel / deps.generate: the provider transport and generateArtifact; defaults are the production ones.
@@ -109,12 +117,9 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   const meter = inner => async (e, body, model, org) => {
     // CORE.04: one authoring call per accepted card (generationPerCard 1, repairs 0); a second fails closed before any admission.
     if (call >= limits.calls.generationPerCard) throw new Error('operation_budget');
-    // CORE.05: the body about to be sent is the one quoted at acceptance, under the same bound, or nothing is sent.
-    if (rec.requestFingerprint) {
-      const route = authorRoute(e, model);
-      if (await requestFingerprint(body, route) !== rec.requestFingerprint) throw new Error('request_mismatch');
-      if (!(boundOf(body, route) <= rec.boundMicros)) throw new Error('request_over_bound');
-    }
+    // CORE.05: the body about to be sent stays under the bound quoted at acceptance, or nothing is sent. GEN-1 G6: it need not be the quoted body (the dispatch has its own seed and plan, and later its
+    // examples), so there is no equality check; the quote bounds the worst such body (quoteRoadmapCard) and the fingerprint stays stored as the audit of what was quoted.
+    if (rec.requestFingerprint && !(boundOf(body, authorRoute(e, model)) <= rec.boundMicros)) throw new Error('request_over_bound');
     const n = call++;
     // withProviderCall is State's withRoadmapProviderCall (async, answers { env, opId, key }); a plain env-returning double is also accepted.
     const scoped = await withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: n === 0 ? 'generate' : 'repair', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId });
@@ -123,14 +128,22 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   const metered = meter(callModel);
   // EXP-13: each picture attempt is its own stable operation on the step hold (stage illustration), never the author's one call.
   const scope = async (e, n) => { const scoped = await withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: 'illustration', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId }); return scoped?.opId ? scoped.env : scoped; };
+  // GEN-1 G6: the card's own seed (made at dispatch: a call that may have reached the provider is never retried blind, so a seed need not survive a replay) and the archive record the typed
+  // route writes (learn-artifact.js artifactFetch), so a roadmap card is reproducible from its record. No email: the user id only. Logged, never thrown (learn-storage.js archiveExplanation).
+  const requestSeed = crypto.randomUUID(), trace = { requestSeed }, started = Date.now();
+  built.input = { ...built.input, requestSeed };
+  const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.actorUserId ?? null, app: access.app ?? null, board: access.boardId ?? null,
+    request: { command: built.input.command, args: built.input.args, selection: null, hasContext: true, depth: built.input.depth ?? 'balanced', sourceRefId: null }, source: 'roadmap', cardId: rec.cardId, proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, retry: rec.retry ?? 0, ...trace, outcome, ...extra });
   let out;
-  try { out = await generate(env, built.input, { callModel: metered, meterStep: inner => meter(callModelFor ? callModelFor(inner) : inner), ...built.options, figures: { store: figureStore, scope, ...(figureAdapter ? { adapter: figureAdapter } : {}) } }); }
+  try { out = await generate(env, built.input, { callModel: metered, meterStep: inner => meter(callModelFor ? callModelFor(inner) : inner), ...built.options, figures: { store: figureStore, scope, ...(figureAdapter ? { adapter: figureAdapter } : {}) }, trace }); }
   catch (error) {
-    if (['operation_budget', 'request_mismatch', 'request_over_bound'].includes(error?.message)) return fail('terminal_validation_failure', error.message, { calls: call });
+    await archive('error', { error: String(error?.message || error).slice(0, 300), code: error?.code ?? null });
+    if (['operation_budget', 'request_over_bound'].includes(error?.message)) return fail('terminal_validation_failure', error.message, { calls: call });
     // A call that may have reached the provider (roadmap-run.js marks it) is never retried blind: its outcome is reconciled first.
     if (error?.code === 'unknown_provider_outcome') return fail('unknown_provider_outcome', 'outcome_unknown', { calls: call });
     return fail('transient_provider_failure', 'provider_error', { calls: call });
   }
+  await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });
   const calls = call;
   switch (out?.result) {
     case 'artifact':
