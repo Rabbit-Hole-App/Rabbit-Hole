@@ -58,7 +58,7 @@ export function assumedHeight(block, W) {
 
 // Reading order of a plan card: chapter, section (a chapter heading first), item (composition order; notes last), role (lead, card, follow), part.
 const RANK = { chapter: -1, section: -1, lead: 0, card: 1, notes: 1, follow: 2 };
-const numbers = id => String(id ?? '').split('.').map(Number);
+export const numbers = id => String(id ?? '').split('.').map(Number);
 export function orderKey(learn) {
   const [chapter = 0, section = 0] = numbers(learn?.sectionId);
   return [chapter || 0, learn?.role === 'chapter' ? -1 : section || 0, learn?.role === 'chapter' || learn?.role === 'section' ? -1 : Number.isFinite(learn?.order) ? learn.order : 1e6, RANK[learn?.role] ?? 1, learn?.part || 0];

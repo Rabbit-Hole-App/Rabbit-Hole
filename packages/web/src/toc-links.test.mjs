@@ -40,8 +40,8 @@ test('withoutTocLink answers the remaining links, or null when there was nothing
 
 test('the ToC side is derived from the cards: linkedCards reads the same links, so the two directions cannot disagree', () => {
   const rows = [['c1', 'Gradients', ['h1', 'h2'], 'graph', null], ['c2', 'Loss', ['h2']], ['c3', 'Other', ['h4']]];
-  assert.deepEqual(linkedCards(rows, 'h2'), [{ id: 'c1', title: 'Gradients', type: 'graph', role: null }, { id: 'c2', title: 'Loss', type: null, role: null }]);
-  assert.deepEqual(linkedCards(rows, 'h1'), [{ id: 'c1', title: 'Gradients', type: 'graph', role: null }]);
+  assert.deepEqual(linkedCards(rows, 'h2'), [{ id: 'c1', title: 'Gradients', type: 'graph', role: null, done: false }, { id: 'c2', title: 'Loss', type: null, role: null, done: false }]);
+  assert.deepEqual(linkedCards(rows, 'h1'), [{ id: 'c1', title: 'Gradients', type: 'graph', role: null, done: false }]);
   assert.deepEqual(linkedCards(rows, 'h3'), []);
   assert.deepEqual(linkedCards(undefined, 'h1'), []);
 });

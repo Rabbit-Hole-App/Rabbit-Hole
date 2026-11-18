@@ -108,7 +108,7 @@ test('rows: a chapter heading card has no chip; plan cards read in plan order (l
   const rows = lib.tocLinkRows(blocks, block => block.id);
   assert.deepEqual(rows.map(row => row[0]), ['a-lead', 'a-follow', 'b-card', 'notes', 'manual']);
   assert.deepEqual(lib.linkedCards(rows, 'c'), [], 'the chapter title is its link');
-  assert.deepEqual(lib.linkedCards(rows, 's').find(card => card.id === 'notes'), { id: 'notes', title: 'notes', type: 'doc', role: 'notes' });
+  assert.deepEqual(lib.linkedCards(rows, 's').find(card => card.id === 'notes'), { id: 'notes', title: 'notes', type: 'doc', role: 'notes', done: false });
 });
 
 test('Add a link opens a chooser with Link to canvas and Link to TOC; the section picker lists numbered sections and marks the linked one', () => {

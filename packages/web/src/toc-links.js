@@ -41,10 +41,10 @@ export const tocChipName = (block, described) => namedTitleOf(block) || objectNa
 export function tocLinkRows(blocks, nameOf) {
   const held = (blocks || []).filter(block => block.tocLinks?.length && block.learn?.role !== 'chapter');
   return [...held.filter(block => block.learn).sort(byKey), ...held.filter(block => !block.learn)]
-    .map(block => [block.id, nameOf(block), block.tocLinks, block.type || null, block.learn ? (block.learn.itemId === 'notes' ? 'notes' : block.learn.role || null) : null]);
+    .map(block => [block.id, nameOf(block), block.tocLinks, block.type || null, block.learn ? (block.learn.itemId === 'notes' ? 'notes' : block.learn.role || null) : null, !!block.learn?.done]);
 }
 // The cards linked to an entry, [{ id, title, type, role }] in the rows' order.
-export const linkedCards = (rows, entryId) => (rows || []).filter(([, , ids]) => ids.includes(entryId)).map(([id, title, , type = null, role = null]) => ({ id, title, type, role }));
+export const linkedCards = (rows, entryId) => (rows || []).filter(([, , ids]) => ids.includes(entryId)).map(([id, title, , type = null, role = null, done = false]) => ({ id, title, type, role, done }));
 // A card's links that still name an entry of the contents, with the entry's title: [{ id, title }]. A link to a removed entry shows nothing.
 export function resolvedLinks(block, outline) {
   const titles = new Map((outline || []).map(entry => [entry.id, entry.label]));
