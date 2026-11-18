@@ -17,6 +17,7 @@ export const treeMotionSchema = z.object({
   geometry: z.object({
     frame: z.object({ width: z.number(), height: z.number() }).strict(), box: z.object({ x: z.number(), y: z.number(), w: z.number() }).strict(), scale: z.number(), rendered: z.object({ width: z.number(), height: z.number() }).strict(),
     nodes: z.record(id, z.object({ centre: xy, box: z.tuple([z.number(), z.number(), z.number(), z.number()]) }).strict()), edges: z.record(z.string(), z.array(xy)),
+    labels: z.record(z.string(), z.tuple([z.number(), z.number(), z.number(), z.number()])),
   }).strict(),
 }).strict();
 
@@ -37,7 +38,9 @@ const along=(points,f)=>{let total=0;const lens=[];for(let i=1;i<points.length;i
 const lenOf=points=>{let total=0;for(let i=1;i<points.length;i++)total+=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);return total;};
 const cut=(points,d)=>{const out=[points[0]];for(let i=1;i<points.length&&d>0;i++){const l=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);if(d>=l){out.push(points[i]);d-=l;}else{const u=d/l;out.push([points[i-1][0]+u*(points[i][0]-points[i-1][0]),points[i-1][1]+u*(points[i][1]-points[i-1][1])]);d=0;}}return out;};
 // The travelled part of a route that is not complete yet, as lines over the baked edge routes: whole edges for the nodes reached, and the part of the current edge the dot has covered. The renderer's own highlight takes over once the route runs root to a leaf.
-const trail=(path,done,slide)=>{const out=[];for(let k=0;k<done;k++)out.push(EDGE(path[k],path[k+1]));if(slide){const e=EDGE(path[slide.k],path[slide.k+1]),from=G.nodes[path[slide.k]].centre,first=Math.hypot(e[0][0]-from[0],e[0][1]-from[1]),all=first+lenOf(e)+Math.hypot(G.nodes[path[slide.k+1]].centre[0]-e[e.length-1][0],G.nodes[path[slide.k+1]].centre[1]-e[e.length-1][1]),d=Math.min(lenOf(e),Math.max(0,slide.f*all-first));if(d>0)out.push(cut(e,d));}return out;};
+const gap=(points,label)=>{if(!label)return [points];const P=3,g0=label[0]-P,g1=label[0]+label[2]+P,out=[];let cur=[points[0]];for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i];if(a[1]===b[1]&&a[1]>=label[1]-P&&a[1]<=label[1]+label[3]+P&&Math.max(a[0],b[0])>g0&&Math.min(a[0],b[0])<g1){const up=b[0]>a[0];const before=up?a[0]<g0:a[0]>g1,after=up?b[0]>g1:b[0]<g0;if(before){cur.push([up?g0:g1,a[1]]);out.push(cur);}cur=after?[[up?g1:g0,a[1]],b]:[];continue;}cur.push(b);}if(cur.length>1)out.push(cur);return out.filter(p=>p.length>1);};
+// The trail leaves a gap where an edge label sits, as the renderer's own wire does.
+const trail=(path,done,slide)=>{const out=[];for(let k=0;k<done;k++)out.push([EDGE(path[k],path[k+1]),path[k]+':'+path[k+1]]);if(slide){const e=EDGE(path[slide.k],path[slide.k+1]),from=G.nodes[path[slide.k]].centre,first=Math.hypot(e[0][0]-from[0],e[0][1]-from[1]),all=first+lenOf(e)+Math.hypot(G.nodes[path[slide.k+1]].centre[0]-e[e.length-1][0],G.nodes[path[slide.k+1]].centre[1]-e[e.length-1][1]),d=Math.min(lenOf(e),Math.max(0,slide.f*all-first));if(d>0)out.push([cut(e,d),path[slide.k]+':'+path[slide.k+1]]);}return out;};
 export function evaluate({inputs,time}){
   const t=Math.min(Math.max(time||0,0),T.duration),{path,says}=route(inputs),n=path.length,dwell=(T.duration-(n-1)*MOVE-HOLD)/(n-1);
   // stop k holds from start[k] to start[k]+dwell (the last holds to the end); the slide k to k+1 follows each hold but the last
@@ -51,7 +54,7 @@ export function evaluate({inputs,time}){
   if(leaf)flow.highlightPath=path;
   const head=leaf?'Prediction':'Test '+(phase+1),line=leaf?'The tree predicts '+T.prediction[path[n-1]].toLowerCase()+'.':says[phase].text;
   const lines=wrap(line),b=G.box,objects=[sdk.diagram({version:1,diagram:flow},{x:b.x,y:b.y,w:b.w})];
-  if(!leaf)trail(path,sliding?phase:reached-1,sliding?{k:phase,f:slideF}:null).forEach((points,i)=>{if(points.length>1)objects.push(sdk.polyline('trail.'+i,points,{role:'input',opacity:1}));});
+  if(!leaf)trail(path,sliding?phase:reached-1,sliding?{k:phase,f:slideF}:null).forEach(([points,key],i)=>gap(points,G.labels[key]).forEach((piece,j)=>objects.push(sdk.polyline('trail.'+i+'.'+j,piece,{role:'input',opacity:1}))));
   objects.push(
     sdk.circle('dot',pos[0],pos[1],18,{role:'output'}),
     sdk.box('callout.active.l0',450,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',461,90,head,{role:'input',opacity:1}));

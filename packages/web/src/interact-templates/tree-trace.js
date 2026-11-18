@@ -23,6 +23,7 @@ export function source(ctx) {
   const tree = ctx.geometry?.tree;
   if (!tree) { const e = new Error('tree-trace requires its validated tree'); e.code = 'part_binding'; e.path = 'geometry.tree'; throw e; }
   return `const T=${JSON.stringify(tree)};
+const gap=(points,label)=>{if(!label)return [points];const P=3,g0=label[0]-P,g1=label[0]+label[2]+P,out=[];let cur=[points[0]];for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i];if(a[1]===b[1]&&a[1]>=label[1]-P&&a[1]<=label[1]+label[3]+P&&Math.max(a[0],b[0])>g0&&Math.min(a[0],b[0])<g1){const up=b[0]>a[0];const before=up?a[0]<g0:a[0]>g1,after=up?b[0]>g1:b[0]<g0;if(before){cur.push([up?g0:g1,a[1]]);out.push(cur);}cur=after?[[up?g1:g0,a[1]],b]:[];continue;}cur.push(b);}if(cur.length>1)out.push(cur);return out.filter(p=>p.length>1);};
 const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
 export function evaluate({inputs}){
   const i=inputs.step===undefined?0:inputs.step;
@@ -32,7 +33,7 @@ export function evaluate({inputs}){
   const complete=path.length>1&&!T.edges.some(e=>e.from===path[path.length-1]);
   if(complete)flow.highlightPath=path;
   const lines=wrap(s.callout),objects=[sdk.diagram({version:1,diagram:flow},{x:b.x,y:b.y,w:b.w})];
-  if(path.length>1&&!complete)for(let k=0;k<path.length-1;k++)objects.push(sdk.polyline('trail.'+k,G.edges[path[k]+':'+path[k+1]],{role:'input',opacity:1}));
+  if(path.length>1&&!complete)for(let k=0;k<path.length-1;k++)gap(G.edges[path[k]+':'+path[k+1]],G.labels[path[k]+':'+path[k+1]]).forEach((piece,j)=>objects.push(sdk.polyline('trail.'+k+'.'+j,piece,{role:'input',opacity:1})));
   objects.push(sdk.box('callout.active.l0',450,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',461,90,s.label,{role:'input',opacity:1}));
   lines.forEach((value,j)=>objects.push(sdk.text('callout.active.s'+j,461,116+j*20,value,{role:'neutral',opacity:1})));
   return {frame:sdk.frame(objects,{width:G.frame.width,height:G.frame.height}),quantities:{}};

@@ -28,7 +28,7 @@ export function evaluate({inputs,time}){
   const objects=[sdk.line('support',24,PIVOT_Y,270,PIVOT_Y,{role:'neutral'})];
   const swing=(name,pivotX,len,mass,angle,role)=>{
     const bx=pivotX+len*SCALE*Math.sin(angle*RAD),by=PIVOT_Y+len*SCALE*Math.cos(angle*RAD);
-    objects.push(sdk.text('label.'+name,pivotX,24,name+': '+kg(mass)+' kg, '+metre(len)+' m',{align:'middle',role:role}),sdk.line('string.'+name,pivotX,PIVOT_Y,bx,by,{role:role}),sdk.circle('ball.'+name,bx,by,2*radius(mass),{role:role}));
+    objects.push(sdk.text('label.'+name,pivotX,24,name+': '+kg(mass)+' kg, '+metre(len)+' m',{align:'middle',role:role}),sdk.polyline('string.'+name,[[pivotX,PIVOT_Y],[bx,by]],{role:role}),sdk.circle('ball.'+name,bx,by,2*radius(mass),{role:role}));
   };
   swing('A',82,ref.length,ref.mass,angleA,'input');
   swing('B',208,length,mass,angleB,'warning');
