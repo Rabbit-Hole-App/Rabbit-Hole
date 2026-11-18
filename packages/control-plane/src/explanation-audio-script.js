@@ -14,11 +14,11 @@ const LENGTHS = Object.freeze({
     detailed: 'Detailed: aim for up to about 2 minutes, about 300 to 360 words. A fuller second explanation, examples, edge cases, the misconception, and what to try next.',
   },
   // Gemini writes about 0.6 (Brief), 0.7 (Balanced) and 0.9 (Detailed) of the words it is asked for (length measurement 2026-11-17, 144 real calls: raw medians 129 / 205 / 318 words against asks of
-  // 190 / 260 / 320), so its asks are the owner's targets divided by that ratio, with a content checklist and a floor sentence. Iteration 2 measured the first pass at 185 / 273 / 302 words after the strip (Detailed raw median 315 for an ask of 340 to 400, under its floor on 10 of 24), so Detailed asks 400 to 460. The spoken length stays the owner's: about 60 to 80 s, 90 s, up to 2 minutes.
+  // 190 / 260 / 320), so its asks are the owner's targets divided by that ratio, with a content checklist and a floor sentence. Iteration 2 measured the first pass at 185 / 273 / 302 words after the strip (Detailed raw median 315 for an ask of 340 to 400, under its floor on 10 of 24), so Detailed asked 400 to 460 in iteration 3, which overshot (v3 measurement: median 341 words, max 507, about 170 s); it now asks 360 to 420 with a ceiling. The spoken length stays the owner's: about 60 to 80 s, 90 s, up to 2 minutes.
   gemini: {
     brief: 'Brief: write 300 to 360 words, 60 to 80 seconds of speech. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it, and one sentence on what to notice next. Do not stop before 300 words.',
     balanced: 'Balanced: write 360 to 420 words, about 90 seconds of speech. Include: the clarification, two different examples, one misconception, a second angle on the hardest part, and what to notice next. Do not stop before 360 words.',
-    detailed: 'Detailed: write 400 to 460 words, up to about 2 minutes of speech. Include: a fuller second explanation, two different examples, an edge case, one misconception, and what to try next. Do not stop before 400 words.',
+    detailed: 'Detailed: write 360 to 420 words, up to about 2 minutes of speech, never above 420 words. Include: a fuller second explanation, two different examples, an edge case, one misconception, and what to try next. Do not stop before 360 words.',
   },
 });
 
