@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "hash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+  "revision": 1,
+  "plan": {
+    "schemaVersion": 1,
+    "depth": "brief",
+    "title": "The Sigmoid Curve",
+    "story": "When modeling growth or decision thresholds, a simple linear scale often fails because real-world systems saturate at extremes. We need a function that maps any input smoothly between zero and one. The logistic sigmoid function provides this smooth transition, taking an input value and compressing it into a bounded range. By adjusting the steepness parameter, we can control how abruptly the transition occurs around the midpoint.",
+    "cardDescription": "Explore how the logistic sigmoid curve maps continuous inputs between zero and one. Adjust the steepness parameter to see how it changes the transition around the midpoint.",
+    "learningGoal": "Explain why changing steepness preserves the sigmoid bounds.",
+    "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the marker output update in real time.",
+    "supportingVisuals": [],
+    "scene": {
+      "description": "One curve, a fixed-input marker, a plain-word callout, an output readout and one steepness slider.",
+      "runtime": {
+        "renderer": "program",
+        "schemaVersion": 1,
+        "sdkVersion": "sdk-8",
+        "programTuple": {
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "rendererVersion": "renderer-5",
+          "runtimeVersion": "quickjs-release-sync@0.32.0",
+          "runtimePolicyVersion": "policy-1",
+          "permissionProfileVersion": "perm-1",
+          "fingerprints": {
+            "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+            "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+            "renderer": "renderer-5"
+          }
+        },
+        "requiredHelpers": [],
+        "requiredCapabilities": [
+          "number_inputs",
+          "props",
+          "figures"
+        ],
+        "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+      },
+      "entities": [
+        {
+          "id": "curve",
+          "label": "Sigmoid curve",
+          "purpose": "Show output as a function of input."
+        },
+        {
+          "id": "marker",
+          "label": "Selected point",
+          "purpose": "Link an input coordinate to its output."
+        }
+      ],
+      "quantities": [
+        {
+          "id": "k",
+          "label": "Steepness k",
+          "unit": "",
+          "meaning": "Positive steepness of the transition.",
+          "reference": "At x0 the slope is k / 4.",
+          "formula": "k"
+        },
+        {
+          "id": "x0",
+          "label": "Midpoint x₀",
+          "unit": "",
+          "meaning": "Input at the centre of the transition.",
+          "reference": "The output at x0 is one half. Increasing x0 shifts the curve right.",
+          "formula": "x0"
+        },
+        {
+          "id": "xMarker",
+          "label": "Marker x",
+          "unit": "",
+          "meaning": "Input coordinate of the selected point on the curve.",
+          "reference": "The marker readout is y evaluated at this input.",
+          "formula": "xMarker"
+        },
+        {
+          "id": "y",
+          "label": "Output y",
+          "unit": "",
+          "meaning": "Dimensionless output at x; strictly between zero and one for finite inputs. Positive is upward.",
+          "reference": "y = 1 / (1 + exp(-k * (x - x0)))",
+          "relation": "y = 1 / (1 + exp((-1) * k * x))",
+          "formula": "1 / (1 + exp((-1) * k * x))"
+        },
+        {
+          "id": "slope",
+          "label": "Slope dy/dx",
+          "unit": "",
+          "meaning": "Signed derivative of y with respect to x. Positive means the curve rises to the right.",
+          "reference": "slope = k / (2 + exp(k * (x - x0)) + exp(-k * (x - x0)))",
+          "relation": "slope = k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)",
+          "formula": "k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)"
+        },
+        {
+          "id": "yAtMarker",
+          "label": "Output y",
+          "unit": "",
+          "meaning": "Dimensionless output at the selected input xMarker; the same curve, not a second rule.",
+          "reference": "yAtMarker = 1 / (1 + exp(-k * (xMarker - x0)))",
+          "relation": "yAtMarker = 1 / (1 + exp((-1) * k * 1))",
+          "formula": "1 / (1 + exp((-1) * k * 1))"
+        }
+      ],
+      "observations": [
+        {
+          "id": "bounds",
+          "text": "The output approaches either bound without reaching it at a finite input.",
+          "quantityIds": [
+            "y"
+          ],
+          "readoutIds": [
+            "yAtMarker"
+          ]
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "default",
+          "label": "Default curve",
+          "time": null,
+          "inputOverrides": {},
+          "actions": [],
+          "expected": "The marker lies on the curve and its readout is the output at the marked input."
+        },
+        {
+          "id": "gentle",
+          "label": "Least steep",
+          "time": null,
+          "inputOverrides": {
+            "k": 0.2
+          },
+          "actions": [],
+          "expected": "The transition is gentler; its output stays within the same bounds."
+        },
+        {
+          "id": "steep",
+          "label": "Most steep",
+          "time": null,
+          "inputOverrides": {
+            "k": 5
+          },
+          "actions": [],
+          "expected": "The transition is sharper around its midpoint; its output stays within the same bounds."
+        }
+      ],
+      "readoutIds": [
+        "yAtMarker"
+      ],
+      "template": "curve-one",
+      "slots": {
+        "y": "y",
+        "slope": "slope",
+        "yAtMarker": "yAtMarker"
+      },
+      "words": {
+        "heading": "Logistic Sigmoid",
+        "state_default": "Standard transition",
+        "state_gentler": "Genther transition",
+        "state_steeper": "Steeper transition",
+        "axis_x": "Input x",
+        "axis_y": "Output y",
+        "marker_heading": "Marker at x = 1",
+        "marker_at": "x =",
+        "readout_y": "Output value",
+        "marker_note": "Sigmoid output"
+      }
+    },
+    "mode": {
+      "kind": "static",
+      "initialState": "The curve at the default parameters with its linked marker; no elapsed time.",
+      "fixedValues": {
+        "x0": 0,
+        "xMarker": 1
+      },
+      "adjustableIds": [
+        "k"
+      ],
+      "timeline": null,
+      "onInputChange": "recompute_still"
+    },
+    "controls": [
+      {
+        "id": "k",
+        "label": "Steepness k",
+        "purpose": "Positive steepness of the transition.",
+        "selectionReason": "A continuous slider exposes nearby values and intermediate changes in the curve.",
+        "nativeControlId": "program.number",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "curve"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "marker"
+          },
+          {
+            "scope": "main",
+            "kind": "quantity",
+            "id": "k"
+          },
+          {
+            "scope": "main",
+            "kind": "readout",
+            "id": "yAtMarker"
+          }
+        ],
+        "type": "number",
+        "binding": {
+          "kind": "input",
+          "id": "k"
+        },
+        "unit": "",
+        "default": 1,
+        "min": 0.2,
+        "max": 5,
+        "step": 0.1,
+        "onChange": "recompute_still"
+      },
+      {
+        "id": "resetAll",
+        "label": "Reset experiment",
+        "purpose": "Restore the default parameters and marker.",
+        "selectionReason": "One reset restores all linked settings together.",
+        "nativeControlId": "program.reset",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "curve"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "marker"
+          }
+        ],
+        "type": "reset",
+        "binding": {
+          "kind": "reset"
+        },
+        "effect": "Restores the default parameters and marker input."
+      }
+    ],
+    "assumptions": [
+      "Dimensionless logistic with positive steepness; a finite displayed input domain."
+    ],
+    "limitations": [
+      "The plot shows a finite input interval; its bounds describe the full logistic."
+    ],
+    "claims": [
+      {
+        "id": "boundedOutput",
+        "text": "The output is strictly between zero and one for finite inputs with positive steepness.",
+        "evidenceIds": [],
+        "check": "exp(z) > 0, hence 1 + exp(z) > 1 and its reciprocal is strictly between zero and one."
+      }
+    ]
+  },
+  "open": [],
+  "carried": [],
+  "fit": {
+    "styleVersion": "card-description-v1:estimate"
+  },
+  "review": null
+}

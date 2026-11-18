@@ -1,0 +1,1189 @@
+{
+  "job": {
+    "id": "ej_f03c9ea30a4049278eef5cef6a786039",
+    "version": 1,
+    "boardId": "7de276ee-0ffa-49d6-9056-60294cbb758a",
+    "cardId": "d5a3dbf7-30bc-4de8-9737-8cbbeee8c456",
+    "requestClass": "simple",
+    "stage": "ready",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "accepted",
+    "failure": null,
+    "recovery": [],
+    "usage": {
+      "credits": 1,
+      "unknown": false
+    },
+    "result": {
+      "jobId": "ej_f03c9ea30a4049278eef5cef6a786039",
+      "resultId": "er_92a6794355854b0295bc563d5dc81b4a",
+      "cardId": "d5a3dbf7-30bc-4de8-9737-8cbbeee8c456",
+      "canvas": {
+        "boardId": "7de276ee-0ffa-49d6-9056-60294cbb758a"
+      },
+      "promptRef": "1fc444ed6039d906",
+      "revision": "xr_eb06c9609ec840be89712bd194fc37db",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "eaed5a2abd478ef538ef3df0d80f00874bc1955eefc1ca6a4fc4ead4ffdae747",
+      "sourceHash": "e1af41df5b76e7c48f376e500a18f6d68b859385a500b7a10596a28d2f80491f",
+      "manifestHash": "5d9bf2eafdcd18f0e78eaff62e4a036179c5938ce5b7fadd9cf370519359bd17",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "5bdde61fb1ae9018b72bb244d1c181e5617100cdea4d7b2eed64bb49cd520336",
+        "envelopeHash": "9e79055d6af7c961635716138c1be67d92a31eb9d3087020149ed030be2abbbb",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      },
+      "program": {
+        "kind": "explain_program",
+        "schemaVersion": 1,
+        "runtimeVersion": "quickjs-release-sync@0.32.0",
+        "sdkVersion": "sdk-8",
+        "rendererVersion": "renderer-5",
+        "runtimePolicyVersion": "policy-1",
+        "permissionProfileVersion": "perm-1",
+        "fingerprints": {
+          "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+          "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+          "renderer": "renderer-5"
+        },
+        "dependencies": [],
+        "manifest": {
+          "title": "The Upward Throw",
+          "summary": "Explore how an upward throw works under gravity. See how initial speed determines the apex height and total flight time.",
+          "assumptions": [
+            "Gravity fixed at 9.81 m/s^2, no air resistance, up is positive."
+          ],
+          "description": "Explore how an upward throw works under gravity. See how initial speed determines the apex height and total flight time.",
+          "inputs": [
+            {
+              "type": "number",
+              "id": "launchSpeed",
+              "label": "Launch speed",
+              "unit": "m/s",
+              "default": 12,
+              "min": 5,
+              "max": 20,
+              "step": 0.5
+            }
+          ],
+          "duration": 4.077471967380224,
+          "timeline": {
+            "label": "Time since launch",
+            "displayOffset": 0,
+            "playbackRate": 0.6,
+            "markers": [
+              {
+                "id": "top",
+                "label": "Top",
+                "time": 1.2232415902140672
+              }
+            ]
+          },
+          "readouts": [
+            {
+              "id": "motionState",
+              "label": "Motion",
+              "decimals": 0,
+              "kind": "state",
+              "labels": [
+                "Moving up",
+                "At the top",
+                "Moving down"
+              ]
+            },
+            {
+              "id": "gravityState",
+              "label": "Gravity",
+              "decimals": 0,
+              "kind": "state",
+              "labels": [
+                "Gravity pulls down",
+                "No gravity"
+              ]
+            }
+          ],
+          "capabilities": [
+            "time_playback",
+            "number_inputs",
+            "props",
+            "figures"
+          ]
+        },
+        "source": "\nconst EPS = 1e-8;\nconst sg = (v, d) => { const a = Math.abs(v); if (a < 0.5 * Math.pow(10, -d)) return (0).toFixed(d); return (v < 0 ? '−' : '+') + a.toFixed(d); };\nconst snap = x => Math.abs(x) < 1e-9 ? 0 : x;\nconst Q = {\n  \"launchSpeed\": (inputs, t) => { const { launchSpeed } = inputs; return launchSpeed; },\n  \"gravity\": (inputs, t) => { const { launchSpeed } = inputs; return 9.81; },\n  \"apexTime\": (inputs, t) => { const { launchSpeed } = inputs; return (launchSpeed / 9.81); },\n  \"apexHeight\": (inputs, t) => { const { launchSpeed } = inputs; return ((launchSpeed * launchSpeed) / (2 * 9.81)); },\n  \"velocity\": (inputs, t) => { const { launchSpeed } = inputs; return (launchSpeed - (9.81 * t)); },\n  \"height\": (inputs, t) => { const { launchSpeed } = inputs; return ((launchSpeed * t) - ((0.5 * 9.81) * (t * t))); },\n  \"acceleration\": (inputs, t) => { const { launchSpeed } = inputs; return (0 - 9.81); },\n};\nconst quantities = (inputs, time) => { const end = END(inputs), t = Math.min(Math.max(time, 0), end), out = {}; for (const id in Q) out[id] = snap(Q[id](inputs, t)); return out; };\nconst END = inputs => { const { launchSpeed } = inputs; return ((2 * launchSpeed) / 9.81); };\n// One body: heights are read above its launch height (its height at time 0), time is held inside the timeline. The top is where its velocity crosses zero (found by bisection on the plan's own\n// velocity formula, so no quantity has to name it); a body whose velocity never starts positive has its top at time 0.\nconst topOf = (inputs, end) => {\n  const v = Q[\"velocity\"];\n  if (v(inputs, 0) <= 0) return 0;\n  let lo = 0, hi = end;\n  for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (v(inputs, mid) > 0) lo = mid; else hi = mid; }\n  return (lo + hi) / 2;\n};\nconst motion = (inputs, time) => {\n  const end = END(inputs), t = Math.min(Math.max(time, 0), end), top = topOf(inputs, end), base = Q[\"height\"](inputs, 0);\n  const v = snap(Q[\"velocity\"](inputs, t));\n  return { top, end, t, peak: Q[\"height\"](inputs, top) - base, h: snap(Q[\"height\"](inputs, t) - base), v, a: Q[\"acceleration\"](inputs, t), tau: t - top, launch: t < EPS, ended: t >= end - EPS };\n};\n\nconst W = {\"lane\":\"Vertical Lane\",\"launch\":\"Launch Mark\",\"gravity\":{\"pulls\":\"Gravity pulls down\",\"none\":\"No gravity\"},\"motion\":{\"up\":\"Moving up\",\"top\":\"At the top\",\"down\":\"Moving down\"},\"where\":{\"launch\":\"Thrown from launch\",\"top\":\"At highest point\",\"end\":\"Back at launch height\",\"up\":\"Rising\",\"down\":\"Falling\"},\"readout\":{\"motion\":\"Motion\",\"gravity\":\"Gravity\"}};\nconst READOUTS = [\"motionState\",\"gravityState\"];\nexport function evaluate({ inputs, time }) {\n  const m = motion(inputs, time), atTop = Math.abs(m.tau) < EPS, qs = quantities(inputs, time);\n  const FLOOR = 230, S = 8.3385, X = 200, R = 18, LANE = {\"x\":12,\"y\":34,\"w\":616,\"h\":232}, y = FLOOR - m.h * S, pulls = m.a < 0;\n  const word = atTop ? W.motion.top : m.v > 0 ? W.motion.up : W.motion.down;\n  const where = m.launch ? W.where.launch : atTop ? W.where.top : m.ended ? W.where.end : m.v > 0 ? W.where.up : W.where.down;\n  const objects = [\n    ...sdk.panel({ id: 'lane.toss', x: LANE.x, y: LANE.y, w: LANE.w, h: LANE.h, title: W.lane, state: where }),\n    sdk.line('guide.launch', LANE.x + 18, FLOOR, LANE.x + LANE.w - 18, FLOOR, { opacity: 0.5 }),\n    sdk.text('label.launch', LANE.x + 18, FLOOR + 26, W.launch),\n    sdk.line('guide.toss', X, FLOOR, X, y, { opacity: 0.35 }),\n  ];\n  if (!m.launch) objects.push(sdk.circle('ghost.toss', X, FLOOR, 2 * R, { opacity: 0.35 }));\n  objects.push(sdk.circle('ball.toss', X, y, 2 * R));\n  // A letter keeps 14 px off the ground line (the 8 px label clearance plus half its height): it moves along its arrow, beside it, never onto the line.\n  const clear = parts => { const letter = parts.find(o => o.kind === 'text'); if (letter && Math.abs(letter.y - FLOOR) < 14) letter.y = FLOOR + (letter.y < FLOOR ? -14 : 14); return parts; };\n  if (!atTop) objects.push(...clear(sdk.vector('vec.v', { x: X - 31, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: 'v', side: m.v > 0 ? 'left' : 'right' })));\n  if (Math.abs(m.a) > 1e-9) objects.push(...clear(sdk.vector('vec.a', { x: X + 31, y: y }, { value: Math.abs(m.a), direction: pulls ? 'down' : 'up' }, { scale: 48 / Math.abs(m.a), label: 'a', side: 'left' })));\n  objects.push(...sdk.callout(X + 61, sdk.clamp(y - 24, 40, FLOOR - 43), [word, pulls ? W.gravity.pulls : W.gravity.none], { id: 'callout.toss' }));\n  const states = { motionState: word, gravityState: pulls ? W.gravity.pulls : W.gravity.none };\n  return {\n    frame: sdk.frame(objects, { width: 640, height: 280, readouts: READOUTS.map(id => ({ id: id, value: id in states ? states[id] : qs[id] })) }),\n    quantities: qs,\n  };\n}",
+        "sourceHash": "e1af41df5b76e7c48f376e500a18f6d68b859385a500b7a10596a28d2f80491f",
+        "manifestHash": "5d9bf2eafdcd18f0e78eaff62e4a036179c5938ce5b7fadd9cf370519359bd17",
+        "bundleHash": "eaed5a2abd478ef538ef3df0d80f00874bc1955eefc1ca6a4fc4ead4ffdae747"
+      },
+      "execution": {
+        "allowed": true
+      }
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 122,
+      "proposalMs": 2774,
+      "generateToResultMs": 157,
+      "processingMs": 2807,
+      "approvalWaitMs": 0,
+      "calls": 1,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 2634,
+          "calls": 1,
+          "inputTokens": 2390,
+          "outputTokens": 612,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 17,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "authoring",
+          "ms": 25,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 10,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 121,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 8,
+          "outcome": "accepted"
+        }
+      ]
+    },
+    "createdAt": 1794961446902,
+    "updatedAt": 1794961449833,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "block": {
+    "type": "animation",
+    "id": "d5a3dbf7-30bc-4de8-9737-8cbbeee8c456",
+    "title": "The Upward Throw",
+    "program": {
+      "kind": "explain_program",
+      "resultId": "er_92a6794355854b0295bc563d5dc81b4a",
+      "bundleHash": "eaed5a2abd478ef538ef3df0d80f00874bc1955eefc1ca6a4fc4ead4ffdae747"
+    },
+    "interact": {
+      "version": 1,
+      "planHash": "5bdde61fb1ae9018b72bb244d1c181e5617100cdea4d7b2eed64bb49cd520336",
+      "composition": {
+        "version": 1,
+        "planHash": "5bdde61fb1ae9018b72bb244d1c181e5617100cdea4d7b2eed64bb49cd520336",
+        "depth": "brief",
+        "title": "The Upward Throw",
+        "cardDescription": "Explore how an upward throw works under gravity. See how initial speed determines the apex height and total flight time.",
+        "instructions": "Adjust the launch speed and press play to observe the motion. Use the scrubber or the top button to inspect key moments.",
+        "order": [
+          "title",
+          "description",
+          "main",
+          "transport",
+          "controls"
+        ],
+        "supporting": [],
+        "main": {
+          "artifact": {
+            "kind": "program",
+            "hash": "eaed5a2abd478ef538ef3df0d80f00874bc1955eefc1ca6a4fc4ead4ffdae747"
+          },
+          "runtime": {
+            "renderer": "program",
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "programTuple": {
+              "schemaVersion": 1,
+              "sdkVersion": "sdk-8",
+              "rendererVersion": "renderer-5",
+              "runtimeVersion": "quickjs-release-sync@0.32.0",
+              "runtimePolicyVersion": "policy-1",
+              "permissionProfileVersion": "perm-1",
+              "fingerprints": {
+                "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+                "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+                "renderer": "renderer-5"
+              }
+            },
+            "requiredHelpers": [],
+            "requiredCapabilities": [
+              "time_playback",
+              "number_inputs",
+              "props",
+              "figures"
+            ],
+            "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+          },
+          "mode": "experiment",
+          "readoutIds": [
+            "motionState",
+            "gravityState"
+          ],
+          "inputDefaults": {
+            "launchSpeed": 12
+          },
+          "controls": [
+            {
+              "id": "play",
+              "type": "playback",
+              "label": "Play",
+              "nativeControlId": "program.playback",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "playback",
+                  "labels": {
+                    "paused": "Play",
+                    "playing": "Pause",
+                    "ended": "Replay"
+                  }
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "ball"
+                }
+              ],
+              "labels": {
+                "paused": "Play",
+                "playing": "Pause",
+                "ended": "Replay"
+              }
+            },
+            {
+              "id": "scrub",
+              "type": "scrubber",
+              "label": "Time since launch",
+              "nativeControlId": "program.scrubber",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "scrubber",
+                  "unit": "s",
+                  "step": 0.01
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "ball"
+                },
+                {
+                  "scope": "main",
+                  "kind": "readout",
+                  "id": "motionState"
+                }
+              ],
+              "unit": "s",
+              "step": 0.01
+            },
+            {
+              "id": "speed",
+              "type": "number",
+              "label": "Launch speed",
+              "nativeControlId": "program.number",
+              "binding": {
+                "kind": "input",
+                "id": "launchSpeed"
+              },
+              "row": "controls",
+              "native": {
+                "in": "manifest.inputs",
+                "declaration": {
+                  "type": "number",
+                  "id": "launchSpeed",
+                  "label": "Launch speed",
+                  "unit": "m/s",
+                  "default": 12,
+                  "min": 5,
+                  "max": 20,
+                  "step": 0.5
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "ball"
+                },
+                {
+                  "scope": "main",
+                  "kind": "quantity",
+                  "id": "apexTime"
+                },
+                {
+                  "scope": "main",
+                  "kind": "quantity",
+                  "id": "apexHeight"
+                }
+              ],
+              "unit": "m/s",
+              "default": 12,
+              "min": 5,
+              "max": 20,
+              "step": 0.5,
+              "onChange": "reset_pause"
+            },
+            {
+              "id": "atTop",
+              "type": "seek",
+              "label": "At top",
+              "nativeControlId": "program.seek",
+              "binding": {
+                "kind": "marker",
+                "id": "top"
+              },
+              "row": "controls",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "seek",
+                  "markerId": "top"
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "ball"
+                },
+                {
+                  "scope": "main",
+                  "kind": "readout",
+                  "id": "motionState"
+                }
+              ]
+            },
+            {
+              "id": "resetAll",
+              "type": "reset",
+              "label": "Reset experiment",
+              "nativeControlId": "program.reset",
+              "binding": {
+                "kind": "reset"
+              },
+              "row": "controls",
+              "native": {
+                "in": "card.reset",
+                "declaration": null
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "quantity",
+                  "id": "launchSpeed"
+                }
+              ]
+            }
+          ],
+          "timeline": {
+            "label": "Time since launch",
+            "unit": "s",
+            "end": {
+              "op": "divide",
+              "left": {
+                "op": "multiply",
+                "left": {
+                  "op": "literal",
+                  "value": 2
+                },
+                "right": {
+                  "op": "input",
+                  "id": "launchSpeed"
+                }
+              },
+              "right": {
+                "op": "literal",
+                "value": 9.81
+              }
+            },
+            "displayOffset": {
+              "op": "literal",
+              "value": 0
+            },
+            "markers": [
+              {
+                "id": "top",
+                "label": "Top",
+                "time": {
+                  "op": "divide",
+                  "left": {
+                    "op": "input",
+                    "id": "launchSpeed"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": 9.81
+                  }
+                },
+                "pause": true
+              }
+            ],
+            "playbackRate": 0.6,
+            "initialTime": 0,
+            "initialPlayback": "paused",
+            "step": 0.01
+          },
+          "onInputChange": "reset_pause"
+        },
+        "envelopeHash": "9e79055d6af7c961635716138c1be67d92a31eb9d3087020149ed030be2abbbb"
+      }
+    },
+    "explain": {
+      "jobId": "ej_f03c9ea30a4049278eef5cef6a786039",
+      "resultId": "er_92a6794355854b0295bc563d5dc81b4a",
+      "cardId": "d5a3dbf7-30bc-4de8-9737-8cbbeee8c456",
+      "canvas": {
+        "boardId": "7de276ee-0ffa-49d6-9056-60294cbb758a"
+      },
+      "promptRef": "1fc444ed6039d906",
+      "revision": "xr_eb06c9609ec840be89712bd194fc37db",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "eaed5a2abd478ef538ef3df0d80f00874bc1955eefc1ca6a4fc4ead4ffdae747",
+      "sourceHash": "e1af41df5b76e7c48f376e500a18f6d68b859385a500b7a10596a28d2f80491f",
+      "manifestHash": "5d9bf2eafdcd18f0e78eaff62e4a036179c5938ce5b7fadd9cf370519359bd17",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "5bdde61fb1ae9018b72bb244d1c181e5617100cdea4d7b2eed64bb49cd520336",
+        "envelopeHash": "9e79055d6af7c961635716138c1be67d92a31eb9d3087020149ed030be2abbbb",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      }
+    }
+  },
+  "scenePlan": {
+    "version": 1,
+    "hash": "5bdde61fb1ae9018b72bb244d1c181e5617100cdea4d7b2eed64bb49cd520336",
+    "revision": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "depth": "brief",
+      "title": "The Upward Throw",
+      "story": "When you toss a ball straight up into the air, it leaves your hand with a certain speed and immediately begins to slow down. Gravity pulls it downward, steadily reducing its upward speed until it stops for a brief fraction of a second at its highest point. From there, it begins its fall back down, picking up speed until it reaches your hand again. Let's see how its speed and height change during this flight.",
+      "cardDescription": "Explore how an upward throw works under gravity. See how initial speed determines the apex height and total flight time.",
+      "learningGoal": "Say that gravity still pulls the ball down at the top of its throw, where it is still for an instant.",
+      "instructions": "Adjust the launch speed and press play to observe the motion. Use the scrubber or the top button to inspect key moments.",
+      "supportingVisuals": [],
+      "scene": {
+        "description": "One moving ball on a fixed height scale with a launch-height guide; the scale does not change with the launch speed, so a faster toss visibly rises higher. A blue Motion arrow beside the ball shortens on the way up, is absent at the top and points down on the way back. A separate dashed warm gravity arrow keeps the same direction and length throughout. Beside the ball a callout (frame object id callout.toss) names the motion and shows gravity. The scene starts at launch and runs the whole rise and fall. No second ball, graph, equation, number readout or comparison strip.",
+        "runtime": {
+          "renderer": "program",
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "programTuple": {
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "rendererVersion": "renderer-5",
+            "runtimeVersion": "quickjs-release-sync@0.32.0",
+            "runtimePolicyVersion": "policy-1",
+            "permissionProfileVersion": "perm-1",
+            "fingerprints": {
+              "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+              "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+              "renderer": "renderer-5"
+            }
+          },
+          "requiredHelpers": [],
+          "requiredCapabilities": [
+            "time_playback",
+            "number_inputs",
+            "props",
+            "figures"
+          ],
+          "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+        },
+        "entities": [
+          {
+            "id": "ball",
+            "label": "Ball",
+            "purpose": "The tossed ball (frame object id ball.toss), an SVG glyph that starts at the launch mark."
+          },
+          {
+            "id": "motionArrow",
+            "label": "Motion arrow",
+            "purpose": "Blue arrow showing the signed velocity (frame object id vec.v, labelled v); absent at the top."
+          },
+          {
+            "id": "gravityArrow",
+            "label": "Gravity arrow",
+            "purpose": "Dashed warm arrow (frame object id vec.a, labelled a), the same downward length throughout."
+          },
+          {
+            "id": "heightGuide",
+            "label": "Launch-height guide",
+            "purpose": "A fixed guide at the launch height on one height scale."
+          }
+        ],
+        "quantities": [
+          {
+            "id": "launchSpeed",
+            "label": "Launch speed",
+            "unit": "m/s",
+            "meaning": "Upward speed at the instant of the throw.",
+            "reference": "Measured at the launch mark, up is positive.",
+            "formula": "launchSpeed"
+          },
+          {
+            "id": "gravity",
+            "label": "Gravitational acceleration",
+            "unit": "m/s^2",
+            "meaning": "Magnitude of the constant downward acceleration.",
+            "reference": "Idealized, no air resistance.",
+            "formula": "gravity"
+          },
+          {
+            "id": "apexTime",
+            "label": "Time of the top",
+            "unit": "s",
+            "meaning": "Elapsed time from launch at which the velocity is zero.",
+            "reference": "Elapsed from launch.",
+            "relation": "apexTime = launchSpeed / gravity",
+            "formula": "launchSpeed / gravity"
+          },
+          {
+            "id": "apexHeight",
+            "label": "Height of the top",
+            "unit": "m",
+            "meaning": "Height of the ball at its top above the ground mark.",
+            "reference": "Measured from the ground mark, up is positive.",
+            "relation": "apexHeight = (launchSpeed * launchSpeed) / (2 * gravity)",
+            "formula": "(launchSpeed * launchSpeed) / (2 * gravity)"
+          },
+          {
+            "id": "velocity",
+            "label": "Vertical velocity",
+            "unit": "m/s",
+            "meaning": "Signed rate of change of height, up positive; zero at the top.",
+            "reference": "Zero at the top.",
+            "relation": "velocity = launchSpeed - gravity * t",
+            "formula": "launchSpeed - gravity * t"
+          },
+          {
+            "id": "height",
+            "label": "Height of the ball",
+            "unit": "m",
+            "meaning": "Height above the ground mark, up positive; the launch height is its value at t = 0.",
+            "reference": "Measured from the ground mark, up is positive.",
+            "relation": "height = launchSpeed * t - 0.5 * gravity * t^2",
+            "formula": "launchSpeed * t - 0.5 * gravity * t^2"
+          },
+          {
+            "id": "acceleration",
+            "label": "Vertical acceleration",
+            "unit": "m/s^2",
+            "meaning": "Signed rate of change of velocity: constant and negative (down), -gravity.",
+            "reference": "Constant -gravity during flight.",
+            "relation": "acceleration = 0 - gravity",
+            "formula": "0 - gravity"
+          }
+        ],
+        "observations": [
+          {
+            "id": "motionArrow",
+            "text": "The Motion arrow shortens while the ball rises, is absent at the top and points down while it falls.",
+            "quantityIds": [
+              "velocity"
+            ],
+            "readoutIds": [
+              "motionState"
+            ]
+          },
+          {
+            "id": "gravityConstant",
+            "text": "The gravity arrow keeps the same direction and length, so gravity pulls down at the top too.",
+            "quantityIds": [
+              "acceleration"
+            ],
+            "readoutIds": [
+              "gravityState"
+            ]
+          },
+          {
+            "id": "fasterHigher",
+            "text": "A faster toss reaches its top later and higher on the same fixed height scale.",
+            "quantityIds": [
+              "apexTime",
+              "apexHeight",
+              "height"
+            ],
+            "readoutIds": []
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "rising",
+            "label": "Rising",
+            "time": {
+              "op": "multiply",
+              "left": {
+                "op": "literal",
+                "value": 0.5
+              },
+              "right": {
+                "op": "divide",
+                "left": {
+                  "op": "input",
+                  "id": "launchSpeed"
+                },
+                "right": {
+                  "op": "literal",
+                  "value": 9.81
+                }
+              }
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Moving up: a short blue Motion arrow up, gravity arrow down."
+          },
+          {
+            "id": "top",
+            "label": "At the top",
+            "time": {
+              "op": "divide",
+              "left": {
+                "op": "input",
+                "id": "launchSpeed"
+              },
+              "right": {
+                "op": "literal",
+                "value": 9.81
+              }
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Still for an instant at the top: no Motion arrow, gravity arrow still down; playback pauses here."
+          },
+          {
+            "id": "falling",
+            "label": "Falling",
+            "time": {
+              "op": "multiply",
+              "left": {
+                "op": "literal",
+                "value": 1.5
+              },
+              "right": {
+                "op": "divide",
+                "left": {
+                  "op": "input",
+                  "id": "launchSpeed"
+                },
+                "right": {
+                  "op": "literal",
+                  "value": 9.81
+                }
+              }
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Moving down: a short blue Motion arrow down, gravity arrow down."
+          },
+          {
+            "id": "fastTop",
+            "label": "Fastest toss at its top",
+            "time": {
+              "op": "divide",
+              "left": {
+                "op": "input",
+                "id": "launchSpeed"
+              },
+              "right": {
+                "op": "literal",
+                "value": 9.81
+              }
+            },
+            "inputOverrides": {
+              "launchSpeed": 20
+            },
+            "actions": [],
+            "expected": "At the fastest launch speed the top comes later and higher on the same height scale."
+          }
+        ],
+        "readoutIds": [
+          "motionState",
+          "gravityState"
+        ],
+        "template": "one-body",
+        "slots": {
+          "height": "height",
+          "velocity": "velocity",
+          "acceleration": "acceleration"
+        },
+        "words": {
+          "lane": "Vertical Lane",
+          "launch": "Launch Mark",
+          "gravity_pulls": "Gravity pulls down",
+          "gravity_none": "No gravity",
+          "motion_up": "Moving up",
+          "motion_top": "At the top",
+          "motion_down": "Moving down",
+          "where_launch": "Thrown from launch",
+          "where_top": "At highest point",
+          "where_end": "Back at launch height",
+          "where_up": "Rising",
+          "where_down": "Falling",
+          "readout_motion": "Motion",
+          "readout_gravity": "Gravity"
+        }
+      },
+      "mode": {
+        "kind": "experiment",
+        "initialState": "Launch speed 12 m/s; the ball at the launch mark, time 0.000 s, paused.",
+        "fixedValues": {
+          "gravity": 9.81
+        },
+        "adjustableIds": [
+          "launchSpeed"
+        ],
+        "timeline": {
+          "label": "Time since launch",
+          "unit": "s",
+          "start": 0,
+          "end": {
+            "op": "divide",
+            "left": {
+              "op": "multiply",
+              "left": {
+                "op": "literal",
+                "value": 2
+              },
+              "right": {
+                "op": "input",
+                "id": "launchSpeed"
+              }
+            },
+            "right": {
+              "op": "literal",
+              "value": 9.81
+            }
+          },
+          "displayOffset": {
+            "op": "literal",
+            "value": 0
+          },
+          "markers": [
+            {
+              "id": "top",
+              "label": "Top",
+              "time": {
+                "op": "divide",
+                "left": {
+                  "op": "input",
+                  "id": "launchSpeed"
+                },
+                "right": {
+                  "op": "literal",
+                  "value": 9.81
+                }
+              },
+              "pause": true
+            }
+          ],
+          "initialTime": 0,
+          "initialPlayback": "paused",
+          "playbackRate": 0.6
+        },
+        "onInputChange": "reset_pause"
+      },
+      "controls": [
+        {
+          "id": "play",
+          "label": "Play",
+          "purpose": "Run the motion and replay it.",
+          "selectionReason": "Time explains the change, and the one supported transport drives every linked view.",
+          "nativeControlId": "program.playback",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "ball"
+            }
+          ],
+          "type": "playback",
+          "binding": {
+            "kind": "timeline"
+          },
+          "labels": {
+            "paused": "Play",
+            "playing": "Pause",
+            "ended": "Replay"
+          }
+        },
+        {
+          "id": "scrub",
+          "label": "Time since launch",
+          "purpose": "Inspect any instant of the motion.",
+          "selectionReason": "A scrubber lets the learner stop on the instants the explanation compares.",
+          "nativeControlId": "program.scrubber",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "ball"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "motionState"
+            }
+          ],
+          "type": "scrubber",
+          "binding": {
+            "kind": "timeline"
+          },
+          "unit": "s",
+          "step": 0.01
+        },
+        {
+          "id": "speed",
+          "label": "Launch speed",
+          "purpose": "See how the speed of the toss moves the top without changing what gravity does there.",
+          "selectionReason": "The speed varies continuously and intermediate speeds show that the top moves while the pull does not; two named cases would hide that.",
+          "nativeControlId": "program.number",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "ball"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "apexTime"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "apexHeight"
+            }
+          ],
+          "type": "number",
+          "binding": {
+            "kind": "input",
+            "id": "launchSpeed"
+          },
+          "unit": "m/s",
+          "default": 12,
+          "min": 5,
+          "max": 20,
+          "step": 0.5,
+          "onChange": "reset_pause"
+        },
+        {
+          "id": "atTop",
+          "label": "At top",
+          "purpose": "Jump to the top of the toss and pause there.",
+          "selectionReason": "The top is the one instant the explanation is about; a button reaches it exactly, which dragging the scrubber does not.",
+          "nativeControlId": "program.seek",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "ball"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "motionState"
+            }
+          ],
+          "type": "seek",
+          "binding": {
+            "kind": "marker",
+            "id": "top"
+          },
+          "effect": "Seeks the top marker and pauses."
+        },
+        {
+          "id": "resetAll",
+          "label": "Reset experiment",
+          "purpose": "Return to the defaults.",
+          "selectionReason": "Replay keeps the settings; Reset restores them so the learner can start over.",
+          "nativeControlId": "program.reset",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "launchSpeed"
+            }
+          ],
+          "type": "reset",
+          "binding": {
+            "kind": "reset"
+          },
+          "effect": "Restores launch speed 12 m/s and time 0, paused."
+        }
+      ],
+      "assumptions": [
+        "Gravity fixed at 9.81 m/s^2, no air resistance, up is positive."
+      ],
+      "limitations": [
+        "An idealized vertical throw; real balls feel drag."
+      ],
+      "claims": [
+        {
+          "id": "gravityAtTop",
+          "text": "At the top the velocity is zero and the acceleration is still downward, so gravity keeps pulling.",
+          "evidenceIds": [],
+          "check": "Differentiate v = u - g t: the slope is -g at every t, including the top."
+        }
+      ]
+    },
+    "open": [],
+    "carried": [],
+    "fit": {
+      "styleVersion": "card-description-v1:estimate"
+    },
+    "review": null
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "A ball is thrown straight up at 12 m/s. How high does it go and when does it land?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": "gemini-3.5-flash-lite",
+      "calls": 1,
+      "fallback": "none",
+      "firstProblem": null,
+      "costUsd": 0.002247,
+      "pick": {
+        "family": "vertical-throw",
+        "confidence": 1,
+        "probabilities": {
+          "vertical-throw": 1,
+          "curve-sliders": 0,
+          "stepper-states": 0,
+          "none": 0
+        },
+        "ms": 99,
+        "reason": "fit"
+      }
+    },
+    "findings": [
+      {
+        "round": 0,
+        "stage": "reviewing",
+        "accepted": true,
+        "findings": [],
+        "review": "shadow"
+      }
+    ],
+    "candidates": [],
+    "settings": {
+      "presentation": "experiment"
+    },
+    "calls": [
+      {
+        "key": "ej_f03c9ea30a4049278eef5cef6a786039-design_fill-1",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": "gemini-3.5-flash-lite",
+        "served": "gemini-3.5-flash-lite",
+        "status": "settled",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 2247,
+        "inputTokens": 2390,
+        "outputTokens": 612,
+        "startedAt": 1794961447134,
+        "endedAt": 1794961449325,
+        "error": null
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794961446902,
+        "firstFeedback": 1794961447024,
+        "proposalReady": 1794961449676,
+        "generate": 1794961449676,
+        "result": 1794961449833
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794961447024,
+          "endedAt": 1794961449658,
+          "calls": 1,
+          "inputTokens": 2390,
+          "outputTokens": 612,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794961449659,
+          "endedAt": 1794961449676,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "authoring",
+          "startedAt": 1794961449677,
+          "endedAt": 1794961449702,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1794961449702,
+          "endedAt": 1794961449712,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1794961449712,
+          "endedAt": 1794961449833,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 8,
+          "outcome": "accepted"
+        }
+      ],
+      "v": 2
+    },
+    "ledger": {
+      "jobId": "ej_f03c9ea30a4049278eef5cef6a786039",
+      "planHash": "5bdde61fb1ae9018b72bb244d1c181e5617100cdea4d7b2eed64bb49cd520336",
+      "depth": "brief",
+      "result": "ready",
+      "stopReason": "accepted",
+      "oracleId": "toss-mvp-brief",
+      "oracleChecked": 42,
+      "oracleFailed": 0,
+      "bindingProblems": 0,
+      "overlapProblems": 0,
+      "repairs": 0,
+      "repairCauses": "",
+      "profile": "opus-baseline",
+      "fixture": null,
+      "authorModel": "template",
+      "fallbackFired": false,
+      "judgeVerdict": null,
+      "judgeMajor": null,
+      "judgeCostUsd": null,
+      "costUsd": 0.002247,
+      "msSteer": null,
+      "msAuthor": null,
+      "msValidate": 1,
+      "msRun": 102,
+      "msCheck": 3,
+      "msCompose": 15,
+      "msReview": null,
+      "msRepair": null,
+      "msTotal": 2931,
+      "msJudge": null,
+      "timing": "v2",
+      "buildKind": "template",
+      "msHopWait": 36,
+      "judgeFindingsPath": null,
+      "designModel": "gemini-3.5-flash-lite",
+      "designKind": "fast",
+      "msFill": null,
+      "designFallback": "none",
+      "designCalls": 1,
+      "msDesign": 2774,
+      "designCostUsd": 0.002247,
+      "pickFamily": "vertical-throw",
+      "pickConfidence": 1,
+      "msPick": 99,
+      "approvedBy": "fast-path",
+      "pickProbabilities": "{\"vertical-throw\":1,\"curve-sliders\":0,\"stepper-states\":0,\"none\":0}",
+      "prompt": "A ball is thrown straight up at 12 m/s. How high does it go and when does it land?"
+    }
+  }
+}
