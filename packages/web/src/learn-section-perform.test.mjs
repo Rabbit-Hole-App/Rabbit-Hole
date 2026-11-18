@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnTag, performItem, tagCard } from './learn-section-perform.js';
+import { placeholderTitle } from './card-rename.js';
 
 // A canvas that holds blocks, measures them at once and places every slot card at once (the column's job is AdaptiveCanvas's; here only what perform asks for).
 function fakeCanvas(existing = []) {
@@ -44,4 +45,19 @@ test('a card the canvas already held is tagged and linked but never put in the c
   assert.deepEqual(old.tocLinks, ['toc-11']);
   await tagCard(api, 'old', { sectionId: '1.1', itemId: 'i2' });
   assert.equal(blocks.find(block => block.id === 'old').learn.itemId, 'i1', 'a tagged card keeps its first tag');
+});
+
+// Section card titles (owner 2026-11-18): the card gets the item's title; an explanation the artifact titled keeps its own; a card the canvas already held is untouched.
+test('performItem: a made card carries the item title, so no section card shows a placeholder title', async () => {
+  const { api, blocks } = fakeCanvas([{ id: 'wiki-0', type: 'wiki', title: 'Tokenization' }]);
+  api.insertNotebook = block => { blocks.push(block); return block.id; };
+  const file = { path: 'embeddings.ipynb', content: { cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 } };
+  await performItem({ canvasApi: api, perform: { op: 'notebook', files: [file], activePath: file.path }, item: { itemId: 'i3', command: 'notebook', lead: '', follow: '', title: 'Turn tokens into vectors' }, ctx: { sectionId: '1.1', itemId: 'i3' } });
+  const slash = (title) => ({ current: { intercept: (line, { onCard, onDone }) => { const id = `exp-${blocks.length}`; blocks.push({ id, type: 'explanation', ...(title ? { title } : {}) }); onCard(id); onDone({}); } } });
+  await performItem({ canvasApi: api, slash: slash(null), perform: { op: 'slash', line: '/explain x' }, item: { itemId: 'i1', command: 'explanation', title: 'Why ids, not letters' }, ctx: { sectionId: '1.1', itemId: 'i1' } });
+  await performItem({ canvasApi: api, slash: slash('The artifact title'), perform: { op: 'slash', line: '/explain y' }, item: { itemId: 'i2', command: 'explanation', title: 'Item title' }, ctx: { sectionId: '1.1', itemId: 'i2' } });
+  await performItem({ canvasApi: api, perform: { op: 'wiki', title: 'Tokenization' }, item: { itemId: 'i4', command: 'wikipedia' }, ctx: { sectionId: '1.1', itemId: 'i4' } });
+  assert.deepEqual(blocks.map(block => [block.type, block.title]), [['wiki', 'Tokenization'], ['notebook', 'Turn tokens into vectors'], ['explanation', 'Why ids, not letters'], ['explanation', 'The artifact title']]);
+  assert.deepEqual(blocks.filter(block => block.learn).filter(placeholderTitle), []);
+  assert.equal(blocks.find(block => block.type === 'notebook').ipynb_path, 'embeddings.ipynb', 'the file name is unchanged');
 });

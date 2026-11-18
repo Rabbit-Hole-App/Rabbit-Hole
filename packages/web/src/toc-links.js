@@ -5,6 +5,8 @@
 // which would reject a section id. Only manual outline entries are linkable: a roadmap row ('roadmap:<stepId>') belongs to the server.
 import { outlineTree } from './learn-outline-model.js';
 import { byKey } from './learn-position.js';
+import { namedTitleOf } from './card-rename.js';
+import { objectName } from './selection-ref.js';
 
 export const MAX_TOC_LINKS = 20;
 // Blocks that cannot hold a link: a standalone canvas reference card (it IS a link) and a heading (it is the contents' own content).
@@ -34,6 +36,8 @@ export function withLiveLinks(block, outline) {
 // What the canvas reports to the page: [[cardId, title, entryIds, type, role]] for the cards that link to a section. Learn plan cards come first in reading order
 // (learn-position.js orderKey, so a section's chips read as its column does after Arrange), the rest in board order. A chapter's heading card is left out: the
 // chapter's own title is its link (spec 4; cards made by release 153 still hold the link). role: the Learn role, 'notes' for a section's notes card. nameOf: block -> title.
+// A contents chip's name (owner 2026-11-18, section-card-titles-spec.md): the card's own name first, then the described one; a notebook's file name is not its title.
+export const tocChipName = (block, described) => namedTitleOf(block) || objectName(block, described);
 export function tocLinkRows(blocks, nameOf) {
   const held = (blocks || []).filter(block => block.tocLinks?.length && block.learn?.role !== 'chapter');
   return [...held.filter(block => block.learn).sort(byKey), ...held.filter(block => !block.learn)]
