@@ -66,7 +66,14 @@ function checkSamples(d, issue) {
   unique(d.groups.map(group => group.id), ['groups'], issue, 'Group IDs');
   if (new Set(d.samples.map(sample => sample.class).filter(Boolean)).size > 6) issue(['samples'], 'Use at most six sample classes');
   const groups = new Map(d.groups.map(group => [group.id, group]));
+  // A bootstrap draw is n rows from n rows, with replacement (exact, no tolerance; item 4, Reviewer 2026-11-17). The diagram says bootstrap in its title, caption or any label, and not
+  // m-out-of-n or subsample (those draw fewer on purpose); a replacement group draws from the whole sample set. Tagged arithmetic: the repair names the numbers.
+  const words = [d.title, d.caption, ...d.groups.map(group => group.label), ...d.samples.flatMap(sample => [sample.label, sample.class])].filter(Boolean).join(' ');
+  const bootstrap = /bootstrap/i.test(words) && !/m[- ]out[- ]of[- ]n|subsample/i.test(words);
   d.groups.forEach((group, i) => {
+    if (bootstrap && group.replacement && group.members.length !== d.samples.length) {
+      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${group.members.length}.`, { code: 'arithmetic' });
+    }
     for (const field of ['members', 'omitted']) {
       (group[field] ?? []).forEach((sampleId, j) => {
         if (!ids.includes(sampleId)) issue(['groups', i, field, j], 'Membership refers to an unknown sample ID');
@@ -133,8 +140,17 @@ function checkBoxes(d, issue) {
     });
     if (box.fences) {
       const { lower, upper } = box.fences;
-      if (lower > box.whiskerLow || upper < box.whiskerHigh) issue(['boxes', i, 'fences'], 'Fences must enclose both whiskers');
-      if (!within(lower, d.x.min, d.x.max) || !within(upper, d.x.min, d.x.max)) issue(['boxes', i, 'fences'], 'Fences are outside the shared axis domain');
+      // Fences may fall outside the author's x range (the renderer widens the axis to hold them); summary values and outliers may not.
+      const places = Math.max(0, ...[box.q1, box.q3, lower, upper].map(value => (String(value).split('.')[1] ?? '').length));
+      // A whisker beyond a stated fence (the fences are checked against Q1 and Q3 just below, so these are the validated fences) names both numbers; same half-unit allowance (item 5, Reviewer 2026-11-17).
+      if (lower - box.whiskerLow > 0.5 * 10 ** -places + 1e-9 || box.whiskerHigh - upper > 0.5 * 10 ** -places + 1e-9) {
+        issue(['boxes', i, 'fences'], `Fences must enclose both whiskers: the whiskers run from ${box.whiskerLow} to ${box.whiskerHigh}, outside the fences ${lower} and ${upper}.`, { code: 'arithmetic' });
+      }
+      const spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, round = value => Number(value.toFixed(places + 1));
+      // Same rounding allowance as the waterfall total: half a unit of the last decimal written.
+      if (Math.abs(lower - low) > 0.5 * 10 ** -places + 1e-9 || Math.abs(upper - high) > 0.5 * 10 ** -places + 1e-9) {
+        issue(['boxes', i, 'fences'], `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.`, { code: 'arithmetic' });
+      }
     }
     (box.outliers ?? []).forEach(({ value }, j) => {
       if (!within(value, d.x.min, d.x.max)) issue(['boxes', i, 'outliers', j, 'value'], 'Outlier is outside the shared axis domain');

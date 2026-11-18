@@ -52,7 +52,7 @@ export const CHAIN_STEPS = Object.freeze({
   google: { provider: 'google', model: 'gemini-3.5-flash-lite', credentialRef: 'GEMINI_API_KEY' },
 });
 // Owner order 2026-11-08 (revised the same day): a fireworks-* profile is Fireworks gpt-oss-120b, then Gemini; Cerebras is never a fallback step. A
-// cerebras-* profile stays selectable on its own (Cerebras, then Fireworks, then Gemini). Production uses fireworks-low. Never the plan model.
+// cerebras-* profile stays selectable on its own (Cerebras, then Fireworks, then Gemini). Production uses google-low (Gemini flash-lite first, Fireworks gpt-oss-120b as the fallback; packages/web/wrangler.rabbit-hole-prod.jsonc). Never the plan model.
 // Output cap per effort (owner review 2026-11-08: output tokens are latency, so the model must not run long). Measured 2026-11-08 on Fireworks gpt-oss-120b
 // (C:/s/spec/benchmarks/explain-gpt-oss-2026-11-08): the largest delivered card is 2,395 JSON characters (title, body, questions, terms; about 700 tokens at
 // ~3.4 characters a token), and output including reasoning averaged 643 tokens a call at low (56,604 over 88 calls) and 1,356 at medium (44,740 over 33).

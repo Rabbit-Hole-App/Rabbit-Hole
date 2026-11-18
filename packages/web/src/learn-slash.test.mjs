@@ -620,3 +620,14 @@ test('a typed /explain asks to follow the previous card; a request from a card i
   await runLearnCommand('/explain more on this', { app: 'demo', canvas, post: async () => ({ result: 'clarification', question: 'Which?' }), openSearch: () => {}, target: { id: 'card-9', beside: true, alignY: 30 } });
   assert.deepEqual(did[0], { label: 'Creating /explain', card: 'explanation', beside: 'card-9', besideDy: 30 }, 'a follow-up keeps its beside and no follow');
 });
+
+// Every provider's answer kept a wrong number in a diagram (explanation_bad_numbers): no card, no numbers shown, the line kept, one plain sentence.
+test('/explain: wrong numbers after every provider say Couldn\'t make a reliable card, keep the line and show no detail', async () => {
+  const failed = harness({ result: 'validation_error', primitive: 'explanation', error: 'explanation_bad_numbers: the rh-diagram spec states wrong numbers (boxes.0.fences: Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.)' });
+  const out = await failed.run('/explain box plot fences');
+  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
+  assert.equal(out.notice.tone, 'error');
+  assert.equal(out.notice.text, "Couldn't make a reliable card. Try again.");
+  assert.equal(out.notice.detail, undefined);
+  assert.equal(out.keep, '/explain box plot fences');
+});
