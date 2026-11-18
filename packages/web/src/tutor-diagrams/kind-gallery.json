@@ -109,10 +109,10 @@
     "version": 1,
     "diagram": {
       "kind": "transformation",
-      "title": "Convert ribbon lengths to centimeters",
-      "before": {"label": "Meters", "items": ["Red ribbon: 1 m", "Blue ribbon: 2 m", "Green ribbon: 3 m"]},
-      "after": {"label": "Centimeters", "items": ["Red ribbon: 100 cm", "Blue ribbon: 200 cm", "Green ribbon: 300 cm"]},
-      "operation": "Multiply by 100"
+      "title": "Water freezes",
+      "before": {"label": "Liquid", "items": ["Water"]},
+      "after": {"label": "Solid", "items": ["Ice"]},
+      "operation": "Remove heat"
     }
   },
   {

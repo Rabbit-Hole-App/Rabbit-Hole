@@ -108,7 +108,6 @@ export const transformerDecoderReferences = [
     keywords: [
       'transformer turn scores into a guess', 'vocabulary scores become next token probabilities',
       'predict on as the next word', 'next word probabilities from logits', 'vocabulary softmax',
-      'token probability', 'next token', 'probability of a specific token',
     ],
     useWhen: 'Project the decoder state to one logit per word in the six-word toy vocabulary. Apply softmax to these logits. Read the six candidate probabilities in one row and choose the highest for the cat sat.',
     spec: vocabularyBars(`Vocabulary logits after ${prefix}`, logits, 'A linear layer gives each word in the toy vocabulary a raw score.'),

@@ -19,7 +19,7 @@ const KIND = {
   timeline: 'Events ordered by dates, years or eras. Also a short numbered derivation or recipe of 3 to 6 stages in a fixed order with no branches, written with times "1" to "N".',
   tree: 'A hierarchy, parts of one thing, splits, recursive calls; binary trees, BSTs, heaps, decision trees as structures.',
   relationship: 'Named things linked by labelled relations, including feedback and cycles between them; causes and effects.',
-  transformation: 'The same thing before and after an operation: reshape, encode, differencing. Never for a function, wave or encoding over position or time. Numbers turned into other numbers (softmax, normalise, top-k, temperature, scaling to shares) are a bar-chart or panels, never a transformation.',
+  transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing. Never for a function, wave or encoding over position or time.',
   comparison: 'Two to four separate things set side by side on shared attributes.',
   layers: 'A real ordered stack: network layers, atmosphere, software tiers, a transformer block. A stack: frames or levels pushed and popped (a call stack, a protocol stack), even when the question mentions recursion.',
   matrix: 'A grid of values with row and column headings: truth table, confusion matrix.',
