@@ -86,7 +86,7 @@ test('strips: the owner and the viewer of a shared canvas get the same three row
   assert.equal($$('[data-explanation-suggestion]').length, 3);
   assert.ok($$('[data-explanation-suggestion] button').every(button => button.getAttribute('title') === 'Answer in a card'));
   assert.match(strips.className, /\bgap-2\.5\b/);
-  assert.match(strips.className, /(^|\s)-mx-3(\s|$)/);
+  assert.doesNotMatch(strips.className, /(^|\s)-mx-\d/, 'the strip is exactly as wide as the prose column (no negative margin)');
   assert.match(strips.className, /\bmt-4\b/);
 });
 

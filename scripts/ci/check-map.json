@@ -237,6 +237,7 @@
     "packages/web/src/TranscriptWindow.jsx": ["packages/web/src/transcript-window.test.mjs","packages/web/src/transcript-reveal.test.mjs"],
     "packages/web/src/audio-playing.js": ["packages/web/src/audio-playing.test.mjs"],
     "packages/web/src/transcript-reveal.js": ["packages/web/src/transcript-reveal.test.mjs"],
+    "packages/web/src/transcript-scroll.js": ["packages/web/src/transcript-scroll.test.mjs","packages/web/src/transcript-window.test.mjs"],
     "packages/web/src/tutor-diagrams/matrix-tuple.js": ["packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs","packages/web/src/tutor-diagrams/svg-snapshots.test.mjs"],
     "packages/web/src/tutor-diagrams/ml-mle-steps-reference.js": ["packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs"],
     "packages/web/src/tutor-diagrams/theme/palette.js": ["packages/web/src/tutor-diagrams/theme/palette-guard.test.mjs","packages/web/src/tutor-diagrams/theme/stray-hex.test.mjs"],
