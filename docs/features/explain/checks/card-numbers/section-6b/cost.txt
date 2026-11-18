@@ -1,0 +1,1 @@
+Section 6b total spend, upper bound: US$0.5442 over 147 runs (settled ledger cost US$0.5148 + reservations of unknown-cost calls + US$0.0002 per run for the TypeSafe planner, an estimate). Stop line US$2.70; hard cap US$3.00.
