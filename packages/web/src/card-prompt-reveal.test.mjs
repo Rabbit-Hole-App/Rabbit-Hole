@@ -1,5 +1,5 @@
-// The Prompt control (owner brief 2026-10-23; moved by the owner on 2026-11-17 from each card's header into the card's hover action pill, SelectionActions.jsx, as its last action,
-// drawn only for a card that has a stored prompt): clicking it opens a
+// The Prompt control (owner brief 2026-10-23, replacing the Show prompt reveal): a card's stored prompt is hidden at rest; hovering,
+// focusing into or (touch) selecting the card draws a small Prompt control in the card's top-right pill slot; clicking it opens a
 // popover beside the card with the exact words and Copy, which stays open until an outside press, Escape, Tab away or a wheel or
 // resize. The Chat's generation status uses the same control and shows a /cad line as the lowercase cad pill. Rendered with
 // react-dom into linkedom after an esbuild bundle (as content-gestures.test.mjs does). Real hover, layout and the canvas zoom are
@@ -31,7 +31,7 @@ Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { us
 
 const dir = mkdtempSync(join(tmpdir(), 'card-prompt-')), outfile = join(dir, 'prompt.cjs');
 await esbuild.build({
-  stdin: { contents: "export { PromptControl, PromptHold, placePrompt } from './CardPrompt.jsx'; export { HoverActions, SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx'; export { GenerationIndicator } from './ChatOutputs.jsx'; export { LearningBlockBody } from './LearningBlocks.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as CardPrompt, PromptControl, PromptSlot, placePrompt } from './CardPrompt.jsx'; export { GenerationIndicator } from './ChatOutputs.jsx'; export { LearningBlockBody } from './LearningBlocks.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -61,10 +61,36 @@ const query = selector => document.querySelector(selector);
 const click = element => B.act(async () => { element.click(); });
 const escape = element => fire(element, 'keydown', { key: 'Escape' });
 const reached = { select: 0, drag: 0, open: 0 };
-const mountCard = (props = { text: 'a 100 mm cube' }, children = null) => mount(B.createElement('div', { id: 'card', 'data-block': '', tabIndex: 0, onPointerDown: () => { reached.select++; }, onDoubleClick: () => { reached.open++; } }, B.createElement(B.PromptControl, { active: true, anchor: () => card(), ...props }), children));
+const mountCard = (props = { text: 'a 100 mm cube' }, children = null) => mount(B.createElement('div', { id: 'card', 'data-block': '', tabIndex: 0, onPointerDown: () => { reached.select++; }, onDoubleClick: () => { reached.open++; } }, B.createElement(B.CardPrompt, props), children));
 const button = () => query('[data-card-prompt-button]');
 const dialog = () => query('[data-card-prompt]');
 const LONG = Array.from({ length: 60 }, (_, i) => `line ${i}: dimension ${i} mm, fillet <${i}> & "chamfer"`).join('\n');
+
+test('at rest nothing is drawn: no control, no popover, no words, no reserved space', async () => {
+  await mountCard({ text: LONG });
+  assert.equal(button(), null);
+  assert.equal(dialog(), null);
+  assert.equal(card().textContent, '', 'no words and no label');
+  assert.match(query('[data-card-prompt-host]').className, /\babsolute\b/, 'out of the card layout');
+});
+
+test('hover shows Prompt and leaving hides it; focusing into the card or selecting it (touch) shows it too; a touch pointer is not a hover', async () => {
+  await mountCard();
+  await fire(card(), 'pointerenter');
+  assert.equal(button()?.textContent, 'Prompt');
+  assert.equal(button().tagName, 'BUTTON');
+  assert.equal(dialog(), null, 'the words wait for a click');
+  await fire(card(), 'pointerleave');
+  assert.equal(button(), null);
+  await fire(card(), 'pointerenter', { pointerType: 'touch' });
+  assert.equal(button(), null, 'a touch pointer entering is not a hover');
+  await fire(card(), 'focusin');
+  assert.ok(button(), 'keyboard: focus in the card shows it');
+  await fire(card(), 'focusout');
+  assert.equal(button(), null);
+  await mountCard({ text: 'a 100 mm cube', selected: true });
+  assert.ok(button(), 'touch: a selected card shows it with no hover');
+});
 
 test('Prompt opens a popover (outside the card, in the body) with the exact words and Copy; the pointer leaving does not close it', async () => {
   await mountCard({ text: LONG, selected: true });
@@ -153,6 +179,7 @@ test('Copy writes the complete original text, says Copied, and says so when copy
 test('a card with no stored prompt has no control at all', async () => {
   for (const text of [undefined, null, '']) {
     await mountCard({ text, selected: true });
+    assert.equal(query('[data-card-prompt-host]'), null);
     assert.equal(button(), null);
   }
 });
@@ -186,163 +213,49 @@ test('the popover is placed beside the card from its measured box', async () => 
   } finally { window.HTMLElement.prototype.getBoundingClientRect = original; }
 });
 
-// The card header (owner 2026-11-17): no card draws a Prompt control in its own header any more, with or without a stored prompt; the generic "course" pill stays gone (owner correction 2026-10-23).
-// A real source badge (tutor, learner, PDF) stays as it was. Rendered through the real bodies.
+// The top-right slot (owner correction 2026-10-23): the generic "course" pill is gone from every card, with or without a stored prompt.
+// A card with a stored prompt gets the Prompt control there (hidden at rest; hover, focus or touch selection draw it). A real source
+// badge (tutor, learner, PDF) stays as it was and the control sits beside it, never over it. Rendered through the real bodies.
 const FAMILIES = {
-  explanation: { block: { type: 'explanation', title: 'Why softmax', body: 'It normalises.', promptUsed: '/explain softmax' }, badge: null },
-  table: { block: { type: 'table', title: 'Sigmoid vs tanh', columns: ['a', 'b'], rows: [['1', '2']], promptUsed: 'make a table' }, badge: null },
-  challenge: { block: { type: 'challenge', title: 'Try', prompt: 'Explain it.', promptUsed: 'make a challenge' }, badge: null },
-  quiz: { block: { type: 'quiz', question: 'Q?', options: [{ key: 'a', text: 'A', correct: true }, { key: 'b', text: 'B' }], promptUsed: '/quiz' }, badge: 'tutor' },
-  flashcards: { block: { type: 'flashcards', title: 'Cards', cards: [{ front: 'a', back: 'b' }], promptUsed: '/flashcards' }, badge: 'tutor' },
+  explanation: { block: { type: 'explanation', title: 'Why softmax', body: 'It normalises.' }, badge: null },
+  table: { block: { type: 'table', title: 'Sigmoid vs tanh', columns: ['a', 'b'], rows: [['1', '2']] }, badge: null },
+  challenge: { block: { type: 'challenge', title: 'Try', prompt: 'Explain it.' }, badge: null },
+  quiz: { block: { type: 'quiz', question: 'Q?', options: [{ key: 'a', text: 'A', correct: true }, { key: 'b', text: 'B' }] }, badge: 'tutor' },
+  flashcards: { block: { type: 'flashcards', title: 'Cards', cards: [{ front: 'a', back: 'b' }] }, badge: 'tutor' },
 };
 const badgeOf = text => [...document.querySelectorAll('span')].find(span => span.textContent === text && /rounded-full bg-ink px-2 py-px/.test(span.className));
 for (const [name, { block, badge }] of Object.entries(FAMILIES)) {
-  test(`${name}: no "course" pill and no Prompt control in the card's header, even with a stored prompt${badge ? `; the ${badge} badge stays` : ''}`, async () => {
-    await mount(B.createElement('div', { id: 'card', 'data-block': '', tabIndex: 0, className: 'group' },
-      B.createElement(B.LearningBlockBody, { block, onChange() {}, onFile() {}, appName: 'app', selected: true })));
-    assert.equal(badgeOf('course'), undefined, 'the course pill is removed');
-    assert.doesNotMatch(card().textContent, /course/i, 'and so is the word');
-    if (badge) assert.match(badgeOf(badge).className, /group-hover:opacity-100/, `the ${badge} badge is unchanged`);
-    await fire(card(), 'pointerenter');
-    await fire(card(), 'focusin');
-    assert.equal(button(), null, 'hover or focus draws no Prompt in the header');
-    assert.doesNotMatch(card().textContent, /Prompt/);
+  test(`${name}: no "course" pill; Prompt in the top-right slot on hover, focus and touch selection${badge ? `; the ${badge} badge stays beside it` : ''}`, async () => {
+    const body = B.createElement(B.LearningBlockBody, { block, onChange() {}, onFile() {}, appName: 'app', selected: true });
+    const withSlot = (text, selected = false) => mount(B.createElement('div', { id: 'card', 'data-block': '', tabIndex: 0, className: 'group' },
+      B.createElement(B.PromptSlot.Provider, { value: text && { text, selected, claim() {} } }, body)));
+    for (const text of [null, 'make a card about softmax']) {
+      await withSlot(text);
+      assert.equal(badgeOf('course'), undefined, 'the course pill is removed');
+      assert.doesNotMatch(card().textContent, /course/i, 'and so is the word');
+      if (badge) assert.match(badgeOf(badge).className, /group-hover:opacity-100/, `the ${badge} badge is unchanged`);
+      await fire(card(), 'pointerenter');
+      if (!text) { assert.equal(button(), null, 'no stored prompt: no Prompt control, ever'); continue; }
+      assert.equal(button()?.textContent, 'Prompt', 'hover');
+      if (badge) assert.ok(!badgeOf(badge).contains(button()), 'beside the badge, never inside or over it');
+      await fire(card(), 'pointerleave');
+      assert.equal(button(), null, 'hidden at rest, and nothing takes its place');
+      assert.doesNotMatch(card().textContent, /course/i);
+      await fire(card(), 'focusin');
+      assert.ok(button(), 'keyboard focus in the card');
+      await fire(card(), 'focusout');
+    }
+    await withSlot('make a card about softmax', true);
+    assert.ok(button(), 'a selected card on touch');
+    await click(button());
+    assert.equal(query('[data-card-prompt-text]').textContent, 'make a card about softmax');
   });
 }
 
-// The Prompt action of the card's hover pill: the real SelectionActions rendering, with the canvas's promptOf standing in.
-const WORDS = 'make a card about softmax';
-const withPill = (ctx, pill, id = 'c1') => mount(B.createElement('div', { id: 'card', 'data-block': '', tabIndex: 0, onPointerDown: () => { reached.select++; }, onDoubleClick: () => { reached.open++; } },
-  B.createElement(B.SelectionActionsProvider, { sole: 'c1', onAddToChat() {}, onQuickEdit() {}, promptOf: card => (card === 'c1' ? WORDS : undefined), ...ctx },
-    pill === 'hover' ? B.createElement(B.HoverActions, { id, select() {}, joined: true }) : B.createElement(B.SelectionActionsHost, { id, joined: true }))));
-const action = () => query('[data-card-prompt-button]');
-
-test('the pill draws Prompt as its last action, after Quick Edit, in the siblings\' look (icon and label, no shortcut), and only for a card that has a stored prompt', async () => {
-  await withPill({});
-  const names = [...query('[data-selection-bar]').children].map(node => node.getAttribute('aria-label') || node.textContent);
-  assert.deepEqual(names.map(name => name.replace(/Ctrl.*/, '')), ['Add to chat', 'Quick Edit', 'Prompt'], 'Prompt follows Quick Edit and is last');
-  assert.equal(action().textContent, 'Prompt');
-  assert.ok(action().querySelector('svg'), 'an icon, like its siblings');
-  assert.equal(action().querySelector('kbd'), null, 'no shortcut');
-  assert.equal(action().getAttribute('aria-haspopup'), 'dialog');
-  assert.equal(action().getAttribute('aria-expanded'), 'false');
-  assert.equal(action().className, query('[data-quick-edit]').className, 'the same classes as Quick Edit: one look');
-  await withPill({}, 'selected', 'c2');
-  assert.equal(query('[data-selection-bar]'), null, 'another card is not the selection: no host');
-  await withPill({ sole: 'c2' }, 'hover', 'c1');
-  assert.equal(action()?.textContent, 'Prompt', 'a hovered card shows it in the very same pill');
-  await withPill({ promptOf: () => undefined });
-  assert.ok(query('[data-quick-edit]'));
-  assert.equal(action(), null, 'no stored prompt: no control, no empty slot');
-  await withPill({ promptOf: () => '' });
-  assert.equal(action(), null);
-  await withPill({ promptOf: null });
-  assert.equal(action(), null);
-  await withPill({ onAddToChat: null, onQuickEdit: null });
-  assert.equal(action()?.textContent, 'Prompt', 'on a view-only or shared board (no Add to chat, no Quick Edit) it is still there, alone');
-  assert.equal(query('[data-add-to-chat]'), null);
-  assert.equal(query('[data-quick-edit]'), null, 'its siblings stay absent');
-  await withPill({ onAddToChat: null, onQuickEdit: null, promptOf: () => undefined });
-  assert.equal(query('[data-selection-bar]'), null, 'view-only with no prompt: nothing at all');
-  await withPill({ sole: 'c2', onAddToChat: null, onQuickEdit: null }, 'hover', 'c1');
-  assert.equal(action()?.textContent, 'Prompt', 'a hovered card on a view-only board shows it too');
-  await withPill({ sole: 'c2', onAddToChat: null, onQuickEdit: null, promptOf: () => undefined }, 'hover', 'c1');
-  assert.equal(query('[data-selection-bar]'), null, 'and nothing without a prompt');
-});
-
-test('the floating selection bar offers Prompt alone on a view-only board, and nothing without a prompt', async () => {
-  const bar = (ctx) => mount(B.createElement('div', { id: 'card', 'data-block': '' }, B.createElement(B.SelectionActionsProvider, { sole: 'c1', promptOf: id => (id === 'c1' ? WORDS : undefined), ...ctx }, B.createElement(B.SelectionActionBar, { anchor: { left: 100, top: 100, right: 300, bottom: 200 }, box: { w: 800, h: 600 } }))));
-  await bar({});
-  assert.equal(action()?.textContent, 'Prompt');
-  assert.equal(query('[data-selection-bar]').getAttribute('data-selection-bar'), 'floating');
-  await bar({ promptOf: () => undefined });
-  assert.equal(query('[data-selection-bar]'), null);
-});
-
-test('while the popover is open its action row is held (PromptHold) so the popover outlives the pointer leaving the card; closing releases it', async () => {
-  const holds = [];
-  await mount(B.createElement(B.PromptHold.Provider, { value: open => holds.push(open) }, B.createElement('div', { id: 'card', 'data-block': '' },
-    B.createElement(B.SelectionActionsProvider, { sole: 'c1', promptOf: () => WORDS }, B.createElement(B.SelectionActionsHost, { id: 'c1', joined: true })))));
-  assert.deepEqual(holds.at(-1), false, 'closed: not held');
-  await click(action());
-  assert.equal(holds.at(-1), true, 'open: the row is held');
-  await fire(card(), 'pointerleave');
-  assert.ok(dialog(), 'the pointer leaving the card does not close it');
-  await escape(dialog());
-  assert.equal(dialog(), null);
-  assert.equal(holds.at(-1), false, 'Escape releases the row');
-  await click(action());
-  await fire(document, 'pointerdown');
-  assert.equal(dialog(), null, 'an outside press closes it');
-  assert.equal(holds.at(-1), false, 'and releases the row');
-  await click(action());
-  await fire(document, 'wheel');
-  assert.equal(dialog(), null, 'a pan or zoom (wheel) closes it: it never stays behind a card that moved');
-});
-
-test('clicking Prompt opens the popover and copies the words at that moment: Copied, one copy per opening, none on closing; the button is pressed while it is open; Escape closes', async () => {
-  copied.length = 0;
-  await withPill({});
-  await click(action());
-  await settle();
-  assert.equal(dialog()?.querySelector('[data-card-prompt-text]').textContent, WORDS);
-  assert.deepEqual(copied, [WORDS], 'copied once, on opening, with no second press on Copy');
-  assert.equal(query('[data-card-prompt-status]').textContent, 'Copied');
-  assert.equal(action().getAttribute('aria-expanded'), 'true');
-  assert.ok(action().className.split(' ').includes('bg-hover'), 'pressed while open');
-  await click(action());
-  await settle();
-  assert.equal(dialog(), null);
-  assert.deepEqual(copied, [WORDS], 'closing copies nothing');
-  assert.ok(!action().className.split(' ').includes('bg-hover'));
-  await click(action());
-  await settle();
-  assert.deepEqual(copied, [WORDS, WORDS], 'opening again copies again');
-  await click(query('[data-card-prompt-copy]'));
-  await settle();
-  assert.deepEqual(copied, [WORDS, WORDS, WORDS], 'the Copy button still copies again');
-  await escape(dialog());
-  assert.equal(dialog(), null, 'Escape closes');
-  copied.length = 0;
-});
-
-test('a failed copy on opening says Copy failed in the danger colour and writes nothing; the popover still opens', async () => {
-  copied.length = 0; clipboardFails = true;
-  await withPill({});
-  await click(action());
-  await settle();
-  clipboardFails = false;
-  assert.ok(dialog(), 'it opens');
-  assert.equal(query('[data-card-prompt-status]').textContent, 'Copy failed');
-  assert.match(query('[data-card-prompt-status]').className, /text-danger/);
-  assert.deepEqual(copied, []);
-});
-
-test('pressing Prompt in a hovered card\'s pill only opens the words: it never selects or opens the card, never runs Add to chat or Quick Edit, and reaches no network', async () => {
-  requests.length = 0; reached.select = 0; reached.open = 0;
-  const calls = [];
-  await withPill({ sole: 'c2', onAddToChat: () => calls.push('chat'), onQuickEdit: () => calls.push('edit') }, 'hover', 'c1');
-  await fire(action(), 'pointerdown');
-  await click(action());
-  await settle();
-  assert.ok(dialog());
-  assert.equal(reached.select, 0, 'the card saw no press');
-  assert.equal(reached.open, 0);
-  assert.deepEqual(calls, []);
-  assert.deepEqual(requests, []);
-});
-
-test('the Prompt popover of the pill sits beside the card from the pill\'s bottom edge, so it never covers the pill', async () => {
-  const rects = { card: { left: 100, right: 400, top: 40, bottom: 340, width: 300, height: 300 }, button: { left: 200, right: 270, top: 4, bottom: 36, width: 70, height: 32 }, popup: { left: 0, top: 0, right: 288, bottom: 120, width: 288, height: 120 } };
-  const original = window.HTMLElement.prototype.getBoundingClientRect;
-  window.HTMLElement.prototype.getBoundingClientRect = function () { return this.id === 'card' ? rects.card : this.hasAttribute('data-card-prompt-button') ? rects.button : this.hasAttribute('data-card-prompt') ? rects.popup : { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }; };
-  try {
-    await withPill({});
-    await click(action());
-    assert.equal(dialog().getAttribute('data-card-prompt-side'), 'right');
-    assert.equal(dialog().style.left, '408px', 'beside the card (the nearest data-block)');
-    assert.equal(dialog().style.top, '36px', 'from the pill\'s bottom edge down');
-  } finally { window.HTMLElement.prototype.getBoundingClientRect = original; }
+test('the card claims the pill slot so the top-strip fallback is not drawn a second time', () => {
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /block\.promptUsed && !slotted && <CardPrompt text=\{block\.promptUsed\}/);
+  assert.match(readFileSync(new URL('./LearningBlocks.jsx', import.meta.url), 'utf8'), /useLayoutEffect\(\(\) => \{ slot\?\.claim\(true\)/);
 });
 
 const entry = (prompt, gen = { active: true, phase: 'running', label: 'Building geometry' }) => ({ key: 'cad-1', prompt, output: { cardId: 'cad-1', startedAt: new Date(Date.now() - 61000).toISOString() }, gen });
@@ -410,13 +323,9 @@ test('the status shows Prompt on hover, on focus inside the row and after a tap,
   }
 });
 
-test('the old header Prompt is gone everywhere: no CardPrompt, CardPromptControl, PromptSlot or hidePrompt; the pill reads the stored promptUsed of the card', () => {
-  const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
-  for (const file of ['CardPrompt.jsx', 'ChatOutputs.jsx', 'AdaptiveCanvas.jsx', 'LearningBlocks.jsx', 'Animation3DCard.jsx', 'SelectionActions.jsx']) {
-    const text = read(file);
-    assert.doesNotMatch(text, /CardPromptControl|PromptSlot|hidePrompt|<CardPrompt |import CardPrompt|PromptReveal|Show prompt|data-card-prompt-(show|hide|chat|host)/, file);
-  }
-  const canvas = read('AdaptiveCanvas.jsx');
-  assert.match(canvas, /promptOf=\{id => blocksRef\.current\.find\(block => block\.id === id\)\?\.promptUsed\}/, 'the pill reads the stored prompt of the block, the words the card was made from');
-  assert.match(read('SelectionActions.jsx'), /prompt && <PromptControl text=\{prompt\} action=\{actionClass\(joined\)\} \/>/, 'only with a prompt, alone on a view-only board');
+test('only generated-card prompts use the control: CardPrompt is drawn from promptUsed and a chat card question alone, and the old reveal is gone', () => {
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.deepEqual([...canvas.matchAll(/<CardPrompt text=\{([^}]+)\}/g)].map(match => match[1]), ['exchange.question', 'block.promptUsed']);
+  assert.doesNotMatch(canvas, /PROMPT_ROW_H|setPromptHeight/);
+  for (const file of ['CardPrompt.jsx', 'ChatOutputs.jsx', 'AdaptiveCanvas.jsx']) assert.doesNotMatch(readFileSync(new URL(`./${file}`, import.meta.url), 'utf8'), /PromptReveal|Show prompt|data-card-prompt-(show|hide|chat)/, file);
 });

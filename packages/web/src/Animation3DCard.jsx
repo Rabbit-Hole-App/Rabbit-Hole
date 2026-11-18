@@ -1,9 +1,10 @@
-import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MessageCircle, Pencil, RefreshCw, Square } from 'lucide-react';
 import { api } from './api.js';
 import { Button, Pill } from './ui.jsx';
 import GoToPlanButton from './GoToPlanButton.jsx';
 import CardHeader from './CardHeader.jsx';
+import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
 import { ANIMATION_JOB_EVENT, animationAsks, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS, pollRetryDelay } from './animation3d/client.js';
@@ -73,13 +74,16 @@ const defaultReadArtifact = fetchJson => async (ref, { signal }) => {
 const EXECUTION_OFF = 'execution_off';
 
 function Header({ block, experience, fixture }) {
+  const slot = useContext(PromptSlot);
+  useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]); // eslint-disable-line react-hooks/exhaustive-deps
   // The shared pinned header (CardHeader.jsx, owner 2026-11-07): the icon, the title (renamable; a placeholder when none), "Animation" and its badges under it.
   return (
     <div data-focus-hide>
       <CardHeader block={block} className="-mx-4 -mt-3 mb-1 px-4 pt-3 pb-1"
         meta={<span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">Animation
           {experience && <Pill data-animation-badge={experience} color="blue">{EXPERIENCE_LABELS[experience]}</Pill>}
-          {fixture && <Pill data-animation-fixture color="yellow">{FIXTURE_LABEL}</Pill>}</span>} />
+          {fixture && <Pill data-animation-fixture color="yellow">{FIXTURE_LABEL}</Pill>}</span>}
+        trailing={slot?.text ? <span className="relative inline-block h-[17px] w-[3.25rem] shrink-0"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span> : null} />
     </div>
   );
 }

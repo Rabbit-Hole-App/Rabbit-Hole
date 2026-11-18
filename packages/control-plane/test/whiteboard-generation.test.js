@@ -1,5 +1,5 @@
 // W1.3: Generate to a ready video through the real job object, ledger, proposal state and the stages, on stubbed providers: the model (plan and
-// scene tools), the narrator (a real recorded MP3) and the renderer (wb-render's request gate when it can be loaded). An in-memory R2. No real call.
+// scene tools), Fish (a real recorded MP3) and the renderer (wb-render's request gate when it can be loaded). An in-memory R2. No real call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, existsSync } from 'node:fs';
@@ -50,9 +50,9 @@ function bucket() {
     delete: async keys => { for (const k of [].concat(keys)) data.delete(k); } };
 }
 
-// One fetch for every provider. options: author(n) -> tool input; voice(n, text) -> Response; render(request) -> Response | handler result.
-function providers(t, { author = () => SCENE, voice = () => new Response(MP3), render } = {}) {
-  const calls = { model: [], voice: [], render: [] }, original = globalThis.fetch;
+// One fetch for every provider. options: author(n) -> tool input; fish(n, text) -> Response; render(request) -> Response | handler result.
+function providers(t, { author = () => SCENE, fish = () => new Response(MP3), render } = {}) {
+  const calls = { model: [], fish: [], render: [] }, original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   const renderId = 'c'.repeat(32);
   const defaultRender = ({ method, path, body }) => {
@@ -72,7 +72,7 @@ function providers(t, { author = () => SCENE, voice = () => new Response(MP3), r
       const cut = input?.cut === true;
       return Response.json({ id: 'm', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'tool_use', id: 't', name: tool, input: cut ? {} : input }], stop_reason: cut ? 'max_tokens' : 'tool_use', usage: { input_tokens: 1000, output_tokens: cut ? body.max_tokens : 500 } });
     }
-    if (u.host === 'api.elevenlabs.io') { const body = JSON.parse(init.body); calls.voice.push(body); return voice(calls.voice.length, body.text); }
+    if (u.host === 'api.fish.audio') { const body = JSON.parse(init.body); calls.fish.push(body); return fish(calls.fish.length, body.text); }
     if (u.host === 'renderer.test') {
       const r = { method: init.method || 'GET', path: u.pathname, key: init.headers?.['Idempotency-Key'], bytes: init.body?.length ?? 0, body: init.body ? JSON.parse(init.body) : null };
       calls.render.push(r);
@@ -87,7 +87,7 @@ function stack(t, options = {}) {
   const { sqlite, LEARN_DB } = d1(t);
   const media = bucket();
   const env = { SMALL_ENV: 'dev', ANTHROPIC_API_KEY: 'test-key', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_DB, LEARN_MEDIA: media,
-    WHITEBOARD_ENABLED: 'true', ELEVENLABS_API_KEY: 'el-key', WHITEBOARD_RENDERER_URL: 'https://renderer.test', WHITEBOARD_RENDERER_TOKEN: 'renderer-token', ...options.env };
+    WHITEBOARD_ENABLED: 'true', FISH_AUDIO_API_KEY: 'fish-key', WHITEBOARD_RENDERER_URL: 'https://renderer.test', WHITEBOARD_RENDERER_TOKEN: 'renderer-token', ...options.env };
   const state = durable(), actor = new WhiteboardJobs(state, env), calls = providers(t, options);
   const send = async (action, payload = {}, id = null, who = OWNER) => {
     const response = await actor.fetch(new Request('https://whiteboard/action', { method: 'POST', body: JSON.stringify({ action, id, payload, board: BOARD, user: who, origin: 'https://dev.test' }) }));
@@ -114,14 +114,14 @@ function stack(t, options = {}) {
 }
 const messages = s => rows(s.sqlite, 'messages').map(m => m.content);
 
-test('Generate makes a ready video: one author call per scene, one narrator call per narrated beat, one render, the result, captions and timings', async t => {
+test('Generate makes a ready video: one author call per scene, one Fish call per narrated beat, one render, the result, captions and timings', async t => {
   const s = stack(t);
   const { id, pressed, done } = await s.generate();
   assert.equal(pressed.status, 202);
   assert.equal(done.stage, 'ready', JSON.stringify(done.errors ?? done.failure));
   assert.deepEqual(s.calls.model.map(c => c.tool), ['whiteboard_plan', 'whiteboard_scene', 'whiteboard_scene', 'whiteboard_scene', 'whiteboard_scene']);
-  assert.equal(s.calls.voice.length, 8, 'two narrated beats in each of four scenes');
-  assert.ok(s.calls.voice.every(b => b.model_id === 'eleven_flash_v2_5' && b.voice_settings.speed === 1.1 && b.voice_settings.stability === 0.4));
+  assert.equal(s.calls.fish.length, 8, 'two narrated beats in each of four scenes');
+  assert.ok(s.calls.fish.every(b => b.reference_id === '802e3bc2b27e49c2995d23ef70e6ac89' && b.mp3_bitrate === 64 && b.prosody.speed === 0.92));
   // The render: one POST, the key, the timing the renderer requires, under 16 MiB.
   const post = s.calls.render.find(r => r.method === 'POST');
   assert.equal(s.calls.render.filter(r => r.method === 'POST').length, 1);
@@ -145,10 +145,10 @@ test('Generate makes a ready video: one author call per scene, one narrator call
   assert.equal(vtt.split(' --> ').length - 1, 8, 'one cue per narrated beat');
   assert.equal(JSON.parse(new TextDecoder().decode(s.media.data.get(r.keys.transcript).bytes)).beats.length, 8);
   assert.ok(s.media.data.has(`learn-whiteboard/acme/canvas-a/main/${done.artifactId}/audio/s4-b2.mp3`), 'narration checkpoints are kept');
-  // Money: author calls and the narrator on the generation key, nothing refunded on success.
+  // Money: author calls and Fish on the generation key, nothing refunded on success.
   const actions = rows(s.sqlite, 'usage_actions'), generation = actions.find(a => a.client_key === done.actionKey);
   const attempts = rows(s.sqlite, 'usage_attempts').filter(a => a.action_id === generation.action_id);
-  assert.deepEqual([attempts.filter(a => a.provider === 'anthropic').length, attempts.filter(a => a.provider === 'elevenlabs').length], [4, 8]);
+  assert.deepEqual([attempts.filter(a => a.provider === 'anthropic').length, attempts.filter(a => a.provider === 'fish').length], [4, 8]);
   assert.equal(rows(s.sqlite, 'usage_adjustments').length, 0);
   // The result is read through the results route by its owner only.
   assert.equal((await s.send('result', {}, done.artifactId)).status, 200);
@@ -156,16 +156,16 @@ test('Generate makes a ready video: one author call per scene, one narrator call
 });
 
 test('a scene whose narration overruns its window is rewritten once and narrated again', async t => {
-  const s = stack(t, { voice: n => new Response(n <= 2 ? LONG : MP3) });
+  const s = stack(t, { fish: n => new Response(n <= 2 ? LONG : MP3) });
   const { done } = await s.generate();
   assert.equal(done.stage, 'ready', JSON.stringify(done.errors));
   assert.equal(s.calls.model.filter(c => c.tool === 'whiteboard_scene').length, 5, 'four scenes and one rewrite');
   assert.ok(s.calls.model.at(-1).content.rewrite, 'the last author call is the rewrite');
-  assert.deepEqual([done.rewritten, done.corrections, s.calls.voice.length], [['s1'], 1, 10]);
+  assert.deepEqual([done.rewritten, done.corrections, s.calls.fish.length], [['s1'], 1, 10]);
 });
 
 test('two overruns of the same scene fail the job with the narration reason, refunded by key', async t => {
-  const s = stack(t, { voice: () => new Response(LONG) });
+  const s = stack(t, { fish: () => new Response(LONG) });
   const { done } = await s.generate();
   assert.deepEqual([done.stage, done.failure.reason, done.failure.code], ['failed', 'the narration could not be made', 'narration_overrun']);
   assert.equal(s.calls.render.length, 0, 'nothing is rendered');
@@ -183,7 +183,7 @@ test('a scene over its checks is corrected once; still failing, the job fails wi
   const { done } = await bad.generate();
   assert.deepEqual([done.stage, done.failure.reason, done.failure.code], ['failed', 'the plan could not be written', 'scene_unfit']);
   assert.equal(bad.calls.model.filter(c => c.tool === 'whiteboard_scene').length, 2);
-  assert.equal(bad.calls.voice.length, 0);
+  assert.equal(bad.calls.fish.length, 0);
   const generation = rows(bad.sqlite, 'usage_actions').find(a => a.client_key === done.actionKey);
   const refunded = rows(bad.sqlite, 'usage_adjustments');
   assert.ok(refunded.length === 2 && refunded.every(a => a.action_id === generation.action_id), 'both author calls given back, the plan call kept');
@@ -206,9 +206,9 @@ test('an author reply cut at max_tokens ends the job with output_limit and the p
   assert.equal(rows(s.sqlite, 'messages').map(m => m.content).at(-1), '"Gradient descent" was not finished: the plan could not be written. Your request and plan are kept; nothing was charged for the part that failed.');
 });
 
-test('a narrator failure fails the job with the narration reason; a renderer that lost the render twice with the drawing reason', async t => {
-  const silent = stack(t, { voice: () => new Response('no', { status: 500 }) });
-  const f = await silent.generate();
+test('a Fish failure fails the job with the narration reason; a renderer that lost the render twice with the drawing reason', async t => {
+  const fish = stack(t, { fish: () => new Response('no', { status: 500 }) });
+  const f = await fish.generate();
   assert.deepEqual([f.done.stage, f.done.failure.reason], ['failed', 'the narration could not be made']);
   const lost = stack(t, { render: ({ method, path }) => (path.startsWith('/whiteboard/c') ? new Response('{}', { status: 404 }) : path.startsWith('/render/by-key/') ? new Response('{}', { status: 404 }) : null) });
   const l = await lost.generate();
@@ -217,7 +217,7 @@ test('a narrator failure fails the job with the narration reason; a renderer tha
   const old = stack(t, { render: ({ path }) => (path === '/health' ? Response.json({ whiteboard: 'whiteboard-renderer-0' }) : null) });
   const o = await old.generate();
   assert.deepEqual([o.done.failure.code, old.calls.render.filter(r => r.method === 'POST').length], ['renderer_version', 0]);
-  assert.ok(rows(old.sqlite, 'usage_adjustments').length >= 12, 'every author and narrator call of the failed generation is given back');
+  assert.ok(rows(old.sqlite, 'usage_adjustments').length >= 12, 'every author and Fish call of the failed generation is given back');
 });
 
 test('cancel: before Generate it ends the job and frees the slot, twice is a no-op; after Generate it is refused and the job goes on', async t => {
@@ -238,10 +238,10 @@ test('cancel: before Generate it ends the job and frees the slot, twice is a no-
   assert.equal((await g.send('cancel', {}, made.job.id, OTHER)).status, 404);
 });
 
-test('restart while a narrator call is out: it is never sent again and its expired lease fails the job with the narration reason', async t => {
+test('restart while a Fish call is out: it is never sent again and its expired lease fails the job with the narration reason', async t => {
   let release;
   const held = new Promise(r => { release = r; });
-  const s = stack(t, { voice: n => (n === 1 ? held.then(() => new Response(MP3)) : new Response(MP3)) });
+  const s = stack(t, { fish: n => (n === 1 ? held.then(() => new Response(MP3)) : new Response(MP3)) });
   const { body } = await s.send('create', { requestId: 'req-00000001', cardId: 'card-0001', prompt: 'Explain gradient descent.' });
   await s.run(body.job.id);
   await s.send('approve', { proposal: s.proposal(body.job.id) }, body.job.id);
@@ -250,12 +250,12 @@ test('restart while a narrator call is out: it is never sent again and its expir
   while (!s.stored(body.job.id).inFlight) await new Promise(r => setTimeout(r, 1));
   const after = new WhiteboardJobs(s.state, s.env);
   await after.alarm();
-  assert.equal(s.calls.voice.length, 1, 'inside the lease nothing is resent');
+  assert.equal(s.calls.fish.length, 1, 'inside the lease nothing is resent');
   s.state.data.set(`job:${body.job.id}`, { ...s.stored(body.job.id), inFlight: { ...s.stored(body.job.id).inFlight, until: 0 } });
   await after.alarm();
   release(); await out;
   const j = s.stored(body.job.id);
-  assert.deepEqual([j.stage, j.failure.reason, j.calls.find(c => c.role === 'narration').status, s.calls.voice.length], ['failed', 'the narration could not be made', 'unknown', 1]);
+  assert.deepEqual([j.stage, j.failure.reason, j.calls.find(c => c.role === 'fish').status, s.calls.fish.length], ['failed', 'the narration could not be made', 'unknown', 1]);
 });
 
 test('asset route: owner only, ranges, 416, HEAD, the download name; a failed job\'s leftovers are swept after 24 h', async t => {
@@ -280,7 +280,7 @@ test('asset route: owner only, ranges, 416, HEAD, the download name; a failed jo
   assert.equal((await asset(`${q}&kind=source`)).status, 404);
   assert.equal((await asset(`app=${BOARD.app}&artifact=wa_${'0'.repeat(32)}&kind=final`)).status, 404);
   // The sweep: a failed generation's checkpoints go after 24 h; a ready video's files stay.
-  const f = stack(t, { voice: () => new Response(LONG) });
+  const f = stack(t, { fish: () => new Response(LONG) });
   const failed = (await f.generate()).done;
   const prefix = `learn-whiteboard/acme/canvas-a/main/${failed.artifactId}/`;
   assert.ok([...f.media.data.keys()].some(k => k.startsWith(prefix)));

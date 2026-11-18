@@ -1,14 +1,13 @@
-// W1.3: MP3 measurement, timing, narration transport and the render client, each against stubs and real files. No narrator, model or renderer call.
+// W1.3: MP3 measurement, timing, narration transport and the render client, each against stubs and real files. No Fish, model or renderer call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { mp3Duration } from '../src/whiteboard-mp3.js';
 import { audioKeyOf, fitTiming } from '../src/whiteboard-timing.js';
-import { narrateBeat } from '../src/whiteboard-tts.js';
-import { VOICE_URL, narrationRequest } from '../src/narration-voice.js';
+import { FISH_URL, fishBody, narrateBeat } from '../src/whiteboard-tts.js';
 import { renderStep } from '../src/whiteboard-render-client.js';
 
-// Six real narration clips (made by the retired Fish narrator; an mp3 is an mp3) (moved here from the retired nanoGPT course's web/public/audio, Tutor cleanup P4).
+// Six real Fish-style narration clips (moved here from the retired nanoGPT course's web/public/audio, Tutor cleanup P4).
 const real = name => new Uint8Array(readFileSync(new URL(`./fixtures/whiteboard/audio/${name}`, import.meta.url)));
 const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/whiteboard/${name}`, import.meta.url), 'utf8'));
 
@@ -65,22 +64,22 @@ test('timing: beats follow one another from their window\'s start; an overrun na
   assert.equal(fitTiming(plan, [silent], new Map([[audioKeyOf('s1', 'b1'), { seconds: 2 }]])).timing.beats[1].audioFrames, 0);
 });
 
-test('narration: the 4.2 body, one retry on 429 or a failure before acceptance, never a second POST after the narrator accepted', async () => {
-  assert.deepEqual(JSON.parse(narrationRequest({ ELEVENLABS_API_KEY: 'k' }, 'Hi.')[1].body), { text: 'Hi.', model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, speed: 1.1 } });
-  const mp3 = real('narration-0.mp3'), env = { ELEVENLABS_API_KEY: 'k', SMALL_ENV: 'test' };
-  const voice = answers => { const posts = []; return { posts, fetch: async (url, init) => { posts.push({ url, body: JSON.parse(init.body), auth: init.headers['xi-api-key'] }); const a = answers[posts.length - 1]; if (a instanceof Error) throw a; return a(); } }; };
+test('narration: the 4.2 body, one retry on 429 or a failure before acceptance, never a second POST after Fish accepted', async () => {
+  assert.deepEqual(fishBody('Hi.'), { text: 'Hi.', reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
+  const mp3 = real('narration-0.mp3'), env = { FISH_AUDIO_API_KEY: 'k', SMALL_ENV: 'test' };
+  const fish = answers => { const posts = []; return { posts, fetch: async (url, init) => { posts.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization }); const a = answers[posts.length - 1]; if (a instanceof Error) throw a; return a(); } }; };
   const ok = () => new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg' } });
-  let f = voice([() => new Response('busy', { status: 429 }), ok]);
+  let f = fish([() => new Response('busy', { status: 429 }), ok]);
   const out = await narrateBeat(env, 'Hello there.', { fetch: f.fetch });
-  assert.deepEqual([f.posts.length, f.posts[0].url, f.posts[0].auth, out.attempts, Math.round(out.seconds * 1000)], [2, VOICE_URL, 'k', 2, 3788]);
-  f = voice([Object.assign(new Error('t'), { name: 'TimeoutError' }), ok]);
+  assert.deepEqual([f.posts.length, f.posts[0].url, f.posts[0].auth, out.attempts, Math.round(out.seconds * 1000)], [2, FISH_URL, 'Bearer k', 2, 3788]);
+  f = fish([Object.assign(new Error('t'), { name: 'TimeoutError' }), ok]);
   assert.equal((await narrateBeat(env, 'x', { fetch: f.fetch })).attempts, 2);
-  f = voice([() => new Response('busy', { status: 429 }), () => new Response('busy', { status: 429 }), ok]);
+  f = fish([() => new Response('busy', { status: 429 }), () => new Response('busy', { status: 429 }), ok]);
   await assert.rejects(narrateBeat(env, 'x', { fetch: f.fetch }), { code: 'tts_failed' });
   assert.equal(f.posts.length, 2, 'one retry only');
   // Accepted (200), then the body never arrives: reconciling, and no second POST.
   const broken = () => new Response(new ReadableStream({ start(c) { c.error(new Error('reset')); } }), { status: 200 });
-  f = voice([broken, ok]);
+  f = fish([broken, ok]);
   await assert.rejects(narrateBeat(env, 'x', { fetch: f.fetch }), { code: 'reconciling' });
   assert.equal(f.posts.length, 1);
   await assert.rejects(narrateBeat({}, 'x', { fetch: f.fetch }), { code: 'tts_not_configured' });

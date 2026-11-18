@@ -19,10 +19,9 @@ export const summarizable = block => block?.type === 'explanation' && !block.anc
 export const summaryInput = block => (summarizable(block) ? { title: String(block.title ?? '').slice(0, 300), body: capSummaryBody(block.body) } : null);
 const capSummaryBody = body => String(body ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 6000);
 
-// Minimize and expand were removed for cards (owner 2026-11-17): no card can be minimized, and one saved with `minimized: true` is drawn as its full card, at its saved size and
-// layout. The field stays in the saved data untouched (no migration). Nothing on the canvas reads these any more; the tile helpers below are unused and await a clean-up.
-export const minimizable = () => false;
-export const isMinimized = () => false;
+// Whether the Explanation can be minimized, and whether it is now.
+export const minimizable = block => block?.type === 'explanation' && !block.anchor && !block.excerpt;
+export const isMinimized = block => minimizable(block) && block.minimized === true;
 
 const FENCE = /^[ \t]*```[ \t]*(rh-illustration|rh-diagram)[^\n]*\n([\s\S]*?)^[ \t]*```[ \t]*$/gim;
 // The tile's one visual, computed from the card each time (nothing is stored): the first picture (the card's illustration, else the first ready

@@ -60,7 +60,7 @@ gpt-image-1 not listed; Exa (`exa.ai/pricing`): `auto` search $7 per 1,000 reque
 Bedrock Opus 5.5 (AWS publishes no retrievable table; reached only by an organisation's own AI, never a person's credits).
 Anthropic `output_tokens` includes thinking and `input_tokens` excludes cache tokens, so nothing is counted twice. Image models
 are priced per modality; there is no per-image price. `learn-models.js` `MODEL_PRICES` and `costUsd`, `learn-spend.js`,
-`learn-usage-estimates.js`, the narrator (ElevenLabs; the Fish row is retired and kept only for old records), JEV and the Exa estimate read it.
+`learn-usage-estimates.js`, Fish, JEV and the Exa estimate read it.
 
 ## What is recorded per charge (stable interface for observers)
 

@@ -2,7 +2,7 @@
 // order, stop/fail/empty outcomes and one speak at a time. Fake post and fake audio; no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { speakable, createNarratorTts, createFakeTts } from './voice-tts.js';
+import { speakable, createFishTts, createFakeTts } from './voice-tts.js';
 import { createVoiceSession } from './voice-session.js';
 import { createFakeStt } from './voice-stt.js';
 
@@ -45,9 +45,9 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 const revoked = [], revoke = URL.revokeObjectURL;
 URL.revokeObjectURL = url => { revoked.push(url); revoke(url); };
 
-test('createNarratorTts posts the speakable text, emits events in order and resolves ended', async () => {
+test('createFishTts posts the speakable text, emits events in order and resolves ended', async () => {
   const events = [], posts = [], { made, makeAudio } = fakeAudio();
-  const tts = createNarratorTts({ post: async (path, body, signal) => { posts.push({ path, body, signal }); return audioResponse(); }, onEvent: e => events.push(e), makeAudio, now: () => 7 });
+  const tts = createFishTts({ post: async (path, body, signal) => { posts.push({ path, body, signal }); return audioResponse(); }, onEvent: e => events.push(e), makeAudio, now: () => 7 });
   const done = tts.speak('Look at `code` the **card**.', { turnId: 't1' });
   while (!made.length) await tick();
   await tick();
@@ -63,7 +63,7 @@ test('createNarratorTts posts the speakable text, emits events in order and reso
 
 test('stop pauses the audio and resolves stopped with no tts_error', async () => {
   const events = [], { made, makeAudio } = fakeAudio();
-  const tts = createNarratorTts({ post: async () => audioResponse(), onEvent: e => events.push(e), makeAudio });
+  const tts = createFishTts({ post: async () => audioResponse(), onEvent: e => events.push(e), makeAudio });
   const done = tts.speak('Hello there.', { turnId: 't2' });
   while (!made.length) await tick();
   tts.stop();
@@ -74,7 +74,7 @@ test('stop pauses the audio and resolves stopped with no tts_error', async () =>
 
 test('stop during the request aborts it and resolves stopped', async () => {
   let seen;
-  const tts = createNarratorTts({
+  const tts = createFishTts({
     post: (path, body, signal) => { seen = signal; return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))); },
     makeAudio: () => assert.fail('no audio after stop'),
   });
@@ -92,27 +92,27 @@ test('errors resolve failed with tts_error and never throw', async () => {
   ];
   for (const post of cases) {
     const events = [];
-    const tts = createNarratorTts({ post, onEvent: e => events.push(e.type), makeAudio: () => assert.fail('no audio on error') });
+    const tts = createFishTts({ post, onEvent: e => events.push(e.type), makeAudio: () => assert.fail('no audio on error') });
     assert.equal(await tts.speak('Hi.', { turnId: 't4' }), 'failed');
     assert.deepEqual(events, ['tts_request_start', 'tts_error']);
   }
   // Autoplay blocked: play() rejects.
   const events = [];
-  const blocked = createNarratorTts({ post: async () => audioResponse(), onEvent: e => events.push(e.type), makeAudio: () => ({ play: () => Promise.reject(new Error('NotAllowedError')), pause() {} }) });
+  const blocked = createFishTts({ post: async () => audioResponse(), onEvent: e => events.push(e.type), makeAudio: () => ({ play: () => Promise.reject(new Error('NotAllowedError')), pause() {} }) });
   assert.equal(await blocked.speak('Hi.', { turnId: 't5' }), 'failed');
   assert.deepEqual(events, ['tts_request_start', 'tts_first_byte', 'tts_error']);
 });
 
 test('text with nothing speakable resolves ended without a request', async () => {
   const events = [];
-  const tts = createNarratorTts({ post: () => assert.fail('no request'), onEvent: e => events.push(e) });
+  const tts = createFishTts({ post: () => assert.fail('no request'), onEvent: e => events.push(e) });
   assert.equal(await tts.speak('$$x^2$$ `y`', { turnId: 't6' }), 'ended');
   assert.deepEqual(events, []);
 });
 
 test('a second speak stops the first', async () => {
   const { made, makeAudio } = fakeAudio();
-  const tts = createNarratorTts({ post: async () => audioResponse(), makeAudio });
+  const tts = createFishTts({ post: async () => audioResponse(), makeAudio });
   const first = tts.speak('One.', { turnId: 'a' });
   while (!made.length) await tick();
   const second = tts.speak('Two.', { turnId: 'b' });
@@ -144,7 +144,7 @@ test('createFakeTts: ended after ms, stopped on stop, failed with fail, same eve
   assert.equal(await tts.speak('```code```', { turnId: 'f4' }), 'ended');
 });
 
-// Streaming playback (owner, 2026-10-01): a MediaSource fake that records what is appended, and a narrator
+// Streaming playback (owner, 2026-10-01): a MediaSource fake that records what is appended, and a Fish
 // body whose chunks the test releases one at a time.
 class FakeMediaSource extends EventTarget {
   static isTypeSupported = type => type === 'audio/mpeg';
@@ -184,11 +184,11 @@ function streamAudio(made) {
 }
 function streamingRig() {
   const events = [], bodies = [], signals = [], made = [], makeAudio = streamAudio(made);
-  const tts = createNarratorTts({ post: async (path, body, signal) => { signals.push(signal); const held = heldBody(); bodies.push(held); return held.response; }, onEvent: e => events.push(e.type), makeAudio, MediaSource: FakeMediaSource });
+  const tts = createFishTts({ post: async (path, body, signal) => { signals.push(signal); const held = heldBody(); bodies.push(held); return held.response; }, onEvent: e => events.push(e.type), makeAudio, MediaSource: FakeMediaSource });
   return { tts, events, bodies, signals, made };
 }
 
-test('streaming: playback starts after the first chunk, before the audio body completes', async () => {
+test('streaming: playback starts after the first chunk, before the Fish body completes', async () => {
   const r = streamingRig();
   const done = r.tts.speak('Here it is. Notice the division before softmax.', { turnId: 's1' });
   await settle();
@@ -217,7 +217,7 @@ test('streaming: Stop pauses at once, aborts the request and no later chunk is a
   const source = FakeMediaSource.made.at(-1);
   r.tts.stop();
   assert.equal(r.made[0].paused, true, 'silent immediately');
-  assert.equal(r.signals[0].aborted, true, 'the audio stream is aborted');
+  assert.equal(r.signals[0].aborted, true, 'the Fish stream is aborted');
   assert.equal(await done, 'stopped');
   assert.ok(r.events.includes('tts_stopped'));
   // A stale chunk that still arrives is never appended, and nothing plays again.
@@ -258,7 +258,7 @@ test('streaming in a voice session: canvas acts before audio, Stop keeps Voice M
   const sttEvents = [];
   let session;
   const stt = createFakeStt({ onEvent: event => session.sttEvent(event) });
-  const tts = createNarratorTts({ post: async (path, body, signal) => { r.signals.push(signal); const held = heldBody(); r.bodies.push(held); return held.response; }, onEvent: event => session.ttsEvent(event), makeAudio: streamAudio(r.made), MediaSource: FakeMediaSource });
+  const tts = createFishTts({ post: async (path, body, signal) => { r.signals.push(signal); const held = heldBody(); r.bodies.push(held); return held.response; }, onEvent: event => session.ttsEvent(event), makeAudio: streamAudio(r.made), MediaSource: FakeMediaSource });
   const tutor = { voiceTurn: async ({ turnId }) => { canvas.push(turnId); return { speech: 'Here it is. Notice the division before softmax.', turnId, ms: { to_evidence_ready: 1, to_planner_ready: 2, canvas_done: 3 } }; } };
   session = createVoiceSession({ stt, tts, tutor, telemetry: (name, detail) => sttEvents.push({ name, ...detail }) });
   await session.enter();

@@ -34,7 +34,7 @@ test('no source box (not measured, not on this canvas): null', () => {
   assert.equal(besideSpot({ x: 0, y: 0, w: 0, h: 0 }, { w: 440, h: 400 }, []), null);
 });
 
-test('a source of another measured width: its measured width is used, so the new card clears it', () => {
+test('a minimized tile as the source: its measured width is used, so the new card clears the tile', () => {
   const tile = { x: 0, y: 0, w: 546, h: 667 };
   assert.deepEqual(besideSpot(tile, { w: 440, h: 300 }, []), { x: 546 + GAP, y: 0 });
 });

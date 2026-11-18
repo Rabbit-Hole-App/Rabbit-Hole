@@ -35,7 +35,7 @@ export function SlotCard({ slot, actions = null }) {
   </div>;
   if (!card) {
     return (
-      <div data-slot-id={slot.id} role="status" aria-label={slot.label} data-slot-after-arrow={slot.arrow ? '' : undefined} style={{ width: slot.w, height: slot.h, ...place }} className={slot.arrow ? `${frame} slot-after-arrow` : frame}>
+      <div data-slot-id={slot.id} role="status" aria-label={slot.label} style={{ width: slot.w, height: slot.h, ...place }} className={frame}>
         {strip}
         <div className="flex items-center gap-2 px-4 pb-4 text-sm">
           <Loader2 size={14} className="shrink-0 animate-spin text-claude" />

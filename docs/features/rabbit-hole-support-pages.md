@@ -65,11 +65,11 @@ Not claimed, because the source does not settle it:
   improve Google's products and are logged for a limited period for abuse detection; Unpaid Services may be used to
   improve products and read by human reviewers. Whether our Gemini key's Cloud project has billing is not verifiable
   here, so the policy names Google without either statement.
-- Resend (https://resend.com/legal/privacy-policy, updated 2026-08-27) publishes no API-specific training or retention terms on that page.
-  ElevenLabs (text to speech, the one narrator since VOICE-1, 2026-11-17) is listed in the Privacy Policy without a training or retention statement: its terms were not read for that change (Fish Audio was removed from the list).
+- Fish Audio (https://fish.audio/privacy/, effective 2024-08-28) and Resend (https://resend.com/legal/privacy-policy,
+  updated 2026-08-27) publish no API-specific training or retention terms on those pages.
 
 Production secrets were read by name (Cloudflare `workers/scripts/<name>/settings`, 2026-10-29): `rabbit-hole-app` has
-`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `FISH_AUDIO_API_KEY` (set, unused since VOICE-1), `ELEVENLABS_API_KEY`,
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY`,
 `DESMOS_API_KEY`, `PEXELS_API_KEY`, `CONVERT_TOKEN` (with `CONVERT_URL` set); `rabbit-hole-cp` has `RESEND_API_KEY`,
 `GOOGLE_*` and `GITHUB_*`. No `EXA_API_KEY`, so Exa (and FAL, HeyGen) are not listed. Transcription: owner decision O-8 (resolved
 2026-10-29) turns `TRANSCRIBE_ENABLED` on for retained Explain-back voice notes, so the OpenAI entry in `packages/web/src/landing/support.js` names

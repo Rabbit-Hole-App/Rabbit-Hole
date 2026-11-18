@@ -1,9 +1,7 @@
 // AR-C1/C2/C4: connector geometry, derivation and colours (release 146).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { ARROW, arrowFillName, arrowhead, connectorColors, connectorGeometry, connectorsOf, contrast, drawConnector, nextArrowColor, pickArrowColor, samplePath, sideOfTarget, slotConnector, PALETTE_ORDER } from './connector.js';
-import { FILLS, SERIES, SERIES_INK } from './tutor-diagrams/theme/palette.js';
+import { ARROW, arrowhead, connectorColors, connectorGeometry, connectorsOf, contrast, drawConnector, samplePath, sideOfTarget, PALETTE_ORDER } from './connector.js';
 
 const box = (x, y, w, h) => ({ x, y, w, h });
 const SRC = box(1000, 0, 600, 800);
@@ -131,15 +129,15 @@ test('connectorsOf: ask (parentCard with actionId, solid), explain (parentCard d
   assert.deepEqual(connectorsOf(blocks), [{ id: 'arrow:a', from: 's', to: 'a', kind: 'ask' }, { id: 'arrow:e', from: 's', to: 'e', kind: 'explain', dy: 240 }]);
 });
 
-test('drawConnector: hidden when an end is missing or unmeasured (a card saved as minimized still draws: minimize was removed 2026-11-17); dy puts the tail on the highlighted line; a measured passage wins', () => {
+test('drawConnector: hidden when an end is missing, minimized or unmeasured; dy puts the tail on the highlighted line; a measured passage wins', () => {
   const blocks = [{ id: 's' }, { id: 'e', parentCard: { id: 's', dy: 240 } }];
   const boxes = { s: SRC, e: box(1800, 100, 440, 300) };
   const [c] = connectorsOf(blocks);
   assert.equal(drawConnector(c, blocks, boxes).geometry.tail.y, 240);
   assert.equal(drawConnector(c, blocks, boxes, { e: 610 }).geometry.tail.y, 610);
   assert.equal(drawConnector(c, blocks, { s: SRC }), null);
-  assert.equal(drawConnector(c, [{ id: 's', minimized: true }, blocks[1]], boxes).kind, 'explain');
-  assert.equal(drawConnector(c, [blocks[0], { ...blocks[1], minimized: true }], boxes).kind, 'explain');
+  assert.equal(drawConnector(c, [{ id: 's', minimized: true }, blocks[1]], boxes), null);
+  assert.equal(drawConnector(c, [blocks[0], { ...blocks[1], minimized: true }], boxes), null);
   assert.equal(drawConnector(c, blocks, boxes).kind, 'explain');
 });
 
@@ -150,7 +148,7 @@ test('wiring: the layer sits before the cards column and the links, has no z-ind
   assert.ok(layer > 0 && layer < links && links < column, 'below the links and every card');
   const tag = canvas.slice(canvas.lastIndexOf('<svg', layer), canvas.indexOf('>', layer));
   assert.match(tag, /pointer-events-none/); assert.doesNotMatch(tag, /z-\d|z-\[/);
-  assert.match(canvas, /const arrows = useMemo\(\(\) => \[\.\.\.connectorsOf\(blocks\)/);
+  assert.match(canvas, /const arrows = useMemo\(\(\) => connectorsOf\(blocks\)/);
   assert.match(slash, /target\?\.beside && target\.id \? \{ parent: \{ id: target\.id, \.\.\.\(Number\.isFinite\(target\.alignY\) \? \{ dy: Math\.round\(target\.alignY\) \} : \{\}\) \} \}/);
 });
 
@@ -160,77 +158,4 @@ test('the arrowhead is the same size on screen at every zoom (scale = 1 / zoom),
     const [ax, ay, hx, hy] = arrowhead(g, 1 / zoom).match(/-?\d+(\.\d+)?/g).map(Number);
     assert.ok(Math.abs(Math.hypot(ax - hx, ay - hy) * zoom - ARROW.head) < 1e-6, `zoom ${zoom}`);
   }
-});
-
-// Owner 2026-11-17: a card made from a card gets a random Theme 2 colour, chosen once and saved (parentCard.color); the arrow drawn first for its skeleton is the same one.
-test('pickArrowColor: only Theme 2 series fills, never the previous one, every colour reachable', () => {
-  const seen = new Set();
-  for (let i = 0; i < 1000; i += 1) {
-    const previous = SERIES[i % SERIES.length], name = pickArrowColor(previous, () => (i * 0.6180339887) % 1);
-    assert.ok(SERIES.includes(name) && Object.hasOwn(FILLS, name), name);
-    assert.notEqual(name, previous);
-    seen.add(name);
-  }
-  assert.deepEqual([...seen].sort(), [...SERIES].sort());
-  assert.ok(SERIES.includes(pickArrowColor(null, () => 0.999999)) && SERIES.includes(pickArrowColor(null, () => 0)), 'the ends of the range');
-  assert.ok(SERIES.includes(pickArrowColor('nonsense')), 'an unknown previous excludes nothing');
-});
-
-test('nextArrowColor: not the colour of the latest connector from the same card, including a card saved before (its hashed colour)', () => {
-  const kid = (id, parent, color) => ({ id, parentCard: { id: parent, ...(color ? { color } : {}) } });
-  assert.notEqual(nextArrowColor([kid('a', 'p', 'coral')], 'p', () => 0.2), 'coral');
-  for (const random of [0, 0.3, 0.6, 0.99]) {
-    const old = kid('old-card', 'p'); // no saved colour: it wears its hashed one
-    assert.notEqual(nextArrowColor([old], 'p', () => random), arrowFillName(old));
-    assert.notEqual(nextArrowColor([kid('x', 'q', 'blue'), kid('y', 'p', 'teal'), kid('z', 'q', 'rose')], 'p', () => random), 'teal', 'only this parent counts, its latest child');
-  }
-  assert.ok(SERIES.includes(nextArrowColor([], 'p')));
-});
-
-test('a saved colour is the connector colour; a card without one keeps its hashed colour (no migration)', () => {
-  const saved = connectorColors('t1', 'lavender');
-  assert.equal(saved.dark, FILLS.lavender);
-  assert.equal(saved.name, 'lavender');
-  assert.equal(saved.light, SERIES_INK[SERIES.indexOf('lavender')], 'the light canvas takes the palette ink weight of the same colour');
-  assert.ok(contrast(saved.light, '#ffffff') >= 4.5 && contrast(saved.dark, '#2a2a2a') >= 3, 'readable on the light canvas and on a dark one');
-  for (const name of SERIES) assert.ok(contrast(connectorColors('t', name).light, '#ffffff') >= 4.5, name);
-  assert.deepEqual(connectorColors('t1'), connectorColors('t1', null));
-  assert.deepEqual(connectorColors('t1', 'not-a-colour'), connectorColors('t1'));
-  const blocks = [{ id: 's', type: 'explanation' }, { id: 'a', type: 'explanation', parentCard: { id: 's', actionId: 'x', color: 'mustard' } }, { id: 'b', type: 'explanation', parentCard: { id: 's', actionId: 'y' } }];
-  const boxes = { s: box(0, 0, 440, 600), a: box(600, 0, 440, 400), b: box(600, 500, 440, 400) };
-  const [a, b] = connectorsOf(blocks).map(entry => drawConnector(entry, blocks, boxes));
-  assert.equal(a.colors.dark, FILLS.mustard);
-  assert.deepEqual(b.colors, connectorColors('b'));
-  assert.equal(arrowFillName(blocks[1]), 'mustard');
-});
-
-test('slotConnector: the arrow of a skeleton runs from the source to the slot, is drawn in, wears the colour the card will keep; no arrow or no source gives none', () => {
-  const boxes = { s: box(0, 0, 440, 600) };
-  const slot = { id: 'slot:1', at: { x: 480, y: 0 }, w: 440, h: 360, arrow: { from: 's', color: 'teal' } };
-  const drawn = slotConnector(slot, boxes);
-  assert.equal(drawn.drawIn, true);
-  assert.equal(drawn.kind, 'ask');
-  assert.equal(drawn.geometry.tail.x, 440, 'leaves the source edge');
-  assert.equal(drawn.geometry.head.x, 480, 'ends on the slot edge');
-  assert.equal(drawn.geometry.head.y, 180, 'at the slot middle');
-  assert.equal(drawn.colors.dark, FILLS.teal);
-  const landed = [{ id: 's' }, { id: 'c', parentCard: { id: 's', actionId: 'x', color: 'teal' } }];
-  const [after] = connectorsOf(landed).map(entry => drawConnector(entry, landed, { s: boxes.s, c: box(480, 0, 440, 360) }));
-  assert.deepEqual(after.colors, drawn.colors, 'the card that fills the slot keeps the same colour: one arrow, not two');
-  assert.equal(slotConnector({ ...slot, arrow: undefined }, boxes), null);
-  assert.equal(slotConnector(slot, {}), null);
-  assert.equal(slotConnector({ ...slot, at: undefined }, boxes), null);
-});
-
-test('arrow first, skeleton second (index.css): the connector draws in over 300 ms, its head lands at the end, the skeleton shows after the same 300 ms; reduced motion shows all at once', () => {
-  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
-  assert.match(css, /\.arrow-draw \{ stroke-dasharray: 1; animation: arrow-draw 300ms ease-out both; \}/);
-  assert.match(css, /\.arrow-head-in \{ animation: arrow-head-in 60ms linear 250ms both; \}/);
-  assert.match(css, /\.slot-after-arrow \{ animation: arrow-head-in 120ms ease-out 300ms both; \}/);
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.arrow-draw, \.arrow-head-in, \.slot-after-arrow \{ animation: none; \}/);
-  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /pathLength=\{arrow\.drawIn \? 1 : undefined\} className=\{arrow\.drawIn \? 'arrow-draw'/, 'the path is normalised to length 1, so the dash offset animates at any zoom');
-  assert.match(canvas, /slots\.map\(slot => slotConnector\(slot, bounds\)\)/, 'every slot with an arrow is drawn');
-  assert.match(canvas, /slotsRef\.current\.find\(slot => slot\.id === into\)\?\.arrow\?\.color \?\? nextArrowColor/, 'the card that fills the slot takes the slot colour');
-  assert.match(readFileSync(new URL('./learn-slash.js', import.meta.url), 'utf8'), /target\.parentLink \? \{ arrow: true \} : \{\}/, 'only Ask in a new card reserves an arrow; Explore, the follow-up, Ctrl+K and drops do not');
 });

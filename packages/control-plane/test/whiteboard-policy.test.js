@@ -42,16 +42,16 @@ test('the worst case of the largest W1 plan (60 s, 4 scenes): every call it may 
   const r = whiteboardReservation(JSON.parse(readFileSync(new URL('./fixtures/whiteboard/plan-60.json', import.meta.url), 'utf8')));
   assert.deepEqual(r.calls, { plan: 4, author: 6 });
   assert.equal(r.planMicros, 4 * 240000); // the planner and its three revisions
-  // 6 author calls; the narrator at $0.04 per 1,000 characters on (4,000 narration + 4,000 re-narrated characters) = 8,000 x 40 = 320,000 micro-USD.
-  assert.equal(r.generationMicros, 6 * 320000 + 320000);
-  assert.deepEqual(r.estimate, { planMicros: 240000, generationMicros: 4 * 320000 + 160000 }); // the estimate narrates 4,000 characters once
+  // 6 author calls; Fish at $15 per MB on (4,000 narration + 4,000 re-narrated characters) x 4 bytes = 32,000 bytes = 480,000 micro-USD.
+  assert.equal(r.generationMicros, 6 * 320000 + 480000);
+  assert.deepEqual(r.estimate, { planMicros: 240000, generationMicros: 4 * 320000 + 60000 });
   assert.ok(r.estimate.generationMicros < r.generationMicros && r.estimate.planMicros < r.planMicros);
 });
 
 test('the worst case grows with the scenes and the narration is bounded per scene and per video', () => {
   const at = n => whiteboardReservation(plan(n)).generationMicros;
-  // 1 scene: 3 author calls; narration at most 4 beats x 600 = 2,400 characters, re-narrated once: 4,800 x 40 micro-USD = 192,000.
-  assert.equal(at(1), 3 * 320000 + 192000);
+  // 1 scene: 3 author calls; narration at most 4 beats x 600 = 2,400 characters, re-narrated once: 4,800 x 4 bytes x $15/MB = 288,000.
+  assert.equal(at(1), 3 * 320000 + 288000);
   assert.ok(at(1) < at(2) && at(2) < at(4) && at(4) < at(8));
   assert.equal(at(8) - at(4), 4 * 320000, 'past 4,000 characters the narration bound is the video\'s');
   assert.throws(() => whiteboardReservation(plan(0)), { code: 'bad_plan' });

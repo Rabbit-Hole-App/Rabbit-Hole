@@ -3,7 +3,7 @@
 // A video case: create -> plan -> read the signed proposal from the Chat thread -> approve -> poll -> result -> download the MP4 and ffprobe it.
 // Prints the plan text, the "up to N credits" value (proposal usage), the stage timeline, the manifest's timings line, the ffprobe fields and the
 // usage summary before and after each case. DEV ONLY: the session comes from rabbit-hole-cp-dev /test/session (RABBIT_HOLE_DEV_TEST_BYPASS read by
-// name from the credentials file, never printed). These are real model, narrator (ElevenLabs) and renderer calls and cost real (dev) credits.
+// name from the credentials file, never printed). These are real model, Fish and renderer calls and cost real (dev) credits.
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';

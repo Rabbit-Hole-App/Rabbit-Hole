@@ -48,12 +48,6 @@ test('a written Explanation illustration names its file source, so the board kee
   assert.deepEqual(fileRefSources({ blocks: [{ ...block, illustration: { pending: { proposalId: 'p' } } }] }), [], 'a pending illustration names nothing yet');
 });
 
-test('an Explanation narration names its audio file source, so the board keeps and reads it', () => {
-  const block = { id: 'e1', type: 'explanation', title: 'T', body: 'b', narration: { status: 'ready', seconds: 82, fileRef: { v: 1, source: { id: 'fs_audio', rev: 'r1' } } } };
-  assert.deepEqual(fileRefSources({ blocks: [block] }), ['fs_audio']);
-  assert.deepEqual(fileRefSources({ blocks: [{ ...block, narration: { status: 'preparing' } }] }), [], 'a narration still being made names nothing yet');
-});
-
 test('fileRefSources lists each referenced source once', () => {
   assert.deepEqual(fileRefSources({ blocks: [card('fs_a'), card('fs_a'), card('fs_b'), { id: 'x', type: 'file', assetKey: 'drop:1' }, { fileRef: { source: { id: 7 } } }] }), ['fs_a', 'fs_b']);
   assert.deepEqual(fileRefSources(null), []);

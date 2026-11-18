@@ -37,11 +37,6 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   email). Links look like `/b/<token>`.
 - Shared boards are always view-only: pan and zoom, no toolbar, no edits.
   There are no edit links; tokens from before are no longer accepted.
-- **Explanation cards on a shared or published canvas** (owner 2026-11-17) carry every feature of the owner's own canvas: the three
-  follow-up strips, the audio pill and its transcript window, the green playing frame and minimap mark, the diagrams, the arrows. Audio
-  files read through the link (`?share=<token>`, signed in or public as the link allows). A strip click signed out goes to sign-in and
-  back to this page with the question as the unsent Chat draft; signed in it is Ask in Chat. Details and tests:
-  [explain.md](explain.md) "Shared canvas".
 - **Fork** (top right of a shared board), after its "Fork this canvas" confirm-and-rename dialog, makes the viewer
   their own editable copy: a Canvas in smart-home's `canvases` catalog (`canvas-<8 hex>`, owned by
   the forker, no project), opening in Learn at `/apps/canvas-<8 hex>?tab=learn`.

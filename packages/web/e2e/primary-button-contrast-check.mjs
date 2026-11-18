@@ -8,11 +8,10 @@
 // Not here (no route in the keyless stack reaches them; primary-button.test.mjs pins their classes and the fill's ratio):
 // chat Run (an agent proposal), Search's Add to canvas, Check answer and Play Lesson 1 (lesson plan preview), and Invite
 // (Share's People with access needs the comments worker, comments-invite-check).
-// Prompt action (owner brief and correction 2026-10-23, docs/features/card-prompt.md; moved on 2026-11-17 into the hover action pill above the card,
-// after Quick Edit): on an explanation, a table and a quiz that each hold a stored prompt, in both themes: nothing at rest (and no "course" word),
-// Prompt drawn in the pill by hover (the keyboard focuses it there, with a focus ring), 4.5:1 for the control and for the popover text, the popover
-// holds the exact prompt inside the window, and a touch tap that selects the card draws it. Escape closes the popover. Nothing is generated.
-// A chat card draws its question in the card and has no Prompt control.
+// Prompt control (owner brief and correction 2026-10-23, docs/features/card-prompt.md): on an explanation, a table, a quiz and a chat card
+// that each hold a stored prompt, in both themes: nothing at rest (and no "course" word), Prompt drawn by hover and by keyboard focus (Tab
+// from the focused card reaches it, with a focus ring), 4.5:1 for the control and for the popover text, the popover holds the exact
+// prompt inside the window, and a touch tap that selects the card draws it. Escape closes the popover. Nothing is generated.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<cp .dev.vars>] node e2e/primary-button-contrast-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -51,12 +50,14 @@ const PROMPT_CARDS = [
   ['explanation', { id: 'pc-explain', type: 'explanation', title: 'Why softmax', body: 'It turns scores into probabilities.', dx: 0, dy: 0, promptUsed: '/explain why softmax uses an exponential' }],
   ['table', { id: 'pc-table', type: 'table', title: 'Sigmoid vs tanh', columns: ['', 'Sigmoid', 'Tanh'], rows: [['Range', '(0, 1)', '(-1, 1)']], dx: 0, dy: 0, promptUsed: '/compare sigmoid vs tanh' }],
   ['quiz', { id: 'pc-quiz', type: 'quiz', question: 'What does softmax return?', options: [{ key: 'a', text: 'Probabilities', correct: true }, { key: 'b', text: 'Logits' }], dx: 0, dy: 0, promptUsed: '/quiz softmax in one question' }],
+  ['chat', { id: 'pc-chat', question: 'What does softmax do to scores?', answer: 'It turns them into probabilities.', status: 'done', linkFrom: null, dx: 0, dy: 0 }],
 ];
 const promptBoards = {};
 for (const [family, card] of PROMPT_CARDS) {
   const canvas = await post(owner, '/api/canvases', { title: `Prompt ${family} ${run}` });
-  await api(owner, `/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [card] } }) });
-  promptBoards[family] = { name: canvas.name, id: card.id, text: card.promptUsed };
+  const chat = family === 'chat';
+  await api(owner, `/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: chat ? [card] : [], blocks: chat ? [] : [card] } }) });
+  promptBoards[family] = { name: canvas.name, id: card.id, text: chat ? card.question : card.promptUsed };
 }
 const goalsOf = async () => (await api(owner, `/api/learn/coaching?app=${mine.name}&board=main`)).state.goals.filter(goal => goal.lifecycle !== 'archived');
 
@@ -226,7 +227,7 @@ for (const theme of ['light', 'dark']) {
   }, page);
 
   for (const [family, board] of Object.entries(promptBoards)) {
-    await check(`${theme}: the ${family} card's Prompt action is hidden at rest, drawn in the pill by hover and focusable by keyboard, clears 4.5:1, and opens the exact prompt inside the window`, async () => {
+    await check(`${theme}: the ${family} card's Prompt control is hidden at rest, drawn by hover and by Tab from the focused card, clears 4.5:1, and opens the exact prompt inside the window`, async () => {
       await page.goto(`${BASE}/apps/${board.name}`);
       const card = page.locator(`[data-block-id="${board.id}"]`), button = card.locator('[data-card-prompt-button]'), popover = page.locator('[data-card-prompt]');
       await card.waitFor({ timeout: 60000 });
@@ -242,10 +243,11 @@ for (const theme of ['light', 'dark']) {
       assert.ok(hovered.ratio >= 4.5, `${theme} ${family} Prompt: ${hovered.ratio.toFixed(2)}:1 (${hovered.fg} on ${hovered.bg})`);
       await page.mouse.move(1, 1);
       await until(async () => (await button.count()) === 0, 'Prompt leaves with the pointer');
-      await card.hover(); // the pill shows on hover; its Prompt button takes the keyboard focus
+      await card.focus(); // the card is reachable by Tab; focus inside it draws Prompt, one Tab further reaches it
       await button.waitFor();
-      await button.focus();
-      assert.ok(await page.evaluate(() => document.activeElement?.hasAttribute('data-card-prompt-button')), 'the keyboard focuses Prompt');
+      let reached = false;
+      for (let n = 0; n < 12 && !reached; n++) { await page.keyboard.press('Tab'); reached = await page.evaluate(() => document.activeElement?.hasAttribute('data-card-prompt-button')); }
+      assert.ok(reached, 'Tab reaches Prompt');
       const focused = await settled(button);
       assert.ok(focused.outline.style !== 'none' && focused.outline.width >= 1 && focused.outline.color > 0, `a visible focus ring (${JSON.stringify(focused.outline)})`);
       await page.keyboard.press('Enter');
@@ -262,11 +264,10 @@ for (const theme of ['light', 'dark']) {
   }
 
   const touch = await contextFor(owner, theme, { hasTouch: true });
-  await check(`${theme}: on a touch screen a tap that selects the card draws Prompt in its action pill, and a second tap opens the exact prompt`, async () => {
+  await check(`${theme}: on a touch screen a tap that selects the card draws Prompt, and a second tap opens the exact prompt`, async () => {
     const board = promptBoards.explanation;
     await touch.page.goto(`${BASE}/apps/${board.name}`);
-    // The selected card's actions are in its own pill, or in the floating bar on a narrow view (outside the card): look on the whole page.
-    const card = touch.page.locator(`[data-block-id="${board.id}"]`), button = touch.page.locator('[data-card-prompt-button]');
+    const card = touch.page.locator(`[data-block-id="${board.id}"]`), button = card.locator('[data-card-prompt-button]');
     await card.waitFor({ timeout: 60000 });
     assert.equal(await button.count(), 0, 'hidden at rest');
     const box = await card.boundingBox();

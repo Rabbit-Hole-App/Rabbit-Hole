@@ -7,7 +7,7 @@ is an explicit gap, never an assumed zero. Contract and storage: [telemetry.md](
 - `spendTransport`: `learn-spend.js`. It admits a request with `admitSpend` (platform guard plus allowance), sends it, then
   settles with `settleSpend` and `settleAttempt`, and parses usage from the JSON reply or the SSE stream.
 - `askJev`: `learn-grade-jev.js`. One admission per POST; the 429/529 retry is its own attempt.
-- `elevenSpendTransport`: `learn-paid-transport.js`, called by `speakNarration` (`narration-voice.js`, the one narrator). Reserves the character-priced bound and settles at that bound. (`fishSpendTransport` was removed in VOICE-1, 2026-11-17.)
+- `fishSpendTransport`: `learn-paid-transport.js`. Reserves the byte-priced bound and settles at that bound.
 - `admitTool`: `learn-paid-transport.js`, for Exa.
 - `recordMedia`: `learn-usage.js`. A ledger-bypass record written after the call: `settled`, `estimated` or `unknown`, with no
   admission.
@@ -54,7 +54,7 @@ is an explicit gap, never an assumed zero. Contract and storage: [telemetry.md](
 | 27 | Explain | `/api/learn/explain/*` -> ExplainJobs DO | Anthropic Opus 5.5 (brief, author, review, repair); Browser Run render (`explain-render.js`) | job id, prep and action keys, op_id per call | `spendTransport` per call; render via `recordMedia` (`explain_renderer`) | JSON | user | `learn_model` (explain-policy.js uses `loggedModel`) | Render browser time is unknown. A call sent before Stop settles, but its result is dropped (reservation kept). |
 | 28 | Voice transcription (answer) | `POST /api/learn/transcribe` | OpenAI `gpt-4o-transcribe` | action | `paidSubmissionRefusal` + `recordMedia` estimate | `TRANSCRIBE_ESTIMATE` | user | none | No reservation before dispatch; only the estimate is recorded. Off unless `TRANSCRIBE_ENABLED` is `"true"` (and the key is set). |
 | 29 | Voice Mode STT token | `POST /api/learn/voice/scribe-token` | ElevenLabs realtime Scribe (single-use token; billed per streamed second, client to ElevenLabs) | action | `paidSubmissionRefusal` + `recordMedia` (no estimate) | none | user | none | Unknown cost: usage happens browser to provider after the token, so no server record of duration. |
-| 30 | Voice synthesis | `POST /api/learn/tts`, `/api/learn/voice/tts`, `/api/learn/explanation-audio/voice`, /whiteboard narration | ElevenLabs Flash v2.5 (Jessica) | action, op_id | `speakNarration` -> `elevenSpendTransport` | computed: characters x $0.04/1,000 (an estimate row), settled at the bound | user | none | Cost basis is computed from price, not provider-reported; it is labelled `settled`. Playback and interruption are not tracked. |
+| 30 | Voice synthesis | `POST /api/learn/tts`, `/api/learn/voice/tts` | Fish Audio S1 | action, op_id | `fishSpendTransport` | computed: UTF-8 bytes x $15/M, settled at the bound | user | none | Cost basis is computed from price, not provider-reported; it is labelled `settled`. Playback and interruption are not tracked. |
 | 31 | Search (Exa) | `/api/learn/search`, YouTube finder | Exa | action, op_id | `admitTool` / `recordMedia` | `exaCost(response)` (reported), else estimate | user | none | none beyond basis labelling |
 | 32 | Avatar teacher | `learn-avatar-*` | HeyGen; Anthropic director | ticket | not wired (parked) | n/a | n/a | n/a | Off in every environment (`LEARN_AVATAR_PROVIDER` unset). |
 | 33 | Moment index embeddings | Queue consumer (`learn-moment-index.js`) | Workers AI (`env.AI.run`) | moment id | none | none | platform | none | Not bound in prod config (no `ai` binding or consumer). If enabled: unaccounted neurons. |
@@ -77,7 +77,7 @@ is an explicit gap, never an assumed zero. Contract and storage: [telemetry.md](
 | `web/dev-worker.js:207` | OpenAI image generation | estimate only, no reservation | no (path off) |
 | `web/dev-worker.js:287` | OpenAI transcription | estimate only, no reservation | no |
 | `control-plane/src/learn-voice-scribe.js:11` | ElevenLabs Scribe token | record only, cost unknown | no |
-| `control-plane/src/narration-voice.js` (all four spoken paths) | ElevenLabs | yes, computed | no |
+| `web/dev-worker.js:263`, `control-plane/src/learn-voice-tts.js:22` | Fish Audio | yes, computed | no |
 | `control-plane/src/learn-search.js:143`, `learn-youtube.js:99` | Exa | yes | no |
 | `learn-render/motion/orchestrator-main.mjs:24` | Anthropic (from Fly) | job hold; per-call costs from the orchestrator | no (tracked, decision 2) |
 | `control-plane/src/video-provider.js:33` | Fal | record only | no (unset in prod) |

@@ -1,13 +1,13 @@
 // Voice Mode routes (docs/features/voice-tutor-mvp.md §5): the gate order before either provider,
 // and that a response never carries a key. The handlers are injected or their fetch is stubbed:
-// no ElevenLabs call is made here.
+// no ElevenLabs or Fish call is made here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { voiceRoute } from '../src/learn-voice-routes.js';
 import { LISTENING_PAUSED } from '../src/voice-availability.js';
 
 const KEY = 'xi-secret-key-never-shown';
-const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY };
+const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY, FISH_AUDIO_API_KEY: 'fish-secret-key-never-shown' };
 const allow = async (req, env, app) => ({ email: 'learner@test', org: 'team', app });
 const request = (path, { method = 'POST', origin, body = { app: 'canvas-0a1b2c3d', confirmed: true } } = {}) => new Request(`https://dev.test${path}`, {
   method, headers: { 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) },
@@ -90,7 +90,7 @@ test('FX-71: while listening is paused (the default switch) the token route mint
     assert.deepEqual(await paused.json(), { error: 'Voice is currently unavailable' });
   }
   assert.equal(fetched, 0, 'no provider call while paused');
-  // Narration is not listening: the pause leaves it alone.
+  // Narration (Fish) is not listening: the pause leaves it alone.
   const deps = { ...handlers(), listeningPaused: undefined };
   const speech = await voiceRoute('/api/learn/voice/tts', request('/api/learn/voice/tts', { body: { app: 'canvas-0a1b2c3d', text: 'Hi.', confirmed: true } }), env, deps);
   assert.equal(speech.headers.get('content-type'), 'audio/mpeg');

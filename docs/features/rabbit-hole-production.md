@@ -79,7 +79,7 @@ Merging them into one Worker would be new architecture.
 | `/apps`, `/apps/*`, `/library`, `/explore`, `/b/<token>`, `/dash`, `/chat`, `/members` | app | SPA shell (`dist-dev/index.html`) |
 | Learn: `/api/canvases*`, `/api/learn/*`, `/api/learn/boards/*`, `/api/learn/grade*`, `/api/profile`, `/api/learn/context*` | app | `/dive` is a slash command persisted through `/api/canvases/dives` |
 | Tutor: `/api/learn/tutor/{evaluate,plan}` | app | `learn-tutor-routes.js` |
-| Voice: `/api/learn/voice/*` | app | Once `feature/voice-tutor-mvp` merges into `dev-worker.js`; needs `ELEVENLABS_API_KEY` (Scribe and the narrator; `FISH_AUDIO_API_KEY` is no longer read, VOICE-1) |
+| Voice: `/api/learn/voice/*` | app | Once `feature/voice-tutor-mvp` merges into `dev-worker.js`; needs `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY` |
 | Repository import: `/api/repositories*`, `/api/apps/repo-*` | app | Needs the indexer (below) |
 | Media: `/api/learn/media` | app | `LEARN_MEDIA` |
 | `GET /api/apps` | app | Canvases and repositories only |
@@ -162,7 +162,7 @@ local source is the gitignored `small-deploy/.env`; before every `secret put`, c
 | Worker | Required | Optional |
 |---|---|---|
 | `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` from the `*_PROD` values, `RESEND_API_KEY` (email sign-in; `EMAIL_FROM` is a pinned var) | `ANTHROPIC_API_KEY` |
-| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` (the key is not scoped to one workspace, so Anthropic rejects a call without the `anthropic-workspace-id` header; `ask.js`, `review.js`), `TYPESAFE_API_KEY` (the Tutor's direct TypeSafe grading, `learn-grade-jev.js`), `ELEVENLABS_API_KEY` (Voice: Scribe and the one narrator; the old `FISH_AUDIO_API_KEY` may stay set but no code reads it since VOICE-1), `SCENE_WORKER_TOKEN` (production-only, below) | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
+| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` (the key is not scoped to one workspace, so Anthropic rejects a call without the `anthropic-workspace-id` header; `ask.js`, `review.js`), `TYPESAFE_API_KEY` (the Tutor's direct TypeSafe grading, `learn-grade-jev.js`), `FISH_AUDIO_API_KEY` and `ELEVENLABS_API_KEY` (Voice), `SCENE_WORKER_TOKEN` (production-only, below) | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
 
 - **Live state (2026-10-03).** `rabbit-hole-app` has `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `SCENE_WORKER_TOKEN`, `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY`; `TYPESAFE_API_KEY` is still to be set with the Tutor-entry deploy. Without `ANTHROPIC_WORKSPACE_ID` every Learn answer failed with a 503 (model HTTP 400) on the first production smoke. Never rotate or remove the workspace id without the owner.
 - **OAuth mapping.** The runtime names never change. Production gets `GITHUB_CLIENT_ID_PROD` to `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET_PROD` to `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID_PROD` to `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET_PROD` to `GOOGLE_CLIENT_SECRET`. Dev Workers get only the `*_DEV` values. Never cross them.

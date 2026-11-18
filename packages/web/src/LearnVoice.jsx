@@ -8,7 +8,7 @@ import { api, wsHeaders } from './api.js';
 import { reviewTools } from './flags.js';
 import { createVoiceSession } from './voice-session.js';
 import { createFakeStt, createScribeStt } from './voice-stt.js';
-import { createFakeTts, createNarratorTts } from './voice-tts.js';
+import { createFakeTts, createFishTts } from './voice-tts.js';
 import { voiceEvent } from './voice-telemetry.js';
 import { LISTENING_PAUSED } from '../../control-plane/src/voice-availability.js';
 
@@ -16,7 +16,7 @@ import { LISTENING_PAUSED } from '../../control-plane/src/voice-availability.js'
 // ends its voice session; Voice Mode stays the learner's choice, so the next surface turns it back on.
 let onAcrossMove = false;
 // LISTENING_PAUSED (r36) pauses new Scribe listening sessions; the token route refuses them on the same switch (FX-71).
-// Metered narration (the one ElevenLabs voice, narration-voice.js) is unchanged. The scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
+// Metered Fish narration is unchanged. The scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
 
 // Without a Tutor: Voice Mode is off and its mic paused (VoiceToggle reads paused), say takes no turn.
 const NO_TUTOR = Object.freeze({ state: 'off', caption: Object.freeze({ current: '', previous: null, error: null }), enter: () => {}, exit: () => {}, interrupt: () => {}, on: false, say: () => false, paused: true });
@@ -58,7 +58,7 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
     } else {
       // Turning Voice Mode on is the learner's confirmation for both paid providers (§5).
       stt = createScribeStt({ onEvent: onStt, fetchToken: () => api('/api/learn/voice/scribe-token', { method: 'POST', body: JSON.stringify({ ...scope(), confirmed: true }) }) });
-      tts = createNarratorTts({
+      tts = createFishTts({
         onEvent: onTts,
         post: (path, body, signal) => fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ ...scope(), ...body }), signal }),
       });

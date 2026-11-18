@@ -1,6 +1,6 @@
 // Voice Mode routes on the dev worker (docs/features/voice-tutor-mvp.md §5):
 //   POST /api/learn/voice/scribe-token  a single-use ElevenLabs Scribe token (learn-voice-scribe.js)
-//   POST /api/learn/voice/tts           the Tutor's words as narrator audio (learn-voice-tts.js)
+//   POST /api/learn/voice/tts           the Tutor's words as Fish audio (learn-voice-tts.js)
 // Gate order as tutorRoute and contextDocsFetch: method, origin, JSON, app access, subscription
 // owner, paid confirmation; the handlers then check their key and call the provider.
 import { authorizedBoardApp } from './learn-board.js';
