@@ -179,7 +179,7 @@ test('every mention carries its equivalent forms and matches the card through an
 test('a lone zero and the counting words are free when the card has numbers; names with digits (Q1, w_0) may be said but are never the example', () => {
   const card = cardNumbers('The fence is 1.5 times Q1 to Q3, and w_0 starts at 9.');
   assert.equal(stripUnsafe('Start from zero. The other three steps follow.', 'Start from zero. The other three steps follow.', card).removed, 0, 'zero and three are free');
-  assert.equal(stripUnsafe('Start from zero. The other three steps follow.', 'Start from zero. The other three steps follow.', cardNumbers('A card with no number at all.')).removed, 2, 'a card with no numbers keeps the old rule');
+  assert.equal(stripUnsafe('Start from zero. The other three steps follow.', 'Start from zero. The other three steps follow.', cardNumbers('A card with no number at all.')).removed, 0, 'counting words are free on a card with no numbers too (owner 2026-11-17, the exception is withdrawn)');
   assert.equal(stripUnsafe('Look at Q1 and Q3 and w 0.', 'Look at Q1 and Q3 and w 0.', card).removed, 0, 'identifier digits are allowed');
   const example = cardDataNumbers('The fence is 1.5 times Q1 to Q3, and w_0 starts at 9, also w_{t+1}.');
   assert.ok(example.has(1.5) && example.has(9));
@@ -228,11 +228,13 @@ test('counting words are not outside numbers when the card has numbers; data val
   assert.deepEqual(cardDataNumbers('four strokes and two paths'), new Set(), 'a card with only counting words has no data to speak');
 });
 
-test('a card with no numbers at all: counting words are data again and follow the old rule', () => {
+test('a card with no numbers at all: counting words are still free (two puddles, two roles), data values are still outside', () => {
   const none = cardNumbers('The water cycle moves water around the planet.');
   assert.equal(none.size, 0);
-  assert.equal(stripUnsafe('Once it falls it takes one of two paths. It then returns.', 'Once it falls it takes one of two paths. It then returns.', none).script, 'It then returns.');
+  for (const sentence of ['Once it falls it takes one of two paths.', 'Observe two puddles in sun and shade.', 'Notice how the architecture separates the two roles entirely.', 'Start from zero.']) assert.equal(stripUnsafe(sentence, sentence, none).removed, 0, sentence);
+  for (const sentence of ['About 37 percent of it returns.', 'It takes twelve days.', 'A third of the water is lost.', 'It rises 0.5 metres.']) assert.equal(stripUnsafe(sentence, sentence, none).removed, 1, sentence);
   assert.equal(stripUnsafe('One idea, and no one knows.', 'One idea, and no one knows.', none).removed, 0, 'a lone "one" stays a word');
+  assert.equal(stripUnsafe('Observe two puddles.', 'Observe $2$ puddles.', none).removed, 0, 'and the transcript digit of a counting word is free too');
 });
 
 // ---- the script route ----

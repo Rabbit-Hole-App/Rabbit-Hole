@@ -115,7 +115,7 @@ export function scriptUser({ depth, question, title, prose, labels }) {
 // "a third of", "1/2"), hundred, thousand and million, "two and a half", signs ("minus two", "negative zero point five", "-2"), hyphenated compounds and spoken years ("nineteen eighty four", "twenty twenty four").
 // Every mention carries equivalent forms ("36.8 percent" is 36.8 and 0.368; "two thirds" is 0.6667), and it matches the card when any form equals any form of the card (a fraction also matches a rounded
 // decimal within 0.5 percent). Deliberately not numbers: a lone "one" (pronoun, article), ordinals ("first", "a third" not followed by "of"), once, twice, double, a bare "half" or "quarter", "hundreds of", the
-// noun "point" and subtraction ("n minus one"). Counting words (a lone two to ten) are numbers to the parser and free to the rule while the card has any number (owner 2026-11-17).
+// noun "point" and subtraction ("n minus one"). Counting words (a lone zero to ten) are numbers to the parser and always free to the rule (owner 2026-11-17).
 // Digits inside a name (Q1, w_0) are numbers the script may say (they are the card's own words, "w zero") but never the example the rule asks for. A lone zero or one is free like the counting words. Table of expected readings: the unit test "the one shared number parser".
 // mention = { text, v, forms[], kind, counting }.
 const UNITS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
@@ -222,8 +222,8 @@ export function inCard(m, set) {
   if (m.kind !== 'fraction') return false;
   return m.forms.some(f => [...set].some(c => c !== 0 && (Math.abs(f - c) / Math.abs(c) <= 0.005 || Math.abs(f * 100 - c) / Math.abs(c) <= 0.005)));
 }
-// The mentions of a text outside the card. Counting words are free when the card has numbers; a card with none has nothing to be outside of, so every number a script speaks is data (the old rule).
-export const outsideMentions = (text, allowed) => mentions(text).filter(m => !(m.counting && allowed.size) && !inCard(m, allowed));
+// The mentions of a text outside the card. Counting words (a lone two to ten, a lone zero) are always free, on a card with no numbers too (owner 2026-11-17, replacing the exception for such cards).
+export const outsideMentions = (text, allowed) => mentions(text).filter(m => !m.counting && !inCard(m, allowed));
 export const spokenNumbers = text => mentions(text).map(m => m.v);
 export const dataNumbers = text => mentions(text).filter(m => !m.counting).map(m => m.v);
 export const outsideNumbers = (text, allowed) => outsideMentions(text, allowed).map(m => m.v);
@@ -233,8 +233,8 @@ export const speaksCardNumber = (text, cardData) => mentions(text).some(m => !m.
 const SYMBOLS = /[=+*/^<>[\]%\u00d7\u00f7\\$~\u00b2\u00b3\u00b9\u2070-\u209f]/;
 export const sentencesOf = text => String(text ?? '').split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
 const outside = (sentence, allowed) => outsideMentions(sentence, allowed).length > 0;
-// The transcript writes the counting words as LaTeX digits ("toward zero" becomes "$0$"): a whole digit zero to ten is as free there as the word is in the script, while the card has numbers.
-const outsideWritten = (sentence, allowed) => mentions(sentence).some(m => !(allowed.size && (m.counting || (m.kind === 'digit' && Number.isInteger(m.v) && m.v >= 0 && m.v <= 10))) && !inCard(m, allowed));
+// The transcript writes the counting words as LaTeX digits ("toward zero" becomes "$0$"): a whole digit zero to ten is as free there as the word is in the script.
+const outsideWritten = (sentence, allowed) => mentions(sentence).some(m => !(m.counting || (m.kind === 'digit' && Number.isInteger(m.v) && m.v >= 0 && m.v <= 10)) && !inCard(m, allowed));
 const clean = text => String(text ?? '').replace(/\u2011/g, '-').replace(/\s+/g, ' ').trim();
 
 // -> { script, transcript, removed } with every sentence that speaks a number outside `allowed` (or carries a symbol in the script) taken out of both. When the two have the same number of
