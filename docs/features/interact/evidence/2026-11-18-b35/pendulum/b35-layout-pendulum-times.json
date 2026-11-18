@@ -1,0 +1,290 @@
+[
+  {
+    "settings": "B mass=2,B length=1",
+    "text": "A 2.01 s T = 2π√(L/g) Same timing: only the mass differs. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 0.00s B mass: 2.0 kg B length: 1.0 m",
+    "time": 0,
+    "scrub": "0",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 494
+    },
+    "fit": {
+      "scrollHeight": 494,
+      "clientHeight": 494,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": null,
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 422 76.3)",
+          "class": "cursor-pointer"
+        },
+        "cx": 864,
+        "cy": 339.17498779296875,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 422 76.3)",
+          "class": "cursor-pointer"
+        },
+        "cx": 864,
+        "cy": 339.17498779296875,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  },
+  {
+    "settings": "B mass=2,B length=1",
+    "text": "A 2.01 s T = 2π√(L/g) Same timing: only the mass differs. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 3.00s B mass: 2.0 kg B length: 1.0 m",
+    "time": 3,
+    "scrub": "3",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 494
+    },
+    "fit": {
+      "scrollHeight": 494,
+      "clientHeight": 494,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": null,
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 496.25 174.68)",
+          "class": "cursor-pointer"
+        },
+        "cx": 938.25,
+        "cy": 437.55499267578125,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 496.25 174.68)",
+          "class": "cursor-pointer"
+        },
+        "cx": 938.25,
+        "cy": 437.55499267578125,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": "2.01 s T = 2π√(L/g) Slower: a longer string takes longer. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 0.00s B mass: 1.0 kg B length: 2.0 m",
+    "time": 0,
+    "scrub": "0",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 494
+    },
+    "fit": {
+      "scrollHeight": 494,
+      "clientHeight": 494,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": null,
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 422 76.3)",
+          "class": "cursor-pointer"
+        },
+        "cx": 864,
+        "cy": 339.17498779296875,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 422 76.3)",
+          "class": "cursor-pointer"
+        },
+        "cx": 864,
+        "cy": 339.17498779296875,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  },
+  {
+    "settings": "B mass=1,B length=2",
+    "text": "2.01 s T = 2π√(L/g) Slower: a longer string takes longer. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 3.00s B mass: 1.0 kg B length: 2.0 m",
+    "time": 3,
+    "scrub": "3",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 494
+    },
+    "fit": {
+      "scrollHeight": 494,
+      "clientHeight": 494,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": null,
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 496.25 174.68)",
+          "class": "cursor-pointer"
+        },
+        "cx": 938.25,
+        "cy": 437.55499267578125,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 496.25 79.47)",
+          "class": "cursor-pointer"
+        },
+        "cx": 938.25,
+        "cy": 342.3450012207031,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  },
+  {
+    "settings": "B mass=1,B length=0.5",
+    "text": " 2.01 s T = 2π√(L/g) Faster: a shorter string is quicker. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 0.00s B mass: 1.0 kg B length: 0.5 m",
+    "time": 0,
+    "scrub": "0",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 494
+    },
+    "fit": {
+      "scrollHeight": 494,
+      "clientHeight": 494,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": null,
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 422 76.3)",
+          "class": "cursor-pointer"
+        },
+        "cx": 864,
+        "cy": 339.17498779296875,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 422 76.3)",
+          "class": "cursor-pointer"
+        },
+        "cx": 864,
+        "cy": 339.17498779296875,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  },
+  {
+    "settings": "B mass=1,B length=0.5",
+    "text": " 2.01 s T = 2π√(L/g) Faster: a shorter string is quicker. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 3.00s B mass: 1.0 kg B length: 0.5 m",
+    "time": 3,
+    "scrub": "3",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 494
+    },
+    "fit": {
+      "scrollHeight": 494,
+      "clientHeight": 494,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": null,
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 496.25 174.68)",
+          "class": "cursor-pointer"
+        },
+        "cx": 938.25,
+        "cy": 437.55499267578125,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 496.25 88.58)",
+          "class": "cursor-pointer"
+        },
+        "cx": 938.25,
+        "cy": 351.45501708984375,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  }
+]
