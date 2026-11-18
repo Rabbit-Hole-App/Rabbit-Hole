@@ -5,7 +5,7 @@
 //
 // One action per user action, created lazily on its first provider attempt, so a request that makes no paid call writes
 // nothing. The route boundary (dev-worker.js) makes a per-request env copy carrying the context under a module-private
-// Symbol, like learn-spend.js's admission token; spendTransport, askJev, fishSpendTransport and the media paths read it.
+// Symbol, like learn-spend.js's admission token; spendTransport, askJev, elevenSpendTransport and the media paths read it.
 // Without a context a recorded media attempt (recordMedia) gets its own 'system' action, payer platform, so nothing is lost;
 // admission (admissionPayer) refuses a paid call with no context unless code marked it system work (withSystemUsage).
 // Amounts are integer micro-USD (1 USD = 1_000_000 micros); unknown cost is NULL with its reservation kept, never 0.

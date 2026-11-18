@@ -21,10 +21,10 @@ function inlineRoute(path, end) {
   const start = worker.indexOf(`    if (path === '${path}' && req.method === 'POST')`);
   assert.ok(start >= 0, path);
   const code = worker.slice(start, worker.indexOf(end, start));
-  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'fishSpendTransport', 'isPaidSpendReply', 'fetch', 'recordMedia', 'TRANSCRIBE_ESTIMATE', 'TRANSCRIBE_NEXT_ESTIMATE', 'ESTIMATE_PRICE', code);
+  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'speakNarration', 'isPaidSpendReply', 'fetch', 'recordMedia', 'TRANSCRIBE_ESTIMATE', 'TRANSCRIBE_NEXT_ESTIMATE', 'ESTIMATE_PRICE', code);
 }
 const callRoute = (route, path, body) => route(new Request(`https://app${path}`, { method: 'POST', body }), env, path, async () => ({ email: 'fixture' }), // authorization runs before the gate
-   untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
+   untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('speakNarration'), untouched('isPaidSpendReply'), untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
 
 test('the committed production configuration has every OPENAI_API_KEY consumer off except the authorized ones', () => {
   // O-8 resolved 2026-10-29: transcription on for retained Explain-back voice notes (learn-media.js openaiTranscriber, priced transcribeSpendTransport).

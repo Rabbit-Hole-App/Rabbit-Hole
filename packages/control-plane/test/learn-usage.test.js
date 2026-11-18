@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { spendTransport, requestSpendBound } from '../src/learn-spend.js';
 import { askJev, JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
-import { fishSpendTransport } from '../src/learn-paid-transport.js';
+import { speakNarration } from '../src/narration-voice.js';
 import { devIdentity } from '../src/dev-forwarding.js';
 import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageByFeature, usageFeature, toMicros,
   periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded, withSystemUsage } from '../src/learn-usage.js';
@@ -297,15 +297,16 @@ test('a ledger stream settles at the end; a cancelled stream keeps its reservati
   assert.deepEqual(rows(sqlite, 'usage_actions').slice(2).map(a => [a.user_id, a.status, a.result]), [['u-alice', 'failed', 'none'], ['u-carol', 'completed', 'full']]);
 });
 
-test('Fish narration settles at its exact input-byte price; a failed one keeps the reservation as unknown', async t => {
+test('narrator speech settles at its exact input-character price; a failed one keeps the reservation as unknown', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const env = signedIn({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' }, 'tts');
-  await fishSpendTransport(env, 'Hello there.', async () => new Response('mp3'));
-  await fishSpendTransport(env, 'Hello there.', async () => new Response('no', { status: 500 }));
-  const micros = toMicros(Math.ceil(new TextEncoder().encode('Hello there.').length * 15) / 1e6);
+  const env = signedIn({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50', ELEVENLABS_API_KEY: 'fixture' }, 'tts');
+  await speakNarration(env, 'Hello there.', { fetch: async () => new Response('mp3') });
+  await speakNarration(env, 'Hello there.', { fetch: async () => new Response('no', { status: 500 }) });
+  const micros = 'Hello there.'.length * 40; // $0.04 per 1,000 characters
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.provider, a.reserved_micros, a.cost_micros, a.cost_state, a.status]),
-    [['media', 'fish', micros, micros, 'settled', 'settled'], ['media', 'fish', micros, null, 'unknown', 'failed']]);
+    [['media', 'elevenlabs', micros, micros, 'settled', 'settled'], ['media', 'elevenlabs', micros, null, 'unknown', 'failed']]);
   assert.equal(new Set(rows(sqlite, 'usage_attempts').map(a => a.action_id)).size, 1);
+  assert.deepEqual([...new Set(rows(sqlite, 'usage_operations').map(o => o.category))], ['narration_tts'], 'the guard row of every path but the card audio');
 });
 
 test('micros are integers rounded up, never float sums', () => {

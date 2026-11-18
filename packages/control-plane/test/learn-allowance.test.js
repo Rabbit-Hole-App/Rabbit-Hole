@@ -11,7 +11,8 @@ import { join } from 'node:path';
 import { spendTransport, requestSpendBound } from '../src/learn-spend.js';
 import { admitSpend, settleSpend, allowanceFirst, boundaryReply, refusalBody } from '../src/learn-spend-ledger.js';
 import { askJev, JEV_TRANSPORTS, JevError } from '../src/learn-grade-jev.js';
-import { fishSpendTransport, isPaidSpendReply } from '../src/learn-paid-transport.js';
+import { isPaidSpendReply } from '../src/learn-paid-transport.js';
+import { speakNarration } from '../src/narration-voice.js';
 import { withUsage, noteUsageIdentity, withSystemUsage, settleAttempt, usageTotals, toMicros, periodOf, periodReset, forwardUsagePayer } from '../src/learn-usage.js';
 import { LearnScenes } from '../src/learn-scene.js';
 import { LearnVideos } from '../src/learn-video.js';
@@ -290,7 +291,7 @@ test('the platform daily guard still applies to chargeable work, and reads as th
   assert.equal(calls.length, 0);
 });
 
-test('Fish narration, Jev and Exa search go through the same admission: refused when exhausted, settled when admitted', async t => {
+test('Narrator speech, Jev and Exa search go through the same admission: refused when exhausted, settled when admitted', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   const env = base(LEARN_DB, 20_000, { EXA_API_KEY: 'fixture', JEV_DIRECT_KEY: 'fixture' });
   let fetches = 0;
@@ -302,9 +303,9 @@ test('Fish narration, Jev and Exa search go through the same admission: refused 
   await assert.rejects(searchYouTube('relu', exhausted, async () => { fetches++; }), /Not enough AI credits/);
   await assert.rejects(searchCanvasSource('arxiv', 'attention', as(env), { fetcher: async () => { fetches++; }, direct: async () => null }), /Not enough AI credits/);
   await assert.rejects(askJev(as(env, 'u-alice', 'inline_route'), { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl: async () => { fetches++; } }), error => error.code === 'allowance_exhausted');
-  const fish = await fishSpendTransport(as({ ...env, FISH_AUDIO_API_KEY: 'fixture' }, 'u-alice', 'tts'), 'Narrate this.', async () => { fetches++; return new Response('mp3'); });
-  assert.ok(isPaidSpendReply(fish));
-  assert.deepEqual([fish.status, (await fish.json()).reason], [429, 'exhausted']);
+  const narration = await speakNarration(as({ ...env, ELEVENLABS_API_KEY: 'fixture' }, 'u-alice', 'tts'), 'Narrate this.', { fetch: async () => { fetches++; return new Response('mp3'); } });
+  assert.ok(isPaidSpendReply(narration));
+  assert.deepEqual([narration.status, (await narration.json()).reason], [429, 'exhausted']);
   assert.equal(fetches, 1, 'only the first, affordable search reached a provider');
 });
 
