@@ -1,0 +1,28 @@
+{
+ "unsteered": [
+  [
+   138,
+   10033
+  ],
+  [
+   138,
+   10033
+  ],
+  [
+   138,
+   10033
+  ]
+ ],
+ "maxFinalOverReferences": [
+  356,
+  "ml-transformer-vocabulary-softmax"
+ ],
+ "maxBeforeReductionOverReferences": [
+  356,
+  "ml-transformer-vocabulary-softmax"
+ ],
+ "referencesOver362BeforeReduction": 0,
+ "over": [],
+ "referencesWhoseFinalSchemaCarriesDerive": 280,
+ "references": 469
+}

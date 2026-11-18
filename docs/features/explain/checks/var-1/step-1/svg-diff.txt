@@ -1,0 +1,28 @@
+before lines 39 after 47
+REMOVED
+ - <svg xmlns="http://www.w3.org/2000/svg" width="408" height="243.5" viewBox="0 0 408 243.5" role="img" aria-label="Commute times
+ - Bus rides: Whiskers: 10, 30; Q1: 15; Median: 20; Q3: 25" font-family="Inter, Liberation Sans, Arial, sans-serif" style="display:block;max-width:none;margin-inline:auto;--color-ink:#32211C;--color-ink-
+ - <rect x="0.5" y="0.5" width="407" height="242.5" rx="12" fill="var(--viz-surface, #FFFCF0)" stroke="var(--color-line, #dedad4)">
+ - <line x1="22" x2="386" y1="141" y2="141" stroke="#D9D3C3" stroke-width="1.5" stroke-dasharray="4 4" data-tutor-plot-grid="">
+ - <text x="22" y="158.5" fill="#665951" font-size="15" font-weight="500" text-anchor="start">
+ - <tspan x="22" y="163.6">0</tspan>
+ - <text x="386" y="158.5" fill="#665951" font-size="15" font-weight="500" text-anchor="end">
+ - <tspan x="386" y="163.6">40</tspan>
+ - <text x="204" y="182.5" fill="var(--color-ink, #32211c)" font-size="16" font-weight="700" text-anchor="middle">
+ - <tspan x="204" y="187.94">Time (min)</tspan>
+ADDED
+ + <svg xmlns="http://www.w3.org/2000/svg" width="408" height="266.5" viewBox="0 0 408 266.5" role="img" aria-label="Commute times
+ + Bus rides: Whiskers: 10, 30; Q1: 15; Median: 20; Q3: 25
+ + Lower fence: 0; Upper fence: 40" font-family="Inter, Liberation Sans, Arial, sans-serif" style="display:block;max-width:none;margin-inline:auto;--color-ink:#32211C;--color-ink-2:#665951;--color-line:#
+ + <rect x="0.5" y="0.5" width="407" height="265.5" rx="12" fill="var(--viz-surface, #FFFCF0)" stroke="var(--color-line, #dedad4)">
+ + <line x1="22" x2="22" y1="42" y2="90" stroke="#786860" stroke-width="1.5" stroke-dasharray="4 3" data-tutor-box-fence="0">
+ + <line x1="386" x2="386" y1="42" y2="90" stroke="#786860" stroke-width="1.5" stroke-dasharray="4 3" data-tutor-box-fence="40">
+ + <text x="12" y="131.5" fill="var(--color-ink-2, #665951)" font-size="13" font-weight="500" text-anchor="start">
+ + <tspan x="12" y="135.92">Lower fence: 0; Upper fence: 40</tspan>
+ + <line x1="22" x2="386" y1="164" y2="164" stroke="#D9D3C3" stroke-width="1.5" stroke-dasharray="4 4" data-tutor-plot-grid="">
+ + <text x="22" y="181.5" fill="#665951" font-size="15" font-weight="500" text-anchor="start">
+ + <tspan x="22" y="186.6">0</tspan>
+ + <text x="386" y="181.5" fill="#665951" font-size="15" font-weight="500" text-anchor="end">
+ + <tspan x="386" y="186.6">40</tspan>
+ + <text x="204" y="205.5" fill="var(--color-ink, #32211c)" font-size="16" font-weight="700" text-anchor="middle">
+ + <tspan x="204" y="210.94">Time (min)</tspan>
