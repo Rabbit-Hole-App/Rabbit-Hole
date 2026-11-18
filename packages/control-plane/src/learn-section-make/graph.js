@@ -1,7 +1,7 @@
 // Learn sections C §9: a graph item, made by the typed /graph command. interactive_graph: a function the source defines, its sliders the
 // parameters the anchored lines expose, with their defaults. data_plot: measured numbers; illustrative false only when every value is traceable.
 // ponytail: C §9c.3 (a graph item on a structure beat) is compose's fit check (CORE), not this validator.
-import { PATHLIKE } from './diagram.js';
+import { codeNameError } from '../learn-section-brief.js';
 
 const MAX_REQUEST = 1000;
 const NUMBER = /-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/gi;
@@ -72,7 +72,8 @@ function plot(input, ctx) {
 export async function validate(input, ctx) {
   const request = String(input.request ?? '').trim();
   if (!request) return { error: 'Write the /graph request' };
-  if (PATHLIKE.test(request)) return { error: 'The request names a file or flag; use plain words' };
+  const wrongRequest = codeNameError(request); // the one rule: only a path, a file name or a flag is refused
+  if (wrongRequest) return { error: `The request ${wrongRequest}; use plain words` };
   const made = input.kind === 'interactive_graph' ? interactive(input, ctx) : input.kind === 'data_plot' ? plot(input, ctx) : { error: 'kind is interactive_graph or data_plot' };
   if (made.error) return made;
   const line = `/graph ${request} ${made.line}`;
