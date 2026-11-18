@@ -50,4 +50,14 @@ export const referenceVary = Object.freeze({
     ...bars(1, [[1, 3, 0.5], [-2, -1, 0.5], [0.5, 1, 0.25]]),
     ...bars(2, [[-1, -0.25, 0.25], [-0.75, -0.25, 0.25], [0.25, 0.5, 0.25]]),
   },
+  // Round 3 (references 22 to 24 of the step-4 list)
+  'class-weighted-loss': bars(1, [[2, 6, 1]], 1), // only the rare class's weighted loss (its weight times 1); the equal raw losses and the common class's weighted 1 stay
+  'permutation-feature-importance': { // each shuffle scores A > B > C by disjoint bands; C stays near zero (one slightly negative is part of the lesson)
+    ...bars(0, [[0.15, 0.22, 0.01], [0.05, 0.09, 0.01], [-0.02, 0.01, 0.01]]),
+    ...bars(1, [[0.14, 0.20, 0.01], [0.03, 0.08, 0.01], [-0.01, 0.02, 0.01]]),
+  },
+  'feature-selection-stability': { // selection fractions stay in [0, 1] and ranked A > B > C under both selectors, by disjoint bands
+    ...bars(0, [[0.85, 1.0, 0.05], [0.55, 0.75, 0.05], [0.10, 0.30, 0.05]]),
+    ...bars(1, [[0.85, 1.0, 0.05], [0.55, 0.75, 0.05], [0.10, 0.30, 0.05]]),
+  },
 });
