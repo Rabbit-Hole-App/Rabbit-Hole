@@ -50,7 +50,7 @@ test('an unknown, disconnected, reversed, repeated, too short or mid-graph route
   bad(['ok', 'inc', 'age'], /follow existing edges/);   // reversed
   bad(['age', 'inc', 'age'], /cannot repeat a node/);
   bad(['inc', 'ok'], /start at the start node/);        // not from the root
-  bad(['age', 'inc'], /end at a node with no outgoing edge/);
+  assert.equal(problem({ ...tree, highlightPath: ['age', 'inc'] }), null, 'a single route may stop part-way (brief 31)');
   assert.ok(problem({ ...tree, highlightPath: ['age'] }), 'one node is not a route');
   assert.ok(problem({ ...tree, highlightPath: [] }));
   assert.ok(problem({ ...tree, highlightPath: ['age', 'inc', 'ok', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'] }), 'bounded by the graph limit');

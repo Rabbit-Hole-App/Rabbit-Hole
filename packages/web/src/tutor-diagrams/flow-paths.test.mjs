@@ -48,7 +48,6 @@ test('flat paths keep their existing validation and issue locations', () => {
     [['r', 'missing'], ['highlightPath', 1], /unknown/],
     [['r', 'f', 'b', 'm', 'o'], ['highlightPath', 3], /existing edges/],
     [['f', 'a', 'm', 'o'], ['highlightPath', 0], /start/],
-    [['r', 'f', 'a', 'm'], ['highlightPath', 3], /end/],
   ]) {
     const [finding] = issues(flow, path);
     assert.deepEqual(finding.path, at);
