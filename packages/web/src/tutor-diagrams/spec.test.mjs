@@ -301,3 +301,17 @@ test('softmax list transformation: rounding clause: values summing to exactly 1 
   // Tightened (Reviewer): sum 1.00 but TWO values are past half a unit (0.66 vs 0.665241 is 0.005241; 0.10 vs 0.090031 is 0.009969), so the half-unit rule decides and it fails.
   assert.equal(arithmetic(softmaxIssues(softmax(['2', '1', '0'], ['0.66', '0.24', '0.10']))).length, 1);
 });
+
+// SAME-1 b: a list transformation needs at least 2 items on each side (tensor items exempt); the message names what to write.
+const listTransformation = (before, after) => ({ version: 1, diagram: { kind: 'transformation', title: 'Scores to shares', before: { label: 'Before', items: before }, after: { label: 'After', items: after }, operation: 'Rescale' } });
+test('transformation list: one item on a side is rejected with a message that asks for the concrete items and their values', () => {
+  for (const [before, after] of [[['Water'], ['Ice']], [['a', 'b'], ['c']], [['a'], ['b', 'c']]]) {
+    assert.throws(() => parseTutorDiagram(JSON.stringify(listTransformation(before, after))), /at least 2 items before and 2 after.*concrete items before and after.*values/s);
+  }
+});
+test('transformation list: two items on each side pass; tensor items are exempt from the count', () => {
+  assert.ok(parseTutorDiagram(JSON.stringify(listTransformation(['x', 'y'], ['u', 'v']))));
+  const tensor = { tensor: { name: 'State', rows: 1, columns: 4, dimensions: '1 × 4', values: [1.8, -0.1, 0.3, 0.4] } };
+  const mixed = parseTutorDiagram(JSON.stringify(listTransformation([tensor], [tensor])));
+  assert.equal(mixed.diagram.before.items.length, 1);
+});

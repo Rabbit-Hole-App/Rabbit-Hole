@@ -368,6 +368,12 @@ function validateDiagram(diagram, issue) {
       for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
         if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
       });
+      // SAME-1 b: a list transformation of one item to one item is a box pointing at a box; the author names the concrete items before and after. Tensor items are exempt.
+      if (diagram.before.items.length < 2 || diagram.after.items.length < 2) {
+        if (![...diagram.before.items, ...diagram.after.items].some(item => typeof item !== 'string')) {
+          issue(['before', 'items'], `A transformation needs at least 2 items before and 2 after (this one has ${diagram.before.items.length} before and ${diagram.after.items.length} after): write the concrete items before and after the operation, with their values.`);
+        }
+      }
       diagram.links?.forEach(({ from, to }, index) => {
         if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
           issue(['links', index], 'Mapping indices must refer to existing items');
