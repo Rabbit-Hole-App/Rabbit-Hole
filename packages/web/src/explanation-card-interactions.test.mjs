@@ -179,7 +179,7 @@ test('a card edited after authoring (another revision) shows no pills and no sug
   assert.ok($('[data-follow-up-toggle]'), 'the follow-up conversation is not tied to the old text');
 });
 
-test('suggestions: three questions; Ask in chat and Ask in a new card per row; send captures card, revision and question; cleared once, after admission', async () => {
+test('suggestions: three questions; each row is one button that asks in a new card; send captures card, revision and question; cleared once, after admission', async () => {
   const card = await envelope();
   const calls = [], saved = [];
   let admit = null;
@@ -187,22 +187,27 @@ test('suggestions: three questions; Ask in chat and Ask in a new card per row; s
   await mount(card, { host, onChangeQuiet: next => saved.push(next) });
   const rows = $$('[data-explanation-suggestion]');
   assert.deepEqual(rows.map(row => row.textContent), card.interactions.questions.map(q => q.text));
-  assert.deepEqual([...rows[0].querySelectorAll('button')].map(b => b.getAttribute('aria-label')), ['Ask in chat', 'Ask in a new card']);
+  assert.ok(rows.every(row => row.querySelectorAll('button').length === 1 && row.querySelector('button').textContent === row.textContent), 'one button per row, holding the question');
+  assert.equal($('[data-explanation-suggestions] [data-ask]'), null, 'no Ask in chat or Ask in a new card icons');
+  // Owner 2026-11-17: rows 10 px apart (gap-2.5), 16 px under the text (mt-4), the strip exactly as wide as the prose column, aligned to its left and right edges (no negative margin; owner 2026-11-17: 'the width is too long, it should be aligned to the text above left and right'; was -mx-3, 4 px inside the flow's 16 px padding, so no border clip or scroll); the tooltip names the action and the name stays the question.
+  assert.deepEqual(['mt-4', 'gap-2.5'].filter(name => $('[data-explanation-suggestions]').classList.contains(name)), ['mt-4', 'gap-2.5']);
+  assert.ok(rows.every(row => row.querySelector('button').getAttribute('title') === 'Answer in a card' && !row.querySelector('button').hasAttribute('aria-label')), 'each row: title Answer in a card, accessible name = the question');
   assert.ok(before($('[data-explanation-flow] [data-explanation-field]'), $('[data-explanation-suggestions]')), 'below the reading');
-  const [here, branch] = rows[1].querySelectorAll('button');
+  const here = rows[1].querySelector('button'), branch = rows[0].querySelector('button');
   await click(here);
   assert.equal(calls.length, 1);
-  assert.deepEqual({ ...calls[0], actionId: typeof calls[0].actionId }, { id: 'card-1', revision: card.interactions.contentRevision, question: 'What happens when a tree gets too deep?', destination: 'here', actionId: 'string' });
+  assert.deepEqual({ ...calls[0], actionId: typeof calls[0].actionId }, { id: 'card-1', revision: card.interactions.contentRevision, question: 'What happens when a tree gets too deep?', destination: 'card', actionId: 'string' });
   assert.equal(saved.length, 0, 'not consumed before admission');
   assert.ok($$('[data-explanation-suggestion] button').every(b => b.disabled), 'the actions are disabled while the send waits');
   assert.equal(here.getAttribute('aria-busy'), 'true');
+  assert.equal(branch.getAttribute('aria-busy'), null, 'only the pending row is busy');
   // A double click, or the other action, cannot send a second one.
-  await click(here); await click(branch); await click(rows[0].querySelector('button'));
+  await click(here); await click(branch);
   assert.equal(calls.length, 1, 'one send');
   await B.act(async () => admit());
   await settle();
   assert.equal(saved.length, 1, 'consumed once, at admission');
-  assert.deepEqual(saved[0].interactionState, { contentRevision: card.interactions.contentRevision, consumed: true, action: { id: calls[0].actionId, question: calls[0].question, destination: 'here' } });
+  assert.deepEqual(saved[0].interactionState, { contentRevision: card.interactions.contentRevision, consumed: true, action: { id: calls[0].actionId, question: calls[0].question, destination: 'card' } });
   assert.equal(saved[0].id, 'card-1');
   // The saved card reloads with no suggestions and no empty row.
   await mount(saved[0], { host });
@@ -212,12 +217,12 @@ test('suggestions: three questions; Ask in chat and Ask in a new card per row; s
 
 const before = (a, b) => !!(a.compareDocumentPosition(b) & 4);
 
-test('Ask in a new card sends the written action; a refusal before admission keeps the questions and the buttons work again', async () => {
+test('pressing a suggestion row sends the written action (destination card); a refusal before admission keeps the questions and the buttons work again', async () => {
   const card = await envelope();
   const calls = [], saved = [];
   toasts.length = 0;
   await mount(card, { host: { ask: async request => { calls.push(request); return false; } }, onChangeQuiet: next => saved.push(next) });
-  const [, branch] = $$('[data-explanation-suggestion]')[0].querySelectorAll('button');
+  const branch = $$('[data-explanation-suggestion]')[0].querySelector('button');
   await click(branch);
   await settle();
   assert.deepEqual(calls.map(c => [c.destination, c.question]), [['card', 'How does a tree choose its first question?']]);
@@ -426,7 +431,7 @@ test('wiring: the canvas provides the host; admission is reported by the Chat st
   assert.match(canvas, /destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? await chatWorkspace\.ask\(\{ line:/, 'Explore is the written /explain, with no parentLink (no connector)');
   assert.match(canvas, /return taken !== false && admitted;/, 'the promise of a Chat reply settles only when the answer is in; admission is the callback');
   assert.match(canvas, /chatWorkspace\.ask\(\{ line: `\/explain \$\{question\}`, about: \{ selection \}, onAdmitted: told \}\)/, 'Ask in a new card is the written /explain');
-  assert.match(canvas, /const canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy;/, 'a capability that is absent leaves no function, so the card omits the control');
+  assert.match(canvas, /const canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy, canVisitorAsk = visiting && !!onSuggestSignIn;/, 'a capability that is absent leaves no function, so the card omits the control; a shared canvas gets visitorAsk only when its page has a sign-in hook');
   assert.match(ask, /if \(r\.ok\) onAdmitted\?\.\(\);\n\s+const reader = r\.body\.getReader\(\);/, 'the stream opened');
   assert.match(ask, /chat\.registerSender\(\(\{ regenerate, prompt, command: asked, about, line, onAdmitted \} = \{\}\) => \{/);
   assert.match(ask, /\.handoff\(line, \{ about: about \?\? null, target: about\?\.selection \?\? null, onAdmitted \}\)/);

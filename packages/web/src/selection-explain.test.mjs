@@ -176,7 +176,7 @@ test('CK-5: placeExplain (the Ctrl+K v2 job) places through placeSourced at the 
   const canvas = read('./AdaptiveCanvas.jsx').replace(/\r\n/g, '\n'), page = read('./LearnPage.jsx').replace(/\r\n/g, '\n');
   const at = canvas.indexOf('placeExplain: (card,'), body = canvas.slice(at, canvas.indexOf('reconcileCad:', at));
   assert.ok(body.includes('placeSourced({ source: box, anchorY: line, size: slot,') && !body.includes('deliveredSpot('), 'one shared helper, no private spot');
-  assert.ok(body.includes('Number.isFinite(near.alignY) ? box.y + near.alignY') && body.includes('parentCard: { id: source.id, dy: Math.round(line - box.y) }'));
+  assert.ok(body.includes('Number.isFinite(near.alignY) ? box.y + near.alignY') && body.includes('parentCard: { id: source.id, color: nextArrowColor(blocksRef.current, source.id), dy: Math.round(line - box.y) }'));
   assert.ok(body.includes("pendingAt.current.set(added.id, { x: placed.x, y: placed.y })") && body.includes('revealAfter(added.id)'), 'placed once; the camera centres on it once measured');
   assert.ok(page.includes("near = null } = {}) => {") && page.includes('near: near || (sourceRef && passageSites.current.get(sourceRef)) || null'));
   assert.ok(page.includes('near: { cardId: about.selection.id, alignY: about.selection.alignY }'), 'the highlight card and the highlighted line reach placeExplain');

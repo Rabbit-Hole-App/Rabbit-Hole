@@ -78,6 +78,7 @@ export const VIZ_LIGHT = Object.freeze({
   "viz-identity-2-text": "#867033",
   "viz-surface": GROUND,
   "viz-fill-slate": FILLS.slate, // the slate fill, for the table header of [data-explain-table] (a CSS rule cannot import it)
+  "viz-playing": SERIES_INK[2], // the success green (ROLE_FILL success): the frame of a card whose audio is playing and its minimap mark (a CSS rule cannot import it)
   "viz-on-observed": "#ffffff",
   "viz-on-success": "#ffffff",
   "viz-heat-negative": "#1a56c4",
@@ -115,6 +116,7 @@ export const VIZ_DARK = Object.freeze({
   "viz-identity-2-text": "var(--viz-identity-2)",
   "viz-surface": "#1f1f1f",
   "viz-fill-slate": FILLS.slate,
+  "viz-playing": SERIES_INK[2],
   "viz-on-observed": "#1f1f1f",
   "viz-on-success": "#1f1f1f",
   "viz-heat-negative": "#6fb1ff",

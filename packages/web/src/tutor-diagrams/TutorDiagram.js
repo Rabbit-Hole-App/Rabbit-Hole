@@ -79,7 +79,8 @@ export default function TutorDiagram({ spec, fallback = null }) {
   if (!rendered) return fallback;
   const scrolls = rendered.width > availableWidth;
   return h('div', {
-    ref: host, style: { width: '100%', minWidth: 0, overflowX: 'auto' },
+    // The theme's colour variables on the container of EVERY diagram (the cream ground and the ink), so a diagram that is not a "teaching" kind (a plain bar chart, a flow) is not drawn on the app's dark surface in the dark theme.
+    ref: host, style: { width: '100%', minWidth: 0, overflowX: 'auto', ...TEACHING_STYLE },
     tabIndex: scrolls ? 0 : undefined, role: scrolls ? 'region' : undefined,
     'aria-label': scrolls ? 'Scrollable diagram' : undefined,
   }, rendered.element);

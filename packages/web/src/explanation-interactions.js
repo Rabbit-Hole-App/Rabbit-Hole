@@ -195,10 +195,11 @@ export const withoutHighlight = (block, id) => ({ ...block, highlights: (block.h
 
 // ---- suggestions ----
 // The three questions the card shows now: the envelope is current and this revision's set has not been consumed (state is per user, card and revision).
-export function suggestionsFor(block, revision) {
+// visitor: a shared canvas's viewer (explanation-host.js visitorAsk). `consumed` is the owner's own use saved on the card, so a visitor ignores it and always sees the set; it is read here only, never changed.
+export function suggestionsFor(block, revision, visitor = false) {
   if (!interactionsCurrent(block, revision)) return [];
   const state = block.interactionState;
-  if (state?.contentRevision === revision && state.consumed) return [];
+  if (!visitor && state?.contentRevision === revision && state.consumed) return [];
   return Array.isArray(block.interactions.questions) ? block.interactions.questions.filter(q => q?.id && q.text).slice(0, 3) : [];
 }
 export const withConsumed = (block, revision, action) => ({ ...block, interactionState: { contentRevision: revision, consumed: true, action } });

@@ -26,6 +26,9 @@ Supersedes the signed-out and placement lines below. Contract: C:/s/spec/share/c
   (with the selected-card pill) is drawn there; opening the panel moves it back into Chat without remounting, so the draft and the conversation stay. Send from the
   strip opens the panel on Chat, where the answer streams. Not in an embed (its Chat has its own button). The guest's free-messages line shows in the panel only.
 - Chat only: a `/explain` or "make a card" message is a plain question; this route offers no generation tool.
+- **Suggested questions (owner 2026-11-17).** An Explanation card's three strips are on a shared canvas too. Signed out, a click keeps the
+  question as the draft and the card as the pill and goes through sign-in (`signInForAsk`, back with `?ask=1`), as Send does; signed in it
+  is Ask in Chat (pill and words in the composer, nothing sent). Not in an embed.
 - `GET` the same path: `{ guest: { limit, used, remaining } }` signed out, `{ guest: null }` signed in.
 
 ## Spec (owner, locked)

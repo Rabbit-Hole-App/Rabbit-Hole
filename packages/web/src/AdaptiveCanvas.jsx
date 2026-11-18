@@ -27,7 +27,6 @@ import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated
 import { ADD_KNOB_EVENT, applyKnobEvent } from './run-card-knobs.js';
 import { CODE_EXPLAIN_SIZE } from './code-explain-text.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
-import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
@@ -41,6 +40,8 @@ import { jitterPoint, roughnessOf, roughnessPatch, seedOf, sloppyLink, sloppySha
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
+import { usePlayingCard } from './audio-playing.js';
+import TranscriptWindow from './TranscriptWindow.jsx';
 import { activeSection, presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocHeading, tocEntryFor } from './learn-outline-model.js';
@@ -59,7 +60,6 @@ import { objectKind, objectName, selectionName, selectionRef } from './selection
 import LearnWiki from './LearnWiki.jsx';
 import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
-import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { CardFeedback } from './CardFeedback.jsx';
 import SourceRefChip, { useSourceRefIndex } from './SourceRefChip.jsx';
 import { emphasizePassage, measurePassage, publishPending, toWorld, viewPassage } from './source-refs.js';
@@ -73,6 +73,7 @@ import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeEl
 import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
 import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { PromptHold } from './CardPrompt.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -85,7 +86,7 @@ import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './road
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { BESIDE_ASSUMED_H, BESIDE_ASSUMED_W, followPlace } from './beside-placement.js';
 import { placeSourced } from './place-sourced.js';
-import { ARROW, arrowhead, connectorsOf, drawConnector } from './connector.js';
+import { ARROW, arrowhead, connectorsOf, drawConnector, nextArrowColor, slotConnector } from './connector.js';
 import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, passageZoom, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
@@ -107,6 +108,7 @@ import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { ExplanationHost } from './explanation-host.js';
+import { askScript, generateNarration, landNarration } from './explanation-audio.js';
 import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { holdsTocLink, resolvedLinks, sectionChoices, tocLinkRows, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
@@ -344,11 +346,14 @@ const PLACING = { visibility: 'hidden' };
 // A learner's own resize of a Learn section card (learn-position.js): the card keeps that size; the column's width and the content height no longer apply to it. A quiet resize is the canvas's own.
 const learnSized = (block, quiet) => (block.learn?.slot && !quiet ? { ...block, learn: { ...block.learn, sized: true, fit: false } } : block);
 const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, fitCeiling = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
+  const audioPlaying = usePlayingCard(id); // this card's explanation audio is playing: the green frame (index.css [data-audio-playing])
   // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
   // It is this card's own state: a hover change re-renders this card only, never the canvas.
   const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
+  // The Prompt action's popover being open keeps the row (so the popover, which lives in it) until Escape or an outside press (CardPrompt.jsx PromptHold).
+  const [promptOpen, setPromptOpen] = useState(false);
   // The highlight over the top of the card (index.css) is as tall as the grip strip and the header together.
   const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
   // A press alone changes nothing (the row must not jump when a card is clicked); it hides only once the card is being dragged (a move with a button down).
@@ -364,7 +369,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // The row above a card (owner 2026-11-13): Enter shows on a hovered card and stays on the selected one; the action buttons (Add to chat, Quick Edit, Minimize) show on hover, or on a
   // touch screen for the selected card. Hover is off while a button is down, so a click that selects keeps Enter even before the pointer moves again.
   // ONE condition for the whole row (owner 2026-11-13: Enter, Add to chat, Quick Edit and Minimize are seen together or not at all): the card is selected or the pointer is on it.
-  const rowShown = selected || hovered;
+  const rowShown = selected || hovered || promptOpen;
   const showEnter = rowShown && !!opens && (!selected || opener.single === id);
   // The selected card keeps its buttons whether or not the pointer is on it (owner 2026-11-13: nothing may disappear from it); a card that is only hovered shows its row while the pointer is on it.
   const showTools = rowShown && !!(selected ? tools : hoverTools);
@@ -454,6 +459,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
+      data-audio-playing={audioPlaying || undefined}
       onPointerEnter={hoverIn} onPointerMove={hoverIn} onPointerLeave={hoverOut}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
@@ -467,7 +473,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(footprint ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !!(cornerDrag?.h || size.h)) }}
+      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(footprint ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !fitCeiling && !!(cornerDrag?.h || size.h)) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -479,7 +485,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {/* ONE component (owner 2026-11-13): Enter, Add to chat, Quick Edit and Minimize are one pill in one fixed place above the card's left edge, seen and not seen together. */}
       {(showEnter || showTools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex items-end justify-center after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-['']">
-          <div data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
+          <PromptHold.Provider value={setPromptOpen}><div data-card-actions className="pointer-events-auto flex w-max max-w-none shrink-0 items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
             {showEnter && (
               <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
                 onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
@@ -489,7 +495,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
             )}
             {showEnter && showTools && <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-line" />}
             {showTools && <div className="flex items-stretch">{selected ? tools : hoverTools}</div>}
-          </div>
+          </div></PromptHold.Provider>
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
@@ -526,6 +532,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {full && !locked && edit.selectionCount <= 1 && ['left','right'].map(side => <button key={side} type="button" role="slider" aria-orientation="horizontal" aria-label={`Resize card width from ${side}`} aria-valuemin={limits.min} aria-valuemax={limits.max} aria-valuenow={Math.round(displayWidth)} data-node-tool className={`absolute top-6 bottom-2 z-20 w-2 cursor-ew-resize focus-visible:bg-accent/30 ${side === 'left' ? '-left-1' : '-right-1'}`} onPointerDown={event => resizeWidth(event, side)} onKeyDown={event => resizeWidthKey(event, side)} />)}
       {!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
+      <TranscriptWindow id={id} />
     </div>
   );
   return footprint ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: footprint.w, height: footprint.h, marginTop: space || undefined }}>{node}</div> : node;
@@ -596,8 +603,6 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking</span>}</span>}</div>
         </div>)}
       </div>
-      {/* A chat card's prompt is its question (docs/features/card-prompt.md). */}
-      {exchange.status === 'done' && <CardPrompt text={exchange.question} selected={selected} />}
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
@@ -1028,9 +1033,6 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   const [sourcesHeight, setSourcesHeight] = useState(0);
   const [sourceRefHeight, setSourceRefHeight] = useState(0);
   const [expandHeight, setExpandHeight] = useState(0); // an Explanation's opened sections under its rail: the frame grows down by them (CORE.09)
-  // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
-  const [slotted, setSlotted] = useState(false);
-  const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
   const [practiceHeight, setPracticeHeight] = useState(0);
   const [controlsHeight, setControlsHeight] = useState(0);
   const [programFrame, setProgramFrame] = useState(null); // a program card's legible frame box (ProgramScene, once per artifact)
@@ -1063,39 +1065,33 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
   // A size whose height is undefined (a pending Explanation) means the content's height, not the type's fixed one.
   const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
-  // A minimized Explanation is a tile: its own narrow width and the content's height; its saved size and card layout stay on the block, so Open restores them (explanation-minimize.js).
-  const tile = isMinimized(block);
   // An Explanation's width follows its widest visual (explanation-card-width.js), derived here on every render and never stored; a width the learner dragged (saved w) still wins in CanvasNode.
-  const cardWidth = tile ? tileWidth(block) : sized?.width ?? explanationCardWidth(block) ?? BLOCK_TYPES[block.type]?.width;
+  const cardWidth = sized?.width ?? explanationCardWidth(block) ?? BLOCK_TYPES[block.type]?.width;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
-      fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
-      autoMax={tile ? null : block.learn?.fit ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
+      fitContent={!!BLOCK_TYPES[block.type]?.fitContent} fitCeiling={!!BLOCK_TYPES[block.type]?.fitCeiling}
+      autoMax={block.learn?.fit ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
+      width={cardWidth} wide={cardWidth > COLUMN}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
-      placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
+      placing={placing} extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={expandHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       hoverTools={!selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
-        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
+        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
         <SelectionActionsHost id={block.id} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
-      <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
+      <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
-      </PromptSlot.Provider></PerfContext.Provider>
-      {/* A tile shows none of the rows under a card's body: its sources, source chip, prompt and rating. */}
-      {!tile && <>
+      </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.sourceRef && !headerSource(block) && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
-      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
       {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
-      </>}
     </CanvasNode>
   );
 }
@@ -1721,7 +1717,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, onSuggestSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -2500,14 +2496,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         let whole = fit; // a new Explanation is framed whole whichever way it arrives (CV-8), as a typed one always was
         const framed = id => { if (whole && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
-        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}), ...(Number.isFinite(parent.dy) ? { dy: parent.dy } : {}) } } : {}) });
+        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, color: slotsRef.current.find(slot => slot.id === into)?.arrow?.color ?? nextArrowColor(blocksRef.current, parent.id), ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}), ...(Number.isFinite(parent.dy) ? { dy: parent.dy } : {}) } } : {}) });
         if (link && parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) { // link: false = a card placed beside its source, no connector (owner 2026-11-08)
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
         added = openedExplanation(added); // CV-1/CV-8: a new Explanation opens whole, at the width its visual asks for (not the type's fixed 440), from every origin
+        askNarrationRef.current?.(added);
         if (added.cardLayout?.mode === 'full') whole = true;
-        if (added.type === 'explanation') fillSummary(added.id, added);
         if (after == null) return framed(insertAtView(added, into));
         perfMark(added.id, 'insert');
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
@@ -2542,7 +2538,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
         // AR-C1: the card names its source card and the passage line (the connector's tail), so the arrow survives a reload without measuring the passage again.
         const line = box ? (near.world ? near.world.y + near.world.h / 2 : Number.isFinite(near.alignY) ? box.y + near.alignY : null) : null;
-        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };
+        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, color: nextArrowColor(blocksRef.current, source.id), dy: Math.round(line - box.y) } } : {}) };
         if (box) {
           const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };
           const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
@@ -2591,7 +2587,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false, arrow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
@@ -2610,7 +2606,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
-        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current, ...(at ? { at } : {}), ...(state !== 'generating' ? { state } : {}) }]);
+        // arrow (a card made from this one, Ask in a new card): the connector from the source to this slot is drawn first and the skeleton shows after it; its colour is the card's (insertBlock).
+        const joined = arrow && anchor && at && !given ? { arrow: { from: anchor, color: nextArrowColor(blocksRef.current, anchor) } } : null;
+        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current, ...(at ? { at } : {}), ...joined, ...(state !== 'generating' ? { state } : {}) }]);
         if (!quiet) cameraRef.current = { id, smooth: true, centre: true };
         return id;
       },
@@ -3343,7 +3341,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
   // AR-C1: the connectors the cards imply, recomputed only when the cards or their measured boxes change (the same state the links follow): no per-frame state, no layout reads.
-  const arrows = useMemo(() => connectorsOf(blocks).map(connector => drawConnector(connector, blocks, bounds)).filter(Boolean), [blocks, bounds]);
+  // A skeleton on its way to a card made from a card (slot.arrow) has its arrow already: drawn in first, the skeleton shows after it (index.css .arrow-draw, .slot-after-arrow).
+  const arrows = useMemo(() => [...connectorsOf(blocks).map(connector => drawConnector(connector, blocks, bounds)), ...slots.map(slot => slotConnector(slot, bounds))].filter(Boolean), [blocks, bounds, slots]);
   // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
   const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
@@ -4221,8 +4220,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return;
       }
       if (presentingRef.current === null && plain) {
-        // A minimized Explanation tile: Enter or Space on the tile itself (the focused element is the card, not its Prompt pill or Expand button) expands it, as the Expand button does.
-        if ((event.key === 'Enter' || event.key === ' ') && focusedCard && !readOnlyRef.current && isMinimized(blocksRef.current.find(entry => entry.id === focusedCard))) { event.preventDefault(); expandTileRef.current?.(focusedCard); return; }
         if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
         // Space held over a canvas that owns the keyboard: a drag pans (never a space typed into anything, never a
         // focused button's own Space).
@@ -4601,7 +4598,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const cardOpen = { single: readOnly ? null : selected, can: opensFor, open: openCard };
   const openCardRef = useRef(cardOpen);
-  const expandTileRef = useRef(null); // Enter or Space on a focused minimized tile expands it (explanation-minimize.js)
   openCardRef.current = cardOpen;
   // Keep the armed chip's label honest while the learner keeps experimenting:
   // a changed input re-arms the same target with its fresh description, and a
@@ -5586,17 +5582,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!quiet) { if (readOnly || lockedRef.current.has(id)) return; snapshot(); }
     setBlocks(previous => patchBlock(previous, id, patch));
   };
-  // Minimize (explanation-minimize.js): the card collapses to a tile where it is; one undo step, saved with the card. A card with no summary asks for one in the background.
-  const minimizeCard = id => { patchBlockNow(id, { minimized: true }); fillSummary(id); };
-  expandTileRef.current = id => patchBlockNow(id, { minimized: false });
-  // The collapsed preview's summary (control plane explanation-summary.js): requested once per card, never blocks, never raises a notice. It lands on the card as a quiet update
-  // of just that field on the latest blocks (landSummary): a card deleted meanwhile, or one that got a summary, is left alone, and nothing else on it is overwritten.
-  const summaryAsked = useRef(new Set());
-  const fillSummary = (id, card = blocksRef.current.find(entry => entry.id === id)) => {
-    if (!card || goodSummary(card.summary) || summaryAsked.current.has(id) || readOnlyRef.current || localCopyRef.current) return;
-    summaryAsked.current.add(id);
-    requestSummary(api, { app: appName, block: card }).then(summary => { if (summary) setBlocks(previous => landSummary(previous, id, summary)); else summaryAsked.current.delete(id); });
-  };
+  // Card audio (explanation-audio.js; control plane explanation-audio.js): the script of a NEW written Explanation is asked for once, right after the card is on the canvas, and lands on it as a
+  // quiet update of just block.narration. Never blocks or delays the card, never raises a notice; only here in the owner's editable canvas (a visitor or a copy never asks), and a card that came
+  // from a saved board never does (only insertBlock, the one way a card is made, asks). The voice waits for the learner's first Play (hostRef narrate).
+  const narrationAsked = useRef(new Set());
+  const askNarrationRef = useRef(null);
+  askNarrationRef.current = card => askScript({ post: api, app: appName, editable: !readOnlyRef.current && !localCopyRef.current, asked: narrationAsked.current,
+    land: narration => setBlocks(previous => landNarration(previous, card.id, narration, { ifNone: true })) }, card);
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.
@@ -6253,7 +6245,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (last) roomAfter[last.id] = groupRoom[group.id];
   }
   const minimapBoxes = [
-    ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
+    ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, id, hole: true } : { ...box, id })),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
@@ -6365,7 +6357,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       zoomToSelection,
       // Focus (canvas-actions-types.js card.focus): the same enterFocus as the card toolbar's button; only where an adapter claims it.
       focus: id => commandsRef.current.enterFocus(id),
-      focusable: object => !!object && object.id !== focusRef.current?.id && !isMinimized(object) && !!adapterFor(object, { view: viewRef.current, readOnly }),
+      focusable: object => !!object && object.id !== focusRef.current?.id && !!adapterFor(object, { view: viewRef.current, readOnly }),
       supportsCardLayout: object => !!object && supportsCardLayout(object),
       fullContent: object => object?.cardLayout?.mode === 'full',
       setCardLayout: (id, mode) => setCardLayout(id, mode),
@@ -6484,20 +6476,40 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const taken = destination === 'card' || destination === 'follow-up' || destination === 'explore' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
       return taken !== false && admitted;
     },
+    // The audio pill's Play on a card whose voice is not made yet, or whose last step failed (ExplanationAudio.jsx GeneratePill): makes what is missing and lands the whole narration on the card.
+    narrate: async (id, { voice = true } = {}) => {
+      const card = blocksRef.current.find(entry => entry.id === id);
+      if (!card || card.type !== 'explanation' || !appName) return null;
+      const narration = await generateNarration(api, { app: appName, block: card, voice });
+      setBlocks(previous => landNarration(previous, id, narration));
+      return narration;
+    },
+    // A shared canvas (SharedBoardPage): an Explanation card's suggested question, asked by a visitor. Signed out, the page sends the visitor through sign-in and back to this canvas with the
+    // question and the card kept (shared-ask.js signInForAsk). Signed in it is Ask in Chat, as the card's menu does it: the card becomes the composer's pill, the question goes in the composer, nothing is sent.
+    visitorAsk: ({ id, question }) => {
+      const object = objectById(id), described = object && describeObject(object);
+      if (!described) return false;
+      if (permissionCtx.role === 'guest') return !!onSuggestSignIn(question, { id, kind: described.kind, title: objectName(object, described) });
+      askedId.current = id;
+      if (!armTarget(object)) return false;
+      askDraft(question);
+      return true;
+    },
   };
-  const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
+  const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy, canVisitorAsk = visiting && !!onSuggestSignIn;
   const canQuick = !!inlineAi && !readOnly && !localCopy && !visiting;
   const openInlineRef = useRef(null); openInlineRef.current = () => openInline(performance.now());
   const explanationHost = useMemo(() => ({
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
+    ...(canNote ? { narrate: (id, options) => hostRef.current.narrate(id, options) } : {}), // a viewer or a copy (no canNote) plays existing audio only; it never generates
+    ...(canVisitorAsk ? { visitorAsk: request => hostRef.current.visitorAsk(request) } : {}),
     // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
-  }), [canAsk, canNote, canQuick]);
+  }), [canAsk, canNote, canQuick, canVisitorAsk]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
-  // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
-  const soleFocus = null; // the card toolbar draws no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard
-  const soleMinimize = soleObject && minimizable(soleObject) && !soleObject.minimized && !readOnly && !localCopy && !lockedRef.current.has(soleObject.id) ? () => minimizeCard(soleObject.id) : null;
+  // The card toolbar draws no Minimize (owner 2026-11-17) and no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard.
+  const soleFocus = null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
   const barCut = id => { if (!permissions?.shared) return false; const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
@@ -6513,7 +6525,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, learnHidden: id => { const block = !readOnly && !localCopy && blocksRef.current.find(entry => entry.id === id); return !!block?.learn?.slot && !block.learn.placed && !block.at; }, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} promptOf={id => blocksRef.current.find(block => block.id === id)?.promptUsed} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
@@ -6635,9 +6647,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {arrows.length > 0 && (
           <svg width="1" height="1" aria-hidden="true" data-card-arrows className="pointer-events-none absolute top-0 left-0 overflow-visible">
             {arrows.map(arrow => (
-              <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
-                <path d={arrow.geometry.d} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
-                <path d={arrowhead(arrow.geometry, 1 / view.z)} />
+              <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} data-arrow-draw={arrow.drawIn ? '' : undefined} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
+                <path d={arrow.geometry.d} pathLength={arrow.drawIn ? 1 : undefined} className={arrow.drawIn ? 'arrow-draw' : undefined} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
+                <path d={arrowhead(arrow.geometry, 1 / view.z)} className={arrow.drawIn ? 'arrow-head-in' : undefined} />
               </g>
             ))}
           </svg>

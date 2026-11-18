@@ -1,11 +1,12 @@
 // POST /api/learn/voice/tts handler (docs/features/voice-tutor-mvp.md §5): text bounds, the
-// missing-key 503, the exact Fish request, provider errors masked as 502, audio/mpeg passthrough,
-// and a log line without the text. A recorded fetch stands in for Fish; nothing is paid for.
+// missing-key 503, the exact narrator request (the one voice, narration-voice.js), provider errors masked as 502, audio/mpeg passthrough,
+// and a log line without the text. A recorded fetch stands in for ElevenLabs; nothing is paid for.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { voiceSpeech, VOICE_TTS_TIMEOUT_MS } from '../src/learn-voice-tts.js';
+import { NARRATION_VOICE, VOICE_SETTINGS, VOICE_URL } from '../src/narration-voice.js';
 
-const ENV = { SMALL_ENV: 'test', FISH_AUDIO_API_KEY: 'fish-test-key' };
+const ENV = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: 'el-test-key' };
 function recordFetch(reply) {
   const calls = [];
   const fetch = async (url, options) => { calls.push({ url, options }); return typeof reply === 'function' ? reply() : reply; };
@@ -29,7 +30,7 @@ test('text must be a string of 1 to 1200 characters', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('503 without the Fish key, and no provider call', async () => {
+test('503 without the ElevenLabs key, and no provider call', async () => {
   const { calls, fetch } = recordFetch(audio());
   const res = await voiceSpeech({}, { text: 'Hello.' }, { fetch });
   assert.equal(res.status, 503);
@@ -37,7 +38,7 @@ test('503 without the Fish key, and no provider call', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('the Fish request: pinned narrator, s1, mp3 64 kbps, balanced latency, timeout signal', async t => {
+test('the narrator request: Jessica on Flash v2.5 through the shared voice config, mp3 64 kbps, 20 s timeout signal', async t => {
   captureLogs(t);
   const { calls, fetch } = recordFetch(audio());
   const text = 'x'.repeat(1200);
@@ -45,10 +46,13 @@ test('the Fish request: pinned narrator, s1, mp3 64 kbps, balanced latency, time
   assert.equal(res.status, 200);
   assert.equal(calls.length, 1);
   const { url, options } = calls[0];
-  assert.equal(url, 'https://api.fish.audio/v1/tts');
+  assert.equal(url, VOICE_URL);
+  assert.ok(url.includes('cgSgspJ2msm6clMCkdW9') && url.endsWith('output_format=mp3_44100_64'));
   assert.equal(options.method, 'POST');
-  assert.deepEqual(options.headers, { Authorization: 'Bearer fish-test-key', 'Content-Type': 'application/json', model: 's1' });
-  assert.deepEqual(JSON.parse(options.body), { text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
+  assert.deepEqual(options.headers, { 'xi-api-key': 'el-test-key', 'Content-Type': 'application/json', Accept: 'audio/mpeg' });
+  assert.deepEqual(JSON.parse(options.body), { text, model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, speed: 1.1 } });
+  assert.deepEqual(VOICE_SETTINGS, JSON.parse(options.body).voice_settings);
+  assert.equal(NARRATION_VOICE.provider, 'elevenlabs');
   assert.ok(options.signal instanceof AbortSignal);
   assert.equal(VOICE_TTS_TIMEOUT_MS, 20000);
 });
@@ -65,7 +69,7 @@ test('the audio streams back as audio/mpeg with no-store', async t => {
 test('provider failures are a 502 without the provider body', async t => {
   captureLogs(t);
   const replies = [
-    () => new Response('{"detail":"insufficient balance for fish-test-key"}', { status: 402 }),
+    () => new Response('{"detail":"insufficient balance for el-test-key"}', { status: 402 }),
     () => { throw new TypeError('fetch failed'); },
     () => { throw new DOMException('timed out', 'TimeoutError'); },
   ];
@@ -74,7 +78,7 @@ test('provider failures are a 502 without the provider body', async t => {
     assert.equal(res.status, 502);
     const raw = await res.text();
     assert.deepEqual(JSON.parse(raw), { error: 'Voice output is unavailable right now.' });
-    assert.doesNotMatch(raw, /balance|fish-test-key/);
+    assert.doesNotMatch(raw, /balance|el-test-key/);
   }
 });
 

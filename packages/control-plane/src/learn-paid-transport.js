@@ -1,7 +1,7 @@
 // Existing unpriced/delegated media transports fail closed before new paid submissions.
-// A diagnostic read cannot authorize spending: only the bounded Fish path below can admit.
+// A diagnostic read cannot authorize spending: only a bounded path (the ElevenLabs and transcription transports below) can admit.
 import { admitSpend, settleSpend, operationId, platformSpendStatus, spendEnforced, refusalReply, spendMessage, ALLOWANCE_REASONS } from './learn-spend-ledger.js';
-import { settleAttempt, toMicros, usageRefusal } from './learn-usage.js';
+import { settleAttempt, usageRefusal } from './learn-usage.js';
 import { priceUsage } from './pricing-registry.js';
 
 const message = code => code === 'cap_unset' ? 'Daily paid-operation spend cap is not configured.'
@@ -29,27 +29,27 @@ export async function requirePaidSubmission(env) {
   if (refused) { const { code, error } = await refused.json(); throw Object.assign(new Error(error), { code, definite: true }); }
 }
 
-// Fish S1 charges per UTF-8 input byte, not Unicode character count (rate: pricing-registry.js, owner table 2026-10-23). No output-duration estimate.
-export async function fishSpendTransport(env, text, transport) {
+// ElevenLabs Flash v2.5 text to speech, the one narrator (narration-voice.js): billed per input character (pricing-registry.js input_chars). Admitted before the call at the characters it
+// sends, so the learner's allowance and the platform guard both see it; a delivered response settles at the reservation, a failed one keeps it as unknown cost (no refund assumed).
+// category: the guard's row for the path (the card audio's 'explanation_audio', every other path's 'narration_tts').
+export const ELEVEN_MODEL = 'eleven_flash_v2_5';
+export async function elevenSpendTransport(env, text, transport, category = 'explanation_audio') {
   if (!spendEnforced(env)) return transport();
-  const fishPrice = priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: new TextEncoder().encode(text).length } });
-  const reservedUsd = fishPrice.micros / 1e6;
-  const opId = operationId('fish_tts');
-  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'fish_tts', reservedUsd, kind: 'media', provider: 'fish', model: 's1' });
+  const price = priceUsage({ provider: 'elevenlabs', model: ELEVEN_MODEL, quantities: { input_chars: text.length } });
+  if (!price) return paidSpendReply('spend_bound_unavailable');
+  const reservedUsd = price.micros / 1e6;
+  const opId = operationId(category);
+  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category, reservedUsd, kind: 'media', provider: 'elevenlabs', model: ELEVEN_MODEL });
   if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
-  // Fish bills exactly the input bytes, so a delivered response settles at the reservation; a failed one keeps it as unknown.
-  const reservedMicros = toMicros(reservedUsd);
-  const begun = gate.attemptId;
   let response;
   try { response = await transport(); }
   catch (error) {
-    await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'fish', model: 's1', error: 'transport' });
-    await settleAttempt(env, begun, { status: 'failed' });
+    await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'elevenlabs', model: ELEVEN_MODEL, error: 'transport' });
+    await settleAttempt(env, gate.attemptId, { status: 'failed' });
     throw error;
   }
-  // Preserve the entire input charge even if audio later disconnects; no refund is assumed.
-  await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'fish', model: 's1', error: response.ok ? null : `http_${response.status}` });
-  await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? reservedMicros : null, price: response.ok ? fishPrice : null });
+  await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'elevenlabs', model: ELEVEN_MODEL, error: response.ok ? null : `http_${response.status}` });
+  await settleAttempt(env, gate.attemptId, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? price.micros : null, price: response.ok ? price : null });
   return response;
 }
 

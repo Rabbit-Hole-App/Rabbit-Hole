@@ -1,6 +1,7 @@
 import { inlineCodeRoute } from '../control-plane/src/inline-code-route.js';
 import { inlineImageJobsRoute } from '../control-plane/src/inline-image-jobs.js';
-import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
+import { paidSubmissionRefusal, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
+import { speakNarration } from '../control-plane/src/narration-voice.js';
 import { allowanceFirst, boundaryReply } from '../control-plane/src/learn-spend-ledger.js';
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
@@ -80,6 +81,7 @@ import { analyticsRoute } from '../control-plane/src/publication-analytics.js';
 import { runCleanup } from '../control-plane/src/publication-analytics-purge.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { explanationSummaryRoute } from '../control-plane/src/explanation-summary.js';
+import { audioRoute, explanationAudioRoute } from '../control-plane/src/explanation-audio.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
 import { chatKeepFetch } from '../control-plane/src/chat-keep-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
@@ -288,15 +290,13 @@ const routes = {
       if (!body?.text || typeof body.text !== 'string' || body.text.length > 4000) return Response.json({ error: 'Provide narration text under 4000 characters.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, body.app);
       if (access instanceof Response) return access;
-      // fish.audio is paid: only the learner's explicit confirmation starts it.
+      // The narrator is paid: only the learner's explicit confirmation starts it. One voice for every spoken path (narration-voice.js).
       const refused = paidRefusal(body); if (refused) return refused;
-      if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
-      const upstream = await fishSpendTransport(env, body.text, () => fetch('https://api.fish.audio/v1/tts', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
-        // Same pinned narrator as the pre-generated lesson clips.
-        body: JSON.stringify({ text: body.text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 128, normalize: true }),
-      }));
+      if (!env.ELEVENLABS_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
+      // Same 20 s limit as the Tutor's voice: a stuck provider ends in a clear error the learner can retry, never an endless wait.
+      let upstream;
+      try { upstream = await speakNarration(env, body.text, { fetch, signal: AbortSignal.timeout(20000) }); }
+      catch (error) { return error?.name === 'TimeoutError' ? Response.json({ error: 'Narration audio timed out. Try again.' }, { status: 504 }) : Response.json({ error: 'Narration audio unavailable.' }, { status: 502 }); }
       if (isPaidSpendReply(upstream)) return upstream;
       if (!upstream.ok) return Response.json({ error: 'Narration audio unavailable.' }, { status: 502 });
       return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
@@ -382,6 +382,8 @@ const routes = {
     if (path === '/api/learn/artifact') return artifactFetch(req, env);
     // The collapsed Explanation card's summary: one small model call (explanation-summary.js), authorized like the artifact route.
     if (path === '/api/learn/explanation-summary') return explanationSummaryRoute(path, req, env);
+    // The card's spoken add-on (explanation-audio.js): its script right after the card is delivered, its voice on the first Play.
+    if (audioRoute(path)) return explanationAudioRoute(path, req, env);
     // The inline AI editor (docs/features/inline-ai-editor.md): JEV routing, the streamed note or edit, and its telemetry.
     if (path === '/api/learn/inline/route') return inlineRouteFetch(req, env);
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);

@@ -151,7 +151,7 @@ test('toggling Full on a quiz, flashcards or walkthrough keeps answers, ratings 
 // source row lives in the header, so the footer row is not drawn a second time.
 test('an opened Explanation section grows the frame, never squeezes the core; the source row counts once',()=>{
  const canvas=readFileSync(new URL('./AdaptiveCanvas.jsx',import.meta.url),'utf8');
- assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit, !!\(cornerDrag\?\.h \|\| size\.h\)\)/,'the ceiling grows by the opened height; a learner-set height is a size');
+ assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit, !fitCeiling && !!\(cornerDrag\?\.h \|\| size\.h\)\)/,'the ceiling grows by the opened height; a learner-set height is a size');
  assert.match(canvas,/extraHeight \+ refsHeight \+ grow;/,'a corner drag leaves the opened height out of the body');
  assert.match(canvas,/block\.sourceRef && !headerSource\(block\) && <SourceRefChip/);
  assert.deepEqual(fitFrame(undefined,520+120,true),{height:undefined,maxHeight:640});
@@ -188,4 +188,17 @@ test('cornerSlot keeps an existing slot and refuses a box it cannot read; a Full
  assert.deepEqual(resizeCardLayout(full,700,500,null,undefined,true),{id:'x',type:'explanation',w:700,h:500},'no footprint given: as before');
  const slotted={id:'y',type:'explanation',cardLayout:{mode:'full',fullWidth:560,slot:{w:560,h:380}}};
  assert.equal(resizeCardLayout(slotted,700,500,null,undefined,true,{w:1,h:1}).cardLayout.slot.h,380,'a card layout\'s slot is unchanged');
+});
+// Owner 2026-11-17 (no blank at an Explanation card's end): the Explanation's saved or dragged height is a ceiling only (BLOCK_TYPES fitCeiling -> CanvasNode passes set = false), so the card ends right after its content.
+// The seeded card (board canvas-a4173b55, "Equal Logits in Softmax"): saved h 934.13 from a corner drag, content now about 740.
+test('an Explanation card saved height is a ceiling: content shorter than it leaves no blank, longer still scrolls, a shorter drag still wins',()=>{
+ const box=({height,minHeight=0,maxHeight=Infinity},content)=>height??Math.min(Math.max(content,minHeight),maxHeight);
+ assert.equal(box(fitFrame(934,undefined,true,false),740),740,'content 740 under a saved 934: the card is 740, not 934');
+ assert.equal(box(fitFrame(934,undefined,true,true),740),934,'before: the same card held at 934 (blank 194)');
+ assert.equal(box(fitFrame(934,undefined,true,false),1200),934,'content taller than the saved height: held at it, the flow scrolls');
+ assert.equal(box(fitFrame(500,undefined,true,false),740),500,'a shorter drag wins');
+ const read=name=>readFileSync(new URL('./'+name,import.meta.url),'utf8');
+ assert.match(read('LearningBlocks.jsx'),/explanation: \{[\s\S]*?fitContent: true,[^\n]*\n[^\n]*\n\s*fitCeiling: true,/,'only the Explanation type asks for it');
+ assert.equal((read('LearningBlocks.jsx').match(/fitCeiling: true/g)||[]).length,1);
+ assert.match(read('AdaptiveCanvas.jsx'),/fit, !fitCeiling && !!\(cornerDrag\?\.h \|\| size\.h\)/,'CanvasNode drops the floor for a ceiling card');
 });

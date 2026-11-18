@@ -1,5 +1,5 @@
 // Voice Mode TTS adapter (docs/features/voice-tutor-mvp.md §4): the Tutor's spoken words go to
-// POST /api/learn/voice/tts (Fish, pinned narrator) and play through an HTMLAudioElement.
+// POST /api/learn/voice/tts (the narrator, narration-voice.js) and play through an HTMLAudioElement.
 // speak() never throws: it resolves 'ended', 'stopped' or 'failed'. Only one speak at a time.
 // Events carry the turn id and a timestamp only, never the words.
 
@@ -30,11 +30,11 @@ export function speakable(text) {
 }
 
 // post(path, body, signal) -> fetch Response; the hook adds credentials, workspace headers, app
-// and pending. Playback streams (owner, 2026-10-01): with MediaSource, each Fish chunk is appended as it
+// and pending. Playback streams (owner, 2026-10-01): with MediaSource, each audio chunk is appended as it
 // arrives and play() starts after the first one, so the Tutor is heard while the rest still streams. Without
 // MediaSource for audio/mpeg the whole body is buffered first, as before. Stop aborts the request, pauses and
 // detaches the audio and the run, so no chunk read after a stop is appended or played.
-export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now(), MediaSource = globalThis.MediaSource }) {
+export function createNarratorTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now(), MediaSource = globalThis.MediaSource }) {
   const streams = !!MediaSource?.isTypeSupported?.('audio/mpeg');
   // Every run in flight: the one playing and at most a queued continuation. stop() ends them all.
   const runs = new Set();
