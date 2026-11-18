@@ -330,7 +330,10 @@ function checkSoftmaxList(d, issue) {
     return;
   }
   const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
-  if (after.some((x, i) => Math.abs(p[i] - x.value) > x.half + 1e-9)) {
+  const off = units => after.some((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9);
+  // Rounding clause (Reviewer 2026-11-17): values written to sum to exactly 1 may each be off by one full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
+  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && !off(2);
+  if (off(1) && !roundedToOne) {
     const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
     issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
   }
