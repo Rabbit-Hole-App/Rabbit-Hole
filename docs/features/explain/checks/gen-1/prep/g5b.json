@@ -1,0 +1,66 @@
+{
+ "interactions": {
+  "n": 1407,
+  "maxGemini": [
+   "ml-transformer-token-embeddings@detailed=350",
+   "ml-transformer-vocabulary-softmax@balanced=350",
+   "ml-transformer-vocabulary-softmax@detailed=350",
+   "ml-bert-encoder-depth@detailed=350",
+   "ml-gpt2-context-architecture@detailed=350"
+  ],
+  "maxGeminiWithDerive": [
+   "ml-transformer-token-embeddings@detailed=356",
+   "ml-transformer-vocabulary-softmax@balanced=356",
+   "ml-transformer-vocabulary-softmax@detailed=356",
+   "ml-bert-encoder-depth@detailed=356",
+   "ml-gpt2-context-architecture@detailed=356"
+  ],
+  "maxNonGemini": [
+   "ml-raw-log-distributions@brief=394",
+   "ml-raw-log-distributions@balanced=394",
+   "ml-raw-log-distributions@detailed=394",
+   "ml-regression-error-metrics@brief=394",
+   "ml-regression-error-metrics@balanced=394"
+  ],
+  "overLimitGemini": 0,
+  "overLimitWithDerive": 0,
+  "overLimitWithDeriveIds": []
+ },
+ "noInteractions": {
+  "n": 1407,
+  "maxGemini": [
+   "ml-transformer-token-embeddings@detailed=345",
+   "ml-transformer-vocabulary-softmax@balanced=345",
+   "ml-transformer-vocabulary-softmax@detailed=345",
+   "ml-bert-encoder-depth@detailed=345",
+   "ml-gpt2-context-architecture@detailed=345"
+  ],
+  "maxGeminiWithDerive": [
+   "ml-transformer-token-embeddings@detailed=351",
+   "ml-transformer-vocabulary-softmax@balanced=351",
+   "ml-transformer-vocabulary-softmax@detailed=351",
+   "ml-bert-encoder-depth@detailed=351",
+   "ml-gpt2-context-architecture@detailed=351"
+  ],
+  "maxNonGemini": [
+   "ml-raw-log-distributions@brief=389",
+   "ml-raw-log-distributions@balanced=389",
+   "ml-raw-log-distributions@detailed=389",
+   "ml-regression-error-metrics@brief=389",
+   "ml-regression-error-metrics@balanced=389"
+  ],
+  "overLimitGemini": 0,
+  "overLimitWithDerive": 0,
+  "overLimitWithDeriveIds": []
+ },
+ "mixed_interactions": {
+  "gemini": 365,
+  "geminiWithDerive": 356,
+  "nonGemini": 421
+ },
+ "mixed_noInteractions": {
+  "gemini": 360,
+  "geminiWithDerive": 351,
+  "nonGemini": 416
+ }
+}

@@ -1,0 +1,874 @@
+{
+ "notes": [],
+ "rows": [],
+ "withInteractions": {
+  "interactions": true,
+  "fullAuthorSchemaProps": 1313,
+  "allKinds": [
+   "flow",
+   "comparison",
+   "timeline",
+   "sequence",
+   "matrix",
+   "layers",
+   "cycle",
+   "figure",
+   "tree",
+   "relationship",
+   "transformation",
+   "argument",
+   "number-line",
+   "coordinate-plot",
+   "bar-chart",
+   "t-account",
+   "waterfall",
+   "heatmap",
+   "sample-set",
+   "histogram",
+   "box-plot",
+   "tensor",
+   "token-links",
+   "block-stack"
+  ],
+  "mixedRef": {
+   "plotHeatmapBlockstack_gemini": 365,
+   "plotHeatmapBlockstack_nonGemini": 421,
+   "quantBundle_nonGemini": 314,
+   "quantBundle_gemini": 308,
+   "newBundle_gemini": 157,
+   "newBundle_nonGemini": 203
+  },
+  "unsteeredGemini": 136,
+  "unsteeredNonGemini": 138,
+  "rows": [
+   {
+    "kind": "flow",
+    "geminiWithout": 28,
+    "geminiWith": 28,
+    "nonGeminiAsBundled": 28,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {
+     "flowTensorNodes": {
+      "nonGemini": 35
+     },
+     "flowParallelPaths": {
+      "nonGemini": 28
+     },
+     "flowTensor_parallel": {
+      "nonGemini": 35
+     }
+    }
+   },
+   {
+    "kind": "comparison",
+    "geminiWithout": 22,
+    "geminiWith": 22,
+    "nonGeminiAsBundled": 22,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {
+     "comparisonPanels": {
+      "nonGemini": 278,
+      "geminiAsIs_noListForm": 278
+     },
+     "comparisonPanels_blockStackPanels": {
+      "nonGemini": 320
+     }
+    }
+   },
+   {
+    "kind": "timeline",
+    "geminiWithout": 48,
+    "geminiWith": 48,
+    "nonGeminiAsBundled": 48,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "sequence",
+    "geminiWithout": 26,
+    "geminiWith": 26,
+    "nonGeminiAsBundled": 26,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "matrix",
+    "geminiWithout": 35,
+    "geminiWith": 35,
+    "nonGeminiAsBundled": 35,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "layers",
+    "geminiWithout": 22,
+    "geminiWith": 22,
+    "nonGeminiAsBundled": 22,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "cycle",
+    "geminiWithout": 20,
+    "geminiWith": 20,
+    "nonGeminiAsBundled": 20,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "figure",
+    "geminiWithout": 29,
+    "geminiWith": 29,
+    "nonGeminiAsBundled": 29,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "tree",
+    "geminiWithout": 41,
+    "geminiWith": 41,
+    "nonGeminiAsBundled": 41,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "relationship",
+    "geminiWithout": 27,
+    "geminiWith": 27,
+    "nonGeminiAsBundled": 27,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {
+     "relationshipTensorNodes": {
+      "nonGemini": 34
+     }
+    }
+   },
+   {
+    "kind": "transformation",
+    "geminiWithout": 30,
+    "geminiWith": 32,
+    "nonGeminiAsBundled": 32,
+    "derivePresent": false,
+    "opPresent": true,
+    "forms": {
+     "transformationVisualStates": {
+      "nonGemini": 528,
+      "geminiAsIs_noListForm": 528
+     },
+     "transformationTensorItems": {
+      "nonGemini": 48,
+      "geminiWithout": 46
+     },
+     "transformationStates_tensor": {
+      "nonGemini": 544
+     }
+    }
+   },
+   {
+    "kind": "argument",
+    "geminiWithout": 27,
+    "geminiWith": 27,
+    "nonGeminiAsBundled": 27,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "number-line",
+    "geminiWithout": 30,
+    "geminiWith": 30,
+    "nonGeminiAsBundled": 30,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "coordinate-plot",
+    "geminiWithout": 100,
+    "geminiWith": 104,
+    "nonGeminiAsBundled": 104,
+    "derivePresent": true,
+    "opPresent": false,
+    "forms": {
+     "compactPlots": {
+      "nonGemini": 116,
+      "geminiWithout": 112
+     }
+    }
+   },
+   {
+    "kind": "bar-chart",
+    "geminiWithout": 28,
+    "geminiWith": 28,
+    "nonGeminiAsBundled": 28,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "t-account",
+    "geminiWithout": 27,
+    "geminiWith": 27,
+    "nonGeminiAsBundled": 27,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "waterfall",
+    "geminiWithout": 24,
+    "geminiWith": 24,
+    "nonGeminiAsBundled": 24,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "heatmap",
+    "geminiWithout": 31,
+    "geminiWith": 31,
+    "nonGeminiAsBundled": 31,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "sample-set",
+    "geminiWithout": 31,
+    "geminiWith": 31,
+    "nonGeminiAsBundled": 31,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "histogram",
+    "geminiWithout": 30,
+    "geminiWith": 30,
+    "nonGeminiAsBundled": 30,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "box-plot",
+    "geminiWithout": 37,
+    "geminiWith": 37,
+    "nonGeminiAsBundled": 37,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "tensor",
+    "geminiWithout": 26,
+    "geminiWith": 26,
+    "nonGeminiAsBundled": 26,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "token-links",
+    "geminiWithout": 25,
+    "geminiWith": 25,
+    "nonGeminiAsBundled": 25,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "block-stack",
+    "geminiWithout": 58,
+    "geminiWith": 58,
+    "nonGeminiAsBundled": 58,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   }
+  ],
+  "worstPairsWith": [
+   {
+    "pair": [
+     "coordinate-plot",
+     "block-stack"
+    ],
+    "without": 142,
+    "with": 146
+   },
+   {
+    "pair": [
+     "timeline",
+     "coordinate-plot"
+    ],
+    "without": 132,
+    "with": 136
+   },
+   {
+    "pair": [
+     "tree",
+     "coordinate-plot"
+    ],
+    "without": 125,
+    "with": 129
+   },
+   {
+    "pair": [
+     "coordinate-plot",
+     "box-plot"
+    ],
+    "without": 121,
+    "with": 125
+   },
+   {
+    "pair": [
+     "matrix",
+     "coordinate-plot"
+    ],
+    "without": 119,
+    "with": 123
+   },
+   {
+    "pair": [
+     "transformation",
+     "coordinate-plot"
+    ],
+    "without": 114,
+    "with": 120
+   },
+   {
+    "pair": [
+     "coordinate-plot",
+     "heatmap"
+    ],
+    "without": 115,
+    "with": 119
+   },
+   {
+    "pair": [
+     "coordinate-plot",
+     "sample-set"
+    ],
+    "without": 115,
+    "with": 119
+   }
+  ],
+  "bestPairWith": {
+   "pair": [
+    "layers",
+    "cycle"
+   ],
+   "without": 26,
+   "with": 26
+  },
+  "pairsOverLimitWith": 0,
+  "pairsTotal": 276,
+  "pairsOverLimitWithout": 0,
+  "samplePairs": [
+   {
+    "pair": [
+     "coordinate-plot",
+     "bar-chart"
+    ],
+    "without": 112,
+    "with": 116
+   },
+   {
+    "pair": [
+     "tensor",
+     "block-stack"
+    ],
+    "without": 68,
+    "with": 68
+   },
+   {
+    "pair": [
+     "heatmap",
+     "box-plot"
+    ],
+    "without": 52,
+    "with": 52
+   },
+   {
+    "pair": [
+     "histogram",
+     "box-plot"
+    ],
+    "without": 51,
+    "with": 51
+   },
+   {
+    "pair": [
+     "transformation",
+     "bar-chart"
+    ],
+    "without": 42,
+    "with": 44
+   },
+   {
+    "pair": [
+     "flow",
+     "comparison"
+    ],
+    "without": 34,
+    "with": 34
+   }
+  ]
+ },
+ "noInteractions": {
+  "interactions": false,
+  "fullAuthorSchemaProps": 1308,
+  "allKinds": [
+   "flow",
+   "comparison",
+   "timeline",
+   "sequence",
+   "matrix",
+   "layers",
+   "cycle",
+   "figure",
+   "tree",
+   "relationship",
+   "transformation",
+   "argument",
+   "number-line",
+   "coordinate-plot",
+   "bar-chart",
+   "t-account",
+   "waterfall",
+   "heatmap",
+   "sample-set",
+   "histogram",
+   "box-plot",
+   "tensor",
+   "token-links",
+   "block-stack"
+  ],
+  "mixedRef": {
+   "plotHeatmapBlockstack_gemini": 360,
+   "plotHeatmapBlockstack_nonGemini": 416,
+   "quantBundle_nonGemini": 309,
+   "quantBundle_gemini": 303,
+   "newBundle_gemini": 152,
+   "newBundle_nonGemini": 198
+  },
+  "unsteeredGemini": 131,
+  "unsteeredNonGemini": 133,
+  "rows": [
+   {
+    "kind": "flow",
+    "geminiWithout": 23,
+    "geminiWith": 23,
+    "nonGeminiAsBundled": 23,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {
+     "flowTensorNodes": {
+      "nonGemini": 30
+     },
+     "flowParallelPaths": {
+      "nonGemini": 23
+     },
+     "flowTensor_parallel": {
+      "nonGemini": 30
+     }
+    }
+   },
+   {
+    "kind": "comparison",
+    "geminiWithout": 17,
+    "geminiWith": 17,
+    "nonGeminiAsBundled": 17,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {
+     "comparisonPanels": {
+      "nonGemini": 273,
+      "geminiAsIs_noListForm": 273
+     },
+     "comparisonPanels_blockStackPanels": {
+      "nonGemini": 315
+     }
+    }
+   },
+   {
+    "kind": "timeline",
+    "geminiWithout": 43,
+    "geminiWith": 43,
+    "nonGeminiAsBundled": 43,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "sequence",
+    "geminiWithout": 21,
+    "geminiWith": 21,
+    "nonGeminiAsBundled": 21,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "matrix",
+    "geminiWithout": 30,
+    "geminiWith": 30,
+    "nonGeminiAsBundled": 30,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "layers",
+    "geminiWithout": 17,
+    "geminiWith": 17,
+    "nonGeminiAsBundled": 17,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "cycle",
+    "geminiWithout": 15,
+    "geminiWith": 15,
+    "nonGeminiAsBundled": 15,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "figure",
+    "geminiWithout": 24,
+    "geminiWith": 24,
+    "nonGeminiAsBundled": 24,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "tree",
+    "geminiWithout": 36,
+    "geminiWith": 36,
+    "nonGeminiAsBundled": 36,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "relationship",
+    "geminiWithout": 22,
+    "geminiWith": 22,
+    "nonGeminiAsBundled": 22,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {
+     "relationshipTensorNodes": {
+      "nonGemini": 29
+     }
+    }
+   },
+   {
+    "kind": "transformation",
+    "geminiWithout": 25,
+    "geminiWith": 27,
+    "nonGeminiAsBundled": 27,
+    "derivePresent": false,
+    "opPresent": true,
+    "forms": {
+     "transformationVisualStates": {
+      "nonGemini": 523,
+      "geminiAsIs_noListForm": 523
+     },
+     "transformationTensorItems": {
+      "nonGemini": 43,
+      "geminiWithout": 41
+     },
+     "transformationStates_tensor": {
+      "nonGemini": 539
+     }
+    }
+   },
+   {
+    "kind": "argument",
+    "geminiWithout": 22,
+    "geminiWith": 22,
+    "nonGeminiAsBundled": 22,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "number-line",
+    "geminiWithout": 25,
+    "geminiWith": 25,
+    "nonGeminiAsBundled": 25,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "coordinate-plot",
+    "geminiWithout": 95,
+    "geminiWith": 99,
+    "nonGeminiAsBundled": 99,
+    "derivePresent": true,
+    "opPresent": false,
+    "forms": {
+     "compactPlots": {
+      "nonGemini": 111,
+      "geminiWithout": 107
+     }
+    }
+   },
+   {
+    "kind": "bar-chart",
+    "geminiWithout": 23,
+    "geminiWith": 23,
+    "nonGeminiAsBundled": 23,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "t-account",
+    "geminiWithout": 22,
+    "geminiWith": 22,
+    "nonGeminiAsBundled": 22,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "waterfall",
+    "geminiWithout": 19,
+    "geminiWith": 19,
+    "nonGeminiAsBundled": 19,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "heatmap",
+    "geminiWithout": 26,
+    "geminiWith": 26,
+    "nonGeminiAsBundled": 26,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "sample-set",
+    "geminiWithout": 26,
+    "geminiWith": 26,
+    "nonGeminiAsBundled": 26,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "histogram",
+    "geminiWithout": 25,
+    "geminiWith": 25,
+    "nonGeminiAsBundled": 25,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "box-plot",
+    "geminiWithout": 32,
+    "geminiWith": 32,
+    "nonGeminiAsBundled": 32,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "tensor",
+    "geminiWithout": 21,
+    "geminiWith": 21,
+    "nonGeminiAsBundled": 21,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "token-links",
+    "geminiWithout": 20,
+    "geminiWith": 20,
+    "nonGeminiAsBundled": 20,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   },
+   {
+    "kind": "block-stack",
+    "geminiWithout": 53,
+    "geminiWith": 53,
+    "nonGeminiAsBundled": 53,
+    "derivePresent": false,
+    "opPresent": false,
+    "forms": {}
+   }
+  ],
+  "worstPairsWith": [
+   {
+    "pair": [
+     "coordinate-plot",
+     "block-stack"
+    ],
+    "without": 137,
+    "with": 141
+   },
+   {
+    "pair": [
+     "timeline",
+     "coordinate-plot"
+    ],
+    "without": 127,
+    "with": 131
+   },
+   {
+    "pair": [
+     "tree",
+     "coordinate-plot"
+    ],
+    "without": 120,
+    "with": 124
+   },
+   {
+    "pair": [
+     "coordinate-plot",
+     "box-plot"
+    ],
+    "without": 116,
+    "with": 120
+   },
+   {
+    "pair": [
+     "matrix",
+     "coordinate-plot"
+    ],
+    "without": 114,
+    "with": 118
+   },
+   {
+    "pair": [
+     "transformation",
+     "coordinate-plot"
+    ],
+    "without": 109,
+    "with": 115
+   },
+   {
+    "pair": [
+     "coordinate-plot",
+     "heatmap"
+    ],
+    "without": 110,
+    "with": 114
+   },
+   {
+    "pair": [
+     "coordinate-plot",
+     "sample-set"
+    ],
+    "without": 110,
+    "with": 114
+   }
+  ],
+  "bestPairWith": {
+   "pair": [
+    "layers",
+    "cycle"
+   ],
+   "without": 21,
+   "with": 21
+  },
+  "pairsOverLimitWith": 0,
+  "pairsTotal": 276,
+  "pairsOverLimitWithout": 0,
+  "samplePairs": [
+   {
+    "pair": [
+     "coordinate-plot",
+     "bar-chart"
+    ],
+    "without": 107,
+    "with": 111
+   },
+   {
+    "pair": [
+     "tensor",
+     "block-stack"
+    ],
+    "without": 63,
+    "with": 63
+   },
+   {
+    "pair": [
+     "heatmap",
+     "box-plot"
+    ],
+    "without": 47,
+    "with": 47
+   },
+   {
+    "pair": [
+     "histogram",
+     "box-plot"
+    ],
+    "without": 46,
+    "with": 46
+   },
+   {
+    "pair": [
+     "transformation",
+     "bar-chart"
+    ],
+    "without": 37,
+    "with": 39
+   },
+   {
+    "pair": [
+     "flow",
+     "comparison"
+    ],
+    "without": 29,
+    "with": 29
+   }
+  ]
+ },
+ "canWriteKind": {
+  "heatmap": {
+   "geminiNoKeep": false,
+   "geminiKept": true
+  },
+  "sample-set": {
+   "geminiNoKeep": false,
+   "geminiKept": true
+  },
+  "histogram": {
+   "geminiNoKeep": false,
+   "geminiKept": true
+  },
+  "box-plot": {
+   "geminiNoKeep": false,
+   "geminiKept": true
+  },
+  "coordinate-plot": {
+   "geminiNoKeep": true,
+   "geminiKept": true
+  }
+ }
+}
