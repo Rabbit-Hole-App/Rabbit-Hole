@@ -25,8 +25,9 @@ const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\s+/)
 export function evaluate({inputs}){
   const i=inputs.step===undefined?0:inputs.step;
   if(!Number.isInteger(i)||i<0||i>=T.steps.length)throw new RangeError('step outside the trace');
-  const s=T.steps[i],spec={kind:'flow',title:T.title,nodes:T.nodes,edges:T.edges};
-  if(s.highlightPath)spec.highlightPath=s.highlightPath;
+  const s=T.steps[i],flow={kind:'flow',title:T.title,nodes:T.nodes,edges:T.edges};
+  if(s.highlightPath)flow.highlightPath=s.highlightPath;
+  const spec={version:1,diagram:flow};
   const lines=wrap(s.callout),objects=[sdk.diagram(spec,{x:20,y:24,w:400}),
     sdk.box('callout.active.l0',444,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',455,90,s.label,{role:'input',opacity:1})];
   lines.forEach((value,j)=>objects.push(sdk.text('callout.active.s'+j,455,116+j*20,value,{role:'neutral',opacity:1})));
