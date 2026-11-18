@@ -1,6 +1,6 @@
 # SAME-1 data
 
-The branch `explain/same-1-data` is based on `2aeca536d`. Its tip is `144f125669196d0bd7c3e505cb08a0babaf1bfa7`.
+The branch `explain/same-1-data` is based on `2aeca536d`. The original data and replay use `144f125669196d0bd7c3e505cb08a0babaf1bfa7`. The Detailed top-k caption fix is `8dc6a231747f41dfa346d0ae02bbc3b499cb7b40`.
 
 | Item | Commit | Verification |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ The branch `explain/same-1-data` is based on `2aeca536d`. Its tip is `144f125669
 | --- | ---: | ---: |
 | Brief | 112 | 148 |
 | Balanced | 109 | 145 |
-| Detailed | 133 | 169 |
+| Detailed | 130 | 166 |
 
 The token counts use `cl100k_base`. The author reference count includes the ID and usage guidance.
 
@@ -32,7 +32,7 @@ All five wordings began with an empty topical pick. The author receives `ml-logi
 
 The transformation gallery and top-k reference each have three native 408 px renders. The contact sheet also shows the two selected softmax references in Balanced. The vocabulary detail and library three-stage panel have wider native layouts and are fitted to 408 px on the sheet.
 
-[PNG contact sheet](contact-sheet.png) · [SVG contact sheet with typeset formulas](contact-sheet.svg) · [Individual SVGs](408/) · [Render dimensions and hashes](previews.json)
+[Detailed top-k preview](408/ml-sampling-top-k-deep.png) · [PNG contact sheet](contact-sheet.png) · [SVG contact sheet with typeset formulas](contact-sheet.svg) · [Individual SVGs](408/) · [Render dimensions and hashes](previews.json)
 
 ## Checks
 

@@ -1,6 +1,6 @@
 {
   "width": 408,
-  "sha256": "79753aefdce1c9416f064af9463d34167eb2c871bd3d31b1de8b4208165ae9e1",
+  "sha256": "008faf3edc2afc4aa9162e3f4ea1819df24f7cf6e01c643ea30e3dd68df02a2a",
   "previews": [
     {
       "id": "shape-transformation-overview",
@@ -60,7 +60,7 @@
       "width": 408,
       "height": 414,
       "scale": 1,
-      "sha256": "a516aaee1c75200bc9d39e669f04b79e87b17959ba3d93ddda1c3195ac29fbd6"
+      "sha256": "235cbd9cae87f8c3f1f0c27f45b9327f1ed323f84bcd0287879146043faacef6"
     },
     {
       "id": "ml-transformer-vocabulary-softmax",
