@@ -63,6 +63,20 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   for (const plain of ['input/output pairs', 'e.g. three tasks', 'one-to-one', 'version 3.5']) assert.ok(!CODE_TOKEN.test(plain), plain);
 });
 
+// Reviewer 19:40: code names a learner can see on the card. The card shows the cited lines only: a dotted name's last part is in them, its earlier parts in the cited file;
+// a name in the file but outside the cited lines is refused with the line it is on (no auto-widening); a made-up name stays refused.
+const MODEL = ['from dataclasses import dataclass', '', '@dataclass', 'class GPTConfig:', '    block_size: int = 1024', '', 'class GPT:', '    def forward(self, idx, targets=None):', '        b, t = idx.size()', '        assert t <= self.config.block_size', ''].join('\n');
+const modelOpts = () => { const snapshot = { files: { 'model.py': MODEL } }; return opts({ sectionId: '1.1', first: true, anchorsExist: repositoryAnchors(snapshot), anchorText: repositoryAnchorText(snapshot) }); };
+const showsError = shows => { const out = validateBrief(good({ from: '', beats: [beat('b1', { shows, anchors: ['model.py:8-10'] }), beat('b2', { idea: 'Dividing finished by all gives a share between zero and one.', anchors: ['model.py:5'] }), beat('b3', { idea: 'Rounding happens before the share is scaled to a percentage.', anchors: ['model.py:5'] })] }), modelOpts()); return (out.errors || []).filter(e => e.startsWith('beat b1:')); };
+test('brief code names: `GPT.forward` passes (forward in the cited lines, GPT in the file); `Foo.forward` is refused', () => {
+  assert.deepEqual(showsError('`GPT.forward` takes `idx` in.'), []);
+  assert.match(showsError('`Foo.forward` takes `idx` in.').join(), /names `Foo\.forward`, which the anchored lines do not/);
+});
+test('brief code names: a name outside the cited lines names its line; a made-up name stays refused', () => {
+  assert.deepEqual(showsError('The assert against `block_size`, set in `GPTConfig`.'), ['beat b1: shows `GPTConfig` is on model.py:4, outside the cited 8-10; cite that line or drop the name']);
+  assert.match(showsError('`made_up_thing` holds the window.').join(), /names `made_up_thing`, which the anchored lines do not/);
+});
+
 test('learn_section_brief: one research call then the submit; the brief is stored, 1.1 becomes current, the call is metered learn_section; a second call returns the stored brief', async t => {
   const f = await sectionSetup(t);
   const submit = { from: '', beats: [beat('b1', { anchors: ['src/progress.js:2-6'] }), beat('b2', { idea: 'Dividing finished by all gives a share between zero and one.', anchors: ['src/progress.js:4'] }), beat('b3', { idea: 'Why a derived value is never stored.', anchors: [], background: true })], to: 'Next you see where the list comes from.' };
@@ -92,13 +106,15 @@ test('learn_section_brief: one research call then the submit; the brief is store
   assert.deepEqual([again.status, again.body.brief.beats.length, f.deps.callModel.calls.length], [200, 3, 0], 'stored, no call');
 });
 
-test('learn_section_brief: a refused brief is re-asked once with the errors, then the A §5 sentence; nothing is stored', async t => {
+test('learn_section_brief: a refused brief is re-asked twice with the errors (Reviewer 19:40), then the A §5 sentence; repairs is logged; nothing is stored', async t => {
   const f = await sectionSetup(t);
   const bad = { from: 'not empty', beats: [beat('b1')], to: 'x' };
-  f.deps.callModel = scripted(textReply('I will think about it.'), toolUse(SUBMIT_BRIEF_TOOL.name, bad, 's2'));
-  const out = await f.post({ action: 'learn_section_brief', sectionId: '1.1' });
+  f.deps.callModel = scripted(textReply('I will think about it.'), toolUse(SUBMIT_BRIEF_TOOL.name, bad, 's2'), toolUse(SUBMIT_BRIEF_TOOL.name, bad, 's3'));
+  const { out, logs } = await captureLogs(() => f.post({ action: 'learn_section_brief', sectionId: '1.1' }));
   assert.deepEqual(out.body, { error: 'sectionBriefFailed', words: SECTION_BRIEF_FAILED });
+  assert.equal(f.deps.callModel.calls.length, 3, 'the first answer and two repairs');
   assert.match(f.deps.callModel.calls[1].body.messages.at(-1).content, /^Not accepted:\ncall submit_section_brief exactly once \(got 0\)/);
+  assert.equal(logs.find(l => l.event === 'learn_section_brief')?.repairs, 2);
   assert.equal(await readSection(f.env, ACTOR, '1.1'), null);
   assert.deepEqual([(await f.post({ action: 'learn_section_brief', sectionId: '9.9' })).status], [404]);
 });
