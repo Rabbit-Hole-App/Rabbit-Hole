@@ -22,7 +22,7 @@ const plan = structuredClone(STEPPER_PLANS['stepper-merge-sort-brief']);
 Object.assign(plan, {
   title: 'Follow one point down the tree',
   story: 'A learner follows one point, J at x = 6 and y = 1, down a small fitted decision tree. At the root the test x ≤ 4 is false for J, so J takes No; at the next node the test y ≤ 2 is true, so J takes Yes and lands in class 0. Stepping forward highlights one more answered test each time while the tree itself never moves, so the route is the evidence.',
-  cardDescription: 'Point J (x = 6, y = 1) answers one test at each node until it lands in a class.',
+  cardDescription: 'Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.',
   instructions: 'Step through the two tests for point J.',
   learningGoal: 'A decision tree classifies a point by answering one yes or no test per node, from the root to a class.',
 });
