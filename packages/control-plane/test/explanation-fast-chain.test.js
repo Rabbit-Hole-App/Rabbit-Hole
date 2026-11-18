@@ -414,7 +414,7 @@ test('arithmetic: the next provider cannot write box-plot, so the same model get
   const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
   assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'fireworks'], 'Gemini would not get box-plot, so no hand-over');
   assert.deepEqual([out.result, out.repaired, out.repairs, out.repairedAt], ['artifact', true, 2, 2]);
-  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 2, repairedAt: 2 }]);
+  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 2, repairedAt: 2, failedOn: ['arithmetic', 'arithmetic'] }]);
   for (const call of [sent[1], sent[2]]) assert.ok(call.body.messages.at(-1).content.startsWith('Validation failed: explanation_bad_numbers: ') && call.body.messages.at(-1).content.includes(SENTENCE), 'the exact numbers, then the sentence');
   assert.ok(sent[1].body.messages.at(-1).content.includes(FENCE_ISSUE), 'the validator\'s first issue names the true fences');
 });
@@ -424,7 +424,7 @@ test('arithmetic: success on the first repair stops there (no second repair)', a
   const sent = providers(t, ok(wrongFences), ok(goodFences));
   const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
   assert.equal(sent.length, 2);
-  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 1, repairedAt: 1 }]);
+  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 1, repairedAt: 1, failedOn: ['arithmetic'] }]);
 });
 
 test('arithmetic: when the next provider CAN write the kind (it is named, or it is Fireworks) the old rule stands: one repair, the step fails, the next provider runs', async t => {
@@ -449,8 +449,8 @@ test('arithmetic: every step failing gives validation_error explanation_bad_numb
   assert.match(out.error, /^explanation_bad_numbers: /);
   assert.equal(out.block, undefined);
   assert.deepEqual(out.attempts, [
-    { provider: 'google', model: 'gemini-3.5-flash-lite', outcome: 'arithmetic', repairs: 1, issues: [FENCE_ISSUE] },
-    { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, issues: [FENCE_ISSUE] }]);
+    { provider: 'google', model: 'gemini-3.5-flash-lite', outcome: 'arithmetic', repairs: 1, failedOn: ['arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] },
+    { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, failedOn: ['arithmetic', 'arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] }]);
 });
 
 test('a non-arithmetic invalid answer never gets the second repair and keeps its own issue text per step', async t => {
@@ -459,8 +459,20 @@ test('a non-arithmetic invalid answer never gets the second repair and keeps its
   const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
   assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google', 'google']);
   assert.deepEqual(out.attempts.map(a => [a.outcome, a.repairs]), [['validation_error', 1], ['validation_error', 1]]);
+  assert.deepEqual(out.attempts.map(a => a.failedOn), [['validation_error', 'validation_error'], ['validation_error', 'validation_error']]);
   assert.match(out.attempts[0].issues[0], /^explanation_/);
   assert.ok(!sent[1].body.messages.at(-1).content.includes(SENTENCE), 'the sentence belongs to arithmetic issues only');
+});
+
+test('a step that failed a validation and then arithmetic records both in failedOn, in order; a clean first answer has no failedOn', async t => {
+  quiet(t);
+  providers(t, ok(long), ok(wrongFences));
+  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.deepEqual(out.attempts[0].failedOn, ['validation_error', 'arithmetic', 'arithmetic']);
+  assert.equal(out.attempts[0].outcome, 'arithmetic');
+  providers(t, ok(goodFences));
+  const clean = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.ok(!('failedOn' in clean.attempts[0]));
 });
 
 test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs and issue text, and the client gets the validation_error', async t => {
@@ -474,6 +486,6 @@ test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs a
   assert.equal(puts.length, 1);
   assert.equal(puts[0].outcome, 'validation_error');
   assert.match(puts[0].error, /^explanation_bad_numbers: /);
-  assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues]), [['google', 'arithmetic', 1, [FENCE_ISSUE]], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE]]]);
+  assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues, a.failedOn]), [['google', 'arithmetic', 1, [FENCE_ISSUE], ['arithmetic', 'arithmetic']], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE], ['arithmetic', 'arithmetic', 'arithmetic']]]);
   assert.ok(!JSON.stringify(puts[0]).includes('private@example.test'));
 });
