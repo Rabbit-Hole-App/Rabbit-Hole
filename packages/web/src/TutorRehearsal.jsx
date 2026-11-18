@@ -17,7 +17,7 @@ import { depthOf } from './learn-settings.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
-import { performItem, placeChapter } from './learn-section-perform.js';
+import { performItem, placeChapter, placeSection } from './learn-section-perform.js';
 import { briefAndCompose, compositionForMake, stallDump, withinTime } from './learn-section-load.js';
 import { SPACING_SCALES } from './learn-position.js';
 import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
@@ -313,11 +313,11 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     const entries = sectionEntries(ops, chatRef.current.canvasOps?.outlineNow?.()?.outline), chapter = sectionId.split('.')[0];
     const items = composition?.items || [], orderOf = id => { const k = items.findIndex(entry => entry.id === id); return k < 0 ? items.length : k; }; // notes come after every item
     let first = true, previous = st.current.section.last || null;
-    if (canvasApi && !(canvasApi.blocks?.() || []).some(block => block.learn?.role === 'chapter' && block.learn.sectionId === chapter)) {
-      const title = planTree(ops)[Number(chapter) - 1]?.title;
-      if (title) { const id = await placeChapter(canvasApi, { chapter, title }); if (id) { previous = id; sectionPatch({ last: id }); } }
-      if (!alive()) return;
-    }
+    // The chapter's h1 and the section's h2 (learn-walk-spec §4), each once: a chapter heading card made before them counts as the chapter's.
+    const titled = role => [...(canvasApi?.learnItems?.() || []), ...(canvasApi?.blocks?.() || [])].some(entry => entry.learn?.role === role && entry.learn.sectionId === (role === 'chapter' ? chapter : sectionId));
+    const tree = planTree(ops), chapterTitle = tree[Number(chapter) - 1]?.title, sectionTitle = tree[Number(chapter) - 1]?.sections?.[Number(sectionId.split('.')[1]) - 1]?.title;
+    if (canvasApi && chapterTitle && !titled('chapter')) { const id = placeChapter(canvasApi, { chapter, title: chapterTitle }); if (id) { previous = id; sectionPatch({ last: id }); } }
+    if (canvasApi && sectionTitle && !titled('section')) { const id = placeSection(canvasApi, { sectionId, title: sectionTitle }); if (id) { previous = id; sectionPatch({ last: id }); } }
     while (itemId) {
       sectionPatch({ next: itemId });
       const out = await sectionPost({ action: 'learn_section_make', sectionId, itemId });

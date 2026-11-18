@@ -1,0 +1,535 @@
+{
+  "canvas": "canvas-482ab33b",
+  "url": "http://127.0.0.1:8878/apps/canvas-482ab33b",
+  "failure": null,
+  "events": [
+    {
+      "t": 0.1,
+      "what": "signed in (no sign-in)",
+      "email": "user@b1a6c0b052cb7c76c391f125cb4be19b.rabbithole.invalid"
+    },
+    {
+      "t": 1.2,
+      "what": "canvas",
+      "canvas": "canvas-482ab33b",
+      "url": "http://127.0.0.1:8878/apps/canvas-482ab33b"
+    },
+    {
+      "t": 6.6,
+      "what": "indexed"
+    },
+    {
+      "t": 43.4,
+      "what": "catalogue ready"
+    },
+    {
+      "t": 48.1,
+      "what": "learn option",
+      "option": "GPT transformer architecture and attention"
+    },
+    {
+      "t": 48.1,
+      "what": "depth Standard (balanced)"
+    },
+    {
+      "t": 88.4,
+      "what": "plan drafted"
+    },
+    {
+      "t": 88.6,
+      "what": "accept"
+    },
+    {
+      "t": 115.3,
+      "what": "1.1 ready (brief + compose)"
+    },
+    {
+      "t": 115.4,
+      "what": "BUILD pressed"
+    },
+    {
+      "t": 202.4,
+      "what": "making done"
+    },
+    {
+      "t": 202.4,
+      "what": "position settled",
+      "last_placed": 192.9
+    },
+    {
+      "t": 208.5,
+      "what": "canvas blocks",
+      "total": 21,
+      "section": 21,
+      "other": []
+    },
+    {
+      "t": 208.5,
+      "what": "page errors",
+      "errors": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "8bfafa95-5531-4aad-8b47-1436c7eeef2a",
+      "type": "doc",
+      "sectionId": "1",
+      "itemId": null,
+      "role": "chapter",
+      "slot": true,
+      "order": null,
+      "since": 1795033767499,
+      "fit": true,
+      "placed": true,
+      "seen": 116.1,
+      "placedAt": 116.1
+    },
+    {
+      "id": "4e0f7b6d-a81a-4550-bb23-5253aca78637",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "lead",
+      "slot": true,
+      "order": 0,
+      "since": 1795033771844,
+      "fit": true,
+      "placed": true,
+      "seen": 120.5,
+      "placedAt": 120.5
+    },
+    {
+      "id": "fbd4f833-6c1a-4580-9f0f-94f194d0a632",
+      "type": "explanation",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "card",
+      "slot": true,
+      "order": 0,
+      "since": 1795033778593,
+      "placed": true,
+      "seen": 127.4,
+      "placedAt": 127.4
+    },
+    {
+      "id": "91bbdd5c-5429-4232-b41d-d67fd49d958a",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "follow",
+      "slot": true,
+      "order": 0,
+      "since": 1795033778691,
+      "fit": true,
+      "placed": true,
+      "seen": 127.4,
+      "placedAt": 127.4
+    },
+    {
+      "id": "ec31935c-107b-4dc0-b733-0efdb57a111c",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "card",
+      "slot": true,
+      "order": 1,
+      "since": 1795033789202,
+      "fit": false,
+      "placed": true,
+      "seen": 137.9,
+      "placedAt": 137.9
+    },
+    {
+      "id": "af0f8b3a-f408-4848-afac-bc67a9cfe8de",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "lead",
+      "slot": true,
+      "order": 1,
+      "since": 1795033789160,
+      "fit": true,
+      "placed": true,
+      "seen": 137.9,
+      "placedAt": 137.9
+    },
+    {
+      "id": "333f38b4-9d7c-4669-915b-dfadbf3077e0",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "follow",
+      "slot": true,
+      "order": 1,
+      "since": 1795033789286,
+      "fit": true,
+      "placed": true,
+      "seen": 137.9,
+      "placedAt": 137.9
+    },
+    {
+      "id": "c63d62da-e9c7-4ee2-9840-cade0736ab15",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "lead",
+      "slot": true,
+      "order": 2,
+      "since": 1795033797927,
+      "fit": true,
+      "placed": true,
+      "seen": 146.4,
+      "placedAt": 146.4
+    },
+    {
+      "id": "e2e01000-516c-4a34-81ef-70fb4a030bf2",
+      "type": "snippet",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "card",
+      "slot": true,
+      "order": 2,
+      "since": 1795033804832,
+      "fit": true,
+      "placed": true,
+      "seen": 153.7,
+      "placedAt": 153.7
+    },
+    {
+      "id": "56be9a96-b4ef-4cd8-ac68-742dc2ef7113",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "follow",
+      "slot": true,
+      "order": 2,
+      "since": 1795033804937,
+      "fit": true,
+      "placed": true,
+      "seen": 153.7,
+      "placedAt": 153.7
+    },
+    {
+      "id": "c2efdacd-5031-4921-a500-2d045baec9e1",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "lead",
+      "slot": true,
+      "order": 3,
+      "since": 1795033816237,
+      "fit": true,
+      "placed": true,
+      "seen": 165,
+      "placedAt": 165
+    },
+    {
+      "id": "25c35ca7-5fd2-4345-8974-8ea423f7a50d",
+      "type": "flow",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "card",
+      "slot": true,
+      "order": 3,
+      "since": 1795033822471,
+      "fit": false,
+      "placed": true,
+      "seen": 171.1,
+      "placedAt": 171.1
+    },
+    {
+      "id": "066c9472-5df1-41a9-b766-03a0c9e7d48f",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "follow",
+      "slot": true,
+      "order": 3,
+      "since": 1795033822539,
+      "fit": true,
+      "placed": true,
+      "seen": 171.1,
+      "placedAt": 171.1
+    },
+    {
+      "id": "483f80d1-215c-4392-93e1-c79bfb4a41b9",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "card",
+      "slot": true,
+      "order": 4,
+      "since": 1795033831809,
+      "fit": false,
+      "placed": true,
+      "seen": 180.4,
+      "placedAt": 180.4
+    },
+    {
+      "id": "b1d31206-1d37-45ba-9e09-a571114dbae5",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "lead",
+      "slot": true,
+      "order": 4,
+      "since": 1795033831756,
+      "fit": true,
+      "placed": true,
+      "seen": 180.4,
+      "placedAt": 180.4
+    },
+    {
+      "id": "0f2a2055-172b-4cd7-b2ba-2b1fd1f89ca0",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "follow",
+      "slot": true,
+      "order": 4,
+      "since": 1795033831912,
+      "fit": true,
+      "placed": true,
+      "seen": 180.4,
+      "placedAt": 180.4
+    },
+    {
+      "id": "61a81b29-4ef3-48a4-85e0-2e100aa386ab",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i6",
+      "role": "lead",
+      "slot": true,
+      "order": 5,
+      "since": 1795033841020,
+      "fit": true,
+      "placed": true,
+      "seen": 189.7,
+      "placedAt": 189.7
+    },
+    {
+      "id": "40589747-2855-4d38-aac4-84a4ad2bf3d1",
+      "type": "explanation",
+      "sectionId": "1.1",
+      "itemId": "i6",
+      "role": "card",
+      "slot": true,
+      "order": 5,
+      "since": 1795033844114,
+      "placed": true,
+      "seen": 192.9,
+      "placedAt": 192.9
+    },
+    {
+      "id": "2a146e4a-1ad9-48d3-83c4-72067c3f3078",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i6",
+      "role": "follow",
+      "slot": true,
+      "order": 5,
+      "since": 1795033844192,
+      "fit": true,
+      "placed": true,
+      "seen": 192.9,
+      "placedAt": 192.9
+    },
+    {
+      "id": "36e55aab-3e2d-41fe-aee7-63b3669b2b4c",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "lead",
+      "slot": true,
+      "order": 6,
+      "since": 1795033854082,
+      "fit": true,
+      "placed": true,
+      "seen": 202.6,
+      "placedAt": 202.6
+    },
+    {
+      "id": "dc63a32c-d0ad-4487-829a-66febabe82ed",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "card",
+      "slot": true,
+      "order": 6,
+      "since": 1795033854165,
+      "fit": true,
+      "placed": true,
+      "seen": 202.6,
+      "placedAt": 202.6
+    }
+  ],
+  "log": [
+    {
+      "t": 49,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": null,
+      "fellBack": false,
+      "status": 400,
+      "stopReason": null,
+      "outcome": "failed",
+      "error": "http_error",
+      "durationMs": 236
+    },
+    {
+      "t": 88.1,
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 3,
+      "estimate_usd": [
+        0.069914,
+        0.06979,
+        0.070324
+      ],
+      "cap_usd": 0.1,
+      "ms": 39481,
+      "outcome": "ok",
+      "ops": 22
+    },
+    {
+      "t": 102.3,
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 3,
+      "repairs": 1,
+      "usd": 0.066749,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    },
+    {
+      "t": 115.3,
+      "event": "learn_section_compose",
+      "section": "1.1",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.03664,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 119.9,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.016021,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 123.9,
+      "event": "learn_artifact_invalid",
+      "primitive": "explanation",
+      "attempt": 0,
+      "error": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes.7: An outcome cannot have outgoing edges)"
+    },
+    {
+      "t": 126.7,
+      "event": "explanation_diagram_smell",
+      "kind": "bare_maths",
+      "label": "Apply lm_head to last position"
+    },
+    {
+      "t": 137.2,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i2",
+      "command": "notebook",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.025321,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 142.4,
+      "event": "learn_model",
+      "task": "learn_section",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "soyUshlcjtJZ",
+      "served": "claude-sonnet-5-5",
+      "fellBack": false,
+      "status": 200,
+      "stopReason": "tool_use",
+      "outcome": "completed",
+      "error": null,
+      "durationMs": 4874
+    },
+    {
+      "t": 146.1,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i3",
+      "command": "code",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.028824,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 164.3,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i4",
+      "command": "diagram",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.038357,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 179.9,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i5",
+      "command": "notebook",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.016111,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 189.1,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i6",
+      "command": "explanation",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.01749,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 202.1,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.029691,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

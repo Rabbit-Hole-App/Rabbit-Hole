@@ -61,32 +61,27 @@ export function checkFlow(input) {
   return { lead, follow, errors, leadDefault };
 }
 
-// Section card titles (owner 2026-11-18 11:50, section-card-titles-spec.md): the card, its lead and its follow each get a title. A title is never a reason to refuse:
-// missing, over 60 characters or naming a path falls back with no repair turn. Code keeps its label; video, Wikipedia, paper and web page keep the source's title.
+// Section card titles (owner 2026-11-18 11:50, section-card-titles-spec.md): the card gets a title; the lead and follow are canvas text now and untitled (learn-walk-spec §3).
+// A title is never a reason to refuse: missing, over 60 characters or naming a path falls back with no repair turn. Code keeps its label; video, Wikipedia, paper and web page
+// keep the source's title.
 export const TITLED = new Set(['explanation', 'notebook', 'document', 'diagram', 'graph']);
 const TITLE_CHARS = 60, TITLE_RULE = 'A title in plain words, at most 6 words, that says what this card is about. No file names.';
 const titleField = what => ({ type: 'string', description: `${what}: ${TITLE_RULE}` });
-const firstSentence = text => String(text || '').trim().split(/(?<=[.!?])\s/)[0];
 const goodTitle = value => { const title = str(value); return title && title.length <= TITLE_CHARS && !PROSE_PATH.test(title) ? title : ''; };
-// -> { title?, leadTitle, followTitle? }
-export function itemTitles(input, { item, beat, section, lead, follow }) {
-  const titles = { leadTitle: goodTitle(input?.leadTitle) || cutTitle(firstSentence(lead), TITLE_CHARS) };
-  if (follow) titles.followTitle = goodTitle(input?.followTitle) || cutTitle(firstSentence(follow), TITLE_CHARS);
-  if (item.id === NOTES) titles.title = `Notes: ${section.title}`;
-  else if (TITLED.has(item.command)) titles.title = goodTitle(input?.title) || cutTitle(beat?.idea || item.request, TITLE_CHARS);
-  return titles;
+// -> { title } | {}
+export function itemTitles(input, { item, beat, section }) {
+  if (item.id === NOTES) return { title: `Notes: ${section.title}` };
+  return TITLED.has(item.command) ? { title: goodTitle(input?.title) || cutTitle(beat?.idea || item.request, TITLE_CHARS) } : {};
 }
 
 export const submitItemTool = (module, command = null) => ({
   name: 'submit_item',
-  description: 'Return this item: the lead before the card, the follow after it, their titles, and the fields of its tool.',
+  description: 'Return this item: the lead before the card, the follow after it, and the fields of its tool.',
   input_schema: {
     type: 'object', additionalProperties: false, required: ['lead', ...(module.required || [])],
     properties: {
       lead: { type: 'string', description: `One to three short paragraphs before the card: what to look at and why it follows from the previous beat. At most ${LEAD_WORDS} words.` },
       follow: { type: 'string', description: `After the card, when it needs one: what they just saw and the hand-over to the next beat. At most ${FOLLOW_WORDS} words.` },
-      leadTitle: titleField('The lead\'s title'),
-      followTitle: titleField('The follow\'s title, when there is a follow'),
       ...(TITLED.has(command) ? { title: titleField('The card\'s title') } : {}),
       ...(module.fields || {}),
     },
@@ -177,7 +172,7 @@ export async function runMake(env, { actor, snapshot, repo }, body, { callModel 
       let checked = null;
       try { checked = await module.validate(input, ctx); } catch (error) { checked = { error: `the item could not be checked: ${String(error?.message || error).slice(0, 200)}` }; }
       const errors = [...flow.errors, ...(checked?.error ? [checked.error] : checked?.perform ? [] : ['the tool returned nothing to make'])];
-      return errors.length ? { errors } : { value: { lead: flow.lead, follow: flow.follow, leadDefault: flow.leadDefault, perform: checked.perform, record: checked.record || null, titles: itemTitles(input, { item, beat, section, lead: flow.lead, follow: flow.follow }) } };
+      return errors.length ? { errors } : { value: { lead: flow.lead, follow: flow.follow, leadDefault: flow.leadDefault, perform: checked.perform, record: checked.record || null, titles: itemTitles(input, { item, beat, section }) } };
     },
   });
   const usd = Number(out.usage.usd.toFixed(6));
@@ -186,7 +181,7 @@ export async function runMake(env, { actor, snapshot, repo }, body, { callModel 
   if (!out.ok) return skip(skipNote(item.command), { reason: out.failed, errors: out.errors.slice(0, 6), usd, calls: out.usage.calls });
   const { lead, follow, leadDefault, perform, record: extra, titles } = out.ok;
   await record({ itemId: item.id, command: item.command, lead, follow, ...titles, ...(leadDefault ? { leadDefault } : {}), perform, record: extra, usd, calls: out.usage.calls, model: LEARN_TASKS.learn_section.model, layers: composed.layers, searches: ctx.turn.searches });
-  return json({ item: { itemId: item.id, command: item.command, lead, follow, ...titles }, perform, next });
+  return json({ item: { itemId: item.id, command: item.command, lead: leadDefault ? '' : lead, follow, ...titles }, perform, next }); // no filler: a missing lead draws nothing (learn-walk-spec §3)
 }
 
 const ID = v => typeof v === 'string' && v.length >= 1 && v.length <= 200;

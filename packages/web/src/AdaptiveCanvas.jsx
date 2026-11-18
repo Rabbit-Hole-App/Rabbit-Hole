@@ -120,7 +120,7 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
-import { SPACING, assumedHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
+import { SPACING, assumedHeight, assumedTextHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -1254,7 +1254,7 @@ function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, on
   const ink = sticky ? (value => value) : inkAware;
   return (<>
     <div data-block data-item-id={item.id} data-text-mode={item.kind === 'text' ? item.mode || 'text' : undefined}
-      style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky
+      style={{ left: item.x, top: item.y, opacity: item.opacity, ...(item.learn?.slot && !item.learn.placed ? { visibility: 'hidden' } : {}), ...(sticky
         // A note grows with its words rather than clipping them; its corner sets the least it can be.
         ? { width: item.w || 160, minHeight: item.h || 160, background: stickyTone(item.color).bg, borderColor: stickyTone(item.color).border, color: stickyTone(item.color).text, '--sticky-ph': stickyTone(item.color).placeholder }
         : { color: inkAware(item.color), ...textStyle(item), ...(code ? { minWidth: item.w || 96, width: 'max-content' } : item.w ? { width: item.w } : { width: 'max-content' }), ...(item.h ? { minHeight: item.h } : {}) }) }}
@@ -2438,13 +2438,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return true;
       },
       // Whether a card has been drawn and measured (insertCodeExplain's `beside` needs its box).
-      measured: id => !!boundsRef.current[id],
+      measured: id => !!boundsRef.current[id] || itemsRef.current.some(item => item.id === id && item.learn),
+      // A Learn text item (learn-walk-spec §3, §4): a lead, a follow, a chapter (h1) or a section (h2) title in the plan's column, hidden until Position puts it on its slot.
+      insertLearnText: ({ text, level = 'body', learn }) => {
+        if (readOnlyRef.current || !String(text || '').trim()) return null;
+        const id = crypto.randomUUID(), at = viewCenter();
+        setItems(previous => [...previous, { id, kind: 'text', level, x: at.x, y: at.y, w: COLUMN, text: String(text).trim(), learn }]);
+        return id;
+      },
+      learnItems: () => itemsRef.current.filter(item => item.learn),
       // Learn sections, Position (learn-position.js): whether the column has put a section card on its slot (perform waits for it), the camera for a card just placed
       // (spec 3: the section's first card is centred once; a later card is followed only while the previous one is on screen; zoom unchanged), the dev row Arrange
       // section (the cards of one section made before Position join the column once, one undo step; a dragged card keeps its place) and the dev spacing toggle.
-      learnPlaced: id => !!blocksRef.current.find(block => block.id === id)?.learn?.placed,
+      learnPlaced: id => !!(blocksRef.current.find(block => block.id === id) || itemsRef.current.find(item => item.id === id))?.learn?.placed,
       learnReveal: (id, previous = null) => {
-        const box = boundsRef.current[id], before = previous && boundsRef.current[previous];
+        const box = learnBoxOf(id), before = previous && learnBoxOf(previous);
         if (!box || !surface.current) return false;
         if (!previous) { centerOn(box); return true; }
         if (!before || !framesAnyBlock(viewRef.current, controlArea(), [before])) return false;
@@ -2932,12 +2940,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // what follows, and the camera already knows how to land on one. A contents entry frames the heading it links; one
       // with no canvas heading has nothing to frame.
       showSection: id => {
-        const linked = blocksRef.current.filter(block => block.learn?.slot && block.tocLinks?.includes(id)).map(block => boundsRef.current[block.id]).filter(Boolean);
-        if (linked.length) { showLearnBoxes(linked); return; }
+        const cards = blocksRef.current.filter(block => block.learn?.slot && block.tocLinks?.includes(id)), linked = cards.map(block => boundsRef.current[block.id]).filter(Boolean);
+        // A section row: its h2 title (learn-walk-spec §4) and its cards.
+        const title = cards.length && itemsRef.current.find(item => item.learn?.role === 'section' && item.learn.sectionId === cards[0].learn.sectionId);
+        if (linked.length) { showLearnBoxes(title ? [learnTextBox(title), ...linked] : linked); return; }
         // A chapter row (spec 4): its heading card, found by the row's number ("2") as learn.sectionId; the contents of an accepted plan number as the plan does.
         const path = sectionChoices(outlineFrom(blocksRef.current, tocRef.current)).find(choice => choice.id === id)?.path;
-        const chapter = path && !path.includes('.') ? blocksRef.current.find(block => block.learn?.role === 'chapter' && block.learn.sectionId === path) : null;
-        if (chapter && boundsRef.current[chapter.id]) { showLearnBoxes([boundsRef.current[chapter.id]]); return; }
+        const chapter = path && !path.includes('.') ? [...itemsRef.current, ...blocksRef.current].find(block => block.learn?.role === 'chapter' && block.learn.sectionId === path) : null;
+        if (chapter && learnBoxOf(chapter.id)) { showLearnBoxes([learnBoxOf(chapter.id)]); return; }
         const heading = tocHeading(tocRef.current, id);
         if (heading == null) return;
         const steps = presentSteps(blocksRef.current, boundsRef.current);
@@ -5537,7 +5547,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const block = blocksRef.current.find(item => item.id === id);
       if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy); continue; }
       const item = itemsRef.current.find(entry => entry.id === id);
-      if (item) { setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy } : entry)); continue; }
+      if (item) { setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy, ...(entry.learn?.slot ? { at: true } : {}) } : entry)); continue; } // a dragged Learn text item keeps its place, as a dragged card does
       const shape = shapesRef.current.find(entry => entry.id === id);
       if (shape) setShapes(previous => previous.map(entry => entry.id === id ? { ...entry, x1: entry.x1 + ddx, y1: entry.y1 + ddy, x2: entry.x2 + ddx, y2: entry.y2 + ddy } : entry));
     }
@@ -5806,12 +5816,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // step: the card's insertion was the step.
   const [learnTick, setLearnTick] = useState(0);
   const learnGuard = useRef(learnGuardMemory());
+  // A Learn text item's box: where it is, the column's width, the height it is drawn at (assumed until it renders).
+  const learnTextBox = item => {
+    const node = itemsLayer.current?.querySelector(`[data-item-id="${CSS.escape(item.id)}"]`);
+    return { x: item.x, y: item.y, w: item.w || node?.offsetWidth || COLUMN, h: node?.offsetHeight || assumedTextHeight(item.text) };
+  };
+  const learnBoxOf = id => { const item = !boundsRef.current[id] && itemsRef.current.find(entry => entry.id === id && entry.learn); return item ? learnTextBox(item) : boundsRef.current[id] || null; };
   useLayoutEffect(() => {
     if (readOnly || localCopy) return;
-    const plan = blocks.filter(block => block.learn?.slot);
-    if (!plan.length) return;
+    const plan = blocks.filter(block => block.learn?.slot), texts = items.filter(item => item.kind === 'text' && item.learn?.slot);
+    if (!plan.length && !texts.length) return;
     const natural = block => (block.type === 'explanation' ? explanationCardWidth(block) : block.type === 'doc' ? DOC_CARD_SIZE.w : block.type === 'repo-code' ? CODE_CARD.w : BLOCK_TYPES[block.type]?.width) || COLUMN;
-    const W = columnWidth(plan.map(natural)), sizes = new Map();
+    const W = columnWidth(plan.length ? plan.map(natural) : [DOC_CARD_SIZE.w]), sizes = new Map();
+    // Learn text items (learn-walk-spec §3, §4: leads, follows, chapter and section titles) take the column's width once, then stand in it like cards.
+    const narrow = texts.filter(item => item.w !== W);
+    if (narrow.length) { const ids = new Set(narrow.map(item => item.id)); setItems(previous => previous.map(item => (ids.has(item.id) ? { ...item, w: W } : item))); return; }
+    // The guard reads a text item's position as its offsets: dx, dy = x, y (its box is always where it is drawn).
+    const guarded = [...plan, ...texts.map(item => ({ id: item.id, type: 'text', dx: item.x, dy: item.y, learn: item.learn }))], textIds = new Set(texts.map(item => item.id));
     for (const block of plan) {
       if (block.learn.sized) continue;
       const w = cardWidth(natural(block), W), h = fixedHeight(block, W), fit = fitsContent(block);
@@ -5823,20 +5844,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const guard = learnGuard.current;
     let brake = null;
     const issue = wanted => {
-      const { moves, fights, loop, wait: held } = guardLearnMoves(wanted, plan, guard);
+      const { moves, fights, loop, wait: held } = guardLearnMoves(wanted, guarded, guard);
       for (const { id, ours, block } of fights) console.warn(JSON.stringify({ event: 'learn_position_fight', id, type: block.type, ours, target: wanted.get(id), box: bounds[id] || null, offsets: { dx: block.dx || 0, dy: block.dy || 0 }, at: block.at || null, cardLayout: block.cardLayout || null, learn: block.learn }));
-      if (loop) console.warn(JSON.stringify({ event: 'learn_position_loop', ids: loop, types: loop.map(id => plan.find(block => block.id === id)?.type), trace: guard.trace.filter(entry => loop.includes(entry.id)).slice(-12) }));
+      if (loop) console.warn(JSON.stringify({ event: 'learn_position_loop', ids: loop, types: loop.map(id => guarded.find(block => block.id === id)?.type), trace: guard.trace.filter(entry => loop.includes(entry.id)).slice(-12) }));
       if (held != null) brake = held;
-      if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+      const cardMoves = [...moves].filter(([id]) => !textIds.has(id)), textMoves = new Map([...moves].filter(([id]) => textIds.has(id)));
+      if (cardMoves.length) { const patch = new Map(cardMoves); setBlocks(previous => previous.map(block => (patch.has(block.id) ? { ...block, ...patch.get(block.id) } : block))); }
+      if (textMoves.size) setItems(previous => previous.map(item => { const move = textMoves.get(item.id); return move ? { ...item, x: move.dx, y: move.dy, learn: move.learn } : item; }));
       return moves.size;
     };
     if (sizes.size && issue(sizes)) return;
     // Where each card is drawn now (canvas-slots.js drawnBox): the measured box, moved by any offset written since it was measured.
-    const drawn = new Map(plan.map(block => [block.id, drawnBox(bounds[block.id] || null, block)]));
-    const cards = plan.map(block => { const box = drawn.get(block.id); return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
-    const others = inlineCanvas.obstacles(columnOwnIds(plan, links)), { targets, origin } = learnLayout({ cards, others, W });
+    const drawn = new Map([...plan.map(block => [block.id, drawnBox(bounds[block.id] || null, block)]), ...texts.map(item => [item.id, learnTextBox(item)])]);
+    const cards = [...plan, ...texts].map(block => { const box = drawn.get(block.id); return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
+    const others = inlineCanvas.obstacles(columnOwnIds([...plan, ...texts], links)), { targets, origin } = learnLayout({ cards, others, W });
     const moves = new Map();
-    for (const block of plan) {
+    for (const block of guarded) {
       const target = targets.get(block.id), box = drawn.get(block.id);
       if (!target || !box) continue;
       let ddx = Math.round(target.x - box.x), ddy = Math.round(target.y - box.y);
@@ -5855,7 +5878,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!next.length) return undefined;
     const timer = setTimeout(() => setLearnTick(tick => tick + 1), Math.min(...next) + 50);
     return () => clearTimeout(timer);
-  }, [bounds, blocks, learnTick, readOnly, localCopy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bounds, blocks, items, learnTick, readOnly, localCopy]); // eslint-disable-line react-hooks/exhaustive-deps
   // A TOC click on a section with cards (spec 3, 5): the camera to the top of those cards, centred on the column, zoom unchanged unless the view is narrower than the column.
   const showLearnBoxes = boxes => {
     const box = union(boxes), top = boxes.reduce((a, b) => (b.y < a.y ? b : a)), area = controlArea(), room = area.right - area.left, need = top.w + 2 * SPACING.card;
