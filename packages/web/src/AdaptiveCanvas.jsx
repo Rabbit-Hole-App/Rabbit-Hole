@@ -120,7 +120,7 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
-import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
+import { SPACING, assumedHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -5834,7 +5834,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Where each card is drawn now (canvas-slots.js drawnBox): the measured box, moved by any offset written since it was measured.
     const drawn = new Map(plan.map(block => [block.id, drawnBox(bounds[block.id] || null, block)]));
     const cards = plan.map(block => { const box = drawn.get(block.id); return { id: block.id, learn: { ...block.learn, pinned: !!block.at }, w: box?.w ?? block.w ?? W, h: box?.h ?? assumedHeight(block, W), box, placed: !!block.learn.placed }; });
-    const others = inlineCanvas.obstacles(plan.map(block => block.id)), { targets, origin } = learnLayout({ cards, others, W });
+    const others = inlineCanvas.obstacles(columnOwnIds(plan, links)), { targets, origin } = learnLayout({ cards, others, W });
     const moves = new Map();
     for (const block of plan) {
       const target = targets.get(block.id), box = drawn.get(block.id);

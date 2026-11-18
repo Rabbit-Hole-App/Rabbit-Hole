@@ -127,6 +127,9 @@ export function learnLayout({ cards, others = [], W = W_MAX, space = spacing() }
 // stays where it is. And whatever the cards, the effect writes at most LEARN_LOOP.count times within LEARN_LOOP.ms (a brake): a write past that waits (`wait`, ms) for the next
 // tick, so a chain of layout-effect updates always ends well inside React's 50 nested updates.
 // -> { moves: the patches to write, fights: [{ id, ours, block }], loop: ids newly stopped | null, wait: ms until the brake lifts | null }
+// What the column must not count as an obstacle: its own cards and every connector that ends on one (a two-part code item's link, a pairing). Such a connector moves with
+// the column, so counting it shifted the column right by one slot on every pass (8878 build of 1.1, 2026-11-18 12:20: learn_position_loop, origin +1360 a pass).
+export const columnOwnIds = (plan, links = []) => { const ids = new Set(plan.map(block => block.id)); return [...ids, ...links.filter(link => ids.has(link.from) || ids.has(link.to)).map(link => link.id)]; };
 export const LEARN_LOOP = { count: 10, ms: 1000 };
 export function guardLearnMoves(wanted, blocks, memory, now = Date.now()) {
   const moves = new Map(), fights = [], loop = [], recent = list => (list || []).filter(t => now - t < LEARN_LOOP.ms);
