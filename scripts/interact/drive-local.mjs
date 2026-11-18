@@ -165,7 +165,7 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
         r.files.nodes = save(`${tag}-nodes.json`, states);
       }
       if (TIMES.length) {
-        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), moments = [];
+        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), moments = [], layoutMeasures = [];
         for (const [gi, group] of (GROUPS.length ? GROUPS : ['']).entries()) {
         if (group) for (const pair of group.split(',')) { const [label, value] = pair.split('='); await card.locator(`input[type="range"][aria-label="${label}"]`).first().fill(value); }
         await page.waitForTimeout(600);
@@ -173,12 +173,16 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
         for (const [k, t] of TIMES.entries()) {
           await scrub.fill(String(t)); await page.waitForTimeout(700);
           await card.screenshot({ path: `${OUT}/${tag}${sfx}-t${k + 1}.png` }); await page.screenshot({ path: `${OUT}/${tag}${sfx}-page-t${k + 1}.png` }); // the card element's own shot is clipped to the viewport; the page shot shows what the owner sees
+          if (k === 0 || t === 3) layoutMeasures.push({ settings: group, time: t, ...(await card.evaluate(c => { const box = e => { if (!e) return null; const b = e.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; }, frame = c.querySelector('[data-program-frame]'), svg = frame?.querySelector('svg'); const objects = {};
+            for (const g of c.querySelectorAll('[data-animation-object]')) { const id = g.getAttribute('data-animation-object'); if (/^(value\.|formula|note|label\.|support|ball\.|string\.|now|dot\.)/.test(id)) objects[id] = box(g); }
+            const figure = c.querySelector('[data-frame-figure="diagram"] svg'); const scene = c.querySelector('[data-interact-scene]'), rows = [...c.querySelectorAll('[data-animation-transport], [data-scene-controls]')].map(box);
+            return { card: box(c), scene: box(scene), frame: box(frame), svg: box(svg), figure: box(figure), reset: box(c.querySelector('[data-scene-reset]')), resetCell: box(c.querySelector('[data-interact-reset-cell]')), heading: !!c.querySelector('[data-interact-heading]'), readoutsRow: !!c.querySelector('[data-interact-readouts]'), controlRows: rows, sliders: [...c.querySelectorAll('input[type="range"]')].map(box), objects, viewport: { w: innerWidth, h: innerHeight } }; })) });
           moments.push({ settings: group, text: (await card.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(-260), time: t, scrub: await scrub.inputValue(), box: await card.boundingBox(), fit: await card.evaluate(e => ({ scrollHeight: e.scrollHeight, clientHeight: e.clientHeight, scrollWidth: e.scrollWidth, clientWidth: e.clientWidth })), nodes: await card.locator('[data-tutor-node]').evaluateAll(els => els.map(e => { const b = e.getBoundingClientRect(); return { id: e.getAttribute('data-tutor-node'), onPath: e.hasAttribute('data-tutor-path'), cx: b.x + b.width / 2, cy: b.y + b.height / 2, x: b.x, y: b.y, w: b.width, h: b.height }; })),
             svg: await card.locator('[data-tutor-diagram]').first().evaluate(e => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, texts: [...e.querySelectorAll('text')].map(x => x.textContent), rects: [...e.querySelectorAll('rect')].map(x => ({ x: +x.getAttribute('x'), y: +x.getAttribute('y'), w: +x.getAttribute('width'), h: +x.getAttribute('height') })) }; }).catch(() => null),
             dot: await card.evaluate(c => [...c.querySelectorAll('*')].filter(e => [...e.attributes].some(a => /(^|[^a-z])dot($|[^a-z])/.test(a.value))).slice(0, 6).map(e => { const b = e.getBoundingClientRect(); return { tag: e.tagName, attrs: Object.fromEntries([...e.attributes].map(a => [a.name, String(a.value).slice(0, 60)])), cx: b.x + b.width / 2, cy: b.y + b.height / 2, w: b.width, h: b.height }; })) });
         }
         }
-        r.files.times = save(`${tag}-times.json`, moments);
+        r.files.times = save(`${tag}-times.json`, moments); r.files.layout = save(`${tag}-layout.json`, layoutMeasures);
       }
       if (SLIDER_TEST) {
         const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), x = card.locator(`input[type="range"][aria-label="${opt('slider-name', 'x')}"]`).first();

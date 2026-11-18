@@ -682,6 +682,8 @@ export const LAYOUTS = Object.freeze([
 ].map(layout => Object.freeze(layout)));
 
 export const SCENE = Object.freeze({ width: 640, height: 320 });
+// The reset cell (column 12, row 1): whatever slot covers it keeps it clear.
+export const RESET_CELL = Object.freeze([587, 0, 53, 40]);
 export const GRID = Object.freeze({ columns: 12, rows: 8, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 583 });
 // The sizes a frame text object draws today: the SDK gives a text object no typography, so every text is the theme's body style (TEACHING_TEXT.body). The doc's own sizes (section 2: label 13, number 17,
 // formula 14, note 13) stay available as DOC_TEXT_SIZES for a renderer that can draw them; a card checks its text at the size it is drawn at.
@@ -763,6 +765,14 @@ export function checkText(layoutId, { formula, note }, sizes = DRAWN_TEXT_SIZES)
     report[slot] = { lines, width: Math.round(textWidth(text, size) * 100) / 100, room: room(slot) };
   }
   return report;
+}
+
+// A box that lies inside a layout's panel and keeps the reset cell clear (amendment A: the plot figure is drawn in such a box).
+export function panelBoxOk(layoutId, [x, y, w, h]) {
+  const panel = layoutById(layoutId)?.slots.panel?.box;
+  if (!panel) return false;
+  const [px, py, pw, ph] = panel, [rx, ry, rw, rh] = RESET_CELL;
+  return x >= px && y >= py && x + w <= px + pw && y + h <= py + ph && (x + w <= rx || x >= rx + rw || y + h <= ry || y >= ry + rh);
 }
 
 // Section 7 point 5: the panel's picture is measured at build time (its natural size from the renderer, read only) and drawn at the width where its height fits the panel box. The frame's scale for a diagram is

@@ -92,3 +92,12 @@ test('the panel picture is drawn at the width where its height fits the box, lef
   assert.ok(fit.drawn.h <= 232 && fit.drawn.w <= 210); assert.equal(fit.x, 377); assert.ok(Math.abs(fit.drawn.h - 232) < 1);
   assert.deepEqual(fitPanel({ width: 100, height: 50 }, [0, 0, 400, 400]), { x: 150, y: 175, w: 100, drawn: { w: 100, h: 50 } });
 });
+
+test('a panel figure box lies inside the panel and keeps the reset cell clear', async () => {
+  const { panelBoxOk } = await import('./interact-layout.js');
+  assert.equal(panelBoxOk('side-by-side', [377, 40, 259, 196]), true);
+  assert.equal(panelBoxOk('side-by-side', [377, 4, 210, 232]), true);
+  assert.equal(panelBoxOk('side-by-side', [377, 4, 259, 196]), false); // covers the reset cell
+  assert.equal(panelBoxOk('side-by-side', [300, 40, 259, 196]), false); // leaves the panel
+  assert.equal(panelBoxOk('wide', [4, 40, 100, 100]), false); // a layout with no panel
+});

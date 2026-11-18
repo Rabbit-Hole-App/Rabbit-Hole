@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { DRAWN_TEXT_SIZES, checkText, fitValues, layoutById, pickLayout } from '../interact-layout.js';
+import { DRAWN_TEXT_SIZES, LayoutError, checkText, fitValues, layoutById, panelBoxOk, pickLayout } from '../interact-layout.js';
 import { textWidth } from '../tutor-diagrams/primitives.js';
 
 // Brief 33/34/35: the landing page's pendulum card ("What changes a pendulum's swing?"). Physics in the program: T = 2 pi sqrt(L / g), angle = theta0 cos(2 pi t / T); mass does not enter. A (the reference) is fixed,
 // B follows the mass and length sliders. The angle-against-time plot is an /explain coordinate-plot through sdk.diagram (its smooth line, fixed ranges).
-// Brief 34: each curve is sampled from its own period (a point at every quarter period, so every peak is exactly theta0, plus the end; the eighth-period midpoints too when the 25-sample limit allows). The spec has
-// the same structure at every setting and time (no annotations, long series names so the renderer always draws its legend and never on-curve names), so the plot never moves; the current time is a thin line and
-// one dot per curve drawn as frame objects at the plot's own coordinates (plot.frame, baked by scripts/interact/bake-pendulum-geometry.mjs).
+// Brief 35 amendment A: the panel is the frame's own plot figure (sdk.plot with axes: ticks 13 px, titles 16 px, drawn at full size, no legend with one series). A plot needs a series, so it gets one empty scatter series
+// (it draws nothing); the two curves, the time line and the two dots are frame objects in the figure's plot area (plot.area, read from plotArea in explain-program/FrameFigures.jsx by scripts/interact/bake-pendulum-geometry.mjs).
+// Each curve is a polyline of 161 evenly spaced points plus a point at every quarter period, so every peak is exactly theta0 and the curve reads as smooth at the shortest string (about 28 points a swing).
 // Brief 35: the card sits on the scene layout its plan declares (docs/features/interact/layout.md, interact-layout.js): the stage and the panel boxes, the values section, the formula and the note, all placed from
 // the layout's boxes when the program is built, every text measured against its box then (a text that does not fit is refused). ponytail: one card, no damping, small-angle start only.
 const text = max => z.string().min(1).max(max);
@@ -16,8 +16,8 @@ export const pendulumSchema = z.object({
   title: text(60), g: z.number().positive(), theta0: z.number().positive().max(60), duration: z.number().positive().max(60),
   reference: z.object({ mass: z.number().positive(), length: z.number().positive() }).strict(),
   limits: z.object({ maxMass: z.number().positive(), maxLength: z.number().positive() }).strict(),
-  plot: z.object({ title: text(60), time: text(20), angle: text(20), yMax: z.number().positive(), nameA: text(42), nameB: text(42),
-    fit: z.object({ x: z.number(), y: z.number(), w: z.number() }).strict(), frame: z.object({ left: z.number(), right: z.number(), top: z.number(), bottom: z.number() }).strict() }).strict(),
+  plot: z.object({ time: text(20), angle: text(20), yMax: z.number().positive(), box: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    area: z.object({ left: z.number(), right: z.number(), top: z.number(), bottom: z.number() }).strict() }).strict(),
   layout: answers, values: z.array(value).min(1).max(4), formula: text(40),
   notes: z.object({ same: text(60), mass: text(60), longer: text(60), shorter: text(60) }).strict(),
 }).strict();
@@ -30,6 +30,7 @@ export const states = () => ({});
 // Everything the layout decides, computed once when the program is built: the boxes, where each value's text stands, and the checks (LayoutError: text_too_wide, layout_contradiction).
 function place(data) {
   const id = pickLayout(data.layout, { hasPanel: true }), layout = layoutById(id), size = DRAWN_TEXT_SIZES;
+  if (!panelBoxOk(id, data.plot.box)) throw new LayoutError('panel_box', 'the plot figure lies inside the panel box and keeps the reset cell clear', ['plot', 'box']);
   const fitted = fitValues(id, data.values.map(entry => ({ label: entry.label, text: entry.sample })), size);
   for (const sentence of Object.values(data.notes)) checkText(id, { formula: data.formula, note: sentence }, size);
   const [fx] = layout.slots.formula.box, [nx] = layout.slots.note.box, baseline = ([, y, , h]) => y + h / 2 + 5;
@@ -53,14 +54,10 @@ const RAD=Math.PI/180,PERIOD=length=>2*Math.PI*Math.sqrt(length/T.g);
 const radius=mass=>10*Math.cbrt(mass)+4,kg=value=>String(Math.round(value*10)/10),metre=value=>String(Math.round(value*10)/10);
 // The stage box: the pivot bar 40 px under its top, and the longest string with the heaviest ball inside it with 6 px to spare.
 const SX=L.stage[0],SY=L.stage[1],SW=L.stage[2],PIVOT_Y=SY+40,SCALE=Math.floor((SY+L.stage[3]-6-radius(T.limits.maxMass)-PIVOT_Y)/T.limits.maxLength);
-// A point at every quarter period from 0 to the end, then the end; the midpoint of every pair too while the total stays within the kind's 25 samples.
-const sampleTimes=period=>{const quarter=period/4,base=[];for(let k=0;k*quarter<T.duration-1e-9;k++)base.push(k*quarter);base.push(T.duration);return base.length*2-1<=25?base.flatMap((value,i)=>i?[(base[i-1]+value)/2,value]:[value]):base;};
-// The renderer draws each curve as a Steffen monotone cubic through its samples (tutor-diagrams/plot-lines.js monotoneLinePath; the limiter is the same in data and pixel space), so the dot takes its height from that same curve.
-const spline=(xs,ys,t)=>{const n=xs.length,dx=[],s=[],m=[];for(let i=1;i<n;i++){dx.push(xs[i]-xs[i-1]);s.push((ys[i]-ys[i-1])/dx[i-1]);}
-for(let i=1;i<n-1;i++){const l=s[i-1],r=s[i],sign=Math.sign(l);m.push(sign!==Math.sign(r)?0:sign*Math.min(2*Math.abs(l),2*Math.abs(r),Math.abs((l*dx[i]+r*dx[i-1])/(dx[i-1]+dx[i]))));}
-m.unshift((3*s[0]-m[0])/2);m.push((3*s[n-2]-m[m.length-1])/2);
-let i=0;while(i<n-2&&t>xs[i+1])i++;const h=dx[i],u=(t-xs[i])/h,u2=u*u,u3=u2*u;
-return (2*u3-3*u2+1)*ys[i]+(u3-2*u2+u)*h*m[i]+(3*u2-2*u3)*ys[i+1]+(u3-u2)*h*m[i+1];};
+// The plot area is in frame px: time 0 at its left edge and the end at its right, +yMax at its top and -yMax at its bottom.
+const PB=T.plot.box,PA=T.plot.area,round=value=>Math.round(value*100)/100,X=time=>PA.left+time/T.duration*(PA.right-PA.left),Y=angle=>PA.bottom-(angle+T.plot.yMax)/(2*T.plot.yMax)*(PA.bottom-PA.top);
+// 161 evenly spaced times and a time at every quarter period (so each peak and trough is exactly theta0), in order.
+const sampleTimes=period=>{const all=[];for(let i=0;i<=160;i++)all.push(i*T.duration/160);for(let k=1;k*period/4<T.duration-1e-9;k++)all.push(k*period/4);all.sort((a,b)=>a-b);return all.filter((value,i)=>!i||value-all[i-1]>1e-6);};
 // A value's look by its kind: live (changes every frame) in B's own hue, set (changes when a control moves) in plain ink, fixed (never) in plain ink at 60%.
 const LOOK={live:{role:'warning',opacity:1},set:{role:'neutral',opacity:1},fixed:{role:'neutral',opacity:0.6}};
 export function evaluate({inputs,time}){
@@ -73,13 +70,9 @@ export function evaluate({inputs,time}){
   };
   swing('A',Math.round(SX+0.28*SW),ref.length,ref.mass,angleA,'input');
   swing('B',Math.round(SX+0.68*SW),length,mass,angleB,'warning');
-  const curve=(label,period)=>{const times=sampleTimes(period);return {label:label,kind:'line',samples:{x:times.map(value=>Math.round(value*1e4)/1e4),y:times.map(value=>Math.round(T.theta0*Math.cos(2*Math.PI*value/period)*1e3)/1e3)}};};
-  const curveA=curve(T.plot.nameA,periodA),curveB=curve(T.plot.nameB,periodB),drawn=c=>spline(c.samples.x,c.samples.y,t);
-  const spec={version:1,diagram:{kind:'coordinate-plot',title:T.plot.title,x:{label:T.plot.time,min:0,max:T.duration,unit:'s'},y:{label:T.plot.angle,min:-T.plot.yMax,max:T.plot.yMax,unit:'°'},
-    series:[curveA,curveB]}};
-  objects.push(sdk.diagram(spec,{x:T.plot.fit.x,y:T.plot.fit.y,w:T.plot.fit.w}));
-  const F=T.plot.frame,nowX=F.left+t/T.duration*(F.right-F.left),at=angle=>F.top+(T.plot.yMax-angle)/(2*T.plot.yMax)*(F.bottom-F.top);
-  objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:'input'}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:'warning'}));
+  objects.push(sdk.plot('angle.plot',{x:PB[0],y:PB[1],w:PB[2],h:PB[3],axes:{x:{label:T.plot.time,min:0,max:T.duration,unit:'s'},y:{label:T.plot.angle,min:-T.plot.yMax,max:T.plot.yMax,unit:'°'}},series:[{label:'Angle',kind:'scatter',points:[]}]}));
+  const curve=(id,period,role)=>sdk.polyline(id,sampleTimes(period).map(value=>[round(X(value)),round(Y(T.theta0*Math.cos(2*Math.PI*value/period)))]),{role:role}),nowX=round(X(t));
+  objects.push(curve('curve.A',periodA,'input'),curve('curve.B',periodB,'warning'),sdk.line('now',nowX,PA.top,nowX,PA.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,round(Y(angleA)),12,{role:'input'}),sdk.circle('dot.B',nowX,round(Y(angleB)),12,{role:'warning'}));
   const quantity={angleB:angleB,periodA:periodA,periodB:periodB};
   L.values.forEach((entry,k)=>{const look=LOOK[entry.kind],shown=quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);
     objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:'neutral'}),sdk.text('value.'+k+'.label',entry.labelX,entry.y,entry.label,look),sdk.text('value.'+k+'.number',entry.numberX,entry.y,shown,{align:'middle',role:look.role,opacity:look.opacity}));});
