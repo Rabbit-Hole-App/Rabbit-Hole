@@ -5839,8 +5839,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const spot = frame && { x: Math.round(frame.left + frame.width / 2), y: Math.round((header ? header.bottom : frame.top) + 8) };
     if (spot) setWalkSpot(spot);
     // The stop's box whole in the view below the pill (owner 2026-11-18 14:15): the card and the words above and below it, zoomed out when they do not fit at 1.
-    const area = controlArea(), clear = spot ? spot.y + WALK_PILL_H + 8 - frame.top : area.top;
-    glideTo({ ...viewRef.current, ...walkCamera(walkBox(card, texts), { ...area, top: Math.max(area.top, clear) }, SPACING.card) }, true);
+    // Clear of the pill above and of the canvas's bottom strip (the composer and its suggestions), which float over the surface.
+    const area = controlArea(), clear = spot ? spot.y + WALK_PILL_H + 8 - frame.top : area.top, strip = bottomStrip.current?.getBoundingClientRect();
+    const floor = strip?.height ? strip.top - frame.top : area.bottom;
+    glideTo({ ...viewRef.current, ...walkCamera(walkBox(card, texts), { ...area, top: Math.max(area.top, clear), bottom: Math.min(area.bottom, floor) }, SPACING.card) }, true);
     setSelection([id]);
   };
   const walkApi = {
