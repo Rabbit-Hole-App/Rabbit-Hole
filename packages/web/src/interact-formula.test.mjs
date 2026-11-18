@@ -125,7 +125,7 @@ test('exprToJs: numeric literals, the whitelisted names, + - * / and parentheses
 
 // A minimal valid plan shape is expensive to write here; the plan-level checks run on the three toss fixtures (interact-plan-formulas.test.mjs); this keeps the module's own contract.
 test('the template roles table', () => {
-  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts', 'stepper-brief', 'stepper-standard', 'stepper-deep']);
+  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts', 'stepper-brief', 'stepper-standard', 'stepper-deep', 'stepper-tree-trace', 'stepper-tree-motion', 'stepper-vote-motion', 'stepper-pendulum']);
   assert.deepEqual(TEMPLATE_ROLES['one-body'].roles, ['height', 'velocity', 'acceleration']);
   assert.deepEqual(TEMPLATE_ROLES['two-lane'], { lanes: 2, roles: ['height', 'velocity', 'acceleration'] });
   assert.deepEqual(TEMPLATE_ROLES['body-plot'].roles, ['height', 'velocity', 'acceleration', 'force', 'plotted']);

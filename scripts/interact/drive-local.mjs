@@ -23,7 +23,8 @@ const check = flag('check') || flag('check-browser'), promptsFile = opt('prompts
 const BASE = opt('base', 'http://127.0.0.1:8878').replace(/\/$/, ''), EMAIL = opt('email', 'owner-interact-ml@example.com');
 const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b27')), CANVAS_FILE = opt('canvas-file', `${SPEC_DIR}/ml-canvas.json`);
 // brief 31: --steps <n> advances the card's step slider n-1 times after the card screenshot, saving <id>-stateK.png per state and every flow node's rendered box in <id>-nodes.json.
-// brief 32: --times 0.6,1.8,3 sets the card's time scrubber to each moment (a timed card), saving <id>-t<k>.png, the diagram's SVG and every flow node's box in <id>-times.json; --slider-test plays the card, then moves its x slider to 2 and records what changed.
+// brief 32: --times 0.6,1.8,3 sets the card's time scrubber to each moment (a timed card), saving <id>-t<k>.png, the diagram's SVG and every flow node's box in <id>-times.json; --slider-test plays the card, then moves its x slider to 2 (--slider-name "B length" --slider-value 1.5 for another) and records what changed.
+// brief 34: with --times the card is re-found after a reload of the saved canvas and <id>-visible.json lists every probe point of the card that something else covers.
 // brief 33: --settings "B mass=2,B length=1;B mass=1,B length=2" sets the card's sliders (by their aria-label) before each run of --times; files get -s<k> in their names.
 const GROUPS = opt('settings', '').split(';').filter(Boolean), TIMES = opt('times', '').split(',').filter(Boolean).map(Number), SLIDER_TEST = flag('slider-test'), STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
 if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
@@ -145,8 +146,15 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
   if (!r.jobId) { r.jobId = job?.id ?? null; }
   Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s'), network: end ? undefined : net.splice(0) });
   if (end?.stage === 'ready') {
-    const fresh = page.locator('[data-program-card]:not([data-seen])'), card = await fresh.count() ? fresh.last() : page.locator('[data-program-card]').last();
-    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`;
+    const fresh = page.locator('[data-program-card]:not([data-seen])');
+    let card = await fresh.count() ? fresh.last() : page.locator('[data-program-card]').last();
+    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded();
+      // brief 34: the view the chat leaves after Generate puts the card under the canvas toolbar; a fresh load of the saved canvas is the view the owner gets, with the whole card clear of it. (The new card is the last one on the fresh canvas.)
+      if (TIMES.length) {
+        await page.reload(); card = page.locator('[data-program-card]').last(); await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await page.waitForTimeout(1500);
+        r.files.visible = save(`${tag}-visible.json`, await card.evaluate(c => { const b = c.getBoundingClientRect(), covered = []; let n = 0; for (let i = 0; i <= 8; i++) for (let j = 0; j <= 6; j++) { const x = b.x + 12 + (b.width - 24) * i / 8, y = b.y + 12 + (b.height - 24) * j / 6, e = document.elementFromPoint(x, y); n++; if (!e || !c.contains(e)) covered.push({ x: Math.round(x), y: Math.round(y), by: e ? `${e.tagName}.${String(e.getAttribute('class') ?? '').slice(0, 40)}` : 'nothing' }); } return { box: { x: b.x, y: b.y, w: b.width, h: b.height }, viewport: { w: innerWidth, h: innerHeight }, pointsChecked: n, covered }; }));
+      }
+      await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`;
       if (STEPS > 1) {
         const slider = card.locator('input[type="range"]').first(), states = [];
         for (let k = 1; k <= STEPS; k++) {
@@ -173,12 +181,12 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
         r.files.times = save(`${tag}-times.json`, moments);
       }
       if (SLIDER_TEST) {
-        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), x = card.locator('input[type="range"][aria-label="x"]').first();
+        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), x = card.locator(`input[type="range"][aria-label="${opt('slider-name', 'x')}"]`).first();
         await scrub.fill('0'); await page.waitForTimeout(400);
         const callout = async () => (await card.innerText().catch(() => '')).replace(/\s+/g, ' ');
         const before = { time: await scrub.inputValue(), x: await x.inputValue(), text: await callout() };
         await card.getByRole('button', { name: /^Play$/ }).first().click().catch(() => {}); await page.waitForTimeout(1500);
-        const playing = { time: await scrub.inputValue() }; await x.fill('2'); await page.waitForTimeout(800);
+        const playing = { time: await scrub.inputValue() }; await x.fill(opt('slider-value', '2')); await page.waitForTimeout(800);
         const after = { time: await scrub.inputValue(), x: await x.inputValue(), text: await callout() }; await page.waitForTimeout(1500);
         r.files.sliderTest = save(`${tag}-slider-test.json`, { before, playing, afterMove: after, later: { time: await scrub.inputValue() } });
       }

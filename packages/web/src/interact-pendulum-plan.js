@@ -1,6 +1,7 @@
 // Brief 33 proof plan (owner local stack only): the landing page's pendulum card. A (1 kg, 1 m) is the reference; B follows two sliders. Built from the merge-sort plan's frozen skeleton (runtime tuple,
 // supporting fields); the timed pieces are written here. ponytail: pinned, one plan, no brief schema and no model fill.
 import { STEPPER_PLANS } from './interact-stepper-plans.js';
+import { PENDULUM_GEOMETRY } from './interact-pendulum-geometry.js';
 
 const lit = value => ({ op: 'literal', value });
 const TWO_PI = 6.283185307;
@@ -29,7 +30,7 @@ Object.assign(plan, {
 Object.assign(plan.scene, {
   description: 'Family stepper-states. Two pendulums drawn with frame primitives, an angle-against-time plot drawn by the plot renderer, two period readouts and a callout.\nA 640 px scene with an 8 s timeline and two number inputs.',
   template: 'stepper-pendulum', words: {}, slots: {}, readoutIds: ['periodA', 'periodB'],
-  data: { title: "What changes a pendulum's swing?", g: 9.81, theta0: 20, duration: 8, reference: { mass: 1, length: 1 }, plot: { title: 'Angle against time', time: 'Time', angle: 'Angle', yMax: 25 } },
+  data: { title: "What changes a pendulum's swing?", g: 9.81, theta0: 20, duration: 8, reference: { mass: 1, length: 1 }, plot: { title: 'Angle against time', time: 'Time', angle: 'Angle', yMax: 25, nameA: 'Pendulum A, the reference: 1 kg and 1 m', nameB: 'Pendulum B, set with the two sliders', frame: PENDULUM_GEOMETRY.plot } },
   entities: [{ id: 'pendulums', label: 'Pendulums', purpose: 'A, the reference, and B, the experiment, swinging side by side.' }, { id: 'plot', label: 'Angle plot', purpose: 'Each pendulum\'s angle against time, a marker on each curve at the current time.' }, { id: 'callout', label: 'What it shows', purpose: 'One sentence about what the current settings show.' }],
   quantities: [
     { id: 'mass', label: 'B mass', unit: 'kg', meaning: 'Mass of the swinging ball B.', reference: 'A is fixed at 1 kg.', formula: 'mass' },
