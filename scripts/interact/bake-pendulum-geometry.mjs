@@ -13,7 +13,7 @@ const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLAN
 const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { parseTutorDiagram, dropGenericUnits } = await load('tutor-diagrams/spec.js'), { layouts } = await load('tutor-diagrams/layouts.js'), { textWidth } = await load('tutor-diagrams/primitives.js');
 const { renderToStaticMarkup } = await import(pathToFileURL(join(SRC, '..', 'node_modules/react-dom/server.js')));
 
-const FRAME = { width: 640, height: 320 };
+const FRAME = { width: 640, height: 400 };
 const sdk = new Proxy({}, { get: (_, fn) => (...args) => ({ fn, args }) });
 const programOf = data => new Function('sdk', `${source({ geometry: { pendulum: data } }).replace('export function evaluate', 'function evaluate')}\nreturn evaluate;`)(sdk);
 const runner = data => { const program = programOf(data); return (length, time, mass = 1) => { const out = program({ inputs: { mass, length }, time }); return { out, objects: out.frame.args[0], diagram: out.frame.args[0].find(o => o.fn === 'diagram') }; }; };

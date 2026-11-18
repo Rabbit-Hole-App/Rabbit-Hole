@@ -510,3 +510,7 @@ One picture at full height on the left; a second picture top right, with the tex
 
 - How the most important values are chosen when a scene has more than four.
 - Whether JEV picks the layout.
+
+## Amendment E (owner, 2026-11-18): scene 640 x 400, ten grid rows
+
+The scene is 640 x 400 and the grid has 10 rows (cells stay 40 px tall); the box rule of section 1 is unchanged and the reset cell does not move. New cells (columns; rows): wide: stage 1-12; 1-8, values 1-12; 9, formula 1-5; 10, note 6-12; 10. Side-by-side and equal-split: stage 1-6; 1-8, panel 7-12; 1-8, values, formula and note as in wide. Stacked: stage 1-12; 1-4, panel 1-12; 5-8, values, formula and note as in wide. Tall: stage 1-7; 1-10, values 8-12; 1-4, formula 8-12; 5-7, note 8-12; 8-10. Tall-with-panel: stage 1-6; 1-10, panel 7-12; 1-6, values 7-12; 7-8, formula 7-12; 9, note 7-12; 10. The boxes in `interact-layout.js` (and its test) are the numbers; sections 1, 2 and 5 above still show the 640 x 320 / 8-row boxes of the first draft.
