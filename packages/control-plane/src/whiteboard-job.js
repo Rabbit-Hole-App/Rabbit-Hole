@@ -10,14 +10,14 @@
 // `authoring` with its generation lease (approval + deadline).
 // Then (W1.3), one alarm step at a time, each checkpointed on the job:
 //   authoring   one whiteboard_author call per scene (whiteboard-author.js), corrections <= 2 shared; the video's totals checked at the end
-//   narrating   one Fish call per narrated beat (whiteboard-tts.js), its MP3 checkpointed to R2 and measured from its frames
+//   narrating   one narrator call per narrated beat (whiteboard-tts.js), its MP3 checkpointed to R2 and measured from its frames
 //   timing      whiteboard-timing.js; an overrun scene's narration is rewritten once (a correction) and narrated again; still over: failed
 //   rendering   whiteboard-render-client.js, one segment; the artifacts pulled to R2, then captions, transcript and manifest written: ready
 // A failure says the 1.3 reason of its stage: the plan could not be written (planning, authoring), the narration could not be made
 // (narrating, timing), the drawing could not be rendered (rendering).
 //
 // Money: every model call is admitted on its own (spendTransport), feature 'artifact', category 'whiteboard': planning under prepKey, the
-// author under actionKey; every Fish call goes through fishSpendTransport under actionKey. A phase that fails is refunded by key
+// author under actionKey; every narrator call goes through elevenSpendTransport (narration-voice.js) under actionKey. A phase that fails is refunded by key
 // (refundActionByKey): prepKey before Generate, actionKey after. A supported or unsupported plan stays charged; a ready video is charged.
 //
 // Lease: a call's intent is stored before it is sent (inFlight, with `until`); its result is applied only while that same call is still the
@@ -34,7 +34,7 @@ import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
 import { RENDERER_VERSION, WHITEBOARD_CALL_MS, WHITEBOARD_LIMITS as L, WHITEBOARD_POLICY_VERSION, callWhiteboardRole, whiteboardRequest, whiteboardReservation, whiteboardStreaming } from './whiteboard-policy.js';
 import { manifestHash, planHash, validateManifest, validateResult, whiteboardVersions } from './whiteboard-schema.js';
-import { priceUsage } from './pricing-registry.js';
+import { narrationMicros } from './narration-voice.js';
 import { CONTEXT_CUT, FAILURE_PLAN, failureText, planLines, planStage, refusalText } from './whiteboard-plan.js';
 import { authorScene, rewriteScene } from './whiteboard-author.js';
 import { TTS_TIMEOUT_MS, narrateBeat } from './whiteboard-tts.js';
@@ -234,7 +234,7 @@ export class WhiteboardJobs {
       prompt: payload.prompt.trim(), context, durationSeconds, threadId: payload.threadId ?? null,
       stage: 'queued', attempt: 1, failure: null, unsupported: null, inFlight: null, refinement: null, title: null, plan: null, planHash: null,
       pendingProposal: null, proposal: null, approval: null, result: null, reservation: null, reported: null, reportDue: false,
-      counts: { plan: 0, author: 0, fish: 0 }, calls: [], prepKey: `wp${hex()}`, actionKey: `wg${hex()}`, artifactId: `wa_${hex()}`,
+      counts: { plan: 0, author: 0, narration: 0 }, calls: [], prepKey: `wp${hex()}`, actionKey: `wg${hex()}`, artifactId: `wa_${hex()}`,
       scenes: [], corrections: 0, rewritten: [], audio: {}, timing: null, render: null, pulled: null, resumeAt: 0, stageTime: {}, stageSince: now, swept: false,
       createdAt: now, updatedAt: now, deadline: now + L.jobDeadlineMs,
     };
@@ -439,15 +439,15 @@ export class WhiteboardJobs {
     return out;
   }
 
-  // One Fish call for one beat, under the same lease rule as paidCall: its intent stored first, applied only while it is still the running call.
-  async paidFish(job, audioKey, text) {
+  // One narrator call for one beat, under the same lease rule as paidCall: its intent stored first, applied only while it is still the running call.
+  async paidNarration(job, audioKey, text) {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      current.counts.fish = (current.counts.fish || 0) + 1;
-      const callKey = `${current.id}-fish-${current.calls.length + 1}`, now = Date.now();
-      current.inFlight = { key: callKey, role: 'fish', at: now, until: now + 2 * TTS_TIMEOUT_MS + LEASE_SLACK_MS };
-      current.calls.push({ key: callKey, role: 'fish', beat: audioKey, attempt: current.attempt, status: 'running', chars: text.length, costMicros: null, startedAt: now, endedAt: null });
+      current.counts.narration = (current.counts.narration || 0) + 1;
+      const callKey = `${current.id}-narration-${current.calls.length + 1}`, now = Date.now();
+      current.inFlight = { key: callKey, role: 'narration', at: now, until: now + 2 * TTS_TIMEOUT_MS + LEASE_SLACK_MS };
+      current.calls.push({ key: callKey, role: 'narration', beat: audioKey, attempt: current.attempt, status: 'running', chars: text.length, costMicros: null, startedAt: now, endedAt: null });
       await this.save(current);
       return callKey;
     });
@@ -458,9 +458,9 @@ export class WhiteboardJobs {
     const kept = await this.locked(async () => {
       const current = await this.get(job.id), call = current?.calls.find(c => c.key === key);
       if (!call || call.status !== 'running') return false;
-      // reconciling: Fish accepted the request and its audio never arrived; it may be charged and is not asked for again.
+      // reconciling: the narrator accepted the request and its audio never arrived; it may be charged and is not asked for again.
       Object.assign(call, { status: error ? (error.code === 'reconciling' ? 'unknown' : 'failed') : 'settled', error: error?.code ?? null, attempts: out?.attempts ?? error?.attempts ?? null,
-        costMicros: out ? priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: new TextEncoder().encode(text).length } }).micros : null, endedAt: Date.now() });
+        costMicros: out ? narrationMicros(text.length) : null, endedAt: Date.now() });
       current.inFlight = null;
       await this.save(current);
       return true;
@@ -512,7 +512,7 @@ export class WhiteboardJobs {
   async advance(job, work) {
     const stage = job.stage, attempt = job.attempt;
     const ctx = { env: this.env, tasks: this.tasks, bucket: learnMedia(this.env), fetch: (...a) => this.outbound(...a),
-      call: (role, spec) => this.paidCall(job, role, spec), narrate: (audioKey, text) => this.paidFish(job, audioKey, text) };
+      call: (role, spec) => this.paidCall(job, role, spec), narrate: (audioKey, text) => this.paidNarration(job, audioKey, text) };
     const out = await work(structuredClone(job), ctx);
     await this.locked(async () => {
       const current = await this.get(job.id);

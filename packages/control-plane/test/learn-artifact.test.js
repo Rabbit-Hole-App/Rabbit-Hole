@@ -185,13 +185,13 @@ test('one paid gate for every provider: no confirmed flag, no request', async ()
   const worker = (await import('node:fs')).readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
   for (const route of ['/api/learn/image', '/api/learn/tts']) {
     const handler = worker.slice(worker.indexOf(`path === '${route}'`));
-    // The provider call is the route's own request to an https provider (TTS wraps it in fishSpendTransport, so no 'await fetch(').
-    const provider = handler.indexOf("fetch('https://");
+    // The provider call is the route's own request to an https provider, or the narrator's one function (TTS calls speakNarration, so no 'await fetch(').
+    const provider = handler.search(/fetch\('https:\/\/|speakNarration\(/);
     assert.ok(provider > 0 && handler.indexOf('paidRefusal(body)') < provider, `${route} checks confirmation before the provider`);
   }
 });
 
-// fish.audio narration is paid in execution, and the shared contract says so.
+// ElevenLabs narration is paid in execution, and the shared contract says so.
 test('the contract marks narration paid', () => {
   assert.equal(primitive('narration').paid, true);
 });

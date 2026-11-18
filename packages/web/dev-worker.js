@@ -1,6 +1,7 @@
 import { inlineCodeRoute } from '../control-plane/src/inline-code-route.js';
 import { inlineImageJobsRoute } from '../control-plane/src/inline-image-jobs.js';
-import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
+import { paidSubmissionRefusal, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
+import { speakNarration } from '../control-plane/src/narration-voice.js';
 import { allowanceFirst, boundaryReply } from '../control-plane/src/learn-spend-ledger.js';
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
@@ -289,15 +290,10 @@ const routes = {
       if (!body?.text || typeof body.text !== 'string' || body.text.length > 4000) return Response.json({ error: 'Provide narration text under 4000 characters.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, body.app);
       if (access instanceof Response) return access;
-      // fish.audio is paid: only the learner's explicit confirmation starts it.
+      // The narrator is paid: only the learner's explicit confirmation starts it. One voice for every spoken path (narration-voice.js).
       const refused = paidRefusal(body); if (refused) return refused;
-      if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
-      const upstream = await fishSpendTransport(env, body.text, () => fetch('https://api.fish.audio/v1/tts', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
-        // Same pinned narrator as the pre-generated lesson clips.
-        body: JSON.stringify({ text: body.text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 128, normalize: true }),
-      }));
+      if (!env.ELEVENLABS_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
+      const upstream = await speakNarration(env, body.text, { fetch });
       if (isPaidSpendReply(upstream)) return upstream;
       if (!upstream.ok) return Response.json({ error: 'Narration audio unavailable.' }, { status: 502 });
       return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });

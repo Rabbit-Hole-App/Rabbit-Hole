@@ -84,7 +84,7 @@ test('proposalUsage numbers equal whiteboardReservation for the plan, and the pr
   const { id, job } = await s.planned();
   const [p] = s.proposals(id), r = whiteboardReservation(job.plan);
   assert.deepEqual(p.usage, { estimate_credits: Math.ceil(r.estimate.generationMicros / 10000), max_credits: Math.ceil(r.generationMicros / 10000), reserve_credits: null });
-  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits], [134, 240]); // author at 8,000 output tokens (owner try, 2026-11-05)
+  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits], [144, 224]); // author at 8,000 output tokens (owner try, 2026-11-05); the narrator at 40 micro-USD a character (VOICE-1): estimate 4,000 characters (134 with Fish), maximum 8,000 (240 with Fish at 4 bytes a character)
   assert.deepEqual(proposalUsage({}, 'whiteboard-video', { duration_seconds: 10 }, { scenes: 1 }).max_credits, Math.ceil(whiteboardReservation(fixture('plan-10.json')).generationMicros / 10000));
   assert.equal(await verifyProposal(s.env, p, OWNER.email), null);
   assert.match(await verifyProposal(s.env, { ...p, settings: { duration_seconds: 10 } }, OWNER.email), /not made for you, or it was changed/);

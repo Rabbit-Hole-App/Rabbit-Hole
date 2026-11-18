@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bargesIn, echoesEnd, createVoiceSession, MIC_REQUIRED, STT_STOPPED, TUTOR_FAILED, TUTOR_TIMEOUT, VAD_SILENCE_MS } from './voice-session.js';
 import { createFakeStt } from './voice-stt.js';
-import { createFakeTts, createFishTts } from './voice-tts.js';
+import { createFakeTts, createNarratorTts } from './voice-tts.js';
 import { voiceEvent } from './voice-telemetry.js';
 
 const MS = { to_evidence_ready: 3, to_planner_ready: 5, canvas_done: 6 };

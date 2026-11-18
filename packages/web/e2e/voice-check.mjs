@@ -8,7 +8,7 @@
 // - ?voice=fake is passed so a leftover scripted session would show itself; none exists, so window.__voiceFake stays undefined.
 //   node e2e/voice-check.mjs [outDir]
 // Env: VOICE_BASE (the app, default http://127.0.0.1:8798) and SMALL_CP (the control plane, default http://127.0.0.1:8799).
-// ponytail: the TTS narration and the streamed Fish playback are covered by voice-tts-stream-check.mjs (no Tutor needed); a new
+// ponytail: the TTS narration and the streamed narrator playback are covered by voice-tts-stream-check.mjs (no Tutor needed); a new
 // voice turn path has no executable check until the rebuild binds one to the mic.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
