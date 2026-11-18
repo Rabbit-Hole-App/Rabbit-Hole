@@ -91,10 +91,22 @@ const sessionCookie = async (env, user) => setCookie(SESSION_COOKIE, await sessi
 // A session is good while its signature holds, it has not expired, and its epoch still matches
 // the user's (logout bumps it). Sessions from before users existed carry no uid and are void.
 // Any D1 error is no session: fail closed.
+// The owner's local stack only (owner 2026-11-17, "remove the whole signing in in 8878"): LOCAL_NO_SIGNIN=true on a SMALL_ENV=test instance
+// (echoesLogin: never a public dev control plane, never production) makes every request with no session the one local user, made on first use.
+export const LOCAL_OWNER = 'owner@rabbithole.test';
+const noSignin = (env) => echoesLogin(env) && env.LOCAL_NO_SIGNIN === 'true';
+async function localSession(env) {
+  try {
+    const user = await userFor(env, 'email', LOCAL_OWNER, { email: LOCAL_OWNER });
+    return { t: 'sess', uid: user.id, email: user.email, ep: user.session_epoch, prov: 'email' };
+  } catch {
+    return null;
+  }
+}
 export async function sessionOf(req, env) {
   const header = req.headers.get('X-Small-Session'); // tests use the header; browsers use the cookie
   const p = await verify(header || cookieValue(req, SESSION_COOKIE), env.MASTER_KEY);
-  if (!p || p.t !== 'sess' || typeof p.uid !== 'string') return null;
+  if (!p || p.t !== 'sess' || typeof p.uid !== 'string') return noSignin(env) ? localSession(env) : null;
   try {
     const u = await env.DB.prepare('SELECT session_epoch FROM users WHERE id = ?').bind(p.uid).first();
     return u && u.session_epoch === p.ep ? p : null;
