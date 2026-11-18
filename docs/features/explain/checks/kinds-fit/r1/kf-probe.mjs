@@ -1,0 +1,6 @@
+import { pathToFileURL } from 'node:url';
+const { renderTutorDiagram } = await import(pathToFileURL('C:/s/kinds-fit/packages/web/src/tutor-diagrams/TutorDiagram.js').href);
+const tl = { version: 1, diagram: { kind: 'token-links', title: 'How sat attends to the sentence', source: ['The', 'cat', 'sat', 'on', 'the', 'mat'], target: ['The', 'cat', 'sat', 'on', 'the', 'mat'], queries: [{ index: 2, weights: [0.05, 0.4, 0.3, 0.1, 0.05, 0.1] }] } };
+const pl = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Pendulum angle over time', x: { label: 'Time', unit: 's', min: 0, max: 8 }, y: { label: 'Angle', unit: '°', min: -25, max: 25 },
+  series: [{ kind: 'line', label: 'Small swing', points: [{ x: 0, y: 10 }, { x: 2, y: 0 }, { x: 4, y: -10 }, { x: 6, y: 0 }, { x: 8, y: 10 }] }, { kind: 'line', label: 'Large swing', points: [{ x: 0, y: 20 }, { x: 2, y: 0 }, { x: 4, y: -20 }, { x: 6, y: 0 }, { x: 8, y: 20 }] }] } };
+for (const [n, s] of [['token-links', tl], ['coordinate-plot', pl]]) for (const w of [312, 408, 632]) { try { const r = renderTutorDiagram(s, w); console.log(n, 'asked', w, '->', r.width, 'x', r.height); } catch (e) { console.log(n, w, 'ERR', e.message.slice(0, 200)); } }
