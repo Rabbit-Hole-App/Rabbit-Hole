@@ -1,0 +1,552 @@
+[
+ {
+  "id": "confusion-matrix-counts",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "signed-feature-correlation",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "kernel-similarity-grid",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "hyperparameter-score-grid",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "classification-cost-matrix",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-confusion-denominators",
+  "path": "/spec/diagram/panels/0/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-minority-accuracy-trap",
+  "path": "/spec/diagram/panels/0/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-causal-mask",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-causal-mask",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-causal-mask",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-causal-mask",
+  "path": "/depths/overview/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-causal-mask",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-causal-mask",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-batched-attention",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-batched-attention",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-batched-attention",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-position-heatmap",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-position-heatmap",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-transformer-position-heatmap",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-word2vec-signed-embedding-heatmap",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-word2vec-signed-embedding-heatmap",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-word2vec-signed-embedding-heatmap",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-stable-diffusion-forward-noise",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-stable-diffusion-forward-noise",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-stable-diffusion-forward-noise",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-stable-diffusion-reverse-latent-steps",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-stable-diffusion-reverse-latent-steps",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-stable-diffusion-reverse-latent-steps",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-shared-patch-detector",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-shared-patch-detector",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-shared-patch-detector",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-shared-patch-detector",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-window-arithmetic",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps",
+  "path": "/spec/diagram/panels/0/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps",
+  "path": "/spec/diagram/panels/1/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps",
+  "path": "/depths/overview/spec/diagram/panels/0/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps",
+  "path": "/depths/overview/spec/diagram/panels/1/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps",
+  "path": "/depths/deep/spec/diagram/panels/0/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps",
+  "path": "/depths/deep/spec/diagram/panels/1/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-window-reuse",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-window-reuse",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-window-reuse",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-window-reuse",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-window-reuse",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-zero-border",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-zero-border",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-zero-border",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-axis-strides",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-axis-strides",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-axis-strides",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-axis-strides",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-axis-strides",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-max-pooling-windows",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-max-pooling-windows",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-max-pooling-windows",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-max-pooling-windows",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-max-pooling-windows",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-backpropagation-through-time-cutoffs",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-backpropagation-through-time-cutoffs",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-backpropagation-through-time-cutoffs",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-identity-weights",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-identity-weights",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-identity-weights",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-pooling-neighbor-weight-grid",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-pooling-neighbor-weight-grid",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-pooling-neighbor-weight-grid",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-pooling-neighbor-weight-grid",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-pooling-neighbor-weight-grid",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-bandwidth-weight-spread",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-bandwidth-weight-spread",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-bandwidth-weight-spread",
+  "path": "/depths/overview/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-bandwidth-weight-spread",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-bandwidth-weight-spread",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-bandwidth-weight-spread",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-valid-length-padding",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-valid-length-padding",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-valid-length-padding",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-valid-length-padding",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-additive-score-projection",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-attention-additive-score-projection",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-bahdanau-changing-decoder-context",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-bahdanau-read-translation-alignment",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-bahdanau-read-translation-alignment",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-bahdanau-read-translation-alignment",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-encoder-head-weight-grids",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-encoder-head-weight-grids",
+  "path": "/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-encoder-head-weight-grids",
+  "path": "/depths/overview/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-encoder-head-weight-grids",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-encoder-head-weight-grids",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-encoder-head-weight-grids",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-cross-attention-grid-padding",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-cross-attention-grid-padding",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-transformer-cross-attention-grid-padding",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-window-layer-schedule",
+  "path": "/depths/deep/detailSpec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-partial-block-mask",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-partial-block-mask",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-partial-block-mask",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-window-vs-index-mask",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-window-vs-index-mask",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-window-vs-index-mask",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-learned-sink-weight",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-learned-sink-weight",
+  "path": "/depths/overview/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "figure-gallery-learned-sink-weight",
+  "path": "/depths/deep/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-confusion-denominators-single",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "ml-minority-accuracy-trap-single",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "d2l-convolution-filter-maps-single",
+  "path": "/spec/diagram",
+  "ok": true
+ },
+ {
+  "id": "kind-gallery#17",
+  "path": "/diagram",
+  "ok": true
+ },
+ {
+  "id": "kind-gallery-depths#17",
+  "path": "/overview/diagram",
+  "ok": true
+ },
+ {
+  "id": "kind-gallery-depths#17",
+  "path": "/standard/diagram",
+  "ok": true
+ },
+ {
+  "id": "kind-gallery-depths#17",
+  "path": "/deep/diagram",
+  "ok": true
+ }
+]
