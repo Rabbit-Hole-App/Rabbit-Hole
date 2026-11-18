@@ -8,7 +8,7 @@ import { SCRIPT_URL, VOICE_URL, askScript, generateNarration, landNarration, nar
 const PROSE = 'A bootstrap sample leaves a row out with chance 0.368, so about 63 percent of the rows are in the sample that is drawn each time.';
 const card = (id = 'c1', over = {}) => ({ id, type: 'explanation', title: 'Bootstrap', body: `${PROSE}\n\n\`\`\`rh-diagram\n{"kind":"line"}\n\`\`\``, depth: 'detailed', promptUsed: '/explain why 63 percent?', ...over });
 const READY = { status: 'ready', fileRef: { v: 1, source: { id: 'fs_1', rev: 'r' }, meta: { name: 'a.mp3', type: 'audio/mpeg', size: 9 } }, seconds: 90, provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'v' };
-const SCRIPTED = { script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds_estimate: 70, scriptBy: { provider: 'google', model: 'gemini-3.5-flash-lite' } };
+const SCRIPTED = { script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds_estimate: 70, scriptBy: { provider: 'google', model: 'gemini-3.5-flash-lite' }, voice_estimate_credits: 2, check: { reasked: true, firstRawWords: 120, firstStrippedWords: 110, rawWords: 215, strippedWords: 205, failed: [] } };
 // A fake post: answers by route, records every call.
 function fake({ script = SCRIPTED, voice = { narration: READY } } = {}) {
   const calls = [];
@@ -50,7 +50,7 @@ test('the script is asked for once per new card, in the owner\'s editable canvas
   assert.equal(f.calls[0].path, SCRIPT_URL);
   assert.deepEqual(f.calls[0].body, { app: 'canvas-1', id: 'c1', ...scriptInput(card('c1')) });
   release(); await new Promise(resolve => setTimeout(resolve, 0));
-  assert.deepEqual(landed, [{ status: 'script', script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds: 70, scriptBy: SCRIPTED.scriptBy }]);
+  assert.deepEqual(landed, [{ status: 'script', script: 'Spoken words here.', transcript: 'Spoken words with $0.368$ here.', seconds: 70, scriptBy: SCRIPTED.scriptBy, estimate_credits: 2, scriptCheck: SCRIPTED.check }], 'the voice cost in AI units and the length check travel with the script');
   assert.equal(askScript({ post: f.post, app: 'canvas-1', editable: true, asked, land() {} }, card('c2')), true, 'another new card asks again');
 });
 
@@ -83,6 +83,14 @@ test('requestVoice sends the script (never the transcript) with the Play as the 
   const limited = await requestVoice(fake({ voice: Object.assign(new Error('You have made a lot of audio in a short time. Try again later.'), { status: 429, data: { code: 'rate_limited' } }) }).post, { app: 'a', block });
   assert.deepEqual(limited, { status: 'error', failed: 'audio', code: 'rate_limited', reason: 'You have made a lot of audio in a short time. Try again later.' });
   assert.equal((await requestVoice(fake({ voice: {} }).post, { app: 'a', block })).code, 'no_audio');
+});
+
+test('voice: false stops after the free script step, so the Play can show the cost before anything is spent', async () => {
+  const f = fake();
+  const made = await generateNarration(f.post, { app: 'a', block: card('c20'), voice: false });
+  assert.deepEqual([made.status, made.estimate_credits, f.scripts().length, f.voices().length], ['script', 2, 1, 0]);
+  const again = await generateNarration(f.post, { app: 'a', block: card('c21', { narration: made }), voice: false });
+  assert.deepEqual([again.status, f.scripts().length, f.voices().length], ['script', 1, 0], 'a script that exists is not asked for again');
 });
 
 test('first Play with a script: only the voice is made, and the whole narration (script, transcript, file) comes back to save', async () => {
@@ -142,8 +150,8 @@ const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'u
 test('the canvas asks from insertBlock, the one way a card is made, after the card is opened; the voice host function exists only where the card can be edited', () => {
   assert.match(canvas, /added = openedExplanation\(added\);[^\n]*\n\s*askNarrationRef\.current\?\.\(added\);/, 'asked as the card is placed; never awaited, so the card is never delayed');
   assert.match(canvas, /askNarrationRef\.current = card => askScript\(\{ post: api, app: appName, editable: !readOnlyRef\.current && !localCopyRef\.current,/);
-  assert.match(canvas, /\.\.\.\(canNote \? \{ narrate: id => hostRef\.current\.narrate\(id\) \} : \{\}\)/, 'canNote is !readOnly && !localCopy: a viewer has no narrate');
+  assert.match(canvas, /\.\.\.\(canNote \? \{ narrate: \(id, options\) => hostRef\.current\.narrate\(id, options\) \} : \{\}\)/, 'canNote is !readOnly && !localCopy: a viewer has no narrate');
   assert.match(canvas, /const canAsk = [^\n]*canNote = !readOnly && !localCopy/);
-  assert.match(canvas, /generateNarration\(api, \{ app: appName, block: card \}\)/);
+  assert.match(canvas, /generateNarration\(api, \{ app: appName, block: card, voice \}\)/);
   assert.equal((canvas.match(/askNarrationRef\.current\?\./g) || []).length, 1, 'no other place asks: an old card loaded from a saved board is never given a script');
 });
