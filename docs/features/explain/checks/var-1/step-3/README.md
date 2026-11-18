@@ -26,3 +26,6 @@ Two control-plane tests failed on the step-2 tip already (84bac61f9; both pass o
 2. `detailSpec` of a reference is not varied (none of the step-4 candidates has one).
 3. A reference text with a token is printed even without a seed: fine today (none has one), and it keeps raw tokens away from the author.
 4. The lint's "typed number" test cannot see derived values that are strings (a softmax `after` list); noted, not built.
+
+## Final counts after the 2026-11-18 amendments (tip 26465bef6)
+Web tutor-diagrams plus learn-slash 1380, 0 fail (`web-final.txt`); control plane 48 files, 480 tests, 0 fail (`cp.txt`). The two amendments are in `../step-1/REPORT.md` and `../step-2/README.md`.
