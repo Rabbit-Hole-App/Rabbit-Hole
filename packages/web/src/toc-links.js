@@ -4,6 +4,7 @@
 // It is NOT block.refs: refs hold canvas targets and the server indexes them as canvas references (control-plane canvas-refs.js boardRefs),
 // which would reject a section id. Only manual outline entries are linkable: a roadmap row ('roadmap:<stepId>') belongs to the server.
 import { outlineTree } from './learn-outline-model.js';
+import { byKey } from './learn-position.js';
 
 export const MAX_TOC_LINKS = 20;
 // Blocks that cannot hold a link: a standalone canvas reference card (it IS a link) and a heading (it is the contents' own content).
@@ -30,8 +31,16 @@ export function withLiveLinks(block, outline) {
   if (!held || held.every(id => live.has(id))) return block;
   return { ...block, tocLinks: held.filter(id => live.has(id)) };
 }
-// The cards linked to an entry, [{ id, title }] in canvas order. rows: [[cardId, title, entryIds]] (what the canvas reports to the page).
-export const linkedCards = (rows, entryId) => (rows || []).filter(([, , ids]) => ids.includes(entryId)).map(([id, title]) => ({ id, title }));
+// What the canvas reports to the page: [[cardId, title, entryIds, type, role]] for the cards that link to a section. Learn plan cards come first in reading order
+// (learn-position.js orderKey, so a section's chips read as its column does after Arrange), the rest in board order. A chapter's heading card is left out: the
+// chapter's own title is its link (spec 4; cards made by release 153 still hold the link). role: the Learn role, 'notes' for a section's notes card. nameOf: block -> title.
+export function tocLinkRows(blocks, nameOf) {
+  const held = (blocks || []).filter(block => block.tocLinks?.length && block.learn?.role !== 'chapter');
+  return [...held.filter(block => block.learn).sort(byKey), ...held.filter(block => !block.learn)]
+    .map(block => [block.id, nameOf(block), block.tocLinks, block.type || null, block.learn ? (block.learn.itemId === 'notes' ? 'notes' : block.learn.role || null) : null]);
+}
+// The cards linked to an entry, [{ id, title, type, role }] in the rows' order.
+export const linkedCards = (rows, entryId) => (rows || []).filter(([, , ids]) => ids.includes(entryId)).map(([id, title, , type = null, role = null]) => ({ id, title, type, role }));
 // A card's links that still name an entry of the contents, with the entry's title: [{ id, title }]. A link to a removed entry shows nothing.
 export function resolvedLinks(block, outline) {
   const titles = new Map((outline || []).map(entry => [entry.id, entry.label]));

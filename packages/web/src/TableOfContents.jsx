@@ -11,6 +11,7 @@ import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { cardLink } from './canvas-refs-model.js';
 import { moveTargets } from './toc-move.js';
 import { ancestorsOf, linkedCards } from './toc-links.js';
+import { cardIconOf, cardLabelOf } from './card-icons.js';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
 import { nameKey } from './unique-title.js';
@@ -164,13 +165,20 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
               const all = moreLinks.has(entry.id), shown = all ? cards : cards.slice(0, 2);
               return (
                 <div data-toc-links className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  {shown.map(card => (
-                    <span key={card.id} data-toc-linked-card={card.id} className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-hover/60 py-0.5 pr-0.5 pl-1.5 text-xs text-ink hover:border-line-strong hover:bg-hover">
-                      <AddLinkIcon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-3" />
-                      <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className="max-w-44 min-w-0 truncate text-left hover:underline">{card.title}</button>
-                      {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
-                    </span>
-                  ))}
+                  {shown.map(card => {
+                    // One button per chip (owner 2026-11-17 15:40): the card type's icon, its type in words, its title. The unlink X only where the contents are editable.
+                    const Icon = cardIconOf({ type: card.type }), label = cardLabelOf(card.type, card.role);
+                    return (
+                      <span key={card.id} data-toc-linked-card={card.id} className="group/chip inline-flex max-w-full min-w-0 items-center rounded-md border border-line bg-hover/60 text-xs text-ink hover:border-line-strong hover:bg-hover">
+                        <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className={`inline-flex min-w-0 items-center gap-1 rounded-md py-0.5 pl-1.5 text-left ${readOnly ? 'pr-1.5' : 'pr-0.5'}`}>
+                          <Icon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-2" />
+                          {label && <span data-toc-card-type className="shrink-0 text-[11px] text-ink-3">{label} ·</span>}
+                          <span className="max-w-44 min-w-0 truncate group-hover/chip:underline">{card.title}</span>
+                        </button>
+                        {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="mr-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
+                      </span>
+                    );
+                  })}
                   {cards.length > 2 && <button type="button" data-toc-links-more aria-expanded={all} onClick={() => setMoreLinks(previous => { const next = new Set(previous); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next; })} className="rounded-md px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">{all ? 'Show fewer' : `+${cards.length - 2} more`}</button>}
                 </div>
               );

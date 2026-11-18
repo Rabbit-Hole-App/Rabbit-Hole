@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_daf75bfece754c5aa0b1eaea4acc9707",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "729d79e3-5726-4539-8fe0-9b977597d441",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 130,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 142,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 142,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809590729,
+    "updatedAt": 1794809591001,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.33,
+        "probabilities": {
+          "vertical-throw": 0.01,
+          "curve-sliders": 0.27,
+          "stepper-states": 0.22,
+          "none": 0.5
+        },
+        "ms": 137,
+        "reason": "none"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809590729,
+        "firstFeedback": 1794809590859
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809590859,
+          "endedAt": 1794809591001,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

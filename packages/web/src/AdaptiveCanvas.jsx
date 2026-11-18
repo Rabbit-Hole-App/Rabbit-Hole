@@ -110,7 +110,7 @@ import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply
 import { ExplanationHost } from './explanation-host.js';
 import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
-import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
+import { holdsTocLink, resolvedLinks, sectionChoices, tocLinkRows, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
@@ -2932,6 +2932,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       showSection: id => {
         const linked = blocksRef.current.filter(block => block.learn?.slot && block.tocLinks?.includes(id)).map(block => boundsRef.current[block.id]).filter(Boolean);
         if (linked.length) { showLearnBoxes(linked); return; }
+        // A chapter row (spec 4): its heading card, found by the row's number ("2") as learn.sectionId; the contents of an accepted plan number as the plan does.
+        const path = sectionChoices(outlineFrom(blocksRef.current, tocRef.current)).find(choice => choice.id === id)?.path;
+        const chapter = path && !path.includes('.') ? blocksRef.current.find(block => block.learn?.role === 'chapter' && block.learn.sectionId === path) : null;
+        if (chapter && boundsRef.current[chapter.id]) { showLearnBoxes([boundsRef.current[chapter.id]]); return; }
         const heading = tocHeading(tocRef.current, id);
         if (heading == null) return;
         const steps = presentSteps(blocksRef.current, boundsRef.current);
@@ -2963,8 +2967,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
   const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
-  // [[cardId, title, entryIds]] for the cards that link to contents sections (toc-links.js linkedCards): the Table of contents' side of each link.
-  const linksKey = JSON.stringify(blocks.filter(block => block.tocLinks?.length).map(block => [block.id, objectName(block, describeBlock(block)), block.tocLinks]));
+  // [[cardId, title, entryIds, type, role]] for the cards that link to contents sections (toc-links.js tocLinkRows, linkedCards): the Table of contents' side of each link.
+  const linksKey = JSON.stringify(tocLinkRows(blocks, block => objectName(block, describeBlock(block))));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);

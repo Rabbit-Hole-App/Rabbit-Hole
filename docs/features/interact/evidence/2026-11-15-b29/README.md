@@ -1,0 +1,23 @@
+# Brief 29 task 3: the 13 Lesson 04 tree prompts at Brief on 127.0.0.1:8878, no pin
+
+Branch design/fast-path, stack code = owner/local merged with f4e6f0352 and 7c24bf653 (fast config: INTERACT_DESIGN_KIND fast, INTERACT_BUILD_KIND template, pick threshold 0.5). Canvas http://127.0.0.1:8878/apps/canvas-3f18f8e7, launcher C:sspecinteract-realopen-trees.cmd. 13 runs, 0 cards. Job records <id>-job.json, failed-card screenshots <id>-failed.png; no plan, manifest or frames exist because no job reached a plan.
+
+pick shows the pick record: family (or none), its confidence, and the most probable label. A family fits only when confidence >= 0.5.
+
+| prompt | pick | fill | build | card or gap | ms | USD |
+|---|---|---|---|---|---|---|
+| how does a decision tree split a two-feature dataset into regions? | none 0.48 (none; top none 0.61) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 315 | 0 |
+| how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy? | curve-sliders 0.77 (fit; top curve-sliders 0.83) | refused: provider_unavailable, 2 calls, no model reply | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 77 | 0 |
+| how do I compute the Gini impurity on both sides of a split and the information gain? | none 0.48 (none; top none 0.61) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 73 | 0 |
+| how does a decision tree search for the best threshold on one feature? | none 0.37 (below_threshold; top stepper-states 0.53) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 98 | 0 |
+| how does a decision tree trace a new point from the root to a prediction? | none 0.41 (below_threshold; top stepper-states 0.56) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 68 | 0 |
+| how does held-out error change as a decision tree grows deeper? | curve-sliders 0.95 (fit; top curve-sliders 0.96) | refused: provider_unavailable, 2 calls, no model reply | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 208 | 0 |
+| how does cost-complexity pruning trade tree size against accuracy as alpha increases? | curve-sliders 0.88 (fit; top curve-sliders 0.91) | refused: provider_unavailable, 2 calls, no model reply | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 63 | 0 |
+| how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5? | none 0.35 (below_threshold; top curve-sliders 0.51) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 221 | 0 |
+| what does a bootstrap sample of the training rows look like, and which rows repeat? | none 0.81 (none; top none 0.86) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 238 | 0 |
+| why does a bootstrap sample contain only about 63% of the unique training rows? | none 0.33 (none; top none 0.5) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 137 | 0 |
+| how does a random forest combine the predictions of its trees into one answer? | none 0.71 (none; top none 0.78) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 79 | 0 |
+| how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest? | curve-sliders 0.87 (fit; top curve-sliders 0.9) | refused: provider_unavailable, 2 calls, no model reply | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 794 | 0 |
+| compare impurity-based feature importance with permutation importance when one feature is random noise | none 0.92 (none; top none 0.94) | not run (no family fit) | This kind of scene isn't supported yet. | gap (This kind of scene isn't supported yet.) | none (no card); pick 81 | 0 |
+
+Total model cost US$0. Stepper picks: 0 of 13. Curve-sliders picks: 4 of 13 (gini-vs-entropy, depth-overfit, cost-complexity-pruning, forest-size-accuracy), all four fills refused by the provider before any reply (nothing billed). No family fit: 9 of 13.

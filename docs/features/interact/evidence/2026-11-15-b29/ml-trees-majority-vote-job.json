@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_c343e998fdeb413fbf1456f000ac988e",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "9d1324f3-34ba-41d3-8fa8-c1f2dcbf3af6",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 128,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 85,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 85,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809591812,
+    "updatedAt": 1794809592025,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.71,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0.01,
+          "stepper-states": 0.21,
+          "none": 0.78
+        },
+        "ms": 79,
+        "reason": "none"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809591812,
+        "firstFeedback": 1794809591940
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809591940,
+          "endedAt": 1794809592025,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_9c271f6335de420894a38239bb88b4da",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "f1e0fe93-e22e-4239-b9ce-246b7db1b30d",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 174,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 245,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 245,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809589423,
+    "updatedAt": 1794809589842,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.81,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0,
+          "stepper-states": 0.14,
+          "none": 0.86
+        },
+        "ms": 238,
+        "reason": "none"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809589423,
+        "firstFeedback": 1794809589597
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809589597,
+          "endedAt": 1794809589842,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

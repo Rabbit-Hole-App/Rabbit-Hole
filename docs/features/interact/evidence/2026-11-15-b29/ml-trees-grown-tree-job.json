@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_05a29d4590904d79b85b15ba6dd0ef5b",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "abb0d6c9-d74f-4a7b-bb51-d2fb95b94022",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 125,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 73,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 73,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809582438,
+    "updatedAt": 1794809582636,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does a decision tree trace a new point from the root to a prediction?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.41,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0,
+          "stepper-states": 0.56,
+          "none": 0.44
+        },
+        "ms": 68,
+        "reason": "below_threshold"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809582438,
+        "firstFeedback": 1794809582563
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809582563,
+          "endedAt": 1794809582636,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}
