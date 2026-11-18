@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "hash": "4ab41c35038d5628674f176fd8c65b602585b4e73b9463f3fdb328d76de06912",
+  "revision": 1,
+  "plan": {
+    "schemaVersion": 1,
+    "depth": "brief",
+    "title": "Follow one point down the tree",
+    "story": "A learner follows one point, J at x = 6 and y = 1, down a small fitted decision tree. At the root the test x ≤ 4 is false for J, so J takes No; at the next node the test y ≤ 2 is true, so J takes Yes and lands in class 0. Stepping forward highlights one more answered test each time while the tree itself never moves, so the route is the evidence.",
+    "cardDescription": "Point J (x = 6, y = 1) enters at the root, answers one yes or no test at each node, and lands in a class when it reaches an outcome.",
+    "learningGoal": "A decision tree classifies a point by answering one yes or no test per node, from the root to a class.",
+    "instructions": "Step through the two tests for point J.",
+    "supportingVisuals": [],
+    "scene": {
+      "description": "Family stepper-states. A decision tree drawn by the flow renderer with one highlighted route and a selected-state callout.\nA 640 px adjustable still scene with three ordered states. No elapsed time or playback.",
+      "runtime": {
+        "renderer": "program",
+        "schemaVersion": 1,
+        "sdkVersion": "sdk-8",
+        "programTuple": {
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "rendererVersion": "renderer-5",
+          "runtimeVersion": "quickjs-release-sync@0.32.0",
+          "runtimePolicyVersion": "policy-1",
+          "permissionProfileVersion": "perm-1",
+          "fingerprints": {
+            "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+            "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+            "renderer": "renderer-5"
+          }
+        },
+        "requiredHelpers": [],
+        "requiredCapabilities": [
+          "figures",
+          "inputs_v2"
+        ],
+        "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+      },
+      "entities": [
+        {
+          "id": "tree",
+          "label": "Decision tree",
+          "purpose": "Show the fitted tree and the route point J has taken so far."
+        },
+        {
+          "id": "callout",
+          "label": "Selected-state explanation",
+          "purpose": "Say which test was answered and how."
+        }
+      ],
+      "quantities": [],
+      "observations": [
+        {
+          "id": "aha",
+          "text": "Each test sends J one way; two answers reach a class.",
+          "quantityIds": [],
+          "readoutIds": []
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "state0",
+          "label": "Start at the root",
+          "time": null,
+          "inputOverrides": {
+            "step": 0
+          },
+          "actions": [],
+          "expected": "Point J: x = 6, y = 1. Start at the root test."
+        },
+        {
+          "id": "state1",
+          "label": "First test",
+          "time": null,
+          "inputOverrides": {
+            "step": 1
+          },
+          "actions": [],
+          "expected": "6 ≤ 4 is false: take No."
+        },
+        {
+          "id": "state2",
+          "label": "Second test",
+          "time": null,
+          "inputOverrides": {
+            "step": 2
+          },
+          "actions": [],
+          "expected": "1 ≤ 2 is true: take Yes. The tree predicts class 0."
+        }
+      ],
+      "readoutIds": [],
+      "template": "stepper-tree-trace",
+      "slots": {},
+      "words": {},
+      "data": {
+        "title": "Decision tree",
+        "nodes": [
+          {
+            "id": "root",
+            "label": "x ≤ 4?",
+            "role": "decision"
+          },
+          {
+            "id": "rootl",
+            "label": "Class 0 · 4 rows",
+            "role": "outcome"
+          },
+          {
+            "id": "rootr",
+            "label": "y ≤ 2?",
+            "role": "decision"
+          },
+          {
+            "id": "rootrl",
+            "label": "Class 0 · 1 row",
+            "role": "outcome"
+          },
+          {
+            "id": "rootrr",
+            "label": "Class 1 · 3 rows",
+            "role": "outcome"
+          }
+        ],
+        "edges": [
+          {
+            "from": "root",
+            "to": "rootl",
+            "label": "Yes"
+          },
+          {
+            "from": "root",
+            "to": "rootr",
+            "label": "No"
+          },
+          {
+            "from": "rootr",
+            "to": "rootrl",
+            "label": "Yes"
+          },
+          {
+            "from": "rootr",
+            "to": "rootrr",
+            "label": "No"
+          }
+        ],
+        "steps": [
+          {
+            "label": "Start at the root",
+            "callout": "Point J: x = 6, y = 1. Start at the root test."
+          },
+          {
+            "label": "First test",
+            "highlightPath": [
+              "root",
+              "rootr"
+            ],
+            "callout": "6 ≤ 4 is false: take No."
+          },
+          {
+            "label": "Second test",
+            "highlightPath": [
+              "root",
+              "rootr",
+              "rootrl"
+            ],
+            "callout": "1 ≤ 2 is true: take Yes. The tree predicts class 0."
+          }
+        ]
+      }
+    },
+    "mode": {
+      "kind": "static",
+      "initialState": "The first selected state is Start at the root.",
+      "fixedValues": {},
+      "adjustableIds": [
+        "step"
+      ],
+      "timeline": null,
+      "onInputChange": "recompute_still"
+    },
+    "controls": [
+      {
+        "id": "step",
+        "label": "State",
+        "purpose": "Select one answered test of the trace.",
+        "selectionReason": "An ordered index keeps the native selector and state rail on the same discrete position.",
+        "nativeControlId": "program.index_slider",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "index",
+        "binding": {
+          "kind": "input",
+          "id": "step"
+        },
+        "default": 0,
+        "dataRef": "states",
+        "items": [
+          {
+            "id": "state0",
+            "label": "Start at the root"
+          },
+          {
+            "id": "state1",
+            "label": "First test"
+          },
+          {
+            "id": "state2",
+            "label": "Second test"
+          }
+        ],
+        "presentation": "slider"
+      },
+      {
+        "id": "reset",
+        "label": "Reset",
+        "purpose": "Return to the first state.",
+        "selectionReason": "One reset restores the linked state selection and parameter together.",
+        "nativeControlId": "program.reset",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tree"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "callout"
+          }
+        ],
+        "type": "reset",
+        "binding": {
+          "kind": "reset"
+        },
+        "effect": "Selects state zero."
+      }
+    ],
+    "assumptions": [
+      "The selector chooses an ordered discrete state; steps are not elapsed seconds."
+    ],
+    "limitations": [
+      "The scene shows the admitted states and omits activity between them."
+    ],
+    "claims": []
+  },
+  "open": [],
+  "carried": [],
+  "fit": {
+    "styleVersion": "card-description-v1:estimate"
+  },
+  "review": {
+    "verdict": "pass",
+    "scores": [
+      5,
+      5
+    ],
+    "reviews": 1,
+    "revisions": 1
+  }
+}

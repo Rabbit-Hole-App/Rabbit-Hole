@@ -22,7 +22,8 @@ if (flag('help')) { console.log(USAGE); process.exit(0); }
 const check = flag('check') || flag('check-browser'), promptsFile = opt('prompts'), depth = opt('depth', 'brief');
 const BASE = opt('base', 'http://127.0.0.1:8878').replace(/\/$/, ''), EMAIL = opt('email', 'owner-interact-ml@example.com');
 const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b27')), CANVAS_FILE = opt('canvas-file', `${SPEC_DIR}/ml-canvas.json`);
-const WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
+// brief 31: --steps <n> advances the card's step slider n-1 times after the card screenshot, saving <id>-stateK.png per state and every flow node's rendered box in <id>-nodes.json.
+const STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
 if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
 if (!check && !promptsFile) fail(`--prompts <list.json> is required (or --check). ${USAGE}`, 2);
 if (!(stopUsd > 0)) fail(`--stop-usd is a positive number. ${USAGE}`, 2);
@@ -137,7 +138,17 @@ for (const { id, prompt, expect } of PROMPTS) {
   Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s'), network: end ? undefined : net.splice(0) });
   if (end?.stage === 'ready') {
     const card = page.locator('[data-program-card]').last();
-    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`; } catch (e) { r.files.screenshot = `not taken: ${firstLine(e.message)}`; }
+    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`;
+      if (STEPS > 1) {
+        const slider = card.locator('input[type="range"]').first(), states = [];
+        for (let k = 1; k <= STEPS; k++) {
+          if (k > 1) { await slider.focus(); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(600); }
+          await card.screenshot({ path: `${OUT}/${tag}-state${k}.png` }); await page.screenshot({ path: `${OUT}/${tag}-page${k}.png` }); const cardBox = await card.boundingBox();
+          states.push({ state: k, cardBox, viewport: page.viewportSize(), nodes: await card.locator('[data-tutor-node]').evaluateAll(els => els.map(e => { const b = e.getBoundingClientRect(); return { id: e.getAttribute('data-tutor-node'), onPath: e.hasAttribute('data-tutor-path'), x: b.x, y: b.y, w: b.width, h: b.height }; })), edges: await card.locator('[data-tutor-edge]').evaluateAll(els => els.map(e => ({ id: e.getAttribute('data-tutor-edge'), onPath: e.hasAttribute('data-tutor-path') }))) });
+        }
+        r.files.nodes = save(`${tag}-nodes.json`, states);
+      }
+    } catch (e) { r.files.screenshot = `not taken: ${firstLine(e.message)}`; }
   } else await page.screenshot({ path: `${OUT}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
   if (r.jobId) {
     const full = await detailOf(r.jobId), d = full?.diagnostics ?? null, row = d?.ledger ?? null, fast = d?.designFast ?? null;
