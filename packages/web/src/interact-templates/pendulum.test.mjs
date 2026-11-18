@@ -31,7 +31,7 @@ test('every peak and trough of both curves is exactly the start angle, at every 
 
 test('the time marker is one line and one dot per curve, at the current time across the plot area, on the curves', () => {
   const objects = run(2, 4), x = Math.round((A.left + 4 / 8 * (A.right - A.left)) * 100) / 100;
-  assert.equal(named(objects, 'now').args[1], x);
+  assert.equal(named(objects, 'now').args[1], x); assert.equal(named(objects, 'now').args[2], A.top + 2);
   for (const [dot, curve] of [['dot.A', 'curve.A'], ['dot.B', 'curve.B']]) {
     const [, cx, cy] = named(objects, dot).args, line = named(objects, curve).args[1];
     assert.equal(cx, x);
@@ -47,4 +47,16 @@ test('a plot box that covers the reset cell or leaves the panel is refused when 
 
 test('a note that does not fit its box is refused when the program is built', () => {
   assert.throws(() => build({ ...data, notes: { ...data.notes, same: 'B matches A: same mass, same length, same timing.' } }), error => error.code === 'text_too_wide');
+});
+
+test('the real program in the frozen SDK-8 sandbox gives a frame the host accepts at every setting and time: parsed, no overlaps, within the object budget', async () => {
+  const { parseFrame, CONTRACT_LIMITS } = await import('../explain-program/contract.js'), { frameOverlaps, layoutProblems } = await import('../explain-program/frame-overlap.js'), { loadEngine, runProgram } = await import('../explain-program/runtime.js');
+  const engine = await loadEngine(), program = source({ geometry: { pendulum: data } });
+  for (const mass of [0.5, 1, 3]) for (const length of [0.5, 1, 2]) for (const time of [0, 3, 6, 8]) {
+    const out = runProgram(engine, { source: program, request: { inputs: { mass, length }, time, seed: 1, state: null }, sdkVersion: 'sdk-8' });
+    assert.equal(out.ok, true, out.detail);
+    assert.equal(parseFrame(out.value.frame).ok, true, `${mass} kg ${length} m t=${time}`);
+    assert.deepEqual(frameOverlaps(out.value.frame), [], `${mass} kg ${length} m t=${time}`); assert.deepEqual(layoutProblems(out.value.frame), []);
+    assert.ok(out.value.frame.objects.length < CONTRACT_LIMITS.objects);
+  }
 });

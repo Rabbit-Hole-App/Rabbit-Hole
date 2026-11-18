@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages/web/src');
 const load = name => import(pathToFileURL(join(SRC, name)));
-const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { layoutById, panelBoxOk, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
+const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { layoutById, panelBoxOk, valueBoxes, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
 const { textWidth } = await load('tutor-diagrams/primitives.js'), { TEACHING_TEXT } = await load('tutor-diagrams/teaching-theme.js');
 const esbuild = createRequire(join(SRC, '..', 'package.json'))('esbuild');
 const bundle = await esbuild.build({ entryPoints: [join(SRC, 'explain-program/FrameFigures.jsx')], bundle: true, write: false, format: 'esm', platform: 'node', jsx: 'automatic', loader: { '.js': 'jsx' }, logLevel: 'silent' });
@@ -50,7 +50,7 @@ if (process.argv.includes('--measure')) {
   for (const [length, time] of [[0.5, 0.7], [1, 3.3], [2, 6.1], [2, 7.9]]) { const { objects } = run(length, time); console.log(`dot centre to curve, L=${length} t=${time}: A ${r2(distance(objects.find(o => o.args[0] === 'dot.A').args.slice(1, 3), polyOf(objects, 'curve.A')))} px, B ${r2(distance(objects.find(o => o.args[0] === 'dot.B').args.slice(1, 3), polyOf(objects, 'curve.B')))} px`); }
   // every text in the frame against its box, at the size a frame text draws (the renderer's width model)
   const objects = run(2, 3).objects, size = DRAWN_TEXT_SIZES.label, lines = [];
-  const widthOf = o => textWidth(o.args[3], size), boxOf = id => objects.find(o => o.fn === 'box' && o.args[0] === id);
+  const widthOf = o => textWidth(o.args[3], size), boxOf = id => ({ args: [id, 0, 0, valueBoxes('side-by-side', 3)[Number(id.split('.')[1])].box[2]] });
   for (const k of [0, 1, 2]) { const b = boxOf(`value.${k}`), l = objects.find(o => o.args?.[0] === `value.${k}.label`), n = objects.find(o => o.args?.[0] === `value.${k}.number`); lines.push(`value ${k}: "${l.args[3]}" ${r2(widthOf(l))} + 8 + "${n.args[3]}" ${r2(widthOf(n))} = ${r2(widthOf(l) + 8 + widthOf(n))} of ${b.args[3] - 16}`); }
   const formula = objects.find(o => o.args?.[0] === 'formula'); lines.push(`formula "${formula.args[3]}" ${r2(widthOf(formula))} of 243`);
   const notes = base.notes; for (const [name, sentence] of Object.entries(notes)) lines.push(`note ${name} ${r2(textWidth(sentence, size))} of 349`);
