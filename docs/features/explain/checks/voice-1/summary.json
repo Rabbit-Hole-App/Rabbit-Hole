@@ -1,0 +1,51 @@
+{
+ "script_chars": 315,
+ "script_words": 58,
+ "voice": {
+  "provider": "elevenlabs",
+  "model": "eleven_flash_v2_5",
+  "voiceId": "cgSgspJ2msm6clMCkdW9",
+  "speed": 1.1,
+  "stability": 0.4,
+  "similarityBoost": 0.75,
+  "format": "mp3_44100_64",
+  "bitrate": 64000
+ },
+ "estimate_usd_per_path": 0.0126,
+ "results": [
+  {
+   "path": "card",
+   "ok": true,
+   "ms": 1256,
+   "bytes": 132536,
+   "seconds_by_bitrate": 17,
+   "route_seconds": 17,
+   "voiceId": "cgSgspJ2msm6clMCkdW9"
+  },
+  {
+   "path": "tutor",
+   "ok": true,
+   "ms": 595,
+   "bytes": 137969,
+   "seconds_by_bitrate": 17,
+   "content_type": "audio/mpeg"
+  },
+  {
+   "path": "read-aloud",
+   "ok": true,
+   "ms": 670,
+   "bytes": 130864,
+   "seconds_by_bitrate": 16,
+   "content_type": "audio/mpeg"
+  },
+  {
+   "path": "whiteboard",
+   "ok": true,
+   "ms": 555,
+   "bytes": 132118,
+   "seconds_by_bitrate": 17,
+   "attempts": 1,
+   "seconds_measured": 16.48
+  }
+ ]
+}

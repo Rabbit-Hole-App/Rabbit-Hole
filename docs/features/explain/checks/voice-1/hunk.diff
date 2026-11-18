@@ -1,0 +1,1758 @@
+diff --git a/docs/features/credits-2500.md b/docs/features/credits-2500.md
+index d27e8b5c6..5bb832aad 100644
+--- a/docs/features/credits-2500.md
++++ b/docs/features/credits-2500.md
+@@ -60,7 +60,7 @@ gpt-image-1 not listed; Exa (`exa.ai/pricing`): `auto` search $7 per 1,000 reque
+ Bedrock Opus 5.5 (AWS publishes no retrievable table; reached only by an organisation's own AI, never a person's credits).
+ Anthropic `output_tokens` includes thinking and `input_tokens` excludes cache tokens, so nothing is counted twice. Image models
+ are priced per modality; there is no per-image price. `learn-models.js` `MODEL_PRICES` and `costUsd`, `learn-spend.js`,
+-`learn-usage-estimates.js`, Fish, JEV and the Exa estimate read it.
++`learn-usage-estimates.js`, the narrator (ElevenLabs; the Fish row is retired and kept only for old records), JEV and the Exa estimate read it.
+ 
+ ## What is recorded per charge (stable interface for observers)
+ 
+diff --git a/docs/features/explain.md b/docs/features/explain.md
+index 26303776d..2a03a8763 100644
+--- a/docs/features/explain.md
++++ b/docs/features/explain.md
+@@ -216,6 +216,7 @@ The Audio row's pill plays a spoken **add-on** to the card, not a read-aloud of
+ | Script | Right after a NEW written Explanation is on the canvas (`AdaptiveCanvas.jsx` `insertBlock`, never awaited; only in the owner's editable canvas, once per card id; a card loaded from a saved board is never asked) | `POST /api/learn/explanation-audio/script` `{ app, id, title, body, more?, depth, question? }` -> `{ script, transcript, seconds_estimate, scriptBy }` or `{ script: null, outcome, reason }` (still 200) | ONE call on the `google-low` chain profile: Gemini 3.5 Flash Lite, then Fireworks gpt-oss-120b (low) on an error | `block.narration = { status: 'script', script, transcript, seconds, scriptBy }`, or `{ status: 'error', failed: 'script', code, reason }` |
+ | Voice | The owner's FIRST Play (`GeneratePill` in `ExplanationAudio.jsx` calls the host's `narrate`) | `POST /api/learn/explanation-audio/voice` `{ app, id, script, confirmed: true }` -> `{ narration }` | ElevenLabs `eleven_flash_v2_5`, voice Jessica (`cgSgspJ2msm6clMCkdW9`), `stability 0.4, similarity_boost 0.75, speed 1.1`, `mp3_44100_64` | `block.narration = { status: 'ready', fileRef, seconds, script, transcript, provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId }`, or `{ status: 'error', failed: 'audio', code, reason }` with the script kept |
+ 
++- **One voice (VOICE-1, owner 2026-11-17).** The Voice Tutor, "Read it aloud" (`/api/learn/tts`) and /whiteboard narration speak with this same voice, ElevenLabs Jessica, not Fish. The voice, its settings, the request and the spend admission live once, in `packages/control-plane/src/narration-voice.js` (`NARRATION_VOICE`, `speakNarration`); this route imports them and keeps its own 4000-character cap and 90 s timeout. `narration-voice.test.js` fails if a second narrator constant appears in the server source. The spend guard row is `explanation_audio` here and `narration_tts` on the other three paths.
+ - **Fields.** `script` is the only text the voice gets; `transcript` is the same sentences with every equation and number as LaTeX between dollars (what the transcript window shows). `seconds` is a words / 3 estimate until the voice exists, then the file's own length (bytes at 64 kbps). `scriptBy` is the script model; `provider`, `model` and `voiceId` are the voice. The server writes no board: the client lands each answer on the card (`explanation-audio.js` `landNarration`, a quiet update), and the board's normal save registers `narration.fileRef` (`file-refs.js`), so a share or publication link plays it.
+ - **Length by Depth.** Spoken target: Brief about 60 to 80 s (180 to 240 words), Balanced about 90 s (240 to 300), Detailed up to about 2 minutes (300 to 360), stated plainly in the prompt (no "soft", no "never pad", no "stop when the idea is complete"). The script model is told the card's own Depth (`block.depth`). Gemini writes about 0.6 / 0.7 / 0.9 of the words it is asked for (length measurement of 2026-11-17: 144 real calls, raw medians 129 / 205 / 318 words), so its asks are higher (Brief 300 to 360, Balanced 360 to 420, Detailed 360 to 420 words and "never above 420 words" (a 400 to 460 ask overshot: median 341, max 507 words, about 170 s), with a content checklist and "do not stop before N words" for all three); Fireworks gets the plain targets.
+ - **Hard floors and the one re-ask (owner 2026-11-17, superseding "no model retry in v1").** After the number check, the kept script must have at least 110 (Brief), 200 (Balanced) or 300 (Detailed) words AND speak at least one of the card's own data numbers, meaning a number the card's PROSE or the learner's question states, not a name with digits (Q1, w_0), not a lone zero to ten (a card whose prose has none, only counting words, or only numbers inside a diagram, asks for no example; measured: six of the 12 bench cards had a JSON `version: 1` as their only number). A script that fails either gets exactly ONE re-ask: a single extra call to the same model with the same prompt, its first answer, and one user turn that names the failed rule(s) (`too short: N words after removing sentences with outside numbers; target L to H words; use the card's own numbers.` and/or `none of the card's own numbers (...) is spoken; say at least one of them aloud in the explanation`). Still under the floor after it, the script step is an error (`too_short`, the retry pill), never short audio. The card-number rule only triggers the re-ask: still missing after it, the script ships (outcome ok) with `check.exampleMissing: true`. The answer and the log carry `check` = `{ reasked, firstRawWords, firstStrippedWords, firstFailed?, rawWords, strippedWords, failed }` (the client keeps it as `narration.scriptCheck`); a provider failing on the re-ask hands the card to the next provider, which has no re-ask left.
+diff --git a/docs/features/learn-artifact-generation.md b/docs/features/learn-artifact-generation.md
+index 90e9cc96a..f16dc437c 100644
+--- a/docs/features/learn-artifact-generation.md
++++ b/docs/features/learn-artifact-generation.md
+@@ -89,7 +89,7 @@ before its provider call. Without `confirmed: true` it answers HTTP 428 with
+ | `/api/learn/video`, `generate_math_animation` (Manim worker) | yes | same |
+ | `/api/learn/scene`, `generate_3d_animation` (Blender worker) | yes | `confirmed` in the LearnScenes DO |
+ | `/api/learn/image` (OpenAI images) | yes | `confirmed` in the dev worker; off unless `LEGACY_IMAGE_GENERATION` is exactly `true` (set nowhere; 503 `image_generation_unavailable`, owner 2026-10-23) |
+-| `/api/learn/tts` (fish.audio narration) | yes | `confirmed` in the dev worker |
++| `/api/learn/tts` (ElevenLabs narration) | yes | `confirmed` in the dev worker |
+ | Existing glTF (`three_d`), hosted MP4/WebM, graphs, Pexels, arXiv | no | none |
+ 
+ In the UI:
+diff --git a/docs/features/rabbit-hole-avatar-teacher-v1-spec.md b/docs/features/rabbit-hole-avatar-teacher-v1-spec.md
+index 427c83433..44b56368d 100644
+--- a/docs/features/rabbit-hole-avatar-teacher-v1-spec.md
++++ b/docs/features/rabbit-hole-avatar-teacher-v1-spec.md
+@@ -366,7 +366,7 @@ Voice Tutor speech and clip audio never overlap. Later, narrated Motion uses the
+ 
+ **The seams:**
+ - `createVoiceSession({ stt, tts, tutor })` in `packages/web/src/voice-session.js`. Its states are off, listening, thinking and speaking. It already calls `tts.stop()`, `stt.pause()` and `stt.resume()` on interrupts and on the speaking-to-listening transition.
+-- `createScribeStt` in `voice-stt.js` has `pause` and `resume`; `createFishTts` in `voice-tts.js` has `speak` and `stop`.
++- `createScribeStt` in `voice-stt.js` has `pause` and `resume`; `createNarratorTts` in `voice-tts.js` has `speak` and `stop`.
+ - `LearnVoice.jsx` exposes the session to the page: `state`, `enter`, `exit`, `interrupt`, `say`.
+ 
+ AV5/AV6 adds a session-level hold and release around clip playback, on those same calls. The session half is built (§33): `hold()` returns `release()`; the clip player that calls them is AV5.
+diff --git a/docs/features/rabbit-hole-commands.md b/docs/features/rabbit-hole-commands.md
+index d502139e1..ba5483c0b 100644
+--- a/docs/features/rabbit-hole-commands.md
++++ b/docs/features/rabbit-hole-commands.md
+@@ -294,7 +294,7 @@ no family: `allowedPrimitives` is `null` (Auto).
+ 
+ - Paid: `primitive(id)` gives `{ id, paid: true, needsConfirm: true, estimatedCost: undefined }`
+   for image_generate, video_generate, maths_animation, blender_scene and narration
+-  (fish.audio). They
++  (ElevenLabs). They
+   always need confirmation, even when named with a slash; an explicit command only
+   skips the tutor's "would this help?" proposal. `estimatedCost` stays unset: never
+   show a guessed amount.
+diff --git a/docs/features/rabbit-hole-production.md b/docs/features/rabbit-hole-production.md
+index cfdb8024f..71a537ebd 100644
+--- a/docs/features/rabbit-hole-production.md
++++ b/docs/features/rabbit-hole-production.md
+@@ -79,7 +79,7 @@ Merging them into one Worker would be new architecture.
+ | `/apps`, `/apps/*`, `/library`, `/explore`, `/b/<token>`, `/dash`, `/chat`, `/members` | app | SPA shell (`dist-dev/index.html`) |
+ | Learn: `/api/canvases*`, `/api/learn/*`, `/api/learn/boards/*`, `/api/learn/grade*`, `/api/profile`, `/api/learn/context*` | app | `/dive` is a slash command persisted through `/api/canvases/dives` |
+ | Tutor: `/api/learn/tutor/{evaluate,plan}` | app | `learn-tutor-routes.js` |
+-| Voice: `/api/learn/voice/*` | app | Once `feature/voice-tutor-mvp` merges into `dev-worker.js`; needs `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY` |
++| Voice: `/api/learn/voice/*` | app | Once `feature/voice-tutor-mvp` merges into `dev-worker.js`; needs `ELEVENLABS_API_KEY` (Scribe and the narrator; `FISH_AUDIO_API_KEY` is no longer read, VOICE-1) |
+ | Repository import: `/api/repositories*`, `/api/apps/repo-*` | app | Needs the indexer (below) |
+ | Media: `/api/learn/media` | app | `LEARN_MEDIA` |
+ | `GET /api/apps` | app | Canvases and repositories only |
+@@ -162,7 +162,7 @@ local source is the gitignored `small-deploy/.env`; before every `secret put`, c
+ | Worker | Required | Optional |
+ |---|---|---|
+ | `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` from the `*_PROD` values, `RESEND_API_KEY` (email sign-in; `EMAIL_FROM` is a pinned var) | `ANTHROPIC_API_KEY` |
+-| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` (the key is not scoped to one workspace, so Anthropic rejects a call without the `anthropic-workspace-id` header; `ask.js`, `review.js`), `TYPESAFE_API_KEY` (the Tutor's direct TypeSafe grading, `learn-grade-jev.js`), `FISH_AUDIO_API_KEY` and `ELEVENLABS_API_KEY` (Voice), `SCENE_WORKER_TOKEN` (production-only, below) | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
++| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` (the key is not scoped to one workspace, so Anthropic rejects a call without the `anthropic-workspace-id` header; `ask.js`, `review.js`), `TYPESAFE_API_KEY` (the Tutor's direct TypeSafe grading, `learn-grade-jev.js`), `ELEVENLABS_API_KEY` (Voice: Scribe and the one narrator; the old `FISH_AUDIO_API_KEY` may stay set but no code reads it since VOICE-1), `SCENE_WORKER_TOKEN` (production-only, below) | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
+ 
+ - **Live state (2026-10-03).** `rabbit-hole-app` has `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `SCENE_WORKER_TOKEN`, `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY`; `TYPESAFE_API_KEY` is still to be set with the Tutor-entry deploy. Without `ANTHROPIC_WORKSPACE_ID` every Learn answer failed with a 503 (model HTTP 400) on the first production smoke. Never rotate or remove the workspace id without the owner.
+ - **OAuth mapping.** The runtime names never change. Production gets `GITHUB_CLIENT_ID_PROD` to `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET_PROD` to `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID_PROD` to `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET_PROD` to `GOOGLE_CLIENT_SECRET`. Dev Workers get only the `*_DEV` values. Never cross them.
+diff --git a/docs/features/rabbit-hole-support-pages.md b/docs/features/rabbit-hole-support-pages.md
+index 15c4e5643..040b09129 100644
+--- a/docs/features/rabbit-hole-support-pages.md
++++ b/docs/features/rabbit-hole-support-pages.md
+@@ -65,11 +65,11 @@ Not claimed, because the source does not settle it:
+   improve Google's products and are logged for a limited period for abuse detection; Unpaid Services may be used to
+   improve products and read by human reviewers. Whether our Gemini key's Cloud project has billing is not verifiable
+   here, so the policy names Google without either statement.
+-- Fish Audio (https://fish.audio/privacy/, effective 2024-08-28) and Resend (https://resend.com/legal/privacy-policy,
+-  updated 2026-08-27) publish no API-specific training or retention terms on those pages.
++- Resend (https://resend.com/legal/privacy-policy, updated 2026-08-27) publishes no API-specific training or retention terms on that page.
++  ElevenLabs (text to speech, the one narrator since VOICE-1, 2026-11-17) is listed in the Privacy Policy without a training or retention statement: its terms were not read for that change (Fish Audio was removed from the list).
+ 
+ Production secrets were read by name (Cloudflare `workers/scripts/<name>/settings`, 2026-10-29): `rabbit-hole-app` has
+-`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY`,
++`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `FISH_AUDIO_API_KEY` (set, unused since VOICE-1), `ELEVENLABS_API_KEY`,
+ `DESMOS_API_KEY`, `PEXELS_API_KEY`, `CONVERT_TOKEN` (with `CONVERT_URL` set); `rabbit-hole-cp` has `RESEND_API_KEY`,
+ `GOOGLE_*` and `GITHUB_*`. No `EXA_API_KEY`, so Exa (and FAL, HeyGen) are not listed. Transcription: owner decision O-8 (resolved
+ 2026-10-29) turns `TRANSCRIBE_ENABLED` on for retained Explain-back voice notes, so the OpenAI entry in `packages/web/src/landing/support.js` names
+diff --git a/docs/features/telemetry-inventory.md b/docs/features/telemetry-inventory.md
+index d5a102559..ff62fec28 100644
+--- a/docs/features/telemetry-inventory.md
++++ b/docs/features/telemetry-inventory.md
+@@ -7,7 +7,7 @@ is an explicit gap, never an assumed zero. Contract and storage: [telemetry.md](
+ - `spendTransport`: `learn-spend.js`. It admits a request with `admitSpend` (platform guard plus allowance), sends it, then
+   settles with `settleSpend` and `settleAttempt`, and parses usage from the JSON reply or the SSE stream.
+ - `askJev`: `learn-grade-jev.js`. One admission per POST; the 429/529 retry is its own attempt.
+-- `fishSpendTransport`: `learn-paid-transport.js`. Reserves the byte-priced bound and settles at that bound.
++- `elevenSpendTransport`: `learn-paid-transport.js`, called by `speakNarration` (`narration-voice.js`, the one narrator). Reserves the character-priced bound and settles at that bound. (`fishSpendTransport` was removed in VOICE-1, 2026-11-17.)
+ - `admitTool`: `learn-paid-transport.js`, for Exa.
+ - `recordMedia`: `learn-usage.js`. A ledger-bypass record written after the call: `settled`, `estimated` or `unknown`, with no
+   admission.
+@@ -54,7 +54,7 @@ is an explicit gap, never an assumed zero. Contract and storage: [telemetry.md](
+ | 27 | Explain | `/api/learn/explain/*` -> ExplainJobs DO | Anthropic Opus 5.5 (brief, author, review, repair); Browser Run render (`explain-render.js`) | job id, prep and action keys, op_id per call | `spendTransport` per call; render via `recordMedia` (`explain_renderer`) | JSON | user | `learn_model` (explain-policy.js uses `loggedModel`) | Render browser time is unknown. A call sent before Stop settles, but its result is dropped (reservation kept). |
+ | 28 | Voice transcription (answer) | `POST /api/learn/transcribe` | OpenAI `gpt-4o-transcribe` | action | `paidSubmissionRefusal` + `recordMedia` estimate | `TRANSCRIBE_ESTIMATE` | user | none | No reservation before dispatch; only the estimate is recorded. Off unless `TRANSCRIBE_ENABLED` is `"true"` (and the key is set). |
+ | 29 | Voice Mode STT token | `POST /api/learn/voice/scribe-token` | ElevenLabs realtime Scribe (single-use token; billed per streamed second, client to ElevenLabs) | action | `paidSubmissionRefusal` + `recordMedia` (no estimate) | none | user | none | Unknown cost: usage happens browser to provider after the token, so no server record of duration. |
+-| 30 | Voice synthesis | `POST /api/learn/tts`, `/api/learn/voice/tts` | Fish Audio S1 | action, op_id | `fishSpendTransport` | computed: UTF-8 bytes x $15/M, settled at the bound | user | none | Cost basis is computed from price, not provider-reported; it is labelled `settled`. Playback and interruption are not tracked. |
++| 30 | Voice synthesis | `POST /api/learn/tts`, `/api/learn/voice/tts`, `/api/learn/explanation-audio/voice`, /whiteboard narration | ElevenLabs Flash v2.5 (Jessica) | action, op_id | `speakNarration` -> `elevenSpendTransport` | computed: characters x $0.04/1,000 (an estimate row), settled at the bound | user | none | Cost basis is computed from price, not provider-reported; it is labelled `settled`. Playback and interruption are not tracked. |
+ | 31 | Search (Exa) | `/api/learn/search`, YouTube finder | Exa | action, op_id | `admitTool` / `recordMedia` | `exaCost(response)` (reported), else estimate | user | none | none beyond basis labelling |
+ | 32 | Avatar teacher | `learn-avatar-*` | HeyGen; Anthropic director | ticket | not wired (parked) | n/a | n/a | n/a | Off in every environment (`LEARN_AVATAR_PROVIDER` unset). |
+ | 33 | Moment index embeddings | Queue consumer (`learn-moment-index.js`) | Workers AI (`env.AI.run`) | moment id | none | none | platform | none | Not bound in prod config (no `ai` binding or consumer). If enabled: unaccounted neurons. |
+@@ -77,7 +77,7 @@ is an explicit gap, never an assumed zero. Contract and storage: [telemetry.md](
+ | `web/dev-worker.js:207` | OpenAI image generation | estimate only, no reservation | no (path off) |
+ | `web/dev-worker.js:287` | OpenAI transcription | estimate only, no reservation | no |
+ | `control-plane/src/learn-voice-scribe.js:11` | ElevenLabs Scribe token | record only, cost unknown | no |
+-| `web/dev-worker.js:263`, `control-plane/src/learn-voice-tts.js:22` | Fish Audio | yes, computed | no |
++| `control-plane/src/narration-voice.js` (all four spoken paths) | ElevenLabs | yes, computed | no |
+ | `control-plane/src/learn-search.js:143`, `learn-youtube.js:99` | Exa | yes | no |
+ | `learn-render/motion/orchestrator-main.mjs:24` | Anthropic (from Fly) | job hold; per-call costs from the orchestrator | no (tracked, decision 2) |
+ | `control-plane/src/video-provider.js:33` | Fal | record only | no (unset in prod) |
+diff --git a/docs/features/voice-tutor-mvp.md b/docs/features/voice-tutor-mvp.md
+index 958c50466..e39b4d486 100644
+--- a/docs/features/voice-tutor-mvp.md
++++ b/docs/features/voice-tutor-mvp.md
+@@ -12,7 +12,7 @@ across turns until the learner clicks the red microphone again:
+ VOICE ON
+   LISTENING   learner speaks; realtime STT runs hidden; nothing of it is shown
+   THINKING    committed utterance -> the SAME Tutor turn as typed input (input_modality 'voice')
+-  SPEAKING    canvas actions already applied; Fish TTS speaks the Tutor's words; left caption shows them
++  SPEAKING    canvas actions already applied; the narrator (ElevenLabs Jessica) speaks the Tutor's words; left caption shows them
+   -> LISTENING again, automatically
+ VOICE OFF     normal composer
+ ```
+@@ -35,8 +35,8 @@ Rabbit Holes under it ([production-tutor-entry.md](production-tutor-entry.md)).
+   `/api/learn/voice/scribe-token` answers every signed-in request, direct ones included, with 503
+   `{ "error": "Voice is currently unavailable" }` before minting a token or calling ElevenLabs (FX-71, owner
+   2026-10-29). One switch drives both: `LISTENING_PAUSED` in `packages/control-plane/src/voice-availability.js`,
+-  read by `LearnVoice.jsx` and `learn-voice-routes.js`; set it to `false` to re-enable listening. Metered Fish
+-  narration still plays. The scripted `?voice=fake` adapters stay available for the checks. Revisit after r36.
++  read by `LearnVoice.jsx` and `learn-voice-routes.js`; set it to `false` to re-enable listening. Metered narration
++  (the one ElevenLabs voice) still plays. The scripted `?voice=fake` adapters stay available for the checks. Revisit after r36.
+ - Voice Mode stays on until the learner clicks the red mic (owner, 2026-10-01). Going down or back up a
+   Rabbit Hole remounts the Learn surface and ends its session, so the next surface turns Voice Mode back
+   on by itself (a new mic stream and a new Scribe token).
+@@ -156,7 +156,7 @@ onEvent({ type: 'speech_start' | 'partial' | 'commit' | 'error', text?, kind? })
+ ### 4. TTS adapter: `packages/web/src/voice-tts.js` (owner C)
+ 
+ ```js
+-createFishTts({ post, onEvent, makeAudio, MediaSource }) -> { speak(text, { turnId }) -> Promise<'ended'|'stopped'|'failed'>, stop() }
++createNarratorTts({ post, onEvent, makeAudio, MediaSource }) -> { speak(text, { turnId }) -> Promise<'ended'|'stopped'|'failed'>, stop() }
+ createFakeTts({ onEvent, ms }) -> same; resolves 'ended' after ms (scripted QA and tests)
+ speakable(text) -> string
+ onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts_play_end' | 'tts_stopped' | 'tts_error', turnId })
+@@ -174,7 +174,7 @@ onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts
+     and the element starts sounding when the first chunk is buffered. Each chunk is appended to its
+     SourceBuffer as it arrives, and `endOfStream()` follows the last one. Elsewhere the whole body is buffered
+     into a Blob URL first, as before.
+-  - Measured locally with a real narrator MP3 at the live Fish pace (`e2e/voice-tts-stream-check.mjs`):
++  - Measured locally with a real narrator MP3 at the pace of the Fish narrator this route used before VOICE-1 (`e2e/voice-tts-stream-check.mjs`; ElevenLabs Flash returns a whole clip in about 2 s, so streaming no longer matters and the client is unchanged):
+     request to first audio went from 2736 ms buffered to 285 ms streamed (5 runs each). After Stop the audio
+     pauses within 0.6 ms, and the playhead stays frozen for 2.5 s while the server keeps streaming.
+   - It resolves on `ended`.
+@@ -215,18 +215,16 @@ The handlers:
+   - Returns only `{ token }`. The API key never appears in a response.
+ - `voiceSpeech`:
+   - `text` must be a string of 1–1200 characters.
+-  - POST `https://api.fish.audio/v1/tts` with:
+-    - `Authorization: Bearer FISH_AUDIO_API_KEY`;
+-    - header `model: s1`;
+-    - JSON `{ text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } }`.
+-    - Lower sampling and a slightly slower pace keep the narrator calm and the same from reply to reply
+-      (owner, 2026-10-01).
+-  - That is the same pinned narrator as `/api/learn/tts`.
+-  - It streams the body back as `audio/mpeg` with no-store.
++  - **One voice (VOICE-1, owner 2026-11-17).** It speaks through `speakNarration` in
++    `packages/control-plane/src/narration-voice.js`: ElevenLabs Jessica (`cgSgspJ2msm6clMCkdW9`), model
++    `eleven_flash_v2_5`, speed 1.1, stability 0.4, `mp3_44100_64`, header `xi-api-key` from `ELEVENLABS_API_KEY`. The
++    same config and function serve the card audio, "Read it aloud" (`/api/learn/tts`) and /whiteboard narration;
++    this route owns only its 1200-character cap and its 20 s abort. Until VOICE-1 it called Fish s1.
++  - It returns the body as `audio/mpeg` with no-store.
+   - It logs one line, `{"event":"learn_voice","kind":"tts","turn_id","status","ms","chars"}`, with no text.
+ - The dispatch in dev-worker.js goes after the `/api/learn/transcribe` block, not between the ask block
+   and `/api/learn/tts`, because `canvases.test.js` slices that range.
+-- Local secrets: `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY` go in `packages/web/.dev.vars`, which is
++- Local secret: `ELEVENLABS_API_KEY` (Scribe and the narrator) goes in `packages/web/.dev.vars`, which is
+   gitignored.
+ 
+ ### 6. UI (owner A)
+@@ -277,7 +275,7 @@ The handlers:
+     cleared, as a typed turn clears it.
+   - It returns `null` when `!tutor?.active`.
+   - Otherwise `voice` is `{ state, caption: { current, previous, error }, enter, exit, interrupt }`.
+-  - It picks the adapters: fake STT and TTS when the URL has `?voice=fake`, Scribe and Fish otherwise.
++  - It picks the adapters: fake STT and TTS when the URL has `?voice=fake`, Scribe and the narrator otherwise.
+   - In fake mode it exposes `window.__voiceFake = { say(text), failStt(), failTts(), ttsMs }` for e2e
+     and the review.
+ - **`AskPanel` (ask.jsx, owner A)** gets a new optional prop `voice`, the object above or null.
+@@ -347,7 +345,7 @@ All of these use the fake STT, the fake TTS and a stubbed Tutor:
+   - 428 without `confirmed`;
+   - 503 without a key;
+   - the token response never containing the key;
+-  - the Fish request shape;
++  - the narrator request shape (Jessica, Flash v2.5, the shared config);
+   - 502 masking the provider error;
+   - `null` for foreign paths.
+ - `packages/web/e2e/voice-check.mjs`: the local stack, with the Tutor and voice routes stubbed through
+@@ -356,7 +354,7 @@ All of these use the fake STT, the fake TTS and a stubbed Tutor:
+ 
+ ## Live test (after `GO VOICE LIVE` only)
+ 
+-Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The sequence:
++Real mic → ElevenLabs Scribe → real Tutor → ElevenLabs narrator → speakers. The sequence:
+ 
+ 1. normal question
+ 2. clarification
+@@ -371,7 +369,7 @@ Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The seq
+ **Setup for the live run.**
+ 
+ 1. Add these keys to `packages/web/.dev.vars` in this worktree. The file is gitignored; never print it.
+-   - `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY`, which are in `small-parallel/.env`.
++   - `ELEVENLABS_API_KEY`, which is in `small-parallel/.env`.
+    - `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` and `TYPESAFE_API_KEY`, the Tutor's own keys.
+ 2. Restart the app worker.
+ 3. Open the Tutor board **without** `?voice=fake`. The owner speaks; a microphone is needed, so this
+@@ -384,7 +382,7 @@ Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The seq
+ | Item | Assumption | Estimated cost |
+ |---|---|---|
+ | ElevenLabs Scribe v2 Realtime | $0.39 per audio hour. The socket stays open while Voice is on, and audio is sent only while listening. About 15 minutes connected, at most 0.25 h. | About $0.10 or less |
+-| Fish Audio s1 | $15 per million UTF-8 bytes. About 25 Tutor utterances of about 200 characters each, about 5,000 bytes. | About $0.08 |
++| ElevenLabs Flash v2.5 (the narrator) | $0.04 per 1,000 characters (an estimate; plan credits). About 25 Tutor utterances of about 200 characters each, about 5,000 characters. | About $0.20 |
+ | Tutor model calls | The same calls as typed turns: about 25 Opus 5.5 planner calls plus JEV and the larger evaluator when uncertain. | Like a 25-turn typed Tutor session; this dominates |
+ | Scribe tokens | One single-use token per connect, plus one per reconnect. | Free |
+ 
+diff --git a/docs/learn-agent-canvas-architecture.md b/docs/learn-agent-canvas-architecture.md
+index 218c96c74..486c52392 100644
+--- a/docs/learn-agent-canvas-architecture.md
++++ b/docs/learn-agent-canvas-architecture.md
+@@ -448,7 +448,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
+ | Video generation (paid) | FAL `fal-ai/bytedance/seedance/v1/lite` | `video-provider.js` | `FAL_API_KEY`, `LEARN_VIDEO_PROVIDER` |
+ | Maths animation (paid) | private Manim worker | `math-provider.js` | `MATH_WORKER_URL`, `MATH_WORKER_TOKEN` |
+ | Blender scene (paid) | private Blender worker | `learn-scene.js` | `SCENE_WORKER_URL`, `SCENE_WORKER_TOKEN` |
+-| Narration (paid) | fish.audio `s1` | `dev-worker.js` `/api/learn/tts` | `FISH_AUDIO_API_KEY` |
++| Narration (paid) | ElevenLabs `eleven_flash_v2_5`, voice Jessica (the one narrator, `narration-voice.js`) | `dev-worker.js` `/api/learn/tts` | `ELEVENLABS_API_KEY` |
+ | Stock photos | Pexels | `pexels.js` | `PEXELS_API_KEY` |
+ | Graphs | Desmos (client) | `/api/learn/graph-config` | `DESMOS_API_KEY` |
+ 
+@@ -461,7 +461,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
+ 
+ **What is configured on the session clone** (`small-cp-dev-small-parallel`, secret names read 2026-09-29):
+ - **Set:** `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `DESMOS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY`, `LEARN_BENCH_SECRET`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`.
+-- **Not set:** `OPENAI_API_KEY`, so cards and the whiteboard use `claude-opus-5` here, and image generation and transcription are unavailable. `FISH_AUDIO_API_KEY` (no narration) and `PEXELS_API_KEY` (no stock photos, and the whiteboard gets no photo tools).
++- **Not set:** `OPENAI_API_KEY`, so cards and the whiteboard use `claude-opus-5` here, and image generation and transcription are unavailable. `ELEVENLABS_API_KEY` (no narration) and `PEXELS_API_KEY` (no stock photos, and the whiteboard gets no photo tools).
+ - **`SCENE_WORKER_URL`** is a plain var in the wrangler file, not a secret.
+ - Shared `small-cp-dev` and production were not read. Whatever keys they hold, cards and the whiteboard run `claude-opus-5` unless `LEARN_PLAN_MODEL` is set.
+ 
+@@ -714,7 +714,7 @@ The chat never starts paid work, and nothing autoplays.
+ | Maths animation | Video card Render, `/animate` | `POST /api/learn/video` (math op) | same DO → Manim worker |
+ | Blender scene | Scene card Build, `/3d` | `POST /api/learn/scene` | `LearnScenes` DO → Blender worker |
+ | Image | Image card Generate | `POST /api/learn/image` | dev worker → OpenAI `gpt-image-1` |
+-| Narration | Narration card, whiteboard "Read it aloud" | `POST /api/learn/tts` | dev worker → fish.audio |
++| Narration | Narration card, whiteboard "Read it aloud" | `POST /api/learn/tts` | dev worker → ElevenLabs (`narration-voice.js`) |
+ 
+ ## 14. Persistence, bindings and serving
+ 
+@@ -957,7 +957,7 @@ All in `packages/control-plane/src/`.
+ | Card maker limits | `learn-artifact.js` | args 1000, context 8000, body 20000, 4000 max tokens, one repair |
+ | Worker vars | `packages/web/wrangler.dev.jsonc`, `wrangler.parallel.jsonc` | `SUBSCRIPTION_ONLY`, `SUBSCRIPTION_OWNER_EMAIL`, `LEARN_VIDEO_PROVIDER=fal-seedance-lite`, `LEARN_VIDEO_RESOLUTION=480p`, `SCENE_WORKER_URL` |
+ | Worker bindings | same files; `packages/control-plane/wrangler.jsonc` for production | see [section 14](#14-persistence-bindings-and-serving) |
+-| Secrets (names) | `wrangler secret` per worker | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `OPENAI_API_KEY`, `EXA_API_KEY`, `PEXELS_API_KEY`, `DESMOS_API_KEY`, `FAL_API_KEY`, `FISH_AUDIO_API_KEY`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`, `SUBSCRIPTION_BRIDGE_URL`, `SUBSCRIPTION_BRIDGE_TOKEN`, `LEARN_BENCH_SECRET`, `LEARN_PREVIEW_SECRET`, `MASTER_KEY` |
++| Secrets (names) | `wrangler secret` per worker | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `OPENAI_API_KEY`, `EXA_API_KEY`, `PEXELS_API_KEY`, `DESMOS_API_KEY`, `FAL_API_KEY`, `ELEVENLABS_API_KEY`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`, `SUBSCRIPTION_BRIDGE_URL`, `SUBSCRIPTION_BRIDGE_TOKEN`, `LEARN_BENCH_SECRET`, `LEARN_PREVIEW_SECRET`, `MASTER_KEY` |
+ | Build flags | `packages/web` build env (`import.meta.env`) | `VITE_COACHING_DEV` (Learn on; dev-only palette items), `VITE_BYOC_DEV`, `VITE_NOTEBOOK_ORIGIN`, `VITE_TLDRAW_LICENSE_KEY` (whiteboard), `VITE_PRIVATE_BYOC`, `VITE_SMALL_ENV` |
+ | Insert palette | `packages/web/src/learn-insert-palette.js` | groups, More, dev-only items |
+ | Slash commands | `packages/web/src/agent/slash.js` | commands, families, paid list |
+diff --git a/packages/control-plane/src/explanation-audio.js b/packages/control-plane/src/explanation-audio.js
+index 9c65e7be2..056143943 100644
+--- a/packages/control-plane/src/explanation-audio.js
++++ b/packages/control-plane/src/explanation-audio.js
+@@ -19,7 +19,8 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
+ import { spendTransport } from './learn-spend.js';
+ import { CHAIN_ENDPOINTS, anthropicReply } from './explanation-fast-chain.js';
+ import { chainSteps, resolveExplanationProfile } from './explanation-models.js';
+-import { ELEVEN_MODEL, elevenSpendTransport, isPaidSpendReply } from './learn-paid-transport.js';
++import { ELEVEN_MODEL, isPaidSpendReply } from './learn-paid-transport.js';
++import { NARRATION_VOICE, speakNarration } from './narration-voice.js';
+ import { priceUsage } from './pricing-registry.js';
+ import { paidRefusal } from './learn-paid.js';
+ import { NO_CAP, admitUsage, limitsFrom } from './learn-shared-ask.js';
+@@ -32,12 +33,8 @@ export const audioRoute = path => path === SCRIPT_PATH || path === VOICE_PATH;
+ export const SCRIPT_PROFILE = 'google-low'; // the production written /explain profile: Gemini Flash Lite, Fireworks as the fallback
+ export const SCRIPT_MAX_TOKENS = 3000; // two strings of up to about 400 words (about 550 tokens each) and the model's own reasoning
+ export const SCRIPT_DEADLINE_MS = 25000; // off the card's critical path, so longer than the chain's 8 and 12 s
+-export const VOICE_ID = 'cgSgspJ2msm6clMCkdW9'; // Jessica (female), chosen in AUD-2
+-export const VOICE_SETTINGS = Object.freeze({ stability: 0.4, similarity_boost: 0.75, speed: 1.1 }); // a little more energetic and faster (owner); Flash v2.5 takes no style or speaker boost
+-export const VOICE_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_64`;
+ export const VOICE_TIMEOUT_MS = 90000;
+ export const VOICE_MAX_CHARS = 4000, VOICE_MAX_BYTES = 8 * 1024 * 1024;
+-export const AUDIO_BITRATE = 64000; // mp3_44100_64 is constant 64 kbps: the length is its bytes
+ export const AUDIO_LIMITS = { EXPLANATION_SCRIPT_HOUR: 60, EXPLANATION_SCRIPT_DAY: 200, EXPLANATION_AUDIO_HOUR: 30, EXPLANATION_AUDIO_DAY: 100 }; // launch protection, not product policy; a worker var of the same name overrides one
+ const BODY_CHARS = 9000, MORE_CHARS = 6000;
+ const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
+@@ -120,9 +117,9 @@ const keyOf = (org, app, id) => `${org}|${app}|${id}`;
+ 
+ // ---- the voice ----
+ const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value === 'string' ? new TextEncoder().encode(value) : value))].map(n => n.toString(16).padStart(2, '0')).join('');
+-export const secondsOf = bytes => Math.round((bytes * 8) / AUDIO_BITRATE);
++export const secondsOf = bytes => Math.round((bytes * 8) / NARRATION_VOICE.bitrate);
+ const fileRefOf = (source, sha256, name, size) => ({ v: 1, source: { id: source, rev: sha256 }, meta: { name, type: 'audio/mpeg', size } });
+-const readyNarration = (source, sha256, name, bytes) => ({ status: 'ready', fileRef: fileRefOf(source, sha256, name, bytes), seconds: secondsOf(bytes), provider: 'elevenlabs', model: ELEVEN_MODEL, voiceId: VOICE_ID });
++const readyNarration = (source, sha256, name, bytes) => ({ status: 'ready', fileRef: fileRefOf(source, sha256, name, bytes), seconds: secondsOf(bytes), provider: NARRATION_VOICE.provider, model: NARRATION_VOICE.model, voiceId: NARRATION_VOICE.voiceId });
+ const failed = (code, reason) => ({ status: 'error', failed: 'audio', code, reason });
+ 
+ // The board's owner, whose file source the audio is (the same mechanism as learn-artifact.js store() for a card's pictures). null: no owner or no board to keep it for.
+@@ -138,9 +135,7 @@ async function makeVoice(env, store, id, script, sourceId) {
+   const db = env.LEARN_DB;
+   let response;
+   try {
+-    response = await elevenSpendTransport(env, script, () => fetch(VOICE_URL, { method: 'POST', signal: AbortSignal.timeout(VOICE_TIMEOUT_MS),
+-      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+-      body: JSON.stringify({ text: script, model_id: ELEVEN_MODEL, voice_settings: VOICE_SETTINGS }) }));
++    response = await speakNarration(env, script, { signal: AbortSignal.timeout(VOICE_TIMEOUT_MS), category: 'explanation_audio' });
+   } catch (error) { return failed(error?.name === 'TimeoutError' ? 'timeout' : 'provider_error', 'The voice took too long to make. Try again.'); }
+   if (isPaidSpendReply(response)) return failed('spend_refused', (await response.clone().json().catch(() => null))?.error || 'This could not be made right now.');
+   if (!response.ok) return failed(`http_${response.status}`, 'The voice could not be made right now. Try again.');
+diff --git a/packages/control-plane/src/learn-paid-transport.js b/packages/control-plane/src/learn-paid-transport.js
+index bce9b0ac0..e90d2bacd 100644
+--- a/packages/control-plane/src/learn-paid-transport.js
++++ b/packages/control-plane/src/learn-paid-transport.js
+@@ -1,7 +1,7 @@
+ // Existing unpriced/delegated media transports fail closed before new paid submissions.
+-// A diagnostic read cannot authorize spending: only the bounded Fish path below can admit.
++// A diagnostic read cannot authorize spending: only a bounded path (the ElevenLabs and transcription transports below) can admit.
+ import { admitSpend, settleSpend, operationId, platformSpendStatus, spendEnforced, refusalReply, spendMessage, ALLOWANCE_REASONS } from './learn-spend-ledger.js';
+-import { settleAttempt, toMicros, usageRefusal } from './learn-usage.js';
++import { settleAttempt, usageRefusal } from './learn-usage.js';
+ import { priceUsage } from './pricing-registry.js';
+ 
+ const message = code => code === 'cap_unset' ? 'Daily paid-operation spend cap is not configured.'
+@@ -29,40 +29,17 @@ export async function requirePaidSubmission(env) {
+   if (refused) { const { code, error } = await refused.json(); throw Object.assign(new Error(error), { code, definite: true }); }
+ }
+ 
+-// Fish S1 charges per UTF-8 input byte, not Unicode character count (rate: pricing-registry.js, owner table 2026-10-23). No output-duration estimate.
+-export async function fishSpendTransport(env, text, transport) {
+-  if (!spendEnforced(env)) return transport();
+-  const fishPrice = priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: new TextEncoder().encode(text).length } });
+-  const reservedUsd = fishPrice.micros / 1e6;
+-  const opId = operationId('fish_tts');
+-  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'fish_tts', reservedUsd, kind: 'media', provider: 'fish', model: 's1' });
+-  if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
+-  // Fish bills exactly the input bytes, so a delivered response settles at the reservation; a failed one keeps it as unknown.
+-  const reservedMicros = toMicros(reservedUsd);
+-  const begun = gate.attemptId;
+-  let response;
+-  try { response = await transport(); }
+-  catch (error) {
+-    await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'fish', model: 's1', error: 'transport' });
+-    await settleAttempt(env, begun, { status: 'failed' });
+-    throw error;
+-  }
+-  // Preserve the entire input charge even if audio later disconnects; no refund is assumed.
+-  await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'fish', model: 's1', error: response.ok ? null : `http_${response.status}` });
+-  await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? reservedMicros : null, price: response.ok ? fishPrice : null });
+-  return response;
+-}
+-
+-// ElevenLabs Flash v2.5 text to speech for a card's audio (explanation-audio.js): billed per input character (pricing-registry.js input_chars). Admitted before the call at the characters it
++// ElevenLabs Flash v2.5 text to speech, the one narrator (narration-voice.js): billed per input character (pricing-registry.js input_chars). Admitted before the call at the characters it
+ // sends, so the learner's allowance and the platform guard both see it; a delivered response settles at the reservation, a failed one keeps it as unknown cost (no refund assumed).
++// category: the guard's row for the path (the card audio's 'explanation_audio', every other path's 'narration_tts').
+ export const ELEVEN_MODEL = 'eleven_flash_v2_5';
+-export async function elevenSpendTransport(env, text, transport) {
++export async function elevenSpendTransport(env, text, transport, category = 'explanation_audio') {
+   if (!spendEnforced(env)) return transport();
+   const price = priceUsage({ provider: 'elevenlabs', model: ELEVEN_MODEL, quantities: { input_chars: text.length } });
+   if (!price) return paidSpendReply('spend_bound_unavailable');
+   const reservedUsd = price.micros / 1e6;
+-  const opId = operationId('explanation_audio');
+-  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'explanation_audio', reservedUsd, kind: 'media', provider: 'elevenlabs', model: ELEVEN_MODEL });
++  const opId = operationId(category);
++  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category, reservedUsd, kind: 'media', provider: 'elevenlabs', model: ELEVEN_MODEL });
+   if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
+   let response;
+   try { response = await transport(); }
+diff --git a/packages/control-plane/src/learn-paid.js b/packages/control-plane/src/learn-paid.js
+index c227d67a1..d3c70aaef 100644
+--- a/packages/control-plane/src/learn-paid.js
++++ b/packages/control-plane/src/learn-paid.js
+@@ -1,5 +1,5 @@
+ // One invariant for every paid provider (docs/features/learn-artifact-generation.md):
+-// OpenAI images, FAL video, Manim, Blender, fish.audio narration, and any
++// OpenAI images, FAL video, Manim, Blender, ElevenLabs narration, and any
+ // provider added later. A request that would spend money starts only with
+ // confirmed: true, which the UI sends only from a Generate press. This is the
+ // server/job boundary, so no UI path can skip it.
+diff --git a/packages/control-plane/src/learn-usage.js b/packages/control-plane/src/learn-usage.js
+index 78e1e5d5a..04a562901 100644
+--- a/packages/control-plane/src/learn-usage.js
++++ b/packages/control-plane/src/learn-usage.js
+@@ -5,7 +5,7 @@
+ //
+ // One action per user action, created lazily on its first provider attempt, so a request that makes no paid call writes
+ // nothing. The route boundary (dev-worker.js) makes a per-request env copy carrying the context under a module-private
+-// Symbol, like learn-spend.js's admission token; spendTransport, askJev, fishSpendTransport and the media paths read it.
++// Symbol, like learn-spend.js's admission token; spendTransport, askJev, elevenSpendTransport and the media paths read it.
+ // Without a context a recorded media attempt (recordMedia) gets its own 'system' action, payer platform, so nothing is lost;
+ // admission (admissionPayer) refuses a paid call with no context unless code marked it system work (withSystemUsage).
+ // Amounts are integer micro-USD (1 USD = 1_000_000 micros); unknown cost is NULL with its reservation kept, never 0.
+diff --git a/packages/control-plane/src/learn-voice-routes.js b/packages/control-plane/src/learn-voice-routes.js
+index 6b31a00d4..e005ae6a3 100644
+--- a/packages/control-plane/src/learn-voice-routes.js
++++ b/packages/control-plane/src/learn-voice-routes.js
+@@ -1,6 +1,6 @@
+ // Voice Mode routes on the dev worker (docs/features/voice-tutor-mvp.md §5):
+ //   POST /api/learn/voice/scribe-token  a single-use ElevenLabs Scribe token (learn-voice-scribe.js)
+-//   POST /api/learn/voice/tts           the Tutor's words as Fish audio (learn-voice-tts.js)
++//   POST /api/learn/voice/tts           the Tutor's words as narrator audio (learn-voice-tts.js)
+ // Gate order as tutorRoute and contextDocsFetch: method, origin, JSON, app access, subscription
+ // owner, paid confirmation; the handlers then check their key and call the provider.
+ import { authorizedBoardApp } from './learn-board.js';
+diff --git a/packages/control-plane/src/learn-voice-tts.js b/packages/control-plane/src/learn-voice-tts.js
+index 306b1509e..1ca19b168 100644
+--- a/packages/control-plane/src/learn-voice-tts.js
++++ b/packages/control-plane/src/learn-voice-tts.js
+@@ -1,31 +1,25 @@
+-import { fishSpendTransport, isPaidSpendReply } from './learn-paid-transport.js';
++import { isPaidSpendReply } from './learn-paid-transport.js';
++import { speakNarration } from './narration-voice.js';
+ 
+-// POST /api/learn/voice/tts (docs/features/voice-tutor-mvp.md §5): the Tutor's spoken words -> Fish
+-// audio, streamed back as audio/mpeg. The caller (voiceRoute) has already run the method, origin,
+-// auth, subscription and paid gates and parsed the body. Same pinned narrator as /api/learn/tts.
++// POST /api/learn/voice/tts (docs/features/voice-tutor-mvp.md §5): the Tutor's spoken words -> the narrator
++// (narration-voice.js, ElevenLabs Jessica), returned as audio/mpeg. The caller (voiceRoute) has already run the method, origin,
++// auth, subscription and paid gates and parsed the body. The one narrator of every spoken path.
+ // The log line carries the turn id, status, ms and length, never the text.
+ 
+ export const VOICE_TTS_TIMEOUT_MS = 20000;
+-const NARRATOR = '802e3bc2b27e49c2995d23ef70e6ac89';
+ const unavailable = () => Response.json({ error: 'Voice output is unavailable right now.' }, { status: 502 });
+ 
+ export async function voiceSpeech(env, body, deps = {}) {
+   const text = body?.text;
+   if (typeof text !== 'string' || !text.trim() || text.length > 1200) return Response.json({ error: 'Provide 1 to 1200 characters to speak.' }, { status: 400 });
+-  if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Voice output is not configured on this environment.' }, { status: 503 });
++  if (!env.ELEVENLABS_API_KEY) return Response.json({ error: 'Voice output is not configured on this environment.' }, { status: 503 });
+   const turnId = typeof body.trace_id === 'string' && body.trace_id.length <= 64 ? body.trace_id : null;
+   const started = Date.now();
+   let status = null;
+   try {
+     // ponytail: the timeout also covers streaming the body, so audio still generating after 20 s is
+     // cut short; fine for the client's 600-character cap. Time only the headers if that bites.
+-    const upstream = await fishSpendTransport(env, text, () => (deps.fetch || fetch)('https://api.fish.audio/v1/tts', {
+-      method: 'POST',
+-      headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
+-      // Calm and steady (owner, 2026-10-01): a little slower, and lower sampling so the narrator does not drift between replies.
+-      body: JSON.stringify({ text, reference_id: NARRATOR, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } }),
+-      signal: AbortSignal.timeout(VOICE_TTS_TIMEOUT_MS),
+-    }));
++    const upstream = await speakNarration(env, text, { fetch: deps.fetch, signal: AbortSignal.timeout(VOICE_TTS_TIMEOUT_MS) });
+     status = upstream.status;
+     if (isPaidSpendReply(upstream)) return upstream;
+     if (!upstream.ok) return unavailable();
+diff --git a/packages/control-plane/src/narration-voice.js b/packages/control-plane/src/narration-voice.js
+new file mode 100644
+index 000000000..0451bf177
+--- /dev/null
++++ b/packages/control-plane/src/narration-voice.js
+@@ -0,0 +1,29 @@
++// THE narrator (owner decision 2026-11-17: one voice, ElevenLabs Jessica, everywhere). Every spoken path reads this one config and calls
++// this one function: the card audio (explanation-audio.js), the Voice Tutor (learn-voice-tts.js), "Read it aloud" (dev-worker.js
++// /api/learn/tts) and /whiteboard narration (whiteboard-tts.js). A path owns its own length cap, timeout and response handling; the
++// voice, the settings, the request and the spend admission live only here. narration-voice.test.js fails if a second voice appears in src.
++import { ELEVEN_MODEL, elevenSpendTransport } from './learn-paid-transport.js';
++import { priceUsage } from './pricing-registry.js';
++
++export const NARRATION_VOICE = Object.freeze({
++  provider: 'elevenlabs', model: ELEVEN_MODEL,
++  voiceId: 'cgSgspJ2msm6clMCkdW9', // Jessica (female), chosen in AUD-2
++  speed: 1.1, stability: 0.4, similarityBoost: 0.75, // a little more energetic and faster (owner); Flash v2.5 takes no style or speaker boost
++  format: 'mp3_44100_64', bitrate: 64000, // constant 64 kbps mp3: a clip's length is its bytes
++});
++export const VOICE_SETTINGS = Object.freeze({ stability: NARRATION_VOICE.stability, similarity_boost: NARRATION_VOICE.similarityBoost, speed: NARRATION_VOICE.speed });
++export const VOICE_URL = `https://api.elevenlabs.io/v1/text-to-speech/${NARRATION_VOICE.voiceId}?output_format=${NARRATION_VOICE.format}`;
++export const NARRATION_CATEGORY = 'narration_tts'; // the spend guard's category for the paths that are not the card audio (which keeps 'explanation_audio')
++
++// The narrator's price for a number of characters, in integer micro-USD (the registry's elevenlabs input_chars row: an estimate, ElevenLabs bills plan credits).
++export const narrationMicros = chars => priceUsage({ provider: NARRATION_VOICE.provider, model: NARRATION_VOICE.model, quantities: { input_chars: chars } }).micros;
++
++// -> [url, init] for fetch.
++export const narrationRequest = (env, text, signal) => [VOICE_URL, { method: 'POST', signal,
++  headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
++  body: JSON.stringify({ text, model_id: NARRATION_VOICE.model, voice_settings: VOICE_SETTINGS }) }];
++
++// Speak text in the narrator's voice: admitted by the spend guard at the characters sent, then one request. -> the provider's Response (a
++// whole mp3), or the guard's own refusal (isPaidSpendReply). A transport error (a timeout of the caller's signal) is thrown.
++export const speakNarration = (env, text, { fetch = globalThis.fetch, signal, category = NARRATION_CATEGORY } = {}) =>
++  elevenSpendTransport(env, text, () => fetch(...narrationRequest(env, text, signal)), category);
+diff --git a/packages/control-plane/src/pricing-registry.js b/packages/control-plane/src/pricing-registry.js
+index 9105a322d..a80098485 100644
+--- a/packages/control-plane/src/pricing-registry.js
++++ b/packages/control-plane/src/pricing-registry.js
+@@ -107,10 +107,12 @@ row('openai', 'gpt-4o-transcribe', 'standard', 'output', 10, PER.mtok, VERIFIED,
+ // so the rate is verified; a call is still priced at the one minute the route assumes. No token rows are listed for it. PRICE_VERSION is deliberately not bumped
+ // here: nothing prices with this row until TRANSCRIBE_MODEL=gpt-transcribe is set at activation (decide the bump then).
+ row('openai', 'gpt-transcribe', 'standard', 'audio_minute', 0.0045, PER.minute, VERIFIED, 'billed per minute of audio duration; replaces gpt-4o-transcribe (shutdown 2027-02-26)', OPENAI_PRICING);
+-// Other billing units. Fish S1 bills UTF-8 input bytes; Scribe v2 Realtime bills audio time; Exa bills per request.
+-row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED);
++// Other billing units. Scribe v2 Realtime bills audio time; Exa bills per request.
++// RETIRED 2026-11-17 (owner: one voice, ElevenLabs Jessica, everywhere): Fish S1 (UTF-8 input bytes) is priced by no runtime path any more. The row stays only so usage
++// records already written with provider 'fish' can still be re-priced and audited (the gpt-4o-transcribe precedent); delete it once those records age out.
++row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED, 'retired 2026-11-17: no runtime path prices with it; kept for historical usage records');
+ row('elevenlabs', 'scribe_v2_realtime', 'standard', 'audio_hour', 0.39, PER.hour, VERIFIED, 'seconds of audio observed server side');
+-// Card audio (explanation-audio.js): ElevenLabs Flash v2.5 text to speech bills characters. The $0.04 per 1,000 characters is the list price read for the AUD-1 report (2026-11-16);
++// The narrator, every spoken path (narration-voice.js: card audio, Voice Tutor, Read it aloud, /whiteboard): ElevenLabs Flash v2.5 text to speech bills characters. The $0.04 per 1,000 characters is the list price read for the AUD-1 report (2026-11-16);
+ // the bill is in plan credits, so the row is an estimate, never presented as measured. PRICE_VERSION is not bumped (the gpt-transcribe precedent): nothing else prices with it.
+ row('elevenlabs', 'eleven_flash_v2_5', 'standard', 'input_chars', 0.04, 1000, ESTIMATE, 'list price per 1,000 characters (AUD-1 report 2026-11-16); ElevenLabs bills plan credits', 'https://elevenlabs.io/pricing/api', '2026-11-16');
+ row('exa', 'search', 'standard', 'request', 7, 1000, VERIFIED, 'type auto, up to 10 results (+$1 per 1,000 results above 10, +$1 per 1,000 pages per content type)', EXA_PRICING);
+diff --git a/packages/control-plane/src/voice-availability.js b/packages/control-plane/src/voice-availability.js
+index faae2bfe3..1e4e3db85 100644
+--- a/packages/control-plane/src/voice-availability.js
++++ b/packages/control-plane/src/voice-availability.js
+@@ -1,4 +1,4 @@
+ // The one switch for Voice Mode listening (ElevenLabs Scribe). Owner, 2026-10-12 (r36): new listening sessions are
+ // paused until a provider-confirmed billable session bound exists. The browser mic (web/src/LearnVoice.jsx) and the
+-// token route (learn-voice-routes.js, FX-71) both read it, so flipping it re-enables both. Fish narration is unaffected.
++// token route (learn-voice-routes.js, FX-71) both read it, so flipping it re-enables both. Narration is unaffected.
+ export const LISTENING_PAUSED = true;
+diff --git a/packages/control-plane/src/whiteboard-job.js b/packages/control-plane/src/whiteboard-job.js
+index ec2a9def7..f50767e43 100644
+--- a/packages/control-plane/src/whiteboard-job.js
++++ b/packages/control-plane/src/whiteboard-job.js
+@@ -10,14 +10,14 @@
+ // `authoring` with its generation lease (approval + deadline).
+ // Then (W1.3), one alarm step at a time, each checkpointed on the job:
+ //   authoring   one whiteboard_author call per scene (whiteboard-author.js), corrections <= 2 shared; the video's totals checked at the end
+-//   narrating   one Fish call per narrated beat (whiteboard-tts.js), its MP3 checkpointed to R2 and measured from its frames
++//   narrating   one narrator call per narrated beat (whiteboard-tts.js), its MP3 checkpointed to R2 and measured from its frames
+ //   timing      whiteboard-timing.js; an overrun scene's narration is rewritten once (a correction) and narrated again; still over: failed
+ //   rendering   whiteboard-render-client.js, one segment; the artifacts pulled to R2, then captions, transcript and manifest written: ready
+ // A failure says the 1.3 reason of its stage: the plan could not be written (planning, authoring), the narration could not be made
+ // (narrating, timing), the drawing could not be rendered (rendering).
+ //
+ // Money: every model call is admitted on its own (spendTransport), feature 'artifact', category 'whiteboard': planning under prepKey, the
+-// author under actionKey; every Fish call goes through fishSpendTransport under actionKey. A phase that fails is refunded by key
++// author under actionKey; every narrator call goes through elevenSpendTransport (narration-voice.js) under actionKey. A phase that fails is refunded by key
+ // (refundActionByKey): prepKey before Generate, actionKey after. A supported or unsupported plan stays charged; a ready video is charged.
+ //
+ // Lease: a call's intent is stored before it is sent (inFlight, with `until`); its result is applied only while that same call is still the
+@@ -34,7 +34,7 @@ import { sha256Hex } from './learn-grade-jev.js';
+ import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
+ import { RENDERER_VERSION, WHITEBOARD_CALL_MS, WHITEBOARD_LIMITS as L, WHITEBOARD_POLICY_VERSION, callWhiteboardRole, whiteboardRequest, whiteboardReservation, whiteboardStreaming } from './whiteboard-policy.js';
+ import { manifestHash, planHash, validateManifest, validateResult, whiteboardVersions } from './whiteboard-schema.js';
+-import { priceUsage } from './pricing-registry.js';
++import { narrationMicros } from './narration-voice.js';
+ import { CONTEXT_CUT, FAILURE_PLAN, failureText, planLines, planStage, refusalText } from './whiteboard-plan.js';
+ import { authorScene, rewriteScene } from './whiteboard-author.js';
+ import { TTS_TIMEOUT_MS, narrateBeat } from './whiteboard-tts.js';
+@@ -234,7 +234,7 @@ export class WhiteboardJobs {
+       prompt: payload.prompt.trim(), context, durationSeconds, threadId: payload.threadId ?? null,
+       stage: 'queued', attempt: 1, failure: null, unsupported: null, inFlight: null, refinement: null, title: null, plan: null, planHash: null,
+       pendingProposal: null, proposal: null, approval: null, result: null, reservation: null, reported: null, reportDue: false,
+-      counts: { plan: 0, author: 0, fish: 0 }, calls: [], prepKey: `wp${hex()}`, actionKey: `wg${hex()}`, artifactId: `wa_${hex()}`,
++      counts: { plan: 0, author: 0, narration: 0 }, calls: [], prepKey: `wp${hex()}`, actionKey: `wg${hex()}`, artifactId: `wa_${hex()}`,
+       scenes: [], corrections: 0, rewritten: [], audio: {}, timing: null, render: null, pulled: null, resumeAt: 0, stageTime: {}, stageSince: now, swept: false,
+       createdAt: now, updatedAt: now, deadline: now + L.jobDeadlineMs,
+     };
+@@ -439,15 +439,15 @@ export class WhiteboardJobs {
+     return out;
+   }
+ 
+-  // One Fish call for one beat, under the same lease rule as paidCall: its intent stored first, applied only while it is still the running call.
+-  async paidFish(job, audioKey, text) {
++  // One narrator call for one beat, under the same lease rule as paidCall: its intent stored first, applied only while it is still the running call.
++  async paidNarration(job, audioKey, text) {
+     const key = await this.locked(async () => {
+       const current = await this.get(job.id);
+       if (!current || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
+-      current.counts.fish = (current.counts.fish || 0) + 1;
+-      const callKey = `${current.id}-fish-${current.calls.length + 1}`, now = Date.now();
+-      current.inFlight = { key: callKey, role: 'fish', at: now, until: now + 2 * TTS_TIMEOUT_MS + LEASE_SLACK_MS };
+-      current.calls.push({ key: callKey, role: 'fish', beat: audioKey, attempt: current.attempt, status: 'running', chars: text.length, costMicros: null, startedAt: now, endedAt: null });
++      current.counts.narration = (current.counts.narration || 0) + 1;
++      const callKey = `${current.id}-narration-${current.calls.length + 1}`, now = Date.now();
++      current.inFlight = { key: callKey, role: 'narration', at: now, until: now + 2 * TTS_TIMEOUT_MS + LEASE_SLACK_MS };
++      current.calls.push({ key: callKey, role: 'narration', beat: audioKey, attempt: current.attempt, status: 'running', chars: text.length, costMicros: null, startedAt: now, endedAt: null });
+       await this.save(current);
+       return callKey;
+     });
+@@ -458,9 +458,9 @@ export class WhiteboardJobs {
+     const kept = await this.locked(async () => {
+       const current = await this.get(job.id), call = current?.calls.find(c => c.key === key);
+       if (!call || call.status !== 'running') return false;
+-      // reconciling: Fish accepted the request and its audio never arrived; it may be charged and is not asked for again.
++      // reconciling: the narrator accepted the request and its audio never arrived; it may be charged and is not asked for again.
+       Object.assign(call, { status: error ? (error.code === 'reconciling' ? 'unknown' : 'failed') : 'settled', error: error?.code ?? null, attempts: out?.attempts ?? error?.attempts ?? null,
+-        costMicros: out ? priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: new TextEncoder().encode(text).length } }).micros : null, endedAt: Date.now() });
++        costMicros: out ? narrationMicros(text.length) : null, endedAt: Date.now() });
+       current.inFlight = null;
+       await this.save(current);
+       return true;
+@@ -512,7 +512,7 @@ export class WhiteboardJobs {
+   async advance(job, work) {
+     const stage = job.stage, attempt = job.attempt;
+     const ctx = { env: this.env, tasks: this.tasks, bucket: learnMedia(this.env), fetch: (...a) => this.outbound(...a),
+-      call: (role, spec) => this.paidCall(job, role, spec), narrate: (audioKey, text) => this.paidFish(job, audioKey, text) };
++      call: (role, spec) => this.paidCall(job, role, spec), narrate: (audioKey, text) => this.paidNarration(job, audioKey, text) };
+     const out = await work(structuredClone(job), ctx);
+     await this.locked(async () => {
+       const current = await this.get(job.id);
+diff --git a/packages/control-plane/src/whiteboard-policy.js b/packages/control-plane/src/whiteboard-policy.js
+index a19d06efa..480c606a2 100644
+--- a/packages/control-plane/src/whiteboard-policy.js
++++ b/packages/control-plane/src/whiteboard-policy.js
+@@ -3,7 +3,7 @@
+ // animation-policy.js roleBoundMicros does; and the job's worst case (whiteboardReservation), from which the Generate credit line is printed
+ // (100 credits = 1 USD). No environment variable sets any of it: changing a number here is a versioned policy change and a candidate.
+ import { LEARN_TASKS, MODEL_PRICES, loggedModel, notConfiguredMessage } from './learn-models.js';
+-import { priceUsage } from './pricing-registry.js';
++import { narrationMicros } from './narration-voice.js';
+ import { providerUnavailable, requestSpendBound } from './learn-spend.js';
+ import { modelFailure } from './learn-research.js';
+ import { normalizeToolInput } from './tool-input.js';
+@@ -37,7 +37,6 @@ export const WHITEBOARD_LIMITS = Object.freeze({
+   promptCodePoints: 4000, contextChars: 8000, evidenceCodePoints: 12000,
+   planRevisions: 3, // Edit, duration (W-D7), W3 clarification answer: each one more planner call
+   authorCorrections: 2, // shared by the job: schema repairs and timing rewrites
+-  utf8BytesPerChar: 4, // the narration's byte worst case per character (roadmap 6.1)
+ });
+ 
+ // The scene cap for a duration: min(8, ceil(d / 15)).
+@@ -72,12 +71,10 @@ export function whiteboardRoleBoundMicros(role, tasks = LEARN_TASKS) {
+   return Math.ceil((r.maxInputTokens + r.maxImages * IMAGE_TOKENS) * input * CACHE_WRITE + r.maxTokens * output);
+ }
+ 
+-const fishMicros = bytes => priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: bytes } }).micros;
+-
+ // The job's prices for a plan of N scenes (roadmap 6.1), integer micro-USD.
+-// maximum: plan phase = the planner and its 3 revisions; generation = N author calls + 2 corrections + Fish on the narration at 4 bytes a
+-// character, plus the re-narration a timing rewrite causes (each correction may rewrite one scene's narration once: at most 2 scenes).
+-// estimate: the path with no revision, correction or rewrite, every call at its bound and the narration one byte a character.
++// maximum: plan phase = the planner and its 3 revisions; generation = N author calls + 2 corrections + the narrator (narration-voice.js, per character) on the narration,
++// plus the re-narration a timing rewrite causes (each correction may rewrite one scene's narration once: at most 2 scenes).
++// estimate: the path with no revision, correction or rewrite, every call at its bound and the narration at its characters.
+ // shortcut: the estimate is the policy's no-correction path, not measured usage; replace with W1 acceptance jobs' usage rows.
+ export function whiteboardReservation(plan, tasks = LEARN_TASKS) {
+   const L = WHITEBOARD_LIMITS, n = plan?.scenes?.length;
+@@ -92,8 +89,8 @@ export function whiteboardReservation(plan, tasks = LEARN_TASKS) {
+     scenes: n,
+     calls,
+     planMicros: calls.plan * planCall,
+-    generationMicros: calls.author * authorCall + fishMicros((narrationChars + rewriteChars) * L.utf8BytesPerChar),
+-    estimate: { planMicros: planCall, generationMicros: n * authorCall + fishMicros(narrationChars) },
++    generationMicros: calls.author * authorCall + narrationMicros(narrationChars + rewriteChars),
++    estimate: { planMicros: planCall, generationMicros: n * authorCall + narrationMicros(narrationChars) },
+   };
+ }
+ 
+diff --git a/packages/control-plane/src/whiteboard-tts.js b/packages/control-plane/src/whiteboard-tts.js
+index 24ed3e6a3..9d858559c 100644
+--- a/packages/control-plane/src/whiteboard-tts.js
++++ b/packages/control-plane/src/whiteboard-tts.js
+@@ -1,38 +1,35 @@
+-// /whiteboard narration (roadmap v1 sections 4.2 and 6.1): one Fish s1 request per beat through fishSpendTransport, with the Tutor's voice
+-// and the live route's settings (learn-voice-tts.js), 20 s per request as that route. Acceptance is Fish's response headers: a 429, or a
+-// request that failed or timed out before them, is sent once more; once Fish has answered 200, a body that does not arrive is never asked for
++// /whiteboard narration (roadmap v1 sections 4.2 and 6.1): one narrator request per beat through speakNarration (narration-voice.js, the one voice
++// of every spoken path), 20 s per request as the Voice Tutor route. Acceptance is the provider's response headers: a 429, or a
++// request that failed or timed out before them, is sent once more; once it has answered 200, a body that does not arrive is never asked for
+ // again (`reconciling`: its charge stands until the job's refund by key). The duration is measured from the MP3 frames (whiteboard-mp3.js).
+-import { fishSpendTransport, isPaidSpendReply } from './learn-paid-transport.js';
++import { isPaidSpendReply } from './learn-paid-transport.js';
++import { speakNarration } from './narration-voice.js';
+ import { WHITEBOARD_LIMITS as L } from './whiteboard-policy.js';
+ import { mp3Duration } from './whiteboard-mp3.js';
+ 
+-export const FISH_URL = 'https://api.fish.audio/v1/tts';
+-export const NARRATOR = '802e3bc2b27e49c2995d23ef70e6ac89'; // learn-voice-tts.js:9, the Tutor's voice
+ export const TTS_TIMEOUT_MS = 20000;
+-export const fishBody = text => ({ text, reference_id: NARRATOR, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
+ 
+ const failure = (code, message, extra = {}) => Object.assign(new Error(message), { code, ...extra });
+ 
+ // env: the job's usage-scoped env (the generation key). -> { bytes: Uint8Array, seconds, attempts }
+ export async function narrateBeat(env, text, { fetch = globalThis.fetch, timeoutMs = TTS_TIMEOUT_MS } = {}) {
+-  if (!env.FISH_AUDIO_API_KEY) throw failure('tts_not_configured', 'Fish is not configured here.');
++  if (!env.ELEVENLABS_API_KEY) throw failure('tts_not_configured', 'The narrator is not configured here.');
+   let attempts = 0;
+   for (;;) {
+     attempts++;
+     let response;
+     try {
+-      response = await fishSpendTransport(env, text, () => fetch(FISH_URL, { method: 'POST', headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
+-        body: JSON.stringify(fishBody(text)), signal: AbortSignal.timeout(timeoutMs) }));
++      response = await speakNarration(env, text, { fetch, signal: AbortSignal.timeout(timeoutMs) });
+     } catch (error) {
+       if (attempts < 2) continue; // before acceptance: one more
+-      throw failure('tts_failed', `Fish did not answer: ${error?.name || 'error'}.`, { attempts });
++      throw failure('tts_failed', `The narrator did not answer: ${error?.name || 'error'}.`, { attempts });
+     }
+     if (isPaidSpendReply(response)) throw failure('spend_refused', 'The narration was not admitted.', { attempts });
+     if (response.status === 429 && attempts < 2) continue;
+-    if (!response.ok) throw failure('tts_failed', `Fish answered ${response.status}.`, { attempts });
++    if (!response.ok) throw failure('tts_failed', `The narrator answered ${response.status}.`, { attempts });
+     let bytes;
+     try { bytes = new Uint8Array(await response.arrayBuffer()); }
+-    catch { throw failure('reconciling', 'Fish accepted the request and its audio did not arrive; it is not asked for again.', { attempts }); }
++    catch { throw failure('reconciling', 'The narrator accepted the request and its audio did not arrive; it is not asked for again.', { attempts }); }
+     if (bytes.length > L.beatAudioBytes) throw failure('tts_failed', 'The narration audio is larger than its limit.', { attempts });
+     const { seconds } = mp3Duration(bytes);
+     return { bytes, seconds, attempts };
+diff --git a/packages/control-plane/test/credits-2500.test.js b/packages/control-plane/test/credits-2500.test.js
+index 9fd357069..968b26423 100644
+--- a/packages/control-plane/test/credits-2500.test.js
++++ b/packages/control-plane/test/credits-2500.test.js
+@@ -114,7 +114,7 @@ test('Sonnet 5.5 cached input is $0.10 per million and Sonnet 5 keeps its own ro
+   assert.equal(rateOf('openai', 'gpt-4.1-mini', 'cache_read').status, 'verified');
+   assert.equal(rateOf('exa', 'search', 'request').usd, 7);
+   // What is left is named, not hidden: an estimate with its basis, and Bedrock rows no official table could confirm.
+-  assert.deepEqual([...new Set(unverifiedRows().map(r => `${r.provider}:${r.status}`))].sort(), ['bedrock:unverified', 'google:estimate', 'openai:estimate']); // google:estimate is the bench-only gemini-3.5-flash row (2026-11-13: the price page no longer lists the model; basis in the row)
++  assert.deepEqual([...new Set(unverifiedRows().map(r => `${r.provider}:${r.status}`))].sort(), ['bedrock:unverified', 'elevenlabs:estimate', 'google:estimate', 'openai:estimate']); // google:estimate is the bench-only gemini-3.5-flash row (2026-11-13: the price page no longer lists the model; basis in the row)
+   assert.equal(rateOf('openai', 'gpt-image-1', 'output_image'), null, 'no official rate: no row, so no guess');
+   assert.equal(imageEstimate('a cat'), null);
+   // Cached tokens are counted once: input_tokens excludes them, a TTL split prices writes by TTL.
+diff --git a/packages/control-plane/test/explanation-audio.test.js b/packages/control-plane/test/explanation-audio.test.js
+index 73415c2c4..93f61bfb5 100644
+--- a/packages/control-plane/test/explanation-audio.test.js
++++ b/packages/control-plane/test/explanation-audio.test.js
+@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
+ import { DatabaseSync } from 'node:sqlite';
+ import { readFileSync } from 'node:fs';
+ import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
+-import { AUDIO_LIMITS, SCRIPT_PATH, VOICE_PATH, VOICE_ID, VOICE_SETTINGS, VOICE_URL, explanationAudioRoute, scriptInputOf, scriptRequest } from '../src/explanation-audio.js';
++import { AUDIO_LIMITS, SCRIPT_PATH, VOICE_PATH, explanationAudioRoute, scriptInputOf, scriptRequest } from '../src/explanation-audio.js';
+ import { FLOOR_WORDS, mentions, outsideMentions, LENGTH_TARGET_WORDS, cardDataNumbers, cardNumbers, dataNumbers, lengthLine, scriptSystem, scriptUser, secondsEstimate, spokenNumbers, splitCard, stripUnsafe, verdict } from '../src/explanation-audio-script.js';
++import { VOICE_SETTINGS, VOICE_URL, NARRATION_VOICE } from '../src/narration-voice.js';
+ import { withUsage, noteUsageIdentity, usageFeature, FEATURES } from '../src/learn-usage.js';
+ import { rateOf, priceUsage } from '../src/pricing-registry.js';
+ import { memoryBucket } from './live-storage-spy.js';
+@@ -475,12 +476,12 @@ test('first Play: ElevenLabs Flash v2.5 speaks the script (not the transcript) w
+   assert.equal(seen.voices().length, 1);
+   const [{ url, body, headers }] = seen.voices();
+   assert.equal(url, VOICE_URL);
+-  assert.ok(url.includes(VOICE_ID) && /output_format=mp3_44100_64$/.test(url));
++  assert.ok(url.includes(NARRATION_VOICE.voiceId) && /output_format=mp3_44100_64$/.test(url));
+   assert.deepEqual(body, { text: SCRIPT_TEXT, model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, speed: 1.1 } });
+   assert.deepEqual(VOICE_SETTINGS, body.voice_settings);
+   assert.equal(headers['xi-api-key'], 'el-synthetic');
+   assert.deepEqual(Object.keys(narration).sort(), ['fileRef', 'model', 'provider', 'seconds', 'status', 'voiceId']);
+-  assert.deepEqual([narration.status, narration.provider, narration.model, narration.voiceId, narration.seconds], ['ready', 'elevenlabs', 'eleven_flash_v2_5', VOICE_ID, 3]);
++  assert.deepEqual([narration.status, narration.provider, narration.model, narration.voiceId, narration.seconds], ['ready', 'elevenlabs', 'eleven_flash_v2_5', NARRATION_VOICE.voiceId, 3]);
+   assert.equal(narration.fileRef.v, 1);
+   assert.deepEqual(narration.fileRef.meta, { name: 'explanation-audio.mp3', type: 'audio/mpeg', size: MP3.length });
+   const [file] = rows(sqlite, 'file_sources');
+diff --git a/packages/control-plane/test/learn-allowance.test.js b/packages/control-plane/test/learn-allowance.test.js
+index eaf68012f..b98802e85 100644
+--- a/packages/control-plane/test/learn-allowance.test.js
++++ b/packages/control-plane/test/learn-allowance.test.js
+@@ -11,7 +11,8 @@ import { join } from 'node:path';
+ import { spendTransport, requestSpendBound } from '../src/learn-spend.js';
+ import { admitSpend, settleSpend, allowanceFirst, boundaryReply, refusalBody } from '../src/learn-spend-ledger.js';
+ import { askJev, JEV_TRANSPORTS, JevError } from '../src/learn-grade-jev.js';
+-import { fishSpendTransport, isPaidSpendReply } from '../src/learn-paid-transport.js';
++import { isPaidSpendReply } from '../src/learn-paid-transport.js';
++import { speakNarration } from '../src/narration-voice.js';
+ import { withUsage, noteUsageIdentity, withSystemUsage, settleAttempt, usageTotals, toMicros, periodOf, periodReset, forwardUsagePayer } from '../src/learn-usage.js';
+ import { LearnScenes } from '../src/learn-scene.js';
+ import { LearnVideos } from '../src/learn-video.js';
+@@ -290,7 +291,7 @@ test('the platform daily guard still applies to chargeable work, and reads as th
+   assert.equal(calls.length, 0);
+ });
+ 
+-test('Fish narration, Jev and Exa search go through the same admission: refused when exhausted, settled when admitted', async t => {
++test('Narrator speech, Jev and Exa search go through the same admission: refused when exhausted, settled when admitted', async t => {
+   const { sqlite, LEARN_DB } = d1(t);
+   const env = base(LEARN_DB, 20_000, { EXA_API_KEY: 'fixture', JEV_DIRECT_KEY: 'fixture' });
+   let fetches = 0;
+@@ -302,9 +303,9 @@ test('Fish narration, Jev and Exa search go through the same admission: refused
+   await assert.rejects(searchYouTube('relu', exhausted, async () => { fetches++; }), /Not enough AI credits/);
+   await assert.rejects(searchCanvasSource('arxiv', 'attention', as(env), { fetcher: async () => { fetches++; }, direct: async () => null }), /Not enough AI credits/);
+   await assert.rejects(askJev(as(env, 'u-alice', 'inline_route'), { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl: async () => { fetches++; } }), error => error.code === 'allowance_exhausted');
+-  const fish = await fishSpendTransport(as({ ...env, FISH_AUDIO_API_KEY: 'fixture' }, 'u-alice', 'tts'), 'Narrate this.', async () => { fetches++; return new Response('mp3'); });
+-  assert.ok(isPaidSpendReply(fish));
+-  assert.deepEqual([fish.status, (await fish.json()).reason], [429, 'exhausted']);
++  const narration = await speakNarration(as({ ...env, ELEVENLABS_API_KEY: 'fixture' }, 'u-alice', 'tts'), 'Narrate this.', { fetch: async () => { fetches++; return new Response('mp3'); } });
++  assert.ok(isPaidSpendReply(narration));
++  assert.deepEqual([narration.status, (await narration.json()).reason], [429, 'exhausted']);
+   assert.equal(fetches, 1, 'only the first, affordable search reached a provider');
+ });
+ 
+diff --git a/packages/control-plane/test/learn-artifact.test.js b/packages/control-plane/test/learn-artifact.test.js
+index 07a5573c6..86bc7a98b 100644
+--- a/packages/control-plane/test/learn-artifact.test.js
++++ b/packages/control-plane/test/learn-artifact.test.js
+@@ -185,13 +185,13 @@ test('one paid gate for every provider: no confirmed flag, no request', async ()
+   const worker = (await import('node:fs')).readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+   for (const route of ['/api/learn/image', '/api/learn/tts']) {
+     const handler = worker.slice(worker.indexOf(`path === '${route}'`));
+-    // The provider call is the route's own request to an https provider (TTS wraps it in fishSpendTransport, so no 'await fetch(').
+-    const provider = handler.indexOf("fetch('https://");
++    // The provider call is the route's own request to an https provider, or the narrator's one function (TTS calls speakNarration, so no 'await fetch(').
++    const provider = handler.search(/fetch\('https:\/\/|speakNarration\(/);
+     assert.ok(provider > 0 && handler.indexOf('paidRefusal(body)') < provider, `${route} checks confirmation before the provider`);
+   }
+ });
+ 
+-// fish.audio narration is paid in execution, and the shared contract says so.
++// ElevenLabs narration is paid in execution, and the shared contract says so.
+ test('the contract marks narration paid', () => {
+   assert.equal(primitive('narration').paid, true);
+ });
+diff --git a/packages/control-plane/test/learn-spend-boundary.test.js b/packages/control-plane/test/learn-spend-boundary.test.js
+index 24821c537..a34d6c626 100644
+--- a/packages/control-plane/test/learn-spend-boundary.test.js
++++ b/packages/control-plane/test/learn-spend-boundary.test.js
+@@ -395,7 +395,7 @@ import { FalSeedanceProvider } from '../src/video-provider.js';
+ 
+ for (const reached of [false, true]) test(`active media submissions refuse ${reached ? 'reached' : 'unset'} cap without provider calls`, async t => {
+   const { LEARN_DB } = ledger(t);
+-  const env = platform({ LEARN_DB, FISH_AUDIO_API_KEY: 'fixture', ELEVENLABS_API_KEY: 'fixture', FAL_API_KEY: 'fixture', MATH_WORKER_URL: 'https://synthetic.test', MATH_WORKER_TOKEN: 'fixture', SCENE_WORKER_URL: 'https://synthetic.test', SCENE_WORKER_TOKEN: 'fixture' });
++  const env = platform({ LEARN_DB, ELEVENLABS_API_KEY: 'fixture', FAL_API_KEY: 'fixture', MATH_WORKER_URL: 'https://synthetic.test', MATH_WORKER_TOKEN: 'fixture', SCENE_WORKER_URL: 'https://synthetic.test', SCENE_WORKER_TOKEN: 'fixture' });
+   if (reached) {
+     env.USAGE_PLATFORM_DAY_USD = '1';
+     await admitSpend(LEARN_DB, env, { opId: 'full', userId: 'fixture', org: 'platform', category: 'fixture', reservedUsd: 1 });
+@@ -412,11 +412,11 @@ for (const reached of [false, true]) test(`active media submissions refuse ${rea
+   assert.equal(calls, 0);
+ });
+ 
+-test('Fish speech reserves UTF-8 bytes atomically and retains failed liability', async t => {
++test('Voice Tutor speech reserves its characters atomically and retains failed liability', async t => {
+   const { LEARN_DB, sqlite } = ledger(t);
+   const text = '??';
+-  const cost = new TextEncoder().encode(text).length * 15 / 1e6;
+-  const env = platform({ LEARN_DB, FISH_AUDIO_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(cost) });
++  const cost = text.length * 40 / 1e6; // $0.04 per 1,000 characters = 40 micro-USD a character
++  const env = platform({ LEARN_DB, ELEVENLABS_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(cost) });
+   let calls = 0;
+   const transport = async () => { calls++; throw new Error('synthetic disconnect'); };
+   assert.equal((await voiceSpeech(env, { text }, { fetch: transport })).status, 502);
+@@ -437,7 +437,8 @@ test('unconfigured Voice errors and provider status reads survive unset cap', as
+   assert.equal(calls, 1);
+ });
+ 
+-import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../src/learn-paid-transport.js';
++import { paidSubmissionRefusal, isPaidSpendReply } from '../src/learn-paid-transport.js';
++import { speakNarration } from '../src/narration-voice.js';
+ import { paidRefusal } from '../src/learn-paid.js';
+ 
+ // Execute the actual inline route branches with injected auth/fetch; the full Worker imports build-only assets.
+@@ -447,21 +448,21 @@ function inlinePaidRoute(path) {
+   const start = inlineWorker.indexOf(`    if (path === '${path}' && req.method === 'POST')`);
+   assert.ok(start >= 0);
+   const code = inlineWorker.slice(start, inlineWorker.indexOf(end, start));
+-  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'fishSpendTransport', 'isPaidSpendReply', 'fetch', code);
++  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'speakNarration', 'isPaidSpendReply', 'fetch', code);
+ }
+ // /api/learn/transcribe is not here: Speak answer dictation always answers not configured (O-8 covers Explain-back voice notes only).
+ for (const path of ['/api/learn/image', '/api/learn/tts']) test(`${path} actual route refuses caps after authorization/configuration`, async t => {
+   const { LEARN_DB } = ledger(t);
+-  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', FISH_AUDIO_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
++  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', ELEVENLABS_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
+   let calls = 0;
+   const transport = async () => { calls++; return Response.json({}); };
+   const invoke = (settings, auth = async () => ({ email: 'fixture' })) => {
+     const body = path.endsWith('/transcribe') ? new FormData() : JSON.stringify({ app: 'fixture', prompt: 'Synthetic image', text: 'Synthetic text', confirmed: true });
+     if (body instanceof FormData) { body.set('audio', new Blob(['fixture'], { type: 'audio/webm' }), 'fixture.webm'); body.set('app', 'fixture'); }
+-    return inlinePaidRoute(path)(new Request(`https://synthetic.test${path}`, { method: 'POST', body }), settings, path, auth, paidRefusal, paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply, transport);
++    return inlinePaidRoute(path)(new Request(`https://synthetic.test${path}`, { method: 'POST', body }), settings, path, auth, paidRefusal, paidSubmissionRefusal, speakNarration, isPaidSpendReply, transport);
+   };
+   assert.equal((await invoke(env, async () => new Response('Denied', { status: 403 }))).status, 403);
+-  const missing = await invoke({ ...env, OPENAI_API_KEY: '', FISH_AUDIO_API_KEY: '' });
++  const missing = await invoke({ ...env, OPENAI_API_KEY: '', ELEVENLABS_API_KEY: '' });
+   assert.match((await missing.json()).error, /not configured/);
+   assert.equal((await (await invoke(env)).json()).code, 'cap_unset');
+   env.USAGE_PLATFORM_DAY_USD = '1';
+@@ -478,7 +479,7 @@ test('/api/learn/transcribe is off unless TRANSCRIBE_ENABLED is exactly true, ke
+   const call = env => {
+     const body = new FormData();
+     body.set('audio', new Blob(['fixture'], { type: 'audio/webm' }), 'fixture.webm'); body.set('app', 'fixture');
+-    return inlinePaidRoute('/api/learn/transcribe')(new Request('https://synthetic.test/api/learn/transcribe', { method: 'POST', body }), env, '/api/learn/transcribe', async () => ({ email: 'fixture' }), untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'));
++    return inlinePaidRoute('/api/learn/transcribe')(new Request('https://synthetic.test/api/learn/transcribe', { method: 'POST', body }), env, '/api/learn/transcribe', async () => ({ email: 'fixture' }), untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('speakNarration'), untouched('isPaidSpendReply'), untouched('fetch'));
+   };
+   const expected = { error: 'Speech to text is not configured on this environment.' };
+   for (const flag of [undefined, '', 'false', 'TRUE', '1', ' true']) for (const key of ['fixture', undefined]) {
+@@ -500,7 +501,7 @@ test('/api/learn/image actual route is unavailable unless LEGACY_IMAGE_GENERATIO
+     const env = { LEARN_DB, OPENAI_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', ...(flag === undefined ? {} : { LEGACY_IMAGE_GENERATION: flag }) };
+     const request = new Request('https://synthetic.test/api/learn/image', { method: 'POST', body: JSON.stringify({ app: 'fixture', prompt: 'Synthetic image', confirmed: true }) });
+     const response = await inlinePaidRoute('/api/learn/image')(request, env, '/api/learn/image', untouched('authorizedBoardApp'), untouched('paidRefusal'), untouched('paidSubmissionRefusal'),
+-      untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'));
++      untouched('speakNarration'), untouched('isPaidSpendReply'), untouched('fetch'));
+     assert.equal(response.status, 503, JSON.stringify(flag));
+     assert.deepEqual(await response.json(), { error: 'Generating images is not available right now. You can still search for a photo.', code: 'image_generation_unavailable' });
+   }
+@@ -518,10 +519,10 @@ test('a configured cap never authorizes unbounded delegated or FAL submissions',
+   assert.equal(calls, 0);
+ });
+ 
+-test('concurrent Fish requests reserve one affordable call and preserve streamed audio', async t => {
++test('concurrent Voice Tutor requests reserve one affordable call and preserve streamed audio', async t => {
+   const { LEARN_DB } = ledger(t);
+   const text = 'Hello';
+-  const env = platform({ LEARN_DB, FISH_AUDIO_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(text.length * 15 / 1e6) });
++  const env = platform({ LEARN_DB, ELEVENLABS_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(text.length * 40 / 1e6) });
+   let finish, entered;
+   const waiting = new Promise(resolve => { finish = resolve; });
+   const started = new Promise(resolve => { entered = resolve; });
+diff --git a/packages/control-plane/test/learn-usage.test.js b/packages/control-plane/test/learn-usage.test.js
+index 15f92d349..c79bfe1e7 100644
+--- a/packages/control-plane/test/learn-usage.test.js
++++ b/packages/control-plane/test/learn-usage.test.js
+@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
+ import { readFileSync } from 'node:fs';
+ import { spendTransport, requestSpendBound } from '../src/learn-spend.js';
+ import { askJev, JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
+-import { fishSpendTransport } from '../src/learn-paid-transport.js';
++import { speakNarration } from '../src/narration-voice.js';
+ import { devIdentity } from '../src/dev-forwarding.js';
+ import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageByFeature, usageFeature, toMicros,
+   periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded, withSystemUsage } from '../src/learn-usage.js';
+@@ -297,15 +297,16 @@ test('a ledger stream settles at the end; a cancelled stream keeps its reservati
+   assert.deepEqual(rows(sqlite, 'usage_actions').slice(2).map(a => [a.user_id, a.status, a.result]), [['u-alice', 'failed', 'none'], ['u-carol', 'completed', 'full']]);
+ });
+ 
+-test('Fish narration settles at its exact input-byte price; a failed one keeps the reservation as unknown', async t => {
++test('narrator speech settles at its exact input-character price; a failed one keeps the reservation as unknown', async t => {
+   const { sqlite, LEARN_DB } = database(t);
+-  const env = signedIn({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' }, 'tts');
+-  await fishSpendTransport(env, 'Hello there.', async () => new Response('mp3'));
+-  await fishSpendTransport(env, 'Hello there.', async () => new Response('no', { status: 500 }));
+-  const micros = toMicros(Math.ceil(new TextEncoder().encode('Hello there.').length * 15) / 1e6);
++  const env = signedIn({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50', ELEVENLABS_API_KEY: 'fixture' }, 'tts');
++  await speakNarration(env, 'Hello there.', { fetch: async () => new Response('mp3') });
++  await speakNarration(env, 'Hello there.', { fetch: async () => new Response('no', { status: 500 }) });
++  const micros = 'Hello there.'.length * 40; // $0.04 per 1,000 characters
+   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.provider, a.reserved_micros, a.cost_micros, a.cost_state, a.status]),
+-    [['media', 'fish', micros, micros, 'settled', 'settled'], ['media', 'fish', micros, null, 'unknown', 'failed']]);
++    [['media', 'elevenlabs', micros, micros, 'settled', 'settled'], ['media', 'elevenlabs', micros, null, 'unknown', 'failed']]);
+   assert.equal(new Set(rows(sqlite, 'usage_attempts').map(a => a.action_id)).size, 1);
++  assert.deepEqual([...new Set(rows(sqlite, 'usage_operations').map(o => o.category))], ['narration_tts'], 'the guard row of every path but the card audio');
+ });
+ 
+ test('micros are integers rounded up, never float sums', () => {
+diff --git a/packages/control-plane/test/learn-voice-tts.test.js b/packages/control-plane/test/learn-voice-tts.test.js
+index 72b7c0463..3e2afa700 100644
+--- a/packages/control-plane/test/learn-voice-tts.test.js
++++ b/packages/control-plane/test/learn-voice-tts.test.js
+@@ -1,11 +1,12 @@
+ // POST /api/learn/voice/tts handler (docs/features/voice-tutor-mvp.md §5): text bounds, the
+-// missing-key 503, the exact Fish request, provider errors masked as 502, audio/mpeg passthrough,
+-// and a log line without the text. A recorded fetch stands in for Fish; nothing is paid for.
++// missing-key 503, the exact narrator request (the one voice, narration-voice.js), provider errors masked as 502, audio/mpeg passthrough,
++// and a log line without the text. A recorded fetch stands in for ElevenLabs; nothing is paid for.
+ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+ import { voiceSpeech, VOICE_TTS_TIMEOUT_MS } from '../src/learn-voice-tts.js';
++import { NARRATION_VOICE, VOICE_SETTINGS, VOICE_URL } from '../src/narration-voice.js';
+ 
+-const ENV = { SMALL_ENV: 'test', FISH_AUDIO_API_KEY: 'fish-test-key' };
++const ENV = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: 'el-test-key' };
+ function recordFetch(reply) {
+   const calls = [];
+   const fetch = async (url, options) => { calls.push({ url, options }); return typeof reply === 'function' ? reply() : reply; };
+@@ -29,7 +30,7 @@ test('text must be a string of 1 to 1200 characters', async () => {
+   assert.equal(calls.length, 0);
+ });
+ 
+-test('503 without the Fish key, and no provider call', async () => {
++test('503 without the ElevenLabs key, and no provider call', async () => {
+   const { calls, fetch } = recordFetch(audio());
+   const res = await voiceSpeech({}, { text: 'Hello.' }, { fetch });
+   assert.equal(res.status, 503);
+@@ -37,7 +38,7 @@ test('503 without the Fish key, and no provider call', async () => {
+   assert.equal(calls.length, 0);
+ });
+ 
+-test('the Fish request: pinned narrator, s1, mp3 64 kbps, balanced latency, timeout signal', async t => {
++test('the narrator request: Jessica on Flash v2.5 through the shared voice config, mp3 64 kbps, 20 s timeout signal', async t => {
+   captureLogs(t);
+   const { calls, fetch } = recordFetch(audio());
+   const text = 'x'.repeat(1200);
+@@ -45,10 +46,13 @@ test('the Fish request: pinned narrator, s1, mp3 64 kbps, balanced latency, time
+   assert.equal(res.status, 200);
+   assert.equal(calls.length, 1);
+   const { url, options } = calls[0];
+-  assert.equal(url, 'https://api.fish.audio/v1/tts');
++  assert.equal(url, VOICE_URL);
++  assert.ok(url.includes('cgSgspJ2msm6clMCkdW9') && url.endsWith('output_format=mp3_44100_64'));
+   assert.equal(options.method, 'POST');
+-  assert.deepEqual(options.headers, { Authorization: 'Bearer fish-test-key', 'Content-Type': 'application/json', model: 's1' });
+-  assert.deepEqual(JSON.parse(options.body), { text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
++  assert.deepEqual(options.headers, { 'xi-api-key': 'el-test-key', 'Content-Type': 'application/json', Accept: 'audio/mpeg' });
++  assert.deepEqual(JSON.parse(options.body), { text, model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, speed: 1.1 } });
++  assert.deepEqual(VOICE_SETTINGS, JSON.parse(options.body).voice_settings);
++  assert.equal(NARRATION_VOICE.provider, 'elevenlabs');
+   assert.ok(options.signal instanceof AbortSignal);
+   assert.equal(VOICE_TTS_TIMEOUT_MS, 20000);
+ });
+@@ -65,7 +69,7 @@ test('the audio streams back as audio/mpeg with no-store', async t => {
+ test('provider failures are a 502 without the provider body', async t => {
+   captureLogs(t);
+   const replies = [
+-    () => new Response('{"detail":"insufficient balance for fish-test-key"}', { status: 402 }),
++    () => new Response('{"detail":"insufficient balance for el-test-key"}', { status: 402 }),
+     () => { throw new TypeError('fetch failed'); },
+     () => { throw new DOMException('timed out', 'TimeoutError'); },
+   ];
+@@ -74,7 +78,7 @@ test('provider failures are a 502 without the provider body', async t => {
+     assert.equal(res.status, 502);
+     const raw = await res.text();
+     assert.deepEqual(JSON.parse(raw), { error: 'Voice output is unavailable right now.' });
+-    assert.doesNotMatch(raw, /balance|fish-test-key/);
++    assert.doesNotMatch(raw, /balance|el-test-key/);
+   }
+ });
+ 
+diff --git a/packages/control-plane/test/learn-voice.test.js b/packages/control-plane/test/learn-voice.test.js
+index 8817db90e..1d606c9c1 100644
+--- a/packages/control-plane/test/learn-voice.test.js
++++ b/packages/control-plane/test/learn-voice.test.js
+@@ -1,13 +1,13 @@
+ // Voice Mode routes (docs/features/voice-tutor-mvp.md §5): the gate order before either provider,
+ // and that a response never carries a key. The handlers are injected or their fetch is stubbed:
+-// no ElevenLabs or Fish call is made here.
++// no ElevenLabs call is made here.
+ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+ import { voiceRoute } from '../src/learn-voice-routes.js';
+ import { LISTENING_PAUSED } from '../src/voice-availability.js';
+ 
+ const KEY = 'xi-secret-key-never-shown';
+-const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY, FISH_AUDIO_API_KEY: 'fish-secret-key-never-shown' };
++const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY };
+ const allow = async (req, env, app) => ({ email: 'learner@test', org: 'team', app });
+ const request = (path, { method = 'POST', origin, body = { app: 'canvas-0a1b2c3d', confirmed: true } } = {}) => new Request(`https://dev.test${path}`, {
+   method, headers: { 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) },
+@@ -90,7 +90,7 @@ test('FX-71: while listening is paused (the default switch) the token route mint
+     assert.deepEqual(await paused.json(), { error: 'Voice is currently unavailable' });
+   }
+   assert.equal(fetched, 0, 'no provider call while paused');
+-  // Narration (Fish) is not listening: the pause leaves it alone.
++  // Narration is not listening: the pause leaves it alone.
+   const deps = { ...handlers(), listeningPaused: undefined };
+   const speech = await voiceRoute('/api/learn/voice/tts', request('/api/learn/voice/tts', { body: { app: 'canvas-0a1b2c3d', text: 'Hi.', confirmed: true } }), env, deps);
+   assert.equal(speech.headers.get('content-type'), 'audio/mpeg');
+diff --git a/packages/control-plane/test/narration-voice.test.js b/packages/control-plane/test/narration-voice.test.js
+new file mode 100644
+index 000000000..fb0f2bb6a
+--- /dev/null
++++ b/packages/control-plane/test/narration-voice.test.js
+@@ -0,0 +1,92 @@
++// VOICE-1 (owner 2026-11-17): ONE narrator, ElevenLabs Jessica, on every spoken path. The paths: the card audio (explanation-audio.js), the Voice
++// Tutor (learn-voice-tts.js), "Read it aloud" (dev-worker.js /api/learn/tts) and /whiteboard narration (whiteboard-tts.js). Fake providers only; nothing is paid for.
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync, readdirSync } from 'node:fs';
++import { NARRATION_VOICE, VOICE_SETTINGS, VOICE_URL, narrationMicros, narrationRequest, speakNarration } from '../src/narration-voice.js';
++import { voiceSpeech } from '../src/learn-voice-tts.js';
++import { narrateBeat } from '../src/whiteboard-tts.js';
++import { paidRefusal } from '../src/learn-paid.js';
++import { isPaidSpendReply } from '../src/learn-paid-transport.js';
++
++const source = rel => readFileSync(new URL(rel, import.meta.url), 'utf8');
++const ENV = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: 'el-test-key' };
++const MP3 = new Uint8Array([73, 68, 51]);
++const recorded = () => { const calls = []; return { calls, fetch: async (url, init) => { calls.push({ url, init, body: JSON.parse(init.body) }); return new Response(MP3); } }; };
++const isJessica = ({ url, body }) => url === VOICE_URL && url.includes('cgSgspJ2msm6clMCkdW9') && body.model_id === 'eleven_flash_v2_5'
++  && body.voice_settings.speed === 1.1 && body.voice_settings.stability === 0.4 && body.voice_settings.similarity_boost === 0.75;
++
++test('the voice config is one frozen object: Jessica, Flash v2.5, speed 1.1, stability 0.4, mp3 64 kbps', () => {
++  assert.ok(Object.isFrozen(NARRATION_VOICE) && Object.isFrozen(VOICE_SETTINGS));
++  assert.deepEqual({ ...NARRATION_VOICE }, { provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'cgSgspJ2msm6clMCkdW9', speed: 1.1, stability: 0.4, similarityBoost: 0.75, format: 'mp3_44100_64', bitrate: 64000 });
++  assert.equal(VOICE_URL, 'https://api.elevenlabs.io/v1/text-to-speech/cgSgspJ2msm6clMCkdW9?output_format=mp3_44100_64');
++  const [url, init] = narrationRequest(ENV, 'Hi.', undefined);
++  assert.deepEqual([url, init.method, init.headers], [VOICE_URL, 'POST', { 'xi-api-key': 'el-test-key', 'Content-Type': 'application/json', Accept: 'audio/mpeg' }]);
++  assert.deepEqual(JSON.parse(init.body), { text: 'Hi.', model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, speed: 1.1 } });
++  assert.equal(narrationMicros(1000), 40000, '$0.04 per 1,000 characters in micro-USD');
++});
++
++test('the Voice Tutor route speaks through the shared config, 1,200 characters at most, with the 20 s abort signal', async () => {
++  const seen = recorded();
++  const answer = await voiceSpeech(ENV, { text: 'x'.repeat(1200) }, { fetch: seen.fetch });
++  assert.equal(answer.status, 200);
++  assert.equal(seen.calls.length, 1);
++  assert.ok(isJessica(seen.calls[0]));
++  assert.ok(seen.calls[0].init.signal instanceof AbortSignal);
++  assert.equal((await voiceSpeech(ENV, { text: 'x'.repeat(1201) }, { fetch: seen.fetch })).status, 400);
++  assert.equal(seen.calls.length, 1, 'over the cap: no provider call');
++});
++
++test('/whiteboard narration speaks through the shared config; a request that never answers is aborted at its timeout, retried once, then fails', async () => {
++  const seen = recorded(), clip = new Uint8Array(readFileSync(new URL('./fixtures/whiteboard/audio/narration-0.mp3', import.meta.url)));
++  const spoken = await narrateBeat(ENV, 'Hello there.', { fetch: async (url, init) => { seen.calls.push({ url, init, body: JSON.parse(init.body) }); return new Response(clip); } });
++  assert.deepEqual([seen.calls.length, spoken.attempts, spoken.bytes.length], [1, 1, clip.length]);
++  assert.ok(isJessica(seen.calls[0]));
++  let asked = 0;
++  const hang = (url, init) => new Promise((_, reject) => { asked++; init.signal.addEventListener('abort', () => reject(init.signal.reason)); });
++  await assert.rejects(narrateBeat(ENV, 'x', { fetch: hang, timeoutMs: 20 }), { code: 'tts_failed' });
++  assert.equal(asked, 2, 'one retry before acceptance');
++  await assert.rejects(narrateBeat({ SMALL_ENV: 'test' }, 'x', { fetch: seen.fetch }), { code: 'tts_not_configured' });
++});
++
++// "Read it aloud" is the dev worker's inline /api/learn/tts branch, executed as written (the full Worker imports build-only assets): learn-spend-boundary.test.js technique.
++const inlineWorker = source('../../web/dev-worker.js');
++function readAloud() {
++  const start = inlineWorker.indexOf("    if (path === '/api/learn/tts' && req.method === 'POST')");
++  assert.ok(start >= 0);
++  const code = inlineWorker.slice(start, inlineWorker.indexOf('    // The learner can speak', start));
++  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'speakNarration', 'isPaidSpendReply', 'fetch', code);
++}
++test('Read it aloud speaks through the shared config, 4,000 characters at most, only after the paid confirmation', async () => {
++  const seen = recorded();
++  const call = (body, env = ENV) => readAloud()(new Request('https://dev.test/api/learn/tts', { method: 'POST', body: JSON.stringify(body) }), env, '/api/learn/tts', async () => ({ email: 'a@b.c' }), paidRefusal, speakNarration, isPaidSpendReply, seen.fetch);
++  const answer = await call({ app: 'a', text: 'x'.repeat(4000), confirmed: true });
++  assert.deepEqual([answer.status, answer.headers.get('content-type')], [200, 'audio/mpeg']);
++  assert.ok(isJessica(seen.calls[0]));
++  assert.equal((await call({ app: 'a', text: 'x'.repeat(4001), confirmed: true })).status, 400);
++  assert.equal((await call({ app: 'a', text: 'Hello.' })).status, 428, 'no confirmation, no provider call');
++  assert.equal((await call({ app: 'a', text: 'Hello.', confirmed: true }, { SMALL_ENV: 'test' })).status, 503);
++  assert.equal(seen.calls.length, 1);
++});
++
++test('the card audio calls the same function: its source has no request of its own', () => {
++  const card = source('../src/explanation-audio.js');
++  assert.match(card, /speakNarration\(env, script, \{ signal: AbortSignal\.timeout\(VOICE_TIMEOUT_MS\), category: 'explanation_audio' \}\)/);
++  assert.ok(!/fetch\(|xi-api-key|voice_settings/.test(card.split('// ---- the voice ----')[1]), 'no provider request in the voice half of the card route');
++});
++
++// The static guard: one voice. Fails when a second narrator (a Fish constant, a second voice id, a second text-to-speech request) appears in the server source.
++const SERVER_FILES = [...readdirSync(new URL('../src/', import.meta.url), { recursive: true, withFileTypes: true })
++  .filter(entry => entry.isFile() && entry.name.endsWith('.js')).map(entry => `${entry.parentPath ?? entry.path}/${entry.name}`.replace(/\\/g, '/')), new URL('../../web/dev-worker.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'), new URL('../../web/app-worker.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')];
++test('exactly one voice: no Fish constant and no second voice id or text-to-speech request anywhere in the server source', () => {
++  assert.ok(SERVER_FILES.length > 100, 'the scan found the source');
++  const offenders = [];
++  for (const file of SERVER_FILES) {
++    const text = readFileSync(file, 'utf8'), name = file.split('/').pop();
++    for (const [rule, pattern] of [['fish provider', /fish\.audio|FISH_AUDIO|fishSpendTransport|reference_id|provider: 'fish'/i], ['voice id', /cgSgspJ2msm6clMCkdW9|802e3bc2b27e49c2995d23ef70e6ac89/], ['tts request', /v1\/text-to-speech/]]) {
++      if (pattern.test(text) && !(name === 'narration-voice.js' && rule !== 'fish provider')) offenders.push(`${name}: ${rule}`);
++    }
++  }
++  assert.deepEqual(offenders, [], 'the narrator lives in narration-voice.js only');
++  assert.equal(SERVER_FILES.filter(file => /cgSgspJ2msm6clMCkdW9/.test(readFileSync(file, 'utf8'))).length, 1);
++});
+diff --git a/packages/control-plane/test/openai-key-install-effects.test.js b/packages/control-plane/test/openai-key-install-effects.test.js
+index 1f98a927d..163f35077 100644
+--- a/packages/control-plane/test/openai-key-install-effects.test.js
++++ b/packages/control-plane/test/openai-key-install-effects.test.js
+@@ -21,10 +21,10 @@ function inlineRoute(path, end) {
+   const start = worker.indexOf(`    if (path === '${path}' && req.method === 'POST')`);
+   assert.ok(start >= 0, path);
+   const code = worker.slice(start, worker.indexOf(end, start));
+-  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'fishSpendTransport', 'isPaidSpendReply', 'fetch', 'recordMedia', 'TRANSCRIBE_ESTIMATE', 'TRANSCRIBE_NEXT_ESTIMATE', 'ESTIMATE_PRICE', code);
++  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'speakNarration', 'isPaidSpendReply', 'fetch', 'recordMedia', 'TRANSCRIBE_ESTIMATE', 'TRANSCRIBE_NEXT_ESTIMATE', 'ESTIMATE_PRICE', code);
+ }
+ const callRoute = (route, path, body) => route(new Request(`https://app${path}`, { method: 'POST', body }), env, path, async () => ({ email: 'fixture' }), // authorization runs before the gate
+-   untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
++   untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('speakNarration'), untouched('isPaidSpendReply'), untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
+ 
+ test('the committed production configuration has every OPENAI_API_KEY consumer off except the authorized ones', () => {
+   // O-8 resolved 2026-10-29: transcription on for retained Explain-back voice notes (learn-media.js openaiTranscriber, priced transcribeSpendTransport).
+diff --git a/packages/control-plane/test/whiteboard-generation.test.js b/packages/control-plane/test/whiteboard-generation.test.js
+index 189c06ed3..b4b278525 100644
+--- a/packages/control-plane/test/whiteboard-generation.test.js
++++ b/packages/control-plane/test/whiteboard-generation.test.js
+@@ -1,5 +1,5 @@
+ // W1.3: Generate to a ready video through the real job object, ledger, proposal state and the stages, on stubbed providers: the model (plan and
+-// scene tools), Fish (a real recorded MP3) and the renderer (wb-render's request gate when it can be loaded). An in-memory R2. No real call.
++// scene tools), the narrator (a real recorded MP3) and the renderer (wb-render's request gate when it can be loaded). An in-memory R2. No real call.
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFileSync, writeFileSync, mkdtempSync, existsSync } from 'node:fs';
+@@ -50,9 +50,9 @@ function bucket() {
+     delete: async keys => { for (const k of [].concat(keys)) data.delete(k); } };
+ }
+ 
+-// One fetch for every provider. options: author(n) -> tool input; fish(n, text) -> Response; render(request) -> Response | handler result.
+-function providers(t, { author = () => SCENE, fish = () => new Response(MP3), render } = {}) {
+-  const calls = { model: [], fish: [], render: [] }, original = globalThis.fetch;
++// One fetch for every provider. options: author(n) -> tool input; voice(n, text) -> Response; render(request) -> Response | handler result.
++function providers(t, { author = () => SCENE, voice = () => new Response(MP3), render } = {}) {
++  const calls = { model: [], voice: [], render: [] }, original = globalThis.fetch;
+   t.after(() => { globalThis.fetch = original; });
+   const renderId = 'c'.repeat(32);
+   const defaultRender = ({ method, path, body }) => {
+@@ -72,7 +72,7 @@ function providers(t, { author = () => SCENE, fish = () => new Response(MP3), re
+       const cut = input?.cut === true;
+       return Response.json({ id: 'm', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'tool_use', id: 't', name: tool, input: cut ? {} : input }], stop_reason: cut ? 'max_tokens' : 'tool_use', usage: { input_tokens: 1000, output_tokens: cut ? body.max_tokens : 500 } });
+     }
+-    if (u.host === 'api.fish.audio') { const body = JSON.parse(init.body); calls.fish.push(body); return fish(calls.fish.length, body.text); }
++    if (u.host === 'api.elevenlabs.io') { const body = JSON.parse(init.body); calls.voice.push(body); return voice(calls.voice.length, body.text); }
+     if (u.host === 'renderer.test') {
+       const r = { method: init.method || 'GET', path: u.pathname, key: init.headers?.['Idempotency-Key'], bytes: init.body?.length ?? 0, body: init.body ? JSON.parse(init.body) : null };
+       calls.render.push(r);
+@@ -87,7 +87,7 @@ function stack(t, options = {}) {
+   const { sqlite, LEARN_DB } = d1(t);
+   const media = bucket();
+   const env = { SMALL_ENV: 'dev', ANTHROPIC_API_KEY: 'test-key', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_DB, LEARN_MEDIA: media,
+-    WHITEBOARD_ENABLED: 'true', FISH_AUDIO_API_KEY: 'fish-key', WHITEBOARD_RENDERER_URL: 'https://renderer.test', WHITEBOARD_RENDERER_TOKEN: 'renderer-token', ...options.env };
++    WHITEBOARD_ENABLED: 'true', ELEVENLABS_API_KEY: 'el-key', WHITEBOARD_RENDERER_URL: 'https://renderer.test', WHITEBOARD_RENDERER_TOKEN: 'renderer-token', ...options.env };
+   const state = durable(), actor = new WhiteboardJobs(state, env), calls = providers(t, options);
+   const send = async (action, payload = {}, id = null, who = OWNER) => {
+     const response = await actor.fetch(new Request('https://whiteboard/action', { method: 'POST', body: JSON.stringify({ action, id, payload, board: BOARD, user: who, origin: 'https://dev.test' }) }));
+@@ -114,14 +114,14 @@ function stack(t, options = {}) {
+ }
+ const messages = s => rows(s.sqlite, 'messages').map(m => m.content);
+ 
+-test('Generate makes a ready video: one author call per scene, one Fish call per narrated beat, one render, the result, captions and timings', async t => {
++test('Generate makes a ready video: one author call per scene, one narrator call per narrated beat, one render, the result, captions and timings', async t => {
+   const s = stack(t);
+   const { id, pressed, done } = await s.generate();
+   assert.equal(pressed.status, 202);
+   assert.equal(done.stage, 'ready', JSON.stringify(done.errors ?? done.failure));
+   assert.deepEqual(s.calls.model.map(c => c.tool), ['whiteboard_plan', 'whiteboard_scene', 'whiteboard_scene', 'whiteboard_scene', 'whiteboard_scene']);
+-  assert.equal(s.calls.fish.length, 8, 'two narrated beats in each of four scenes');
+-  assert.ok(s.calls.fish.every(b => b.reference_id === '802e3bc2b27e49c2995d23ef70e6ac89' && b.mp3_bitrate === 64 && b.prosody.speed === 0.92));
++  assert.equal(s.calls.voice.length, 8, 'two narrated beats in each of four scenes');
++  assert.ok(s.calls.voice.every(b => b.model_id === 'eleven_flash_v2_5' && b.voice_settings.speed === 1.1 && b.voice_settings.stability === 0.4));
+   // The render: one POST, the key, the timing the renderer requires, under 16 MiB.
+   const post = s.calls.render.find(r => r.method === 'POST');
+   assert.equal(s.calls.render.filter(r => r.method === 'POST').length, 1);
+@@ -145,10 +145,10 @@ test('Generate makes a ready video: one author call per scene, one Fish call per
+   assert.equal(vtt.split(' --> ').length - 1, 8, 'one cue per narrated beat');
+   assert.equal(JSON.parse(new TextDecoder().decode(s.media.data.get(r.keys.transcript).bytes)).beats.length, 8);
+   assert.ok(s.media.data.has(`learn-whiteboard/acme/canvas-a/main/${done.artifactId}/audio/s4-b2.mp3`), 'narration checkpoints are kept');
+-  // Money: author calls and Fish on the generation key, nothing refunded on success.
++  // Money: author calls and the narrator on the generation key, nothing refunded on success.
+   const actions = rows(s.sqlite, 'usage_actions'), generation = actions.find(a => a.client_key === done.actionKey);
+   const attempts = rows(s.sqlite, 'usage_attempts').filter(a => a.action_id === generation.action_id);
+-  assert.deepEqual([attempts.filter(a => a.provider === 'anthropic').length, attempts.filter(a => a.provider === 'fish').length], [4, 8]);
++  assert.deepEqual([attempts.filter(a => a.provider === 'anthropic').length, attempts.filter(a => a.provider === 'elevenlabs').length], [4, 8]);
+   assert.equal(rows(s.sqlite, 'usage_adjustments').length, 0);
+   // The result is read through the results route by its owner only.
+   assert.equal((await s.send('result', {}, done.artifactId)).status, 200);
+@@ -156,16 +156,16 @@ test('Generate makes a ready video: one author call per scene, one Fish call per
+ });
+ 
+ test('a scene whose narration overruns its window is rewritten once and narrated again', async t => {
+-  const s = stack(t, { fish: n => new Response(n <= 2 ? LONG : MP3) });
++  const s = stack(t, { voice: n => new Response(n <= 2 ? LONG : MP3) });
+   const { done } = await s.generate();
+   assert.equal(done.stage, 'ready', JSON.stringify(done.errors));
+   assert.equal(s.calls.model.filter(c => c.tool === 'whiteboard_scene').length, 5, 'four scenes and one rewrite');
+   assert.ok(s.calls.model.at(-1).content.rewrite, 'the last author call is the rewrite');
+-  assert.deepEqual([done.rewritten, done.corrections, s.calls.fish.length], [['s1'], 1, 10]);
++  assert.deepEqual([done.rewritten, done.corrections, s.calls.voice.length], [['s1'], 1, 10]);
+ });
+ 
+ test('two overruns of the same scene fail the job with the narration reason, refunded by key', async t => {
+-  const s = stack(t, { fish: () => new Response(LONG) });
++  const s = stack(t, { voice: () => new Response(LONG) });
+   const { done } = await s.generate();
+   assert.deepEqual([done.stage, done.failure.reason, done.failure.code], ['failed', 'the narration could not be made', 'narration_overrun']);
+   assert.equal(s.calls.render.length, 0, 'nothing is rendered');
+@@ -183,7 +183,7 @@ test('a scene over its checks is corrected once; still failing, the job fails wi
+   const { done } = await bad.generate();
+   assert.deepEqual([done.stage, done.failure.reason, done.failure.code], ['failed', 'the plan could not be written', 'scene_unfit']);
+   assert.equal(bad.calls.model.filter(c => c.tool === 'whiteboard_scene').length, 2);
+-  assert.equal(bad.calls.fish.length, 0);
++  assert.equal(bad.calls.voice.length, 0);
+   const generation = rows(bad.sqlite, 'usage_actions').find(a => a.client_key === done.actionKey);
+   const refunded = rows(bad.sqlite, 'usage_adjustments');
+   assert.ok(refunded.length === 2 && refunded.every(a => a.action_id === generation.action_id), 'both author calls given back, the plan call kept');
+@@ -206,9 +206,9 @@ test('an author reply cut at max_tokens ends the job with output_limit and the p
+   assert.equal(rows(s.sqlite, 'messages').map(m => m.content).at(-1), '"Gradient descent" was not finished: the plan could not be written. Your request and plan are kept; nothing was charged for the part that failed.');
+ });
+ 
+-test('a Fish failure fails the job with the narration reason; a renderer that lost the render twice with the drawing reason', async t => {
+-  const fish = stack(t, { fish: () => new Response('no', { status: 500 }) });
+-  const f = await fish.generate();
++test('a narrator failure fails the job with the narration reason; a renderer that lost the render twice with the drawing reason', async t => {
++  const silent = stack(t, { voice: () => new Response('no', { status: 500 }) });
++  const f = await silent.generate();
+   assert.deepEqual([f.done.stage, f.done.failure.reason], ['failed', 'the narration could not be made']);
+   const lost = stack(t, { render: ({ method, path }) => (path.startsWith('/whiteboard/c') ? new Response('{}', { status: 404 }) : path.startsWith('/render/by-key/') ? new Response('{}', { status: 404 }) : null) });
+   const l = await lost.generate();
+@@ -217,7 +217,7 @@ test('a Fish failure fails the job with the narration reason; a renderer that lo
+   const old = stack(t, { render: ({ path }) => (path === '/health' ? Response.json({ whiteboard: 'whiteboard-renderer-0' }) : null) });
+   const o = await old.generate();
+   assert.deepEqual([o.done.failure.code, old.calls.render.filter(r => r.method === 'POST').length], ['renderer_version', 0]);
+-  assert.ok(rows(old.sqlite, 'usage_adjustments').length >= 12, 'every author and Fish call of the failed generation is given back');
++  assert.ok(rows(old.sqlite, 'usage_adjustments').length >= 12, 'every author and narrator call of the failed generation is given back');
+ });
+ 
+ test('cancel: before Generate it ends the job and frees the slot, twice is a no-op; after Generate it is refused and the job goes on', async t => {
+@@ -238,10 +238,10 @@ test('cancel: before Generate it ends the job and frees the slot, twice is a no-
+   assert.equal((await g.send('cancel', {}, made.job.id, OTHER)).status, 404);
+ });
+ 
+-test('restart while a Fish call is out: it is never sent again and its expired lease fails the job with the narration reason', async t => {
++test('restart while a narrator call is out: it is never sent again and its expired lease fails the job with the narration reason', async t => {
+   let release;
+   const held = new Promise(r => { release = r; });
+-  const s = stack(t, { fish: n => (n === 1 ? held.then(() => new Response(MP3)) : new Response(MP3)) });
++  const s = stack(t, { voice: n => (n === 1 ? held.then(() => new Response(MP3)) : new Response(MP3)) });
+   const { body } = await s.send('create', { requestId: 'req-00000001', cardId: 'card-0001', prompt: 'Explain gradient descent.' });
+   await s.run(body.job.id);
+   await s.send('approve', { proposal: s.proposal(body.job.id) }, body.job.id);
+@@ -250,12 +250,12 @@ test('restart while a Fish call is out: it is never sent again and its expired l
+   while (!s.stored(body.job.id).inFlight) await new Promise(r => setTimeout(r, 1));
+   const after = new WhiteboardJobs(s.state, s.env);
+   await after.alarm();
+-  assert.equal(s.calls.fish.length, 1, 'inside the lease nothing is resent');
++  assert.equal(s.calls.voice.length, 1, 'inside the lease nothing is resent');
+   s.state.data.set(`job:${body.job.id}`, { ...s.stored(body.job.id), inFlight: { ...s.stored(body.job.id).inFlight, until: 0 } });
+   await after.alarm();
+   release(); await out;
+   const j = s.stored(body.job.id);
+-  assert.deepEqual([j.stage, j.failure.reason, j.calls.find(c => c.role === 'fish').status, s.calls.fish.length], ['failed', 'the narration could not be made', 'unknown', 1]);
++  assert.deepEqual([j.stage, j.failure.reason, j.calls.find(c => c.role === 'narration').status, s.calls.voice.length], ['failed', 'the narration could not be made', 'unknown', 1]);
+ });
+ 
+ test('asset route: owner only, ranges, 416, HEAD, the download name; a failed job\'s leftovers are swept after 24 h', async t => {
+@@ -280,7 +280,7 @@ test('asset route: owner only, ranges, 416, HEAD, the download name; a failed jo
+   assert.equal((await asset(`${q}&kind=source`)).status, 404);
+   assert.equal((await asset(`app=${BOARD.app}&artifact=wa_${'0'.repeat(32)}&kind=final`)).status, 404);
+   // The sweep: a failed generation's checkpoints go after 24 h; a ready video's files stay.
+-  const f = stack(t, { fish: () => new Response(LONG) });
++  const f = stack(t, { voice: () => new Response(LONG) });
+   const failed = (await f.generate()).done;
+   const prefix = `learn-whiteboard/acme/canvas-a/main/${failed.artifactId}/`;
+   assert.ok([...f.media.data.keys()].some(k => k.startsWith(prefix)));
+diff --git a/packages/control-plane/test/whiteboard-job.test.js b/packages/control-plane/test/whiteboard-job.test.js
+index f31c79ffc..ec4457d09 100644
+--- a/packages/control-plane/test/whiteboard-job.test.js
++++ b/packages/control-plane/test/whiteboard-job.test.js
+@@ -84,7 +84,7 @@ test('proposalUsage numbers equal whiteboardReservation for the plan, and the pr
+   const { id, job } = await s.planned();
+   const [p] = s.proposals(id), r = whiteboardReservation(job.plan);
+   assert.deepEqual(p.usage, { estimate_credits: Math.ceil(r.estimate.generationMicros / 10000), max_credits: Math.ceil(r.generationMicros / 10000), reserve_credits: null });
+-  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits], [134, 240]); // author at 8,000 output tokens (owner try, 2026-11-05)
++  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits], [144, 224]); // author at 8,000 output tokens (owner try, 2026-11-05); the narrator at 40 micro-USD a character (VOICE-1): estimate 4,000 characters (134 with Fish), maximum 8,000 (240 with Fish at 4 bytes a character)
+   assert.deepEqual(proposalUsage({}, 'whiteboard-video', { duration_seconds: 10 }, { scenes: 1 }).max_credits, Math.ceil(whiteboardReservation(fixture('plan-10.json')).generationMicros / 10000));
+   assert.equal(await verifyProposal(s.env, p, OWNER.email), null);
+   assert.match(await verifyProposal(s.env, { ...p, settings: { duration_seconds: 10 } }, OWNER.email), /not made for you, or it was changed/);
+diff --git a/packages/control-plane/test/whiteboard-media.test.js b/packages/control-plane/test/whiteboard-media.test.js
+index fb7cf610b..b6362708b 100644
+--- a/packages/control-plane/test/whiteboard-media.test.js
++++ b/packages/control-plane/test/whiteboard-media.test.js
+@@ -1,13 +1,14 @@
+-// W1.3: MP3 measurement, timing, narration transport and the render client, each against stubs and real files. No Fish, model or renderer call.
++// W1.3: MP3 measurement, timing, narration transport and the render client, each against stubs and real files. No narrator, model or renderer call.
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFileSync } from 'node:fs';
+ import { mp3Duration } from '../src/whiteboard-mp3.js';
+ import { audioKeyOf, fitTiming } from '../src/whiteboard-timing.js';
+-import { FISH_URL, fishBody, narrateBeat } from '../src/whiteboard-tts.js';
++import { narrateBeat } from '../src/whiteboard-tts.js';
++import { VOICE_URL, narrationRequest } from '../src/narration-voice.js';
+ import { renderStep } from '../src/whiteboard-render-client.js';
+ 
+-// Six real Fish-style narration clips (moved here from the retired nanoGPT course's web/public/audio, Tutor cleanup P4).
++// Six real narration clips (made by the retired Fish narrator; an mp3 is an mp3) (moved here from the retired nanoGPT course's web/public/audio, Tutor cleanup P4).
+ const real = name => new Uint8Array(readFileSync(new URL(`./fixtures/whiteboard/audio/${name}`, import.meta.url)));
+ const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/whiteboard/${name}`, import.meta.url), 'utf8'));
+ 
+@@ -64,22 +65,22 @@ test('timing: beats follow one another from their window\'s start; an overrun na
+   assert.equal(fitTiming(plan, [silent], new Map([[audioKeyOf('s1', 'b1'), { seconds: 2 }]])).timing.beats[1].audioFrames, 0);
+ });
+ 
+-test('narration: the 4.2 body, one retry on 429 or a failure before acceptance, never a second POST after Fish accepted', async () => {
+-  assert.deepEqual(fishBody('Hi.'), { text: 'Hi.', reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
+-  const mp3 = real('narration-0.mp3'), env = { FISH_AUDIO_API_KEY: 'k', SMALL_ENV: 'test' };
+-  const fish = answers => { const posts = []; return { posts, fetch: async (url, init) => { posts.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization }); const a = answers[posts.length - 1]; if (a instanceof Error) throw a; return a(); } }; };
++test('narration: the 4.2 body, one retry on 429 or a failure before acceptance, never a second POST after the narrator accepted', async () => {
++  assert.deepEqual(JSON.parse(narrationRequest({ ELEVENLABS_API_KEY: 'k' }, 'Hi.')[1].body), { text: 'Hi.', model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.75, speed: 1.1 } });
++  const mp3 = real('narration-0.mp3'), env = { ELEVENLABS_API_KEY: 'k', SMALL_ENV: 'test' };
++  const voice = answers => { const posts = []; return { posts, fetch: async (url, init) => { posts.push({ url, body: JSON.parse(init.body), auth: init.headers['xi-api-key'] }); const a = answers[posts.length - 1]; if (a instanceof Error) throw a; return a(); } }; };
+   const ok = () => new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg' } });
+-  let f = fish([() => new Response('busy', { status: 429 }), ok]);
++  let f = voice([() => new Response('busy', { status: 429 }), ok]);
+   const out = await narrateBeat(env, 'Hello there.', { fetch: f.fetch });
+-  assert.deepEqual([f.posts.length, f.posts[0].url, f.posts[0].auth, out.attempts, Math.round(out.seconds * 1000)], [2, FISH_URL, 'Bearer k', 2, 3788]);
+-  f = fish([Object.assign(new Error('t'), { name: 'TimeoutError' }), ok]);
++  assert.deepEqual([f.posts.length, f.posts[0].url, f.posts[0].auth, out.attempts, Math.round(out.seconds * 1000)], [2, VOICE_URL, 'k', 2, 3788]);
++  f = voice([Object.assign(new Error('t'), { name: 'TimeoutError' }), ok]);
+   assert.equal((await narrateBeat(env, 'x', { fetch: f.fetch })).attempts, 2);
+-  f = fish([() => new Response('busy', { status: 429 }), () => new Response('busy', { status: 429 }), ok]);
++  f = voice([() => new Response('busy', { status: 429 }), () => new Response('busy', { status: 429 }), ok]);
+   await assert.rejects(narrateBeat(env, 'x', { fetch: f.fetch }), { code: 'tts_failed' });
+   assert.equal(f.posts.length, 2, 'one retry only');
+   // Accepted (200), then the body never arrives: reconciling, and no second POST.
+   const broken = () => new Response(new ReadableStream({ start(c) { c.error(new Error('reset')); } }), { status: 200 });
+-  f = fish([broken, ok]);
++  f = voice([broken, ok]);
+   await assert.rejects(narrateBeat(env, 'x', { fetch: f.fetch }), { code: 'reconciling' });
+   assert.equal(f.posts.length, 1);
+   await assert.rejects(narrateBeat({}, 'x', { fetch: f.fetch }), { code: 'tts_not_configured' });
+diff --git a/packages/control-plane/test/whiteboard-policy.test.js b/packages/control-plane/test/whiteboard-policy.test.js
+index a3791d3aa..9b068e697 100644
+--- a/packages/control-plane/test/whiteboard-policy.test.js
++++ b/packages/control-plane/test/whiteboard-policy.test.js
+@@ -42,16 +42,16 @@ test('the worst case of the largest W1 plan (60 s, 4 scenes): every call it may
+   const r = whiteboardReservation(JSON.parse(readFileSync(new URL('./fixtures/whiteboard/plan-60.json', import.meta.url), 'utf8')));
+   assert.deepEqual(r.calls, { plan: 4, author: 6 });
+   assert.equal(r.planMicros, 4 * 240000); // the planner and its three revisions
+-  // 6 author calls; Fish at $15 per MB on (4,000 narration + 4,000 re-narrated characters) x 4 bytes = 32,000 bytes = 480,000 micro-USD.
+-  assert.equal(r.generationMicros, 6 * 320000 + 480000);
+-  assert.deepEqual(r.estimate, { planMicros: 240000, generationMicros: 4 * 320000 + 60000 });
++  // 6 author calls; the narrator at $0.04 per 1,000 characters on (4,000 narration + 4,000 re-narrated characters) = 8,000 x 40 = 320,000 micro-USD.
++  assert.equal(r.generationMicros, 6 * 320000 + 320000);
++  assert.deepEqual(r.estimate, { planMicros: 240000, generationMicros: 4 * 320000 + 160000 }); // the estimate narrates 4,000 characters once
+   assert.ok(r.estimate.generationMicros < r.generationMicros && r.estimate.planMicros < r.planMicros);
+ });
+ 
+ test('the worst case grows with the scenes and the narration is bounded per scene and per video', () => {
+   const at = n => whiteboardReservation(plan(n)).generationMicros;
+-  // 1 scene: 3 author calls; narration at most 4 beats x 600 = 2,400 characters, re-narrated once: 4,800 x 4 bytes x $15/MB = 288,000.
+-  assert.equal(at(1), 3 * 320000 + 288000);
++  // 1 scene: 3 author calls; narration at most 4 beats x 600 = 2,400 characters, re-narrated once: 4,800 x 40 micro-USD = 192,000.
++  assert.equal(at(1), 3 * 320000 + 192000);
+   assert.ok(at(1) < at(2) && at(2) < at(4) && at(4) < at(8));
+   assert.equal(at(8) - at(4), 4 * 320000, 'past 4,000 characters the narration bound is the video\'s');
+   assert.throws(() => whiteboardReservation(plan(0)), { code: 'bad_plan' });
+diff --git a/packages/web/dev-worker.js b/packages/web/dev-worker.js
+index 2960c188c..4ba5fb7bc 100644
+--- a/packages/web/dev-worker.js
++++ b/packages/web/dev-worker.js
+@@ -1,6 +1,7 @@
+ import { inlineCodeRoute } from '../control-plane/src/inline-code-route.js';
+ import { inlineImageJobsRoute } from '../control-plane/src/inline-image-jobs.js';
+-import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
++import { paidSubmissionRefusal, isPaidSpendReply } from '../control-plane/src/learn-paid-transport.js';
++import { speakNarration } from '../control-plane/src/narration-voice.js';
+ import { allowanceFirst, boundaryReply } from '../control-plane/src/learn-spend-ledger.js';
+ import { sceneFetch } from '../control-plane/src/learn-scene.js';
+ import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
+@@ -289,15 +290,10 @@ const routes = {
+       if (!body?.text || typeof body.text !== 'string' || body.text.length > 4000) return Response.json({ error: 'Provide narration text under 4000 characters.' }, { status: 400 });
+       const access = await authorizedBoardApp(req, env, body.app);
+       if (access instanceof Response) return access;
+-      // fish.audio is paid: only the learner's explicit confirmation starts it.
++      // The narrator is paid: only the learner's explicit confirmation starts it. One voice for every spoken path (narration-voice.js).
+       const refused = paidRefusal(body); if (refused) return refused;
+-      if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
+-      const upstream = await fishSpendTransport(env, body.text, () => fetch('https://api.fish.audio/v1/tts', {
+-        method: 'POST',
+-        headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
+-        // Same pinned narrator as the pre-generated lesson clips.
+-        body: JSON.stringify({ text: body.text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 128, normalize: true }),
+-      }));
++      if (!env.ELEVENLABS_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
++      const upstream = await speakNarration(env, body.text, { fetch });
+       if (isPaidSpendReply(upstream)) return upstream;
+       if (!upstream.ok) return Response.json({ error: 'Narration audio unavailable.' }, { status: 502 });
+       return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
+diff --git a/packages/web/e2e/voice-check.mjs b/packages/web/e2e/voice-check.mjs
+index 7523640d9..140c78f41 100644
+--- a/packages/web/e2e/voice-check.mjs
++++ b/packages/web/e2e/voice-check.mjs
+@@ -8,7 +8,7 @@
+ // - ?voice=fake is passed so a leftover scripted session would show itself; none exists, so window.__voiceFake stays undefined.
+ //   node e2e/voice-check.mjs [outDir]
+ // Env: VOICE_BASE (the app, default http://127.0.0.1:8798) and SMALL_CP (the control plane, default http://127.0.0.1:8799).
+-// ponytail: the TTS narration and the streamed Fish playback are covered by voice-tts-stream-check.mjs (no Tutor needed); a new
++// ponytail: the TTS narration and the streamed narrator playback are covered by voice-tts-stream-check.mjs (no Tutor needed); a new
+ // voice turn path has no executable check until the rebuild binds one to the mic.
+ import { chromium } from '@playwright/test';
+ import { readFileSync, mkdirSync } from 'node:fs';
+diff --git a/packages/web/e2e/voice-tts-stream-check.mjs b/packages/web/e2e/voice-tts-stream-check.mjs
+index 49fac55dc..f7eeaaeb4 100644
+--- a/packages/web/e2e/voice-tts-stream-check.mjs
++++ b/packages/web/e2e/voice-tts-stream-check.mjs
+@@ -1,5 +1,5 @@
+-// Fish streaming playback, measured locally (docs/features/voice-tutor-mvp.md §4): the real createFishTts in
+-// Chromium against a local server that plays the Fish role with a real narrator MP3. No paid call.
++// Narrator streaming playback, measured locally (docs/features/voice-tutor-mvp.md §4): the real createNarratorTts in
++// Chromium against a local server that plays the provider's role with a real narrator MP3. No paid call.
+ // The pace comes from the live run (2026-10-01): first byte ~210 ms, and the rest of the body over ~2 s
+ // (first Tutor audio 11773 ms - first canvas action 9505 ms, with the request starting right after the plan).
+ // Each mode runs RUNS times: buffered (MediaSource off, the old path) and streamed (MediaSource on).
+@@ -39,7 +39,7 @@ await page.goto(base);
+ const speak = (streamed, stopAfter = null) => page.evaluate(async ({ streamed, stopAfter }) => {
+   const marks = {};
+   let audio;
+-  const tts = VoiceTts.createFishTts({
++  const tts = VoiceTts.createNarratorTts({
+     post: (path, body, signal) => fetch(path, { method: 'POST', body: JSON.stringify(body), signal }),
+     onEvent: event => { marks[event.type] ??= event.at; },
+     makeAudio: url => (audio = new Audio(url)),
+diff --git a/packages/web/src/LearnVoice.jsx b/packages/web/src/LearnVoice.jsx
+index d79efc223..e79966f14 100644
+--- a/packages/web/src/LearnVoice.jsx
++++ b/packages/web/src/LearnVoice.jsx
+@@ -8,7 +8,7 @@ import { api, wsHeaders } from './api.js';
+ import { reviewTools } from './flags.js';
+ import { createVoiceSession } from './voice-session.js';
+ import { createFakeStt, createScribeStt } from './voice-stt.js';
+-import { createFakeTts, createFishTts } from './voice-tts.js';
++import { createFakeTts, createNarratorTts } from './voice-tts.js';
+ import { voiceEvent } from './voice-telemetry.js';
+ import { LISTENING_PAUSED } from '../../control-plane/src/voice-availability.js';
+ 
+@@ -16,7 +16,7 @@ import { LISTENING_PAUSED } from '../../control-plane/src/voice-availability.js'
+ // ends its voice session; Voice Mode stays the learner's choice, so the next surface turns it back on.
+ let onAcrossMove = false;
+ // LISTENING_PAUSED (r36) pauses new Scribe listening sessions; the token route refuses them on the same switch (FX-71).
+-// Metered Fish narration is unchanged. The scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
++// Metered narration (the one ElevenLabs voice, narration-voice.js) is unchanged. The scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
+ 
+ // Without a Tutor: Voice Mode is off and its mic paused (VoiceToggle reads paused), say takes no turn.
+ const NO_TUTOR = Object.freeze({ state: 'off', caption: Object.freeze({ current: '', previous: null, error: null }), enter: () => {}, exit: () => {}, interrupt: () => {}, on: false, say: () => false, paused: true });
+@@ -58,7 +58,7 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
+     } else {
+       // Turning Voice Mode on is the learner's confirmation for both paid providers (§5).
+       stt = createScribeStt({ onEvent: onStt, fetchToken: () => api('/api/learn/voice/scribe-token', { method: 'POST', body: JSON.stringify({ ...scope(), confirmed: true }) }) });
+-      tts = createFishTts({
++      tts = createNarratorTts({
+         onEvent: onTts,
+         post: (path, body, signal) => fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ ...scope(), ...body }), signal }),
+       });
+diff --git a/packages/web/src/agent/slash.test.mjs b/packages/web/src/agent/slash.test.mjs
+index 8c855e595..772d53262 100644
+--- a/packages/web/src/agent/slash.test.mjs
++++ b/packages/web/src/agent/slash.test.mjs
+@@ -192,7 +192,7 @@ test('paid primitives always confirm and carry no guessed cost', () => {
+   assert.deepEqual(learnRequest('video').paid, ['video_generate']);
+   assert.deepEqual(learnRequest('animate').paid, ['maths_animation']);
+   assert.deepEqual(learnRequest('3d', { args: 'a transformer block' }).paid, ['blender_scene']);
+-  assert.deepEqual(learnRequest('explain').paid, ['narration']); // fish.audio narration is paid (user, via the Learn branch)
++  assert.deepEqual(learnRequest('explain').paid, ['narration']); // ElevenLabs narration is paid (user, via the Learn branch)
+   assert.deepEqual(learnRequest('code').paid, []);
+ });
+ 
+diff --git a/packages/web/src/explanation-audio.test.mjs b/packages/web/src/explanation-audio.test.mjs
+index 8013b44db..a877222e4 100644
+--- a/packages/web/src/explanation-audio.test.mjs
++++ b/packages/web/src/explanation-audio.test.mjs
+@@ -51,7 +51,7 @@ const B = createRequire(import.meta.url)(outfile);
+ rmSync(dir, { recursive: true, force: true });
+ 
+ const ref = id => ({ v: 1, source: { id, rev: 'rev-1' }, meta: { name: 'explanation.mp3', type: 'audio/mpeg', size: 700000 } });
+-const ready = (id = 'fs_audio', over = {}) => ({ status: 'ready', fileRef: ref(id), seconds: 84, script: 'x', provider: 'fish', model: 's1', voiceId: 'v', ...over });
++const ready = (id = 'fs_audio', over = {}) => ({ status: 'ready', fileRef: ref(id), seconds: 84, script: 'x', provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'v', ...over });
+ const card = (id = 'card-1', over = {}) => ({ id, type: 'explanation', dx: 0, dy: 0, title: `Why ${id}`, body: 'A decision tree asks simple questions.', narration: ready(), ...over });
+ 
+ const settle = () => B.act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
+diff --git a/packages/web/src/landing/support.js b/packages/web/src/landing/support.js
+index 932c577b3..00f19276f 100644
+--- a/packages/web/src/landing/support.js
++++ b/packages/web/src/landing/support.js
+@@ -44,8 +44,7 @@ const documents = {
+         '<strong>Google</strong> (Gemini API): image prompts and reference images when you generate an image with a Gemini model.',
+         '<strong>Fly.io</strong>: runs our services for repository lessons (the repository name and commit), CAD models, generated videos and converting some uploaded files, such as documents, slides, audio and 3D models.',
+         '<strong>TypeSafe</strong>: a practice question and your answer, to check the answer; and, when you add a web page card, screenshots of the captured page, its extracted text, its title and its web address, to screen the page for sexually explicit or graphic content.',
+-        '<strong>Fish Audio</strong>: text that Rabbit Hole reads aloud.',
+-        '<strong>ElevenLabs</strong>: voice input, which is currently paused. When it is on, your browser sends your microphone audio directly to ElevenLabs for transcription.',
++        '<strong>ElevenLabs</strong>: text that Rabbit Hole reads aloud, which is sent to make the audio; and voice input, which is currently paused. When it is on, your browser sends your microphone audio directly to ElevenLabs for transcription.',
+         '<strong>Resend</strong>: your email address and the content of sign-in and invitation emails.',
+         '<strong>Google and GitHub</strong>: sign-in, if you choose them.',
+         '<strong>Pexels</strong>: the words you search for when you look for a stock photo.',
+diff --git a/packages/web/src/shared-canvas-parity.test.mjs b/packages/web/src/shared-canvas-parity.test.mjs
+index d1cba1b37..b2a29344d 100644
+--- a/packages/web/src/shared-canvas-parity.test.mjs
++++ b/packages/web/src/shared-canvas-parity.test.mjs
+@@ -54,7 +54,7 @@ async function envelope(over = {}) {
+   return { ...block, interactions: { version: 1, displayTextVersion: 1, contentRevision: revision,
+     questions: [{ id: 'q-1', text: 'How does a tree choose its first question?' }, { id: 'q-2', text: 'What happens when a tree gets too deep?' }, { id: 'q-3', text: 'Why do the paths make rectangles?' }], terms: [] }, _body: fieldText(block, 'body') };
+ }
+-const narration = { status: 'ready', fileRef: { v: 1, source: { id: 'fs_audio', rev: 'rev-1' }, meta: { name: 'a.mp3', type: 'audio/mpeg', size: 10 } }, seconds: 84, script: 'A decision tree asks questions.', provider: 'fish', model: 's1', voiceId: 'v' };
++const narration = { status: 'ready', fileRef: { v: 1, source: { id: 'fs_audio', rev: 'rev-1' }, meta: { name: 'a.mp3', type: 'audio/mpeg', size: 10 } }, seconds: 84, script: 'A decision tree asks questions.', provider: 'elevenlabs', model: 'eleven_flash_v2_5', voiceId: 'v' };
+ 
+ const settle = () => B.act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
+ let root = null;
+diff --git a/packages/web/src/voice-session.js b/packages/web/src/voice-session.js
+index a9597979a..949e5034b 100644
+--- a/packages/web/src/voice-session.js
++++ b/packages/web/src/voice-session.js
+@@ -118,7 +118,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now
+     set('thinking', { error: null });
+     m.tutor_request_start = now();
+     emit('tutor_request_start', { turn_id: turnId, at: m.tutor_request_start });
+-    // The Tutor's first validated, self-contained sentence (Tutor v2) starts Fish before the plan is complete.
++    // The Tutor's first validated, self-contained sentence (Tutor v2) starts the narrator before the plan is complete.
+     let early = null;
+     const onSpeakable = sentence => {
+       const words = typeof sentence === 'string' ? sentence.trim() : '';
+diff --git a/packages/web/src/voice-session.test.mjs b/packages/web/src/voice-session.test.mjs
+index a687c2551..5042f3cfb 100644
+--- a/packages/web/src/voice-session.test.mjs
++++ b/packages/web/src/voice-session.test.mjs
+@@ -5,7 +5,7 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { bargesIn, echoesEnd, createVoiceSession, MIC_REQUIRED, STT_STOPPED, TUTOR_FAILED, TUTOR_TIMEOUT, VAD_SILENCE_MS } from './voice-session.js';
+ import { createFakeStt } from './voice-stt.js';
+-import { createFakeTts, createFishTts } from './voice-tts.js';
++import { createFakeTts, createNarratorTts } from './voice-tts.js';
+ import { voiceEvent } from './voice-telemetry.js';
+ 
+ const MS = { to_evidence_ready: 3, to_planner_ready: 5, canvas_done: 6 };
+diff --git a/packages/web/src/voice-tts.js b/packages/web/src/voice-tts.js
+index 0178ccdce..95408ad11 100644
+--- a/packages/web/src/voice-tts.js
++++ b/packages/web/src/voice-tts.js
+@@ -1,5 +1,5 @@
+ // Voice Mode TTS adapter (docs/features/voice-tutor-mvp.md §4): the Tutor's spoken words go to
+-// POST /api/learn/voice/tts (Fish, pinned narrator) and play through an HTMLAudioElement.
++// POST /api/learn/voice/tts (the narrator, narration-voice.js) and play through an HTMLAudioElement.
+ // speak() never throws: it resolves 'ended', 'stopped' or 'failed'. Only one speak at a time.
+ // Events carry the turn id and a timestamp only, never the words.
+ 
+@@ -30,11 +30,11 @@ export function speakable(text) {
+ }
+ 
+ // post(path, body, signal) -> fetch Response; the hook adds credentials, workspace headers, app
+-// and pending. Playback streams (owner, 2026-10-01): with MediaSource, each Fish chunk is appended as it
++// and pending. Playback streams (owner, 2026-10-01): with MediaSource, each audio chunk is appended as it
+ // arrives and play() starts after the first one, so the Tutor is heard while the rest still streams. Without
+ // MediaSource for audio/mpeg the whole body is buffered first, as before. Stop aborts the request, pauses and
+ // detaches the audio and the run, so no chunk read after a stop is appended or played.
+-export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now(), MediaSource = globalThis.MediaSource }) {
++export function createNarratorTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now(), MediaSource = globalThis.MediaSource }) {
+   const streams = !!MediaSource?.isTypeSupported?.('audio/mpeg');
+   // Every run in flight: the one playing and at most a queued continuation. stop() ends them all.
+   const runs = new Set();
+diff --git a/packages/web/src/voice-tts.test.mjs b/packages/web/src/voice-tts.test.mjs
+index ec64a7041..30ba54c12 100644
+--- a/packages/web/src/voice-tts.test.mjs
++++ b/packages/web/src/voice-tts.test.mjs
+@@ -2,7 +2,7 @@
+ // order, stop/fail/empty outcomes and one speak at a time. Fake post and fake audio; no network.
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+-import { speakable, createFishTts, createFakeTts } from './voice-tts.js';
++import { speakable, createNarratorTts, createFakeTts } from './voice-tts.js';
+ import { createVoiceSession } from './voice-session.js';
+ import { createFakeStt } from './voice-stt.js';
+ 
+@@ -45,9 +45,9 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+ const revoked = [], revoke = URL.revokeObjectURL;
+ URL.revokeObjectURL = url => { revoked.push(url); revoke(url); };
+ 
+-test('createFishTts posts the speakable text, emits events in order and resolves ended', async () => {
++test('createNarratorTts posts the speakable text, emits events in order and resolves ended', async () => {
+   const events = [], posts = [], { made, makeAudio } = fakeAudio();
+-  const tts = createFishTts({ post: async (path, body, signal) => { posts.push({ path, body, signal }); return audioResponse(); }, onEvent: e => events.push(e), makeAudio, now: () => 7 });
++  const tts = createNarratorTts({ post: async (path, body, signal) => { posts.push({ path, body, signal }); return audioResponse(); }, onEvent: e => events.push(e), makeAudio, now: () => 7 });
+   const done = tts.speak('Look at `code` the **card**.', { turnId: 't1' });
+   while (!made.length) await tick();
+   await tick();
+@@ -63,7 +63,7 @@ test('createFishTts posts the speakable text, emits events in order and resolves
+ 
+ test('stop pauses the audio and resolves stopped with no tts_error', async () => {
+   const events = [], { made, makeAudio } = fakeAudio();
+-  const tts = createFishTts({ post: async () => audioResponse(), onEvent: e => events.push(e), makeAudio });
++  const tts = createNarratorTts({ post: async () => audioResponse(), onEvent: e => events.push(e), makeAudio });
+   const done = tts.speak('Hello there.', { turnId: 't2' });
+   while (!made.length) await tick();
+   tts.stop();
+@@ -74,7 +74,7 @@ test('stop pauses the audio and resolves stopped with no tts_error', async () =>
+ 
+ test('stop during the request aborts it and resolves stopped', async () => {
+   let seen;
+-  const tts = createFishTts({
++  const tts = createNarratorTts({
+     post: (path, body, signal) => { seen = signal; return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))); },
+     makeAudio: () => assert.fail('no audio after stop'),
+   });
+@@ -92,27 +92,27 @@ test('errors resolve failed with tts_error and never throw', async () => {
+   ];
+   for (const post of cases) {
+     const events = [];
+-    const tts = createFishTts({ post, onEvent: e => events.push(e.type), makeAudio: () => assert.fail('no audio on error') });
++    const tts = createNarratorTts({ post, onEvent: e => events.push(e.type), makeAudio: () => assert.fail('no audio on error') });
+     assert.equal(await tts.speak('Hi.', { turnId: 't4' }), 'failed');
+     assert.deepEqual(events, ['tts_request_start', 'tts_error']);
+   }
+   // Autoplay blocked: play() rejects.
+   const events = [];
+-  const blocked = createFishTts({ post: async () => audioResponse(), onEvent: e => events.push(e.type), makeAudio: () => ({ play: () => Promise.reject(new Error('NotAllowedError')), pause() {} }) });
++  const blocked = createNarratorTts({ post: async () => audioResponse(), onEvent: e => events.push(e.type), makeAudio: () => ({ play: () => Promise.reject(new Error('NotAllowedError')), pause() {} }) });
+   assert.equal(await blocked.speak('Hi.', { turnId: 't5' }), 'failed');
+   assert.deepEqual(events, ['tts_request_start', 'tts_first_byte', 'tts_error']);
+ });
+ 
+ test('text with nothing speakable resolves ended without a request', async () => {
+   const events = [];
+-  const tts = createFishTts({ post: () => assert.fail('no request'), onEvent: e => events.push(e) });
++  const tts = createNarratorTts({ post: () => assert.fail('no request'), onEvent: e => events.push(e) });
+   assert.equal(await tts.speak('$$x^2$$ `y`', { turnId: 't6' }), 'ended');
+   assert.deepEqual(events, []);
+ });
+ 
+ test('a second speak stops the first', async () => {
+   const { made, makeAudio } = fakeAudio();
+-  const tts = createFishTts({ post: async () => audioResponse(), makeAudio });
++  const tts = createNarratorTts({ post: async () => audioResponse(), makeAudio });
+   const first = tts.speak('One.', { turnId: 'a' });
+   while (!made.length) await tick();
+   const second = tts.speak('Two.', { turnId: 'b' });
+@@ -144,7 +144,7 @@ test('createFakeTts: ended after ms, stopped on stop, failed with fail, same eve
+   assert.equal(await tts.speak('```code```', { turnId: 'f4' }), 'ended');
+ });
+ 
+-// Streaming playback (owner, 2026-10-01): a MediaSource fake that records what is appended, and a Fish
++// Streaming playback (owner, 2026-10-01): a MediaSource fake that records what is appended, and a narrator
+ // body whose chunks the test releases one at a time.
+ class FakeMediaSource extends EventTarget {
+   static isTypeSupported = type => type === 'audio/mpeg';
+@@ -184,11 +184,11 @@ function streamAudio(made) {
+ }
+ function streamingRig() {
+   const events = [], bodies = [], signals = [], made = [], makeAudio = streamAudio(made);
+-  const tts = createFishTts({ post: async (path, body, signal) => { signals.push(signal); const held = heldBody(); bodies.push(held); return held.response; }, onEvent: e => events.push(e.type), makeAudio, MediaSource: FakeMediaSource });
++  const tts = createNarratorTts({ post: async (path, body, signal) => { signals.push(signal); const held = heldBody(); bodies.push(held); return held.response; }, onEvent: e => events.push(e.type), makeAudio, MediaSource: FakeMediaSource });
+   return { tts, events, bodies, signals, made };
+ }
+ 
+-test('streaming: playback starts after the first chunk, before the Fish body completes', async () => {
++test('streaming: playback starts after the first chunk, before the audio body completes', async () => {
+   const r = streamingRig();
+   const done = r.tts.speak('Here it is. Notice the division before softmax.', { turnId: 's1' });
+   await settle();
+@@ -217,7 +217,7 @@ test('streaming: Stop pauses at once, aborts the request and no later chunk is a
+   const source = FakeMediaSource.made.at(-1);
+   r.tts.stop();
+   assert.equal(r.made[0].paused, true, 'silent immediately');
+-  assert.equal(r.signals[0].aborted, true, 'the Fish stream is aborted');
++  assert.equal(r.signals[0].aborted, true, 'the audio stream is aborted');
+   assert.equal(await done, 'stopped');
+   assert.ok(r.events.includes('tts_stopped'));
+   // A stale chunk that still arrives is never appended, and nothing plays again.
+@@ -258,7 +258,7 @@ test('streaming in a voice session: canvas acts before audio, Stop keeps Voice M
+   const sttEvents = [];
+   let session;
+   const stt = createFakeStt({ onEvent: event => session.sttEvent(event) });
+-  const tts = createFishTts({ post: async (path, body, signal) => { r.signals.push(signal); const held = heldBody(); r.bodies.push(held); return held.response; }, onEvent: event => session.ttsEvent(event), makeAudio: streamAudio(r.made), MediaSource: FakeMediaSource });
++  const tts = createNarratorTts({ post: async (path, body, signal) => { r.signals.push(signal); const held = heldBody(); r.bodies.push(held); return held.response; }, onEvent: event => session.ttsEvent(event), makeAudio: streamAudio(r.made), MediaSource: FakeMediaSource });
+   const tutor = { voiceTurn: async ({ turnId }) => { canvas.push(turnId); return { speech: 'Here it is. Notice the division before softmax.', turnId, ms: { to_evidence_ready: 1, to_planner_ready: 2, canvas_done: 3 } }; } };
+   session = createVoiceSession({ stt, tts, tutor, telemetry: (name, detail) => sttEvents.push({ name, ...detail }) });
+   await session.enter();
+diff --git a/scripts/whiteboard/whiteboard-smoke.mjs b/scripts/whiteboard/whiteboard-smoke.mjs
+index 45f6d8c11..5e3dbc174 100644
+--- a/scripts/whiteboard/whiteboard-smoke.mjs
++++ b/scripts/whiteboard/whiteboard-smoke.mjs
+@@ -3,7 +3,7 @@
+ // A video case: create -> plan -> read the signed proposal from the Chat thread -> approve -> poll -> result -> download the MP4 and ffprobe it.
+ // Prints the plan text, the "up to N credits" value (proposal usage), the stage timeline, the manifest's timings line, the ffprobe fields and the
+ // usage summary before and after each case. DEV ONLY: the session comes from rabbit-hole-cp-dev /test/session (RABBIT_HOLE_DEV_TEST_BYPASS read by
+-// name from the credentials file, never printed). These are real model, Fish and renderer calls and cost real (dev) credits.
++// name from the credentials file, never printed). These are real model, narrator (ElevenLabs) and renderer calls and cost real (dev) credits.
+ import { randomUUID } from 'node:crypto';
+ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+ import { tmpdir } from 'node:os';

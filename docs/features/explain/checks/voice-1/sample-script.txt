@@ -1,0 +1,1 @@
+This card explains how a decision tree splits data. At each step it asks one question about a feature, for example whether the age is above thirty, and sends every example down the yes branch or the no branch. It keeps splitting until the groups are pure, then reads the answer off the leaf where the example lands.
