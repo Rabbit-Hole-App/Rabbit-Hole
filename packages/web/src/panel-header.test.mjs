@@ -47,7 +47,8 @@ test('exactly one tab is active: aria-selected, the soft purple with a purple ic
   const css = read('./index.css');
   assert.match(css, /--nav-selected-bg: #eee5fc;\n\s+--nav-selected-fg: #6431a0;/, 'light: the mockup values');
   assert.match(css, /--nav-selected-bg: #453060;\n\s+--nav-selected-fg: #e1cff9;/, 'dark: the mockup values');
-  assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(\(\) => uiPrefs\(\)\.rightPanel\), \[tab, setTab\] = useState\('chat'\);/, 'open on Chat by default, and a closed panel stays closed after a refresh (owner 2026-11-13)');
+  assert.match(read('./chat-panels.js'), /const \[open, setOpen\] = useState\(false\), \[tab, setTab\] = useState\('chat'\);/, 'the right panel starts closed on every page, every time (owner 2026-11-18)');
+  assert.doesNotMatch(page, /repository-panel-shown/, 'a new repository canvas does not open Files on arrival (owner 2026-11-18)');
   assert.match(page, /const \{ open: panelOpen, setOpen: setPanelOpen, tab: panelTab, setTab: setPanelTab \} = panels;/);
   assert.match(page, /<div role="tabpanel" aria-label="Table of contents" className=\{`\$\{panelTab === 'toc' \? 'flex' : 'hidden'\}/);
   assert.match(page, /<CanvasSearchPanel hidden=\{panelTab !== 'find'\}/);
