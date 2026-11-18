@@ -67,7 +67,7 @@ test('a value under 64 px tall is one line; layout 5 keeps its top value left of
 
 test('a value is one box with its own centred text "Label: value unit": the whole text is measured against the box width less the dot room (50 px)', () => {
   const text = 'Period B: 2.01 s', width = textWidth(text, DRAWN_TEXT_SIZES.value);
-  assert.equal(Math.round(width * 10) / 10, 136.2); // 15 px body text, the size a frame text draws
+  assert.equal(Math.round(width * 10) / 10, 127.1); // 14 px body text, the size a frame text draws on a card with a layout (amendment G)
   assert.equal(VALUE_DOT.diameter, 10); assert.equal(VALUE_DOT.centreX, 14); assert.equal(VALUE_DOT.textClear, 6);
   assert.equal(fitValues('wide', Array(3).fill({ text }), DRAWN_TEXT_SIZES).dropped, 0); // 155 px of room at three values (205 less 50)
   assert.equal(fitValues('wide', Array(4).fill({ text }), DRAWN_TEXT_SIZES).dropped, 1); // 102 px of room at four (152 less 50): the last is dropped and the box divided again
@@ -76,7 +76,7 @@ test('a value is one box with its own centred text "Label: value unit": the whol
 
 test('a long label with a long number at four values is dropped to three, in list order', () => {
   const values = [{ text: 'Period B: 2.01 s' }, { text: 'Angle B: 19°' }, { text: 'Mass B: 1.0 kg' }, { text: 'Final loss: 0.00123' }];
-  assert.ok(textWidth(values[3].text, DRAWN_TEXT_SIZES.value) > 136);
+  assert.ok(textWidth(values[3].text, DRAWN_TEXT_SIZES.value) > 102); // 102 px of room at four values
   const fitted = fitValues('wide', values, DRAWN_TEXT_SIZES);
   assert.deepEqual(fitted.values.map(value => value.text), ['Period B: 2.01 s', 'Angle B: 19°', 'Mass B: 1.0 kg']); assert.equal(fitted.dropped, 1); assert.equal(fitted.boxes.length, 3);
 });

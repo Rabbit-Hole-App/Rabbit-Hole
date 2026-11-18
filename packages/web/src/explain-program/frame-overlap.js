@@ -11,13 +11,15 @@ import { LANE_INSET, lanesOf } from './frame-look.js';
 import { FIGURES_SDK_VERSION } from './stamps.js';
 
 // Characters a run is worth at the body size: a math run's TeX length scaled by the equation rule above.
-const runLength = run => (run.kind === 'math' ? Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (textStyle('body').fontSize * 0.6)) : run.text.length);
+// The body size the estimates use: a frame that carries bodySize (a card with a scene layout, 14 px: scene-style.js LAYOUT_BODY_SIZE) or the scene body size.
+const bodySizeOf = frame => frame?.bodySize ?? textStyle('body').fontSize;
+const runLength = (run, body) => (run.kind === 'math' ? Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (body * 0.6)) : run.text.length);
 
 // -> [{ id, box: {xMin, xMax, yMin, yMax} }] for every text object with something to draw.
 export function textBoxes(frame) {
   return (frame.objects || []).filter(object => object.kind === 'text').map(object => {
-    const length = object.runs ? object.runs.reduce((sum, run) => sum + runLength(run), 0) : (object.text || '').length;
-    const box = estimateTextBox({ text: 'x'.repeat(length), x: object.x, y: object.y, fontSize: textStyle('body').fontSize, anchor: object.align === 'middle' ? 'middle' : 'start', baseline: 'auto' });
+    const length = object.runs ? object.runs.reduce((sum, run) => sum + runLength(run, bodySizeOf(frame)), 0) : (object.text || '').length;
+    const box = estimateTextBox({ text: 'x'.repeat(length), x: object.x, y: object.y, fontSize: bodySizeOf(frame), anchor: object.align === 'middle' ? 'middle' : 'start', baseline: 'auto' });
     return { id: object.id, box };
   });
 }
@@ -150,7 +152,7 @@ const round1 = n => Math.round(n * 10) / 10;
 // (layoutProblems({ objects, ...traceFrame(frame) }) needs the trace to carry width and height: interact-fixtures.js and web/render/program-render.jsx) so text-frame can fire.
 export function layoutProblems(frame, limit = 8) {
   const objects = frame.objects || [], out = [];
-  const labels = objects.filter(o => o.kind === 'text' && objectText(o)).map(o => ({ id: o.id, owner: o.id, box: inkBox(objectText(o), o.x, o.y, o.align === 'middle' ? 'middle' : 'start', textStyle('body').fontSize) }));
+  const labels = objects.filter(o => o.kind === 'text' && objectText(o)).map(o => ({ id: o.id, owner: o.id, box: inkBox(objectText(o), o.x, o.y, o.align === 'middle' ? 'middle' : 'start', bodySizeOf(frame)) }));
   const figures = objects.filter(o => o.kind === 'axis' || o.kind === 'plot').flatMap(figureTextBoxes);
   const all = [...labels, ...figures], push = problem => { if (out.length < limit) out.push(problem); };
   for (const label of all) {
@@ -204,7 +206,7 @@ export function textOverlaps(frame, limit = 8) {
 const CLEAR = 6;
 const within = (box, area) => box.xMin >= area.xMin && box.xMax <= area.xMax && box.yMin >= area.yMin && box.yMax <= area.yMax;
 const meets = (box, circle) => { const s = shared(box, shapeBox(circle)); return s.width > 0 && s.height > 0; };
-export function fitGuestLabels(result, sdkVersion) {
+export function fitGuestLabels(result, sdkVersion, bodySize = undefined) {
   if (!result?.ok || sdkVersion !== FIGURES_SDK_VERSION) return result;
   const { frame } = result.value, circles = frame.objects.filter(o => o.kind === 'circle' && o.opacity !== 0), bodies = circles.filter(o => o.w >= BODY_MIN);
   if (!bodies.length) return result;
@@ -212,7 +214,7 @@ export function fitGuestLabels(result, sdkVersion) {
   let moved = false;
   const objects = frame.objects.map(object => {
     if (object.kind !== 'text' || !(object.text || object.runs)) return object;
-    const box = textBoxes({ objects: [object] })[0].box, hit = bodies.find(body => meets(box, body));
+    const box = textBoxes({ objects: [object], bodySize })[0].box, hit = bodies.find(body => meets(box, body));
     if (!hit) return object;
     const home = lanes.find(lane => object.x >= lane.x && object.x <= lane.x + lane.w && object.y >= lane.y && object.y <= lane.y + lane.h);
     const laneArea = home ? { xMin: home.x + LANE_INSET, xMax: home.x + home.w - LANE_INSET, yMin: home.y + LANE_INSET, yMax: home.y + home.h - LANE_INSET } : null;

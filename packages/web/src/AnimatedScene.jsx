@@ -492,7 +492,7 @@ function wrapped(text, width, size, x) {
   return lines.length < 2 ? text : lines.map((line, index) => <tspan key={index} x={x} dy={index ? lineHeight(size) : 0}>{line}</tspan>);
 }
 
-export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false }) {
+export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false, bodySize = null }) {
   const sceneShapeStyle = interact ? interactShapeStyle : shapeStyle;
   const radius = interact ? INTERACT_BOX_RADIUS : 12;
   const shadow = interact ? undefined : 'url(#animation-shadow)';
@@ -647,7 +647,8 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // text object carries its own typography, every other kind draws a
           // caption on the shape beside it. Circle labels borrow the equation
           // scale because it is the only role sized for a short symbol.
-          const styleOf = interact ? interactTextStyle : textStyle;
+          // bodySize (a card with a scene layout, brief 35 amendment G): the body style is that size instead of the theme's, so labels, box text and a typeset run all follow it.
+          const styleOf = role => { const style = (interact ? interactTextStyle : textStyle)(role); return bodySize && role === 'body' ? { ...style, fontSize: bodySize } : style; };
           const type = isData ? styleOf('caption')
             : isCode ? styleOf('code')
             : isEquation ? styleOf('equation')
