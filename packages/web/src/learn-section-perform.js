@@ -49,7 +49,7 @@ export async function placeDoc(canvasApi, markdown, ctx, role, beside, title = '
 // A lead, a follow, a chapter or a section title (learn-walk-spec §3, §4): a canvas text item in the plan's column (canvasApi.insertLearnText), never a card and never a chip.
 // -> its id, or null when there is no text (a missing lead draws nothing: no filler).
 export function placeText(canvasApi, text, ctx, role, level = 'body') {
-  const words = flowText(text);
+  const words = flowText(text).replace(/`([^`\n]*)`/g, '$1'); // canvas text is plain words: a name keeps its letters, the backticks go (code is the card's job; Reviewer 2026-11-18 13:32)
   return words ? canvasApi.insertLearnText?.({ text: words, level, learn: learnTag(ctx, role) }) || null : null;
 }
 // A change to a card made by its own insert, once the canvas holds it (a card inserted this tick is in the board's blocks only after it renders).

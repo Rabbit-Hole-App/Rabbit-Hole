@@ -1,0 +1,90 @@
+[
+  {
+    "what": "contents before",
+    "rows": [
+      {
+        "entry": "1.1",
+        "title": "Tokens in, next-token scores out",
+        "walk": "Start",
+        "active": true,
+        "chips": [
+          "Explain ·GPT as a Next‑Token Predictor",
+          "Diagram ·Model file class map (bottom-up compositi"
+        ]
+      }
+    ]
+  },
+  {
+    "what": "stop",
+    "count": "1 / 7 · Tokens in, next-token scores out",
+    "selected": 1
+  },
+  {
+    "what": "stop",
+    "count": "2 / 7 · Tokens in, next-token scores out",
+    "selected": 1
+  },
+  {
+    "what": "stop",
+    "count": "3 / 7 · Tokens in, next-token scores out",
+    "selected": 1
+  },
+  {
+    "what": "stop",
+    "count": "4 / 7 · Tokens in, next-token scores out",
+    "selected": 1
+  },
+  {
+    "what": "stop",
+    "count": "5 / 7 · Tokens in, next-token scores out",
+    "selected": 1
+  },
+  {
+    "what": "stop",
+    "count": "6 / 7 · Tokens in, next-token scores out",
+    "selected": 1
+  },
+  {
+    "what": "last stop",
+    "count": "7 / 7 · Tokens in, next-token scores out"
+  },
+  {
+    "what": "contents during",
+    "rows": [
+      {
+        "entry": "1.1",
+        "title": "Tokens in, next-token scores out",
+        "walk": "Continue",
+        "active": true,
+        "chips": [
+          "Explain ·GPT as a Next‑Token Predictor [done]",
+          "Diagram ·Model file class map (bottom-up compositi [done]",
+          "Explain ·GPT __init__ components in order [done]",
+          "Diagram ·GPT.forward: token ids to logits (shapes  [done]",
+          "Notebook ·Training versus generation logits [done]",
+          "Explain ·Supporting utilities in the GPT‑2 model [done]",
+          "Notes ·Notes: Tokens in, next-token scores out [current]"
+        ]
+      }
+    ]
+  },
+  {
+    "what": "exit",
+    "bar": 0
+  },
+  {
+    "what": "contents after exit",
+    "rows": [
+      {
+        "entry": "1.1",
+        "title": "Tokens in, next-token scores out",
+        "walk": "Continue",
+        "active": true,
+        "chips": [
+          "Explain ·GPT as a Next‑Token Predictor [done]",
+          "Diagram ·Model file class map (bottom-up compositi [done]"
+        ]
+      }
+    ]
+  }
+]

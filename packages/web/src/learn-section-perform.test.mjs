@@ -68,9 +68,9 @@ test('performItem: lead and follow are text items tagged for the column; no lead
   api.insertLearnText = entry => { const id = `t${texts.length}`; texts.push({ id, ...entry }); return id; };
   api.insertNotebook = block => { blocks.push(block); return block.id; };
   const file = { path: 'a.ipynb', content: { cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 } };
-  await performItem({ canvasApi: api, perform: { op: 'notebook', files: [file], activePath: file.path }, item: { itemId: 'i1', command: 'notebook', lead: 'Read this first.', follow: 'Now you know.', title: 'T' }, ctx: { sectionId: '1.1', itemId: 'i1', order: 0 } });
+  await performItem({ canvasApi: api, perform: { op: 'notebook', files: [file], activePath: file.path }, item: { itemId: 'i1', command: 'notebook', lead: 'Read this first.', follow: 'Now `forward` returns `logits`.', title: 'T' }, ctx: { sectionId: '1.1', itemId: 'i1', order: 0 } });
   await performItem({ canvasApi: api, perform: { op: 'notebook', files: [file], activePath: file.path }, item: { itemId: 'i2', command: 'notebook', lead: '', follow: '', title: 'U' }, ctx: { sectionId: '1.1', itemId: 'i2', order: 1 } });
-  assert.deepEqual(texts.map(entry => [entry.text, entry.level, entry.learn.role, entry.learn.itemId, entry.learn.slot, entry.learn.order]), [['Read this first.', 'body', 'lead', 'i1', true, 0], ['Now you know.', 'body', 'follow', 'i1', true, 0]]);
+  assert.deepEqual(texts.map(entry => [entry.text, entry.level, entry.learn.role, entry.learn.itemId, entry.learn.slot, entry.learn.order]), [['Read this first.', 'body', 'lead', 'i1', true, 0], ['Now forward returns logits.', 'body', 'follow', 'i1', true, 0]]);
   assert.equal(blocks.filter(block => block.type === 'doc').length, 0, 'no Document card for a lead or a follow');
   assert.equal(placeChapter(api, { chapter: '1', title: 'The Big Picture' }), 't2');
   assert.equal(placeSection(api, { sectionId: '1.1', title: 'What goes in' }), 't3');

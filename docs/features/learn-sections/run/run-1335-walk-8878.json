@@ -1,0 +1,371 @@
+{
+  "canvas": "canvas-162ea428",
+  "url": "http://127.0.0.1:8878/apps/canvas-162ea428",
+  "failure": null,
+  "events": [
+    {
+      "t": 0,
+      "what": "signed in (no sign-in)",
+      "email": "user@b1a6c0b052cb7c76c391f125cb4be19b.rabbithole.invalid"
+    },
+    {
+      "t": 1,
+      "what": "canvas",
+      "canvas": "canvas-162ea428",
+      "url": "http://127.0.0.1:8878/apps/canvas-162ea428"
+    },
+    {
+      "t": 6.4,
+      "what": "indexed"
+    },
+    {
+      "t": 31.6,
+      "what": "catalogue ready"
+    },
+    {
+      "t": 34,
+      "what": "learn option",
+      "option": "GPT transformer architecture and attention"
+    },
+    {
+      "t": 34.1,
+      "what": "depth Standard (balanced)"
+    },
+    {
+      "t": 56.3,
+      "what": "plan drafted"
+    },
+    {
+      "t": 56.5,
+      "what": "accept"
+    },
+    {
+      "t": 71.9,
+      "what": "1.1 ready (brief + compose)"
+    },
+    {
+      "t": 72,
+      "what": "BUILD pressed"
+    },
+    {
+      "t": 159.3,
+      "what": "making done"
+    },
+    {
+      "t": 159.3,
+      "what": "position settled",
+      "last_placed": 147.2
+    },
+    {
+      "t": 165.4,
+      "what": "canvas blocks",
+      "total": 7,
+      "section": 7,
+      "other": []
+    },
+    {
+      "t": 165.4,
+      "what": "page errors",
+      "errors": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "e722b6c5-3df1-4d28-b1f4-354d891e6908",
+      "type": "explanation",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "card",
+      "slot": true,
+      "order": 0,
+      "since": 1795037182091,
+      "placed": true,
+      "seen": 80.8,
+      "placedAt": 80.8
+    },
+    {
+      "id": "65821e7e-b1df-4bca-84c0-b97aa14eac26",
+      "type": "flow",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "card",
+      "slot": true,
+      "order": 1,
+      "since": 1795037196453,
+      "fit": false,
+      "placed": true,
+      "seen": 95,
+      "placedAt": 95
+    },
+    {
+      "id": "3b765157-ecf3-4bc1-bf9e-4de986e1792c",
+      "type": "explanation",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "card",
+      "slot": true,
+      "order": 2,
+      "since": 1795037204720,
+      "placed": true,
+      "seen": 103.1,
+      "placedAt": 103.1
+    },
+    {
+      "id": "838944dd-7f0a-44ac-8c95-b8c1625be78f",
+      "type": "flow",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "card",
+      "slot": true,
+      "order": 3,
+      "since": 1795037226962,
+      "fit": false,
+      "placed": true,
+      "seen": 125.3,
+      "placedAt": 125.3
+    },
+    {
+      "id": "fe8877c2-5c39-4864-9c4d-285f838c1157",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "card",
+      "slot": true,
+      "order": 4,
+      "since": 1795037235194,
+      "fit": false,
+      "placed": true,
+      "seen": 133.8,
+      "placedAt": 133.8
+    },
+    {
+      "id": "276bc8c1-f148-4228-8c0d-4de79b45d364",
+      "type": "explanation",
+      "sectionId": "1.1",
+      "itemId": "i6",
+      "role": "card",
+      "slot": true,
+      "order": 5,
+      "since": 1795037248516,
+      "placed": true,
+      "seen": 147.2,
+      "placedAt": 147.2
+    },
+    {
+      "id": "9a1f3521-4451-4996-bdac-7cbebd182202",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "card",
+      "slot": true,
+      "order": 6,
+      "since": 1795037261004,
+      "fit": true,
+      "placed": true,
+      "seen": 159.4,
+      "placedAt": 159.4
+    }
+  ],
+  "log": [
+    {
+      "t": 34.6,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": null,
+      "fellBack": false,
+      "status": 400,
+      "stopReason": null,
+      "outcome": "failed",
+      "error": "http_error",
+      "durationMs": 214
+    },
+    {
+      "t": 55.9,
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 2,
+      "estimate_usd": [
+        0.069936,
+        0.069812
+      ],
+      "cap_usd": 0.1,
+      "ms": 21545,
+      "outcome": "ok",
+      "ops": 26
+    },
+    {
+      "t": 64.5,
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.030647,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    },
+    {
+      "t": 72,
+      "event": "learn_section_compose",
+      "section": "1.1",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.019607,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 76,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.014698,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 80,
+      "event": "explanation_diagram_corrected",
+      "kind": "matrix_row_ids"
+    },
+    {
+      "t": 89.6,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i2",
+      "command": "diagram",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.038091,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 99.4,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i3",
+      "command": "explanation",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.008992,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 102.5,
+      "event": "explanation_diagram_smell",
+      "kind": "bare_maths",
+      "label": "Final LayerNorm (ln_f)"
+    },
+    {
+      "t": 102.5,
+      "event": "explanation_diagram_smell",
+      "kind": "bare_maths",
+      "label": "LM head (lm_head)"
+    },
+    {
+      "t": 116.2,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i4",
+      "command": "diagram",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.030654,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 133.2,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i5",
+      "command": "notebook",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.025072,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 143,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i6",
+      "command": "explanation",
+      "calls": 3,
+      "repairs": 2,
+      "usd": 0.032486,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 146.4,
+      "event": "explanation_diagram_dropped_element",
+      "kind": "field text",
+      "label": "0",
+      "reason": "cut to 65 characters: removed \"performance\""
+    },
+    {
+      "t": 146.4,
+      "event": "explanation_diagram_corrected",
+      "kind": "field_trimmed"
+    },
+    {
+      "t": 146.4,
+      "event": "explanation_diagram_smell",
+      "kind": "bare_maths",
+      "label": "from_pretrained"
+    },
+    {
+      "t": 146.4,
+      "event": "explanation_diagram_smell",
+      "kind": "bare_maths",
+      "label": "configure_optimizers"
+    },
+    {
+      "t": 146.4,
+      "event": "explanation_diagram_smell",
+      "kind": "bare_maths",
+      "label": "estimate_mfu"
+    },
+    {
+      "t": 154.4,
+      "event": "learn_model",
+      "task": "learn_section",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "soyUshlcjtJZ",
+      "served": "claude-sonnet-5-5",
+      "fellBack": false,
+      "status": 200,
+      "stopReason": "tool_use",
+      "outcome": "completed",
+      "error": null,
+      "durationMs": 7589
+    },
+    {
+      "t": 158.7,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.03428,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

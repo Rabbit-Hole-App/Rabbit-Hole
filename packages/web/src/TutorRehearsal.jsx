@@ -17,6 +17,7 @@ import { depthOf } from './learn-settings.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
+import { reviewTools } from './flags.js';
 import { performItem, placeChapter, placeSection } from './learn-section-perform.js';
 import { briefAndCompose, compositionForMake, stallDump, withinTime } from './learn-section-load.js';
 import { SPACING_SCALES } from './learn-position.js';
@@ -270,6 +271,8 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   const learnOption = id => learnOf(st.current.doc).options.find(option => option.id === id);
 
   // Learn sections (CONTRACT.md server actions): brief then compose for the current section, Next section, and the Make loop. Errors come back as { error, words } or as a refused request.
+  // Load sample section (dev build): the saved board of a built first section onto this fresh canvas (learn-sample-section.js).
+  const loadSample = async () => { if (!reviewTools) return; const { loadSampleSection } = await import('./learn-sample-section.js'); const wrong = await loadSampleSection({ canvas, board }); if (wrong) toast(wrong); };
   const sectionPost = async body => { try { return await codebasePost(chatRef.current, board, body); } catch (error) { return error?.data || {}; } };
   const sectionPatch = change => patch(old => ({ section: { ...old.section, ...change } }));
   const failSection = (failed, out) => sectionPatch({ stage: 'failed', failed, words: out?.words && !internal(out.words) ? out.words : null });
@@ -380,6 +383,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     else if (id === 'section:retry') retrySection();
     else if (id === 'section:skip' || id === 'section:next') nextSection();
     else if (id === 'section:make') makeSection();
+    else if (id === 'sample:load') loadSample();
     else if (id === 'section:arrange') { const sec = st.current.section; if (sec?.id && !chat.canvasOps?.tutorCanvas?.()?.arrangeLearn?.(sec.id)) toast('No cards of this section to arrange.'); }
     else if (id.startsWith('spacing:') && SPACING_SCALES[id.slice(8)]) chat.canvasOps?.tutorCanvas?.()?.learnSpacing?.(SPACING_SCALES[id.slice(8)]);
     else if (id === 'plan:change') { if (st.current.planLog.at(-1)?.text !== SENTENCES.planEditPlaceholder) patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planEditPlaceholder)] }); chat.composer?.focus?.(); }

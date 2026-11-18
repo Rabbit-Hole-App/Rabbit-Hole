@@ -17,6 +17,8 @@ import { SENTENCES, catalogueMessage, factsMessage, indexingFailure, rehearsalFa
 import { learnOf, optionRows } from './learn-intake.js';
 import { draftText } from './learn-plan.js';
 import { reviewTools } from './flags.js';
+// Dev build only (Reviewer 2026-11-18 13:32): the built 1.1 fixture onto this fresh canvas, so a layout, walk or contents check costs seconds and no model call.
+const SAMPLE_ROW = { id: 'sample:load', label: 'Load sample section' };
 
 // Plain words for the rehearsal's status (no status code, no machine or provider term).
 const STATUS_WORDS = { queued: 'Getting ready to try it', discovering: 'Reading how it is meant to run', provisioning: 'Setting up a place to run it', running: 'Running the steps', repairing: 'Fixing a step that did not work', planning: 'Writing up the plan' };
@@ -51,7 +53,7 @@ export function flowMessages(state, { repo }) {
     const facts = factsMessage(doc, cm);
     out.push(note('catalogue', facts.text));
     if (facts.rest) out.push(note('catalogue-rest', facts.rest));
-    out.push(note('intake', SENTENCES.intake, null, [{ id: 'mode:run', label: SENTENCES.runIt, disabled: !open }, { id: 'mode:learn', label: SENTENCES.learnIt, disabled: !open }]));
+    out.push(note('intake', SENTENCES.intake, null, [{ id: 'mode:run', label: SENTENCES.runIt, disabled: !open }, { id: 'mode:learn', label: SENTENCES.learnIt, disabled: !open }, ...(reviewTools ? [SAMPLE_ROW] : [])]));
   } else {
     out.push(note('catalogue', cm.text, null, set ? null : cm.chips));
     if (cm.rest) out.push(note('catalogue-rest', cm.rest));
@@ -92,7 +94,7 @@ export function flowMessages(state, { repo }) {
       const making = sec.stage === 'making';
       if (making) out.push(pending('learn-section-making', SENTENCES.sectionMaking));
       // Position's dev controls (Reviewer 2026-11-17 10:20 A: dev build only, never shipped): Arrange section, and the spacing toggle the owner compares on 8878.
-      const dev = reviewTools ? [{ id: 'section:arrange', label: 'Arrange section', disabled: making }, ...['tight', 'normal', 'loose'].map(name => ({ id: `spacing:${name}`, label: `Spacing: ${name}` }))] : [];
+      const dev = reviewTools ? [{ id: 'section:arrange', label: 'Arrange section', disabled: making }, SAMPLE_ROW, ...['tight', 'normal', 'loose'].map(name => ({ id: `spacing:${name}`, label: `Spacing: ${name}` }))] : [];
       out.push({ key: 'learn-section', role: 'assistant', section: sec, choices: [{ id: 'section:next', label: SENTENCES.sectionNext, disabled: making }, { id: 'section:make', label: SENTENCES.sectionMake, disabled: making }, ...dev] });
     }
   }
