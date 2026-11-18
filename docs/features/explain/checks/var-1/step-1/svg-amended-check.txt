@@ -1,0 +1,1 @@
+AFTER (amended) is byte-identical to BEFORE (main)

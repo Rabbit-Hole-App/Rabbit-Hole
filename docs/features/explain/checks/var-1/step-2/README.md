@@ -27,3 +27,11 @@ Branch `feat/var-1`, commits ea17c1fb3 (tokens) and 84bac61f9 (comment), on top 
 2. Questions: fill tokens in the three questions too, or keep refusing them (current).
 3. Any numeric path is accepted (an input like `boxes.0.q1` works), not only derived ones; the valid-paths message lists only the derived ones. Say if tokens must be limited to derived numbers.
 4. The guidance sentence is appended to every explanation prompt, including a prose-only card; if a card has no figure it is wasted (about 45 words).
+
+## Decisions applied 2026-11-18 (Reviewer)
+Commit 26465bef6 on `feat/var-1`.
+1. No padding: a token prints the stored number ("21" prints "21"), as built.
+2. Tokens in the three questions are refused, as built.
+3. Any numeric path is accepted, as built. After the step-1 amendment it reads every derived value, silent ones too (a plain box's fences exist for a token though the figure does not draw them).
+4. CHANGED: the token sentence enters the prompt only when the card has a diagram. `learn-primitives.js` now holds `VISUAL_COMPLETE_BASE` (the shipped text, byte-equal to main's `VISUAL_COMPLETE`), `TOKEN_RULE`, and `VISUAL_COMPLETE = BASE + TOKEN_RULE`. `visualsStatement` (explanation-planner.js) adds the sentence when the plan has at least one non-picture visual, otherwise the base text only; the unplanned rules block (`EXPLANATION_VISUAL_RULES`, where the author decides the visuals and may draw a diagram) keeps it. Test: `explanation-tokens.test.js` "the token sentence is in the prompt of a card with a diagram and absent from a prose-only card" (diagram plan and mixed plan have it; picture-only and empty plans do not; an unplanned request has it; a picture-only plan's whole author request carries no `{{d:N.path}}`).
+5. Gemini `op` only: waits for the bench; nothing done.

@@ -38,7 +38,7 @@ test/explanation-sequence-selfstep.test.js pass=10 fail=0
 test/explanation-shape-gallery.test.js pass=4 fail=0
 test/explanation-summary.test.js pass=12 fail=0
 test/explanation-token-links-contract.test.js pass=1 fail=0
-test/explanation-tokens.test.js pass=10 fail=0
+test/explanation-tokens.test.js pass=11 fail=0
 test/explanation-tree-hierarchy.test.js pass=5 fail=0
 test/explanation-validation.test.js pass=16 fail=0
 test/explanation-vary.test.js pass=9 fail=0

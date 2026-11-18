@@ -1,0 +1,3 @@
+plain                    Lower fence text: false | bytes 2265
+outlier-fences-omitted   Lower fence text: true | bytes 2975
+fences-written           Lower fence text: true | bytes 2690
