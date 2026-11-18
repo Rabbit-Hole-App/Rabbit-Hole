@@ -1,0 +1,413 @@
+{
+  "canvas": "canvas-00fc41e0",
+  "url": "http://127.0.0.1:8878/apps/canvas-00fc41e0",
+  "failure": null,
+  "events": [
+    {
+      "t": 0.1,
+      "what": "signed in (no sign-in)",
+      "email": "user@b1a6c0b052cb7c76c391f125cb4be19b.rabbithole.invalid"
+    },
+    {
+      "t": 0.2,
+      "what": "canvas",
+      "canvas": "canvas-00fc41e0",
+      "url": "http://127.0.0.1:8878/apps/canvas-00fc41e0"
+    },
+    {
+      "t": 0.2,
+      "what": "indexed"
+    },
+    {
+      "t": 0.3,
+      "what": "catalogue ready"
+    },
+    {
+      "t": 4.4,
+      "what": "learn option",
+      "option": "GPT transformer architecture and attention"
+    },
+    {
+      "t": 4.5,
+      "what": "depth Standard (balanced)"
+    },
+    {
+      "t": 24.6,
+      "what": "plan drafted"
+    },
+    {
+      "t": 24.8,
+      "what": "accept"
+    },
+    {
+      "t": 47.9,
+      "what": "1.1 ready (brief + compose)"
+    },
+    {
+      "t": 47.9,
+      "what": "BUILD pressed"
+    },
+    {
+      "t": 125.9,
+      "what": "making done"
+    },
+    {
+      "t": 125.9,
+      "what": "position settled",
+      "last_placed": 114.6
+    },
+    {
+      "t": 132.1,
+      "what": "canvas blocks",
+      "total": 15,
+      "section": 15,
+      "other": []
+    },
+    {
+      "t": 132.1,
+      "what": "page errors",
+      "errors": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "f9983e7f-c50c-47fc-ae6e-5a5b5a1f7e16",
+      "type": "doc",
+      "sectionId": "1",
+      "itemId": null,
+      "role": "chapter",
+      "slot": true,
+      "order": null,
+      "since": 1795029392364,
+      "fit": true,
+      "placed": true,
+      "seen": 48.7,
+      "placedAt": 48.7
+    },
+    {
+      "id": "2739b7f5-8575-4b56-8cf7-20cd96777dcb",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "lead",
+      "slot": true,
+      "order": 1,
+      "since": 1795029416987,
+      "fit": true,
+      "placed": true,
+      "seen": 73.2,
+      "placedAt": 73.2
+    },
+    {
+      "id": "2fd7415c-f91a-4ec2-af20-b0780da2309c",
+      "type": "snippet",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "card",
+      "slot": true,
+      "order": 1,
+      "since": 1795029422410,
+      "fit": true,
+      "placed": true,
+      "seen": 78.7,
+      "placedAt": 78.7
+    },
+    {
+      "id": "ab19938d-d610-4a9b-bc9d-ade3df357788",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i2",
+      "role": "follow",
+      "slot": true,
+      "order": 1,
+      "since": 1795029422552,
+      "fit": true,
+      "placed": true,
+      "seen": 78.7,
+      "placedAt": 78.7
+    },
+    {
+      "id": "8ca7ac8e-a575-4507-a1dd-9f918a4d6e0e",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "card",
+      "slot": true,
+      "order": 2,
+      "since": 1795029432391,
+      "fit": false,
+      "placed": true,
+      "seen": 89,
+      "placedAt": 89
+    },
+    {
+      "id": "136e359a-8e3e-409c-8f42-c4296837beae",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "lead",
+      "slot": true,
+      "order": 2,
+      "since": 1795029432288,
+      "fit": true,
+      "placed": true,
+      "seen": 89,
+      "placedAt": 89
+    },
+    {
+      "id": "6ac1ed02-e305-43cc-ae15-dd666d9e86ef",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i3",
+      "role": "follow",
+      "slot": true,
+      "order": 2,
+      "since": 1795029432602,
+      "fit": true,
+      "placed": true,
+      "seen": 89,
+      "placedAt": 89
+    },
+    {
+      "id": "199b372a-d335-4b4c-aa55-6c4beb1d7b81",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "card",
+      "slot": true,
+      "order": 3,
+      "since": 1795029446569,
+      "fit": false,
+      "placed": true,
+      "seen": 103.1,
+      "placedAt": 103.1
+    },
+    {
+      "id": "3f186ea7-a200-47ab-bbb1-11bb7ccbc70c",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "lead",
+      "slot": true,
+      "order": 3,
+      "since": 1795029446450,
+      "fit": true,
+      "placed": true,
+      "seen": 103.1,
+      "placedAt": 103.1
+    },
+    {
+      "id": "c85b1270-e6ae-4a9c-9387-7c751efadf12",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i4",
+      "role": "follow",
+      "slot": true,
+      "order": 3,
+      "since": 1795029446767,
+      "fit": true,
+      "placed": true,
+      "seen": 103.1,
+      "placedAt": 103.1
+    },
+    {
+      "id": "33c6e2bb-dc3f-4f6f-9050-21fa5830a345",
+      "type": "notebook",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "card",
+      "slot": true,
+      "order": 4,
+      "since": 1795029457944,
+      "fit": false,
+      "placed": true,
+      "seen": 114.6,
+      "placedAt": 114.6
+    },
+    {
+      "id": "80f1bc7c-2cfa-4a97-9a0d-f384d0eaee93",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "lead",
+      "slot": true,
+      "order": 4,
+      "since": 1795029457835,
+      "fit": true,
+      "placed": true,
+      "seen": 114.6,
+      "placedAt": 114.6
+    },
+    {
+      "id": "c47fb367-b700-400d-8b15-f15c2b46fc1d",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i5",
+      "role": "follow",
+      "slot": true,
+      "order": 4,
+      "since": 1795029458172,
+      "fit": true,
+      "placed": true,
+      "seen": 114.6,
+      "placedAt": 114.6
+    },
+    {
+      "id": "54fbf4f7-fd88-4684-83fe-27355b3c18ef",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "lead",
+      "slot": true,
+      "order": 5,
+      "since": 1795029469568,
+      "fit": true,
+      "placed": true,
+      "seen": 126.2,
+      "placedAt": 126.2
+    },
+    {
+      "id": "a5e0ccab-5b36-48cf-85d0-783a8d7d1daa",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "notes",
+      "role": "card",
+      "slot": true,
+      "order": 5,
+      "since": 1795029469680,
+      "fit": true,
+      "placed": true,
+      "seen": 126.2,
+      "placedAt": 126.2
+    }
+  ],
+  "log": [
+    {
+      "t": 5.2,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": null,
+      "fellBack": false,
+      "status": 400,
+      "stopReason": null,
+      "outcome": "failed",
+      "error": "http_error",
+      "durationMs": 361
+    },
+    {
+      "t": 24.4,
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 2,
+      "estimate_usd": [
+        0.069912,
+        0.069788
+      ],
+      "cap_usd": 0.1,
+      "ms": 19361,
+      "outcome": "ok",
+      "ops": 22
+    },
+    {
+      "t": 40.5,
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 4,
+      "repairs": 2,
+      "usd": 0.088031,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    },
+    {
+      "t": 48,
+      "event": "learn_section_compose",
+      "section": "1.1",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.017519,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 64.7,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "diagram",
+      "calls": 3,
+      "repairs": 2,
+      "usd": 0.048911,
+      "cap_usd": 0.1,
+      "outcome": "invalid",
+      "errors": [
+        "The node \"Prompt text\" maps to no anchor of this beat (sample.py:71-74) and no term taught so far; draw only what the source shows"
+      ]
+    },
+    {
+      "t": 72.5,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i2",
+      "command": "code",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.02913,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    },
+    {
+      "t": 88,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i3",
+      "command": "notebook",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.026793,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 102.1,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i4",
+      "command": "notebook",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.031304,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 113.5,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i5",
+      "command": "notebook",
+      "calls": 1,
+      "repairs": 0,
+      "usd": 0.016573,
+      "cap_usd": 0.15,
+      "outcome": "ok"
+    },
+    {
+      "t": 125.2,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.032023,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}
