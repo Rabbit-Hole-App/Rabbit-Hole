@@ -383,7 +383,7 @@ export const CardCompositionSchema = z.object({
     parameterBindings: z.array(z.object({ fromInputId: stable, toInputId: stable }).strict()).max(8), readOnly: z.literal(true), snapshotTime: z.literal(SNAPSHOT_TIME) }).strict()).max(PLAN_LIMITS.supports),
   main: z.object({ artifact: artifactRef, runtime, mode: z.enum(['static', 'time', 'experiment']), readoutIds: z.array(stable).max(16), inputDefaults: z.record(stable, scalar.or(z.array(z.number().int()))),
     controls: z.array(control).max(PLAN_LIMITS.controls), timeline: timelineRecord.nullable(), onInputChange: z.enum(['recompute_still', 'reset_pause']),
-    calloutReadoutIds: z.array(stable).max(16).optional() }).strict(), // readouts whose value a callout line in the scene already shows: the readouts row omits them (one place per number; absent on cards composed before)
+    calloutReadoutIds: z.array(stable).max(16).optional(), layout: z.object({ pictureCount: z.enum(['one', 'two']), runs: z.enum(['left-to-right', 'top-to-bottom', 'compact']), panelRole: z.enum(['none', 'records-main', 'equal', 'aligned']) }).strict().optional() }).strict(), // layout (brief 35): the plan's scene-layout answers; a card that has them draws its reset inside the scene and no readouts row // readouts whose value a callout line in the scene already shows: the readouts row omits them (one place per number; absent on cards composed before)
   envelopeHash: hex,
 }).strict();
 
@@ -416,7 +416,7 @@ export async function compileCardComposition(plan, artifacts) {
     main: { artifact: hashes.main, runtime: plan.scene.runtime, mode: plan.mode.kind, readoutIds: plan.scene.readoutIds,
       inputDefaults: Object.fromEntries(inputControls(plan).map(c => [c.binding.id, inputDefault(c)])), controls,
       timeline: tl ? { label: tl.label, unit: 's', end: tl.end, displayOffset: tl.displayOffset, markers: tl.markers, playbackRate: tl.playbackRate, initialTime: 0, initialPlayback: 'paused', step: scrubber.step } : null,
-      onInputChange: plan.mode.onInputChange, ...(calloutReadoutIds(plan).length ? { calloutReadoutIds: calloutReadoutIds(plan) } : {}) },
+      onInputChange: plan.mode.onInputChange, ...(calloutReadoutIds(plan).length ? { calloutReadoutIds: calloutReadoutIds(plan) } : {}), ...(plan.scene.layout ? { layout: plan.scene.layout } : {}) },
   };
   const composition = { ...body, envelopeHash: await contentHash({ composition: body, artifacts: hashes }) };
   const parsed = CardCompositionSchema.safeParse(composition);

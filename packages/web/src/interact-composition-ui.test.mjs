@@ -243,7 +243,7 @@ test('every composed card draws Reset as the same icon button at the end of its 
 test('the program card draws the same Reset through the one ResetButton: on a composed card ONLY as the icon at the right of its heading row above the scene (always, greyed while unchanged), on another card at the end of its controls row while changed; no Interact label on a composed card (owner scope cut 2026-11-13 codex match)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
-  assert.equal((src.match(/<ResetButton /g) || []).length, 2, 'two draws of the one component: the heading row and the legacy row');
+  assert.equal((src.match(/<ResetButton /g) || []).length, 3, 'three draws of the one component: the heading row, the legacy row, and (brief 35) the reset cell over a scene that declares a layout');
   assert.match(src, /<div data-interact-heading [^>]*><ResetButton onReset=\{reset\} disabled=\{!changed\} \/><\/div>/, 'the heading row holds Reset at the right and repeats no title (the block header has it)');
   assert.doesNotMatch(src.slice(src.indexOf('data-interact-heading'), src.indexOf('<div data-program-viewport')), /composition\.title/, 'no repeated title text');
   assert.ok(src.indexOf('<div data-interact-heading') < src.indexOf('<div data-program-viewport'), 'the heading row is above the scene');

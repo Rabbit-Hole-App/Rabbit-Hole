@@ -1,6 +1,7 @@
-// Brief 34: measures the pendulum card's plot and bakes where it sits in frame coordinates. Runs the card's real program (interact-templates/pendulum.js source) with a recording sdk at every slider setting and time,
+// Briefs 34 and 35: measures the pendulum card's plot and bakes where it sits in frame coordinates. Runs the card's real program (interact-templates/pendulum.js source) with a recording sdk at every slider setting and time,
 // hands each diagram spec to the renderer exactly as FrameFigures.jsx DiagramFigure does (renderTutorDiagram at the box width, scaled by min(1, w / width, h / height), placed at the box corner) and reads the plot
-// area from the layout the renderer computes (layouts['coordinate-plot'] returns plotBounds). Writes packages/web/src/interact-pendulum-geometry.js; `--check` compares, `--measure` prints the table.
+// area from the layout the renderer computes (layouts['coordinate-plot'] returns plotBounds). Brief 35: the plot's natural size is measured first and the picture drawn at the width where its height fits the layout's
+// panel box (interact-layout.js fitPanel), left of the reset cell. Writes packages/web/src/interact-pendulum-geometry.js ({ fit, frame }); `--check` compares, `--measure` prints the tables and writes nothing.
 // Reads tutor-diagrams/ and changes nothing there.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -8,19 +9,14 @@ import { dirname, join } from 'node:path';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages/web/src');
 const load = name => import(pathToFileURL(join(SRC, name)));
-const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js');
-const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { parseTutorDiagram, dropGenericUnits } = await load('tutor-diagrams/spec.js'), { layouts } = await load('tutor-diagrams/layouts.js');
+const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { fitPanel, layoutById, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
+const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { parseTutorDiagram, dropGenericUnits } = await load('tutor-diagrams/spec.js'), { layouts } = await load('tutor-diagrams/layouts.js'), { textWidth } = await load('tutor-diagrams/primitives.js');
 const { renderToStaticMarkup } = await import(pathToFileURL(join(SRC, '..', 'node_modules/react-dom/server.js')));
 
-const FRAME = { width: 640, height: 290 };
-const data = structuredClone(PENDULUM_PLANS['stepper-pendulum-detailed'].scene.data);
+const FRAME = { width: 640, height: 320 };
 const sdk = new Proxy({}, { get: (_, fn) => (...args) => ({ fn, args }) });
-const program = new Function('sdk', `${source({ geometry: { pendulum: data } }).replace('export function evaluate', 'function evaluate')}\nreturn evaluate;`)(sdk);
-const run = (length, time, mass = 1) => {
-  const out = program({ inputs: { mass, length }, time });
-  const diagram = out.frame.args[0].find(o => o.fn === 'diagram');
-  return { out, diagram };
-};
+const programOf = data => new Function('sdk', `${source({ geometry: { pendulum: data } }).replace('export function evaluate', 'function evaluate')}\nreturn evaluate;`)(sdk);
+const runner = data => { const program = programOf(data); return (length, time, mass = 1) => { const out = program({ inputs: { mass, length }, time }); return { out, objects: out.frame.args[0], diagram: out.frame.args[0].find(o => o.fn === 'diagram') }; }; };
 
 function measure(spec, box) {
   const rendered = renderTutorDiagram(spec, box.w);
@@ -32,37 +28,45 @@ function measure(spec, box) {
   const markup = renderToStaticMarkup(rendered.element);
   const count = attr => (markup.match(new RegExp(attr, 'g')) ?? []).length;
   const grid = [...markup.matchAll(/<line x1="[\d.]+" x2="[\d.]+" y1="([\d.]+)"[^>]*data-tutor-plot-grid/g)].map(m => Number(m[1]));
-  return { width: rendered.width, height: rendered.height, scale, plot: { left, right, top, bottom }, legend: count('data-tutor-plot-legend'), curveLabels: count('data-tutor-plot-curve-label'), callouts: count('data-tutor-plot-callout'),
-    gridYs: grid.map(y => Math.round(at(0, y)[1] * 100) / 100), points: parsed.series.map(s => s.points?.length ?? s.samples.y.length), parsed };
+  return { width: rendered.width, height: rendered.height, scale, drawn: { w: rendered.width * scale, h: rendered.height * scale }, plot: { left, right, top, bottom }, legend: count('data-tutor-plot-legend'), curveLabels: count('data-tutor-plot-curve-label'), callouts: count('data-tutor-plot-callout'),
+    gridYs: grid.map(y => Math.round(at(0, y)[1] * 100) / 100), points: parsed.series.map(s => s.points?.length ?? s.samples.y.length), parsed, markup, title, at };
 }
 
 const r2 = n => Math.round(n * 100) / 100;
-// Distance from each dot's centre to the curve the renderer drew (its path d, sampled densely), in frame pixels; and the highest and lowest sample of each curve.
-function dotsOffCurve(length, time) {
-  const { out, diagram } = run(length, time), spec = diagram.args[0], rendered = renderTutorDiagram(spec, box.w), markup = renderToStaticMarkup(rendered.element);
-  const scale = measure(spec, box).scale;
-  const layout = layouts['coordinate-plot'](dropGenericUnits(parseTutorDiagram(spec)).diagram, 320), top = rendered.height - layout.height;
-  const paths = [...markup.matchAll(/<path d="([^"]+)"[^>]*data-tutor-plot-series/g)].map(match => match[1]);
-  const dots = out.frame.args[0].filter(o => o.fn === 'circle' && o.args[0].startsWith('dot.')).map(o => [o.args[1], o.args[2]]);
-  return paths.map((d, i) => {
-    const nums = d.match(/-?[\d.]+(?:e-?\d+)?/g).map(Number); let [x0, y0] = nums; const sampled = []; 
-    for (let k = 2; k + 5 < nums.length + 1; k += 6) { const [a, b, c, e, x1, y1] = nums.slice(k, k + 6); for (let u = 0; u <= 1; u += 0.005) { const w = 1 - u; sampled.push([w ** 3 * x0 + 3 * w * w * u * a + 3 * w * u * u * c + u ** 3 * x1, w ** 3 * y0 + 3 * w * w * u * b + 3 * w * u * u * e + u ** 3 * y1]); } x0 = x1; y0 = y1; }
-    return Math.min(...sampled.map(([x, y]) => Math.hypot(box.x + scale * x - dots[i][0], box.y + scale * (top + y) - dots[i][1])));
-  });
-}
-const peakErrors = length => { const { diagram } = run(length, 0); return diagram.args[0].diagram.series.map(s => { const ys = s.samples.y; return [Math.max(...ys), Math.min(...ys)]; }); };
-const sample = run(1, 0).diagram, box = { x: sample.args[1].x, y: sample.args[1].y, w: sample.args[1].w, h: FRAME.height - sample.args[1].y };
-const rows = [];
-for (const length of [0.5, 1, 2]) for (const time of [0, 3, 6]) { const { diagram } = run(length, time); rows.push({ length, time, ...measure(diagram.args[0], box) }); }
-if (process.argv.includes('--measure')) {
-  for (const row of rows) console.log(`L=${row.length} t=${row.time}: size ${row.width}x${row.height} scale ${row.scale.toFixed(4)} plot [${[row.plot.left, row.plot.top, row.plot.right, row.plot.bottom].map(r2)}] legend ${row.legend} curveLabels ${row.curveLabels} callouts ${row.callouts} pts ${row.points} gridY ${row.gridYs}`);
-  const key = row => JSON.stringify([row.width, row.height, row.scale, row.plot, row.legend, row.curveLabels, row.callouts, row.gridYs]);
-  for (const length of [0.5, 1, 2]) console.log(`L=${length}: [max,min] of A and B samples ${JSON.stringify(peakErrors(length))}`);
-  for (const [length, time] of [[0.5, 0.7], [1, 3.3], [2, 6.1], [2, 7.9], [0.5, 4.4]]) console.log(`dot centre to drawn curve, L=${length} t=${time}: A ${dotsOffCurve(length, time)[0].toFixed(3)} px, B ${dotsOffCurve(length, time)[1].toFixed(3)} px`);
-  console.log(rows.every(row => key(row) === key(rows[0])) ? 'IDENTICAL across all nine' : 'DIFFERENT');
-}
-const first = rows[0], geometry = { plot: { left: r2(first.plot.left), right: r2(first.plot.right), top: r2(first.plot.top), bottom: r2(first.plot.bottom) } };
-const text = `// Generated by scripts/interact/bake-pendulum-geometry.mjs (brief 34): the plot area of the pendulum card's coordinate-plot in frame coordinates (time 0 to the end across, +yMax to -yMax down), read from the renderer's layout. Do not edit by hand.\nexport const PENDULUM_GEOMETRY = ${JSON.stringify(geometry)};\n`;
+// 1) the natural size of the plot (the same at every setting), the width that fits the panel box, and the plot area in frame coordinates for that width.
+const base = structuredClone(PENDULUM_PLANS['stepper-pendulum-detailed'].scene.data);
+const spec0 = runner(base)(1, 0).diagram.args[0];
+const natural = renderTutorDiagram(spec0, 408), panel = layoutById('side-by-side').slots.panel.box;
+const fit = fitPanel({ width: natural.width, height: natural.height }, panel, { clearRight: 587 });
+const fitted = { x: r2(fit.x), y: r2(fit.y), w: fit.w };
+const placeBox = { x: fitted.x, y: fitted.y, w: fitted.w, h: FRAME.height - fitted.y };
+const first = measure(spec0, placeBox);
+const geometry = { fit: fitted, frame: { left: r2(first.plot.left), right: r2(first.plot.right), top: r2(first.plot.top), bottom: r2(first.plot.bottom) } };
+const text = `// Generated by scripts/interact/bake-pendulum-geometry.mjs (briefs 34 and 35): where the pendulum card's coordinate-plot is drawn (fit: x, y and the width at which its height fits the layout's panel box) and its plot area in frame coordinates (time 0 to the end across, +yMax to -yMax down), read from the renderer's layout. Do not edit by hand.\nexport const PENDULUM_GEOMETRY = ${JSON.stringify(geometry)};\n`;
 const file = join(SRC, 'interact-pendulum-geometry.js');
+
 if (process.argv.includes('--check')) { const same = readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text; console.log(same ? 'geometry is current' : 'geometry is STALE'); process.exit(same ? 0 : 1); }
-if (!process.argv.includes('--measure')) { writeFileSync(file, text); console.log(`wrote ${file}`, JSON.stringify(geometry)); }
+
+if (process.argv.includes('--measure')) {
+  // 2) the card as built from the geometry in the file: nine settings and times.
+  const run = runner(structuredClone(PENDULUM_PLANS['stepper-pendulum-detailed'].scene.data));
+  const rows = [];
+  for (const length of [0.5, 1, 2]) for (const time of [0, 3, 6]) { const { diagram } = run(length, time), o = diagram.args[1]; rows.push({ length, time, ...measure(diagram.args[0], { x: o.x, y: o.y, w: o.w, h: FRAME.height - o.y }) }); }
+  for (const row of rows) console.log(`L=${row.length} t=${row.time}: size ${row.width}x${row.height} scale ${row.scale.toFixed(4)} drawn ${r2(row.drawn.w)}x${r2(row.drawn.h)} plot [${[row.plot.left, row.plot.top, row.plot.right, row.plot.bottom].map(r2)}] legend ${row.legend} curveLabels ${row.curveLabels} callouts ${row.callouts} pts ${row.points} gridY ${row.gridYs}`);
+  const key = row => JSON.stringify([row.width, row.height, row.scale, row.plot, row.legend, row.curveLabels, row.callouts, row.gridYs]);
+  console.log(rows.every(row => key(row) === key(rows[0])) ? 'IDENTICAL across all nine' : 'DIFFERENT');
+  console.log(`panel box ${JSON.stringify(panel)}; picture drawn at x ${rows[0].parsed ? run(1, 0).diagram.args[1].x : ''} y ${run(1, 0).diagram.args[1].y}, ${r2(rows[0].drawn.w)} x ${r2(rows[0].drawn.h)}; the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
+  // every text in the frame against its box, at the size a frame text draws (the width model of the renderer)
+  const objects = run(2, 3).objects, size = DRAWN_TEXT_SIZES.label, lines = [];
+  const widthOf = o => textWidth(o.args[3], size), boxOf = id => objects.find(o => o.fn === 'box' && o.args[0] === id);
+  for (const k of [0, 1, 2]) { const b = boxOf(`value.${k}`), l = objects.find(o => o.args?.[0] === `value.${k}.label`), n = objects.find(o => o.args?.[0] === `value.${k}.number`); if (b) lines.push(`value ${k}: "${l.args[3]}" ${r2(widthOf(l))} + 8 + "${n.args[3]}" ${r2(widthOf(n))} = ${r2(widthOf(l) + 8 + widthOf(n))} of ${b.args[3] - 16}`); }
+  const formula = objects.find(o => o.args?.[0] === 'formula'); lines.push(`formula "${formula.args[3]}" ${r2(widthOf(formula))} of 243`);
+  const notes = { same: 'B matches A: same mass, same length.', mass: 'Same timing: only the mass differs.', longer: 'Slower: a longer string takes longer.', shorter: 'Faster: a shorter string is quicker.' };
+  for (const [name, sentence] of Object.entries(notes)) lines.push(`note ${name} ${r2(textWidth(sentence, size))} of 349`);
+  // the stage: every ball of both pendulums over the whole 8 s at the extreme settings, against the stage box
+  const stage = layoutById('side-by-side').slots.stage.box; let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (const [mass, length] of [[3, 2], [0.5, 0.5], [3, 0.5], [0.5, 2]]) for (let t = 0; t <= 8; t += 0.05) for (const o of run(length, t, mass).objects) if (o.fn === 'circle' && o.args[0].startsWith('ball.')) {
+    const [, x, y, d] = o.args; minX = Math.min(minX, x - d / 2); maxX = Math.max(maxX, x + d / 2); minY = Math.min(minY, y - d / 2); maxY = Math.max(maxY, y + d / 2); }
+  lines.push(`stage box x ${stage[0]}..${stage[0] + stage[2]} y ${stage[1]}..${stage[1] + stage[3]}; balls reach x ${r2(minX)}..${r2(maxX)} y ${r2(minY)}..${r2(maxY)}`);
+  console.log(lines.join('\n'));
+} else { writeFileSync(file, text); console.log(`wrote ${file}`, JSON.stringify(geometry)); }

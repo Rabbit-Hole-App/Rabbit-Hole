@@ -228,6 +228,8 @@ const scene = z.object({
   words: z.record(z.string().min(1).max(32), z.string().min(1).max(40)).optional(),
   // The typed data a template takes (templateData[name].sceneDataSchema of its family, interact-family-registry.js): checked in planProblems; absent for every template that declares no schema (it is part of the plan hash when present).
   data: z.unknown().optional(),
+  // Brief 35 (docs/features/interact/layout.md section 4): the three answers that pick a scene layout; absent for every card that declares none (it draws exactly as before). Code maps them to one layout.
+  layout: z.object({ pictureCount: z.enum(['one', 'two']), runs: z.enum(['left-to-right', 'top-to-bottom', 'compact']), panelRole: z.enum(['none', 'records-main', 'equal', 'aligned']) }).strict().optional(),
 }).strict();
 const mode = z.object({
   kind: z.enum(['static', 'time', 'experiment']), initialState: text(), fixedValues: z.record(id, scalar), adjustableIds: idList(8),
@@ -560,6 +562,8 @@ export function validatePlanBindings(plan, capabilities) {
     if (d.requires.includes(INPUTS_V2_CAPABILITY) && !plan.scene.runtime.requiredCapabilities.includes(INPUTS_V2_CAPABILITY)) bad(at('nativeControlId'), 'capability_missing', `"${d.id}" needs "${INPUTS_V2_CAPABILITY}" in scene.runtime.requiredCapabilities`);
     if (d.requires.includes('stateful') && (!capabilities.stateful || plan.scene.runtime.schemaVersion !== 2)) bad(at('nativeControlId'), 'stateful_unavailable', `"${d.id}" needs the stateful program (schema 2), which this plan's runtime does not select`);
   });
+  // The picking itself (interact-layout.js pickLayout, which refuses the same answers again when a template builds) stays out of this module: it imports the renderer's width model, which the card's client bundle must not pull in through here.
+  if (plan.scene.layout && (plan.scene.layout.pictureCount === 'one') !== (plan.scene.layout.panelRole === 'none')) bad(['scene', 'layout', 'panelRole'], 'layout_contradiction', 'one picture has panelRole "none" and two pictures have a panel role other than "none"');
   if (renderer === 'program') {
     const inputControls = plan.controls.filter(c => c.type === 'number' || c.type === 'select' || c.type === 'boolean' || c.type === 'index');
     if (inputControls.length > CONTRACT_LIMITS.inputs) bad(['controls'], 'limit_exceeded', `a program declares at most ${CONTRACT_LIMITS.inputs} inputs`);
