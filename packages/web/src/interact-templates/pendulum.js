@@ -11,7 +11,7 @@ import { textWidth } from '../tutor-diagrams/primitives.js';
 // the layout's boxes when the program is built, every text measured against its box then (a text that does not fit is refused). ponytail: one card, no damping, small-angle start only.
 const text = max => z.string().min(1).max(max);
 const answers = z.object({ pictureCount: z.enum(['one', 'two']), runs: z.enum(['left-to-right', 'top-to-bottom', 'compact']), panelRole: z.enum(['none', 'records-main', 'equal', 'aligned']) }).strict();
-const value = z.object({ quantity: z.enum(['angleB', 'periodA', 'periodB']), label: text(12), unit: text(6), decimals: z.number().int().min(0).max(3), kind: z.enum(['live', 'set', 'fixed']), sample: text(10) }).strict();
+const value = z.object({ quantity: z.enum(['angleB', 'periodA', 'periodB']), label: text(12), unit: text(6), decimals: z.number().int().min(0).max(3), kind: z.enum(['live', 'set', 'fixed']), role: text(16), sample: text(10) }).strict();
 export const pendulumSchema = z.object({
   title: text(60), g: z.number().positive(), theta0: z.number().positive().max(60), duration: z.number().positive().max(60),
   reference: z.object({ mass: z.number().positive(), length: z.number().positive() }).strict(),
@@ -30,16 +30,13 @@ export const states = () => ({});
 // Everything the layout decides, computed once when the program is built: the boxes, where each value's text stands, and the checks (LayoutError: text_too_wide, layout_contradiction).
 function place(data) {
   const id = pickLayout(data.layout, { hasPanel: true }), layout = layoutById(id), size = DRAWN_TEXT_SIZES;
-  const fitted = fitValues(id, data.values.map(entry => ({ label: entry.label, text: entry.sample })), size);
-  for (const sentence of Object.values(data.notes)) checkText(id, { formula: data.formula, note: sentence }, size);
-  const [fx] = layout.slots.formula.box, [nx] = layout.slots.note.box, baseline = ([, y, , h]) => y + h / 2 + 5;
+  // One box per value with its own text "Label: value unit"; the formula is a math run in its own box; the note is its own box. Each is measured against its box here (a text that does not fit is refused).
+  const fitted = fitValues(id, data.values.map(entry => ({ text: `${entry.label}: ${entry.sample}` })), size);
+  for (const sentence of Object.values(data.notes)) checkText(id, { formula: `$${data.formula}$`, note: sentence }, size);
   return {
     layout: id, stage: layout.slots.stage.box, panel: layout.slots.panel.box,
-    values: fitted.values.map((entry, i) => {
-      const { box } = fitted.boxes[i], declared = data.values.find(item => item.label === entry.label);
-      return { ...declared, box, labelX: box[0] + 8, numberX: Math.round((box[0] + box[2] - 8 - textWidth(declared.sample, size.number) / 2) * 100) / 100, y: baseline(box) };
-    }),
-    formula: { x: fx + 8, y: baseline(layout.slots.formula.box), text: data.formula }, note: { x: nx + 8, y: baseline(layout.slots.note.box) },
+    values: fitted.values.map((entry, i) => ({ ...data.values[i], box: fitted.boxes[i].box })),
+    formulaBox: layout.slots.formula.box, noteBox: layout.slots.note.box,
   };
 }
 
@@ -61,8 +58,8 @@ for(let i=1;i<n-1;i++){const l=s[i-1],r=s[i],sign=Math.sign(l);m.push(sign!==Mat
 m.unshift((3*s[0]-m[0])/2);m.push((3*s[n-2]-m[m.length-1])/2);
 let i=0;while(i<n-2&&t>xs[i+1])i++;const h=dx[i],u=(t-xs[i])/h,u2=u*u,u3=u2*u;
 return (2*u3-3*u2+1)*ys[i]+(u3-2*u2+u)*h*m[i]+(3*u2-2*u3)*ys[i+1]+(u3-u2)*h*m[i+1];};
-// A value's look by its kind: live (changes every frame) in B's own hue, set (changes when a control moves) in plain ink, fixed (never) in plain ink at 60%.
-const LOOK={live:{role:'warning',opacity:1},set:{role:'neutral',opacity:1},fixed:{role:'neutral',opacity:0.6}};
+// A value's box takes its entry's role (B's warning, A's input); a fixed value (never changes) is drawn quiet at 60%.
+const QUIET={live:1,set:1,fixed:0.6};
 export function evaluate({inputs,time}){
   const t=Math.min(Math.max(time||0,0),T.duration),mass=inputs.mass,length=inputs.length,ref=T.reference,periodA=PERIOD(ref.length),periodB=PERIOD(length);
   const angleA=T.theta0*Math.cos(2*Math.PI*t/periodA),angleB=T.theta0*Math.cos(2*Math.PI*t/periodB);
@@ -81,11 +78,11 @@ export function evaluate({inputs,time}){
   const F=T.plot.frame,nowX=F.left+t/T.duration*(F.right-F.left),at=angle=>F.top+(T.plot.yMax-angle)/(2*T.plot.yMax)*(F.bottom-F.top);
   objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:'input'}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:'warning'}));
   const quantity={angleB:angleB,periodA:periodA,periodB:periodB};
-  L.values.forEach((entry,k)=>{const look=LOOK[entry.kind],shown=quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);
-    objects.push(sdk.text('value.'+k+'.label',entry.labelX,entry.y,entry.label,look),sdk.text('value.'+k+'.number',entry.numberX,entry.y,shown,{align:'middle',role:look.role,opacity:look.opacity}));});
-  objects.push(sdk.text('formula',L.formula.x,L.formula.y,L.formula.text,{role:'neutral'}));
+  L.values.forEach((entry,k)=>{const shown=entry.label+': '+quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);
+    objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:entry.role,opacity:QUIET[entry.kind],text:shown}));});
+  objects.push(sdk.box('formula',L.formulaBox[0],L.formulaBox[1],L.formulaBox[2],L.formulaBox[3],{role:'neutral',runs:[{kind:'math',tex:T.formula}]}));
   const sameLength=Math.abs(length-ref.length)<1e-9,sameMass=Math.abs(mass-ref.mass)<1e-9;
-  objects.push(sdk.text('note',L.note.x,L.note.y,sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter,{role:'neutral'}));
+  objects.push(sdk.box('note',L.noteBox[0],L.noteBox[1],L.noteBox[2],L.noteBox[3],{role:'neutral',text:sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter}));
   return {frame:sdk.frame(objects,{width:640,height:320,readouts:[{id:'periodA',value:periodA},{id:'periodB',value:periodB}]}),quantities:{mass:mass,length:length,periodA:periodA,periodB:periodB}};
 }`;
 }
