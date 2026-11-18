@@ -8,7 +8,9 @@ import { parse } from 'acorn';
 const here = dirname(fileURLToPath(import.meta.url));
 export const OUTPUT = join(here, 'agents/inputs/renderer-constraints.md');
 const DIAGRAMS = resolve(here, '../../packages/web/src/tutor-diagrams');
-const SOURCES = ['spec.js', 'block-stack-spec.js', 'ml-composition-spec.js', 'ml-data-spec.js', 'ml-plot-spec.js', 'ml-statistical-spec.js', 'ml-topology-spec.js', 'tensor-spec.js', 'token-links-spec.js'];
+const SOURCES = ['spec.js', 'block-stack-spec.js', 'ml-composition-spec.js', 'ml-data-spec.js', 'ml-plot-spec.js', 'ml-statistical-spec.js', 'ml-topology-spec.js', 'tensor-spec.js', 'token-links-spec.js', 'derived.js'];
+// derived.js (VAR-1) keeps its messages as `message:` properties of the problems it returns, in functions that serve one diagram kind each.
+const DERIVED_KINDS = { boxFenceInstance: 'box-plot', softmaxInstance: 'transformation', tokenLinkInstances: 'token-links', histogramInstances: 'histogram', heatmapInstance: 'heatmap', sampleInstances: 'sample-set', annotationInstances: 'coordinate-plot' };
 
 const isNode = value => value && typeof value.type === 'string';
 function children(node) {
@@ -24,7 +26,7 @@ const kindOf = node => {
   return literal && typeof literal.value === 'string' && other.type === 'MemberExpression' && other.property?.name === 'kind' ? literal.value : null;
 };
 
-function collect(ast) {
+function collect(ast, derived = false) {
   const messages = [], functionKinds = new Map();
   const visit = (node, scope) => {
     let next = scope;
@@ -32,6 +34,7 @@ function collect(ast) {
     if (node.type === 'VariableDeclarator' && node.id?.name && /Function/u.test(node.init?.type ?? '')) next = { ...scope, fn: node.id.name };
     if (node.type === 'SwitchCase' && node.test?.type === 'Literal' && typeof node.test.value === 'string') next = { ...scope, kind: node.test.value };
     if (node.type === 'IfStatement' && kindOf(node.test)) { visit(node.consequent, { ...scope, kind: kindOf(node.test) }); if (node.alternate) visit(node.alternate, scope); return; }
+    if (derived && node.type === 'Property' && node.key?.name === 'message' && text(node.value)) messages.push({ message: text(node.value), kind: DERIVED_KINDS[scope.fn], fn: scope.fn });
     if (node.type === 'CallExpression') {
       const callee = node.callee, name = callee.type === 'Identifier' ? callee.name : callee.property?.name;
       if (scope.kind && callee.type === 'Identifier' && /^check[A-Z]/u.test(name)) functionKinds.set(name, scope.kind);
@@ -90,7 +93,7 @@ export async function buildConstraints(directory = DIAGRAMS) {
   const present = new Set(await readdir(directory)), groups = new Map();
   const found = [];
   for (const name of SOURCES.filter(name => present.has(name))) {
-    const { messages, functionKinds } = collect(parse(await readFile(join(directory, name), 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' }));
+    const { messages, functionKinds } = collect(parse(await readFile(join(directory, name), 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' }), name === 'derived.js');
     for (const item of messages) found.push({ ...item, kind: item.kind ?? functionKinds.get(item.fn), file: name });
   }
   // A check function called from several kinds takes the first kind found; unresolved functions group under their file's general rules.
