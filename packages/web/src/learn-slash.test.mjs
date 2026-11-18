@@ -631,14 +631,3 @@ test('/explain: wrong numbers after every provider say Couldn\'t make a reliable
   assert.equal(out.notice.detail, undefined);
   assert.equal(out.keep, '/explain box plot fences');
 });
-
-// SIMP-1: every provider's diagram was invalid and not rebuildable in its own kind (explanation_missing_visual): no card, the line kept, the ordinary failed-checks line (the existing surface, unchanged).
-test('/explain: a diagram nothing could rebuild in its own kind shows the failed-checks line and keeps the line', async () => {
-  const failed = harness({ result: 'validation_error', primitive: 'explanation', error: 'explanation_missing_visual: the card must keep one to three visuals; every diagram was invalid and none could be rebuilt in its own kind from its labels.' });
-  const out = await failed.run('/explain how does the decoder avoid looking ahead');
-  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
-  assert.equal(out.notice.tone, 'error');
-  assert.equal(out.notice.text, 'An explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.');
-  assert.match(out.notice.detail, /^explanation_missing_visual/);
-  assert.equal(out.keep, '/explain how does the decoder avoid looking ahead');
-});

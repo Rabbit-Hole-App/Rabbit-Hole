@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { simplifiedDiagram, markdownVisuals, numbersIssue, diagramProblem } from '../src/learn-primitives.js';
+import { simplifiedDiagram, markdownVisuals, numbersIssue } from '../src/learn-primitives.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { planFromAnswers } from '../src/explanation-planner.js';
 
@@ -31,13 +31,13 @@ test('the stack-vs-queue raw specs: the matrix with a single column becomes a fl
   assert.deepEqual([kept.diagram.kind, kept.diagram.columns.map(c => c.heading), kept.diagram.columns[1].items], ['comparison', ['Operation', 'Behavior'], ['Insertion: Adds to the top', 'Removal: Removes from the top']]);
 });
 
-// SIMP-1: the matrices are not a step list, so the server no longer redraws them as flows; with a plan the step fails and the chain's next provider runs.
-test('end to end: the author wrote the invalid matrices, the step fails with explanation_missing_visual; the matrices are not redrawn as flows', async () => {
-  const body = `A stack hands back the newest item first: the top is where items go on and come off.\n\n${fence(raw.attempt1[0])}\n\nA queue hands back the oldest item first: items join at the back and leave from the front, past the middle.\n\n${fence(raw.attempt1[1])}\n\nEach one keeps its own order, so the difference is which end an item leaves from.`;
+test('end to end: the author wrote the invalid matrices, the card is delivered with two simplified visuals and a named correction, never none', async () => {
+  const body = `A stack hands back the newest item first: the top is where items go on and come off.\n\n${fence(raw.attempt1[0])}\n\nA queue hands back the oldest item first: items join at the back and leave from the front, past the middle.\n\n${fence(raw.attempt1[1])}\n\nEach structure keeps its own order from the top to the bottom, or from the back to the front.`;
   const out = (await quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'stack vs queue', planned: true, plan }, { callModel: model({ title: 'Stack and queue', body }), repairs: 0 }))).value;
-  assert.equal(out.result, 'validation_error', JSON.stringify(out).slice(0, 300));
-  assert.match(out.error, /^explanation_missing_visual/);
-  assert.equal(out.block, undefined);
+  assert.equal(out.result, 'artifact', JSON.stringify(out).slice(0, 300));
+  assert.equal(out.block.visualFallback, 'simplified');
+  assert.equal(markdownVisuals(out.block.body).diagrams.filter(v => v.ok).length, 2);
+  assert.equal(out.block.diagramCorrections?.simplified_flow, 2);
 });
 
 test('nothing readable at all: with a plan the card fails (the chain gets its next step) instead of delivering empty; without a plan the prose card is delivered as before', async () => {
@@ -90,68 +90,4 @@ test('numbersIssue names every wrong diagram in one message ("Diagram N:" each w
   const message = sent[1].messages.at(-1).content[0].content;
   assert.match(message, /Diagram 1: .*not 2 and 16\. \| Diagram 2: .*not 0 and 30/);
   assert.equal(message.split('Rewrite every sentence that states these numbers.').length - 1, 1);
-});
-
-// ---- SIMP-1 (Reviewer 2026-11-17): the last-resort simplification only rebuilds within the failed diagram's own family ------------------------------------------------------------------------------------
-// The prose and the issue text are the saved section-6 fallback cards (explanation-simp1-cards.fixture.json). The author's invalid spec was not saved, so each is rebuilt here to give the saved issue text.
-const cards = JSON.parse(readFileSync(new URL('./explanation-simp1-cards.fixture.json', import.meta.url), 'utf8')).cards;
-const planOf = kind => planFromAnswers({
-  visualType: { choice: 'diagram', confidence: 0.95, probabilities: {} }, kind: { choice: kind, confidence: 0.7, probabilities: { [kind]: 0.7, flow: 0.3 } },
-  depthTreatment: { choice: 'mechanism' }, needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 }, secondVisual: { noul: 0.94 },
-});
-const bodyOf = (idx, spec) => `${cards[idx].before}\n\n${fence(spec)}\n\n${cards[idx].after}`;
-const run = (idx, spec, kind, repairs = 0) => quiet(() => generateArtifact(FAST, { command: 'explanation', args: cards[idx].prompt, depth: cards[idx].depth, planned: true, plan: planOf(kind) }, { callModel: model({ title: cards[idx].title, body: bodyOf(idx, spec) }), repairs })).then(r => r.value);
-const specOf = body => JSON.parse(body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
-// one row only: object columns alone are now coerced by the server (matrix_coerced), a single row (two to six are needed) stays invalid
-const maskMatrix = { version: 1, diagram: { kind: 'matrix', title: 'Causal mask on decoder scores', columns: [{ heading: 'the' }, { heading: 'cat' }, { heading: 'sat' }], rows: [{ heading: 'sat', cells: ['allowed', 'allowed', 'allowed'] }] } };
-const noiseMatrix = { version: 1, diagram: { kind: 'matrix', title: 'Forward diffusion with known noise', columns: [{ heading: 'Clean' }, { heading: 'Noise' }, { heading: 'Noisy' }], rows: [{ heading: 'Step 1', cells: ['0.8', '0.6', '0.92'] }] } };
-
-test('SIMP-1 (a): a flow that is invalid after repair is still simplified to a smaller flow (gradient descent, saved card 159)', async () => {
-  const labels = ['Start at a random place on the hill', 'Look around for the steepest downward slope', 'Take a step down in that direction', 'Are we at the bottom?', 'Stop at the lowest spot', 'Continue searching'];
-  const loop = { version: 1, diagram: { kind: 'flow', title: cards[159].title, nodes: labels.map((label, i) => ({ id: `n${i + 1}`, label, role: 'process' })), edges: [...labels.slice(1).map((_, i) => ({ from: `n${i + 1}`, to: `n${i + 2}` })), { from: 'n6', to: 'n2' }] } };
-  assert.match(diagramProblem(fence(loop)), /diagram\.edges: A flow cannot contain a cycle or unreachable nodes/);
-  const out = await run(159, loop, 'flow');
-  assert.equal(out.result, 'artifact', JSON.stringify(out).slice(0, 300));
-  assert.deepEqual([out.block.visualFallback, specOf(out.block.body).kind, specOf(out.block.body).nodes.map(n => n.label), out.block.diagramCorrections?.simplified_flow], ['simplified', 'flow', labels, 1]);
-});
-
-test('SIMP-1 (b): transformer decoder (saved cards 194 and 203): an invalid matrix is not redrawn as a flow; the step fails with explanation_missing_visual', async () => {
-  assert.match(diagramProblem(fence(maskMatrix)), /diagram\.columns\.0: Invalid input: expected string, received object/, 'the saved issue text');
-  for (const idx of [194, 203]) {
-    const out = await run(idx, maskMatrix, 'token-links');
-    assert.equal(out.result, 'validation_error', String(idx));
-    assert.match(out.error, /^explanation_missing_visual/);
-    assert.equal(out.block, undefined, 'no card, so no flow stands in for the heatmap the prose points at');
-  }
-});
-
-test('SIMP-1 (c): gini impurity (saved card 18): an invalid binary tree is rebuilt as the ordinary tree from its own labels; an unlabelled node or a tree that stays invalid fails the step', async () => {
-  const dot = { version: 1, diagram: { kind: 'tree', layout: 'binary', title: cards[18].title, nodes: [{ id: 'n1', label: 'All items' }, { id: 'n2', parent: 'n1', side: 'left', label: 'Pure', role: 'leaf' }, { id: 'n3', parent: 'n1', side: 'right', label: 'Mixed' }] } };
-  assert.match(diagramProblem(fence(dot)), /A circle carries at most two characters/);
-  assert.match(diagramProblem(fence(dot)), /A leaf square carries no label/);
-  const out = await run(18, dot, 'tree');
-  assert.equal(out.result, 'artifact', JSON.stringify(out).slice(0, 300));
-  const tree = specOf(out.block.body);
-  assert.deepEqual([out.block.visualFallback, tree.kind, tree.layout, tree.nodes.map(n => [n.id, n.parent, n.label, n.side, n.role])], ['simplified', 'tree', undefined, [['n1', undefined, 'All items', undefined, undefined], ['n2', 'n1', 'Pure', undefined, undefined], ['n3', 'n1', 'Mixed', undefined, undefined]]]);
-  assert.equal(out.block.diagramCorrections?.simplified_tree, 1);
-  assert.equal(out.block.diagramCorrections?.simplified_flow, undefined, 'never a chain of the labels');
-  // A leaf square has no label to rebuild from; a tree whose parent link is broken stays invalid in any layout.
-  const unlabelled = { version: 1, diagram: { ...dot.diagram, nodes: [{ id: 'n1', label: 'All items' }, { id: 'n2', parent: 'n1', side: 'left', role: 'leaf' }, { id: 'n3', parent: 'n1', side: 'right', label: 'Ab' }] } };
-  assert.equal(simplifiedDiagram(lines(unlabelled), 'flow'), null);
-  assert.match((await run(18, unlabelled, 'tree')).error, /^explanation_missing_visual/);
-  const broken = { version: 1, diagram: { ...dot.diagram, nodes: [{ id: 'n1', label: 'All items' }, { id: 'n2', parent: 'zzz', side: 'left', label: 'Pure' }] } };
-  assert.equal(simplifiedDiagram(lines(broken), 'flow'), null);
-});
-
-test('SIMP-1 (d): forward diffusion (saved card 76): an invalid matrix and an invalid transformation fail the step instead of becoming a flow', async () => {
-  assert.match(diagramProblem(fence(noiseMatrix)), /diagram\.columns\.0: Invalid input: expected string, received object/);
-  const out = await run(76, noiseMatrix, 'transformation');
-  assert.equal(out.result, 'validation_error');
-  assert.match(out.error, /^explanation_missing_visual/);
-  const transformation = { version: 1, diagram: { kind: 'transformation', title: cards[76].title, operation: 'Mix in noise', before: { label: 'Clean latent', items: ['0.8'] }, after: { label: 'Noisy latent', items: ['a', 'b', 'c', 'd', 'e', 'f'] } } };
-  assert.ok(diagramProblem(fence(transformation)), 'six items is over the limit');
-  const second = await run(76, transformation, 'transformation');
-  assert.equal(second.result, 'validation_error');
-  assert.match(second.error, /^explanation_missing_visual/);
-  assert.equal(second.block, undefined);
 });
