@@ -69,6 +69,16 @@ test('Read it aloud speaks through the shared config, 4,000 characters at most, 
   assert.equal(seen.calls.length, 1);
 });
 
+test('Read it aloud gives up after 20 seconds: the request carries a timeout signal and a timeout is a clear 504 the learner can retry', async () => {
+  const seen = recorded();
+  const call = (fetchImpl) => readAloud()(new Request('https://dev.test/api/learn/tts', { method: 'POST', body: JSON.stringify({ app: 'a', text: 'Hello.', confirmed: true }) }), ENV, '/api/learn/tts', async () => ({ email: 'a@b.c' }), paidRefusal, speakNarration, isPaidSpendReply, fetchImpl);
+  assert.equal((await call(seen.fetch)).status, 200);
+  assert.ok(seen.calls[0].init.signal instanceof AbortSignal, 'the provider request is cancellable');
+  const timeout = await call(async () => { throw Object.assign(new Error('timed out'), { name: 'TimeoutError' }); });
+  assert.deepEqual([timeout.status, (await timeout.json()).error], [504, 'Narration audio timed out. Try again.']);
+  assert.equal((await call(async () => { throw new Error('network'); })).status, 502);
+});
+
 test('the card audio calls the same function: its source has no request of its own', () => {
   const card = source('../src/explanation-audio.js');
   assert.match(card, /speakNarration\(env, script, \{ signal: AbortSignal\.timeout\(VOICE_TIMEOUT_MS\), category: 'explanation_audio' \}\)/);

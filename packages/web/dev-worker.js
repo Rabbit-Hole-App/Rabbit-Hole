@@ -293,7 +293,10 @@ const routes = {
       // The narrator is paid: only the learner's explicit confirmation starts it. One voice for every spoken path (narration-voice.js).
       const refused = paidRefusal(body); if (refused) return refused;
       if (!env.ELEVENLABS_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
-      const upstream = await speakNarration(env, body.text, { fetch });
+      // Same 20 s limit as the Tutor's voice: a stuck provider ends in a clear error the learner can retry, never an endless wait.
+      let upstream;
+      try { upstream = await speakNarration(env, body.text, { fetch, signal: AbortSignal.timeout(20000) }); }
+      catch (error) { return error?.name === 'TimeoutError' ? Response.json({ error: 'Narration audio timed out. Try again.' }, { status: 504 }) : Response.json({ error: 'Narration audio unavailable.' }, { status: 502 }); }
       if (isPaidSpendReply(upstream)) return upstream;
       if (!upstream.ok) return Response.json({ error: 'Narration audio unavailable.' }, { status: 502 });
       return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
