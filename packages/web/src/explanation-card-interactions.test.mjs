@@ -189,8 +189,8 @@ test('suggestions: three questions; each row is one button that asks in a new ca
   assert.deepEqual(rows.map(row => row.textContent), card.interactions.questions.map(q => q.text));
   assert.ok(rows.every(row => row.querySelectorAll('button').length === 1 && row.querySelector('button').textContent === row.textContent), 'one button per row, holding the question');
   assert.equal($('[data-explanation-suggestions] [data-ask]'), null, 'no Ask in chat or Ask in a new card icons');
-  // Owner 2026-11-17: rows 10 px apart (gap-2.5), 16 px under the text (mt-4), the strip 12 px wider each side than the prose column (-mx-3: 4 px inside the flow's 16 px padding, so no border clip or scroll); the tooltip names the action and the name stays the question.
-  assert.deepEqual(['mt-4', '-mx-3', 'gap-2.5'].filter(name => $('[data-explanation-suggestions]').classList.contains(name)), ['mt-4', '-mx-3', 'gap-2.5']);
+  // Owner 2026-11-17: rows 10 px apart (gap-2.5), 16 px under the text (mt-4), the strip exactly as wide as the prose column, aligned to its left and right edges (no negative margin; owner 2026-11-17: 'the width is too long, it should be aligned to the text above left and right'; was -mx-3, 4 px inside the flow's 16 px padding, so no border clip or scroll); the tooltip names the action and the name stays the question.
+  assert.deepEqual(['mt-4', 'gap-2.5'].filter(name => $('[data-explanation-suggestions]').classList.contains(name)), ['mt-4', 'gap-2.5']);
   assert.ok(rows.every(row => row.querySelector('button').getAttribute('title') === 'Answer in a card' && !row.querySelector('button').hasAttribute('aria-label')), 'each row: title Answer in a card, accessible name = the question');
   assert.ok(before($('[data-explanation-flow] [data-explanation-field]'), $('[data-explanation-suggestions]')), 'below the reading');
   const here = rows[1].querySelector('button'), branch = rows[0].querySelector('button');
