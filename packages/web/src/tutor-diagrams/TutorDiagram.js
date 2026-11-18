@@ -13,6 +13,7 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 720;
 const CAPTION_SIZE = 13;
 const CAPTION_GUTTER = 32;
+const TITLE_STYLE = { size: 17, weight: 700 }; // the written card draws its title at TEACHING_TEXT.display (interact-style.test.mjs pins this line)
 
 // kinds-fit: the kinds that take a box, sizes and legend/parts switches; every other kind ignores them and is drawn as always (its `min` is its drawn size).
 const FITTED_KINDS = new Set(['coordinate-plot', 'token-links']);
@@ -41,7 +42,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
   const fitted = fit !== null && FITTED_KINDS.has(diagram.kind);
   const boxed = fitted && Boolean(fit.box);
   const showTitle = fit?.parts?.title !== false, showCaption = fit?.parts?.caption !== false;
-  const titleSize = fit?.sizes?.title ?? 17, captionSize = fit?.sizes?.small ?? CAPTION_SIZE;
+  const titleSize = fit?.sizes?.title ?? TITLE_STYLE.size, captionSize = fit?.sizes?.small ?? CAPTION_SIZE;
   // With a box, box.width is the width (availableWidth and the 320 to 720 clamp do not apply; the kind's own minimum does).
   const preferredWidth = boxed ? Math.max(1, Math.round(fit.box.width)) : Math.max(MIN_WIDTH, Math.min(illustration ? 960 : MAX_WIDTH, requested));
   const blocks = width => {
@@ -74,7 +75,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
   h('title', null, diagram.title),
   h('rect', { x: 0.5, y: 0.5, width: width - 1, height: height - 1, rx: 12,
     fill: SURFACE, stroke: `var(--color-line, ${LINES.frame})` }),
-  showTitle ? label(title, width / 2, titleHeight / 2 + 3, { size: titleSize, weight: 700 }) : null,
+  showTitle ? label(title, width / 2, titleHeight / 2 + 3, { ...TITLE_STYLE, size: titleSize }) : null,
   h('g', { transform: `translate(0 ${titleHeight})` }, ...layout.elements),
   caption.height ? caption.draw(width / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
   const result = { width, height, element };
