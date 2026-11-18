@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
 import { AUDIO_LIMITS, SCRIPT_PATH, VOICE_PATH, VOICE_ID, VOICE_SETTINGS, VOICE_URL, explanationAudioRoute, scriptRequest } from '../src/explanation-audio.js';
-import { LENGTH_TARGET_WORDS, cardNumbers, lengthLine, scriptSystem, scriptUser, secondsEstimate, spokenNumbers, splitCard, stripUnsafe } from '../src/explanation-audio-script.js';
+import { FLOOR_WORDS, LENGTH_TARGET_WORDS, cardDataNumbers, cardNumbers, dataNumbers, lengthLine, scriptSystem, scriptUser, secondsEstimate, spokenNumbers, splitCard, stripUnsafe, verdict } from '../src/explanation-audio-script.js';
 import { withUsage, noteUsageIdentity, usageFeature, FEATURES } from '../src/learn-usage.js';
 import { rateOf, priceUsage } from '../src/pricing-registry.js';
 import { memoryBucket } from './live-storage-spy.js';
@@ -20,8 +20,19 @@ const BODY = `${CARD_NUMBERS_TEXT}\n\n\`\`\`rh-diagram\n{"kind":"line","title":"
 let cardNumber = 0;
 const route = (path, body, env = KEYS, deps = { authorize: async () => access, store: async () => store }, init = {}) => explanationAudioRoute(path, new Request(`https://x.test${path}`, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body && typeof body === 'object' && !Array.isArray(body) && !('id' in body) ? { ...body, id: `card-${++cardNumber}` } : body), ...init }), env, deps);
 const script = (body = { app: 'canvas-1', title: 'Bootstrap Coverage', body: BODY, depth: 'balanced', question: 'why 63 percent?' }, env, deps, init) => route(SCRIPT_PATH, body, env, deps, init);
-// 60 words of safe prose
-const SAFE = 'Picture a bag of marbles. You draw one, note it, and put it back. Many draws later, some marbles never showed up at all. That is the whole idea behind the missing rows. People often assume every row gets a turn, and it does not. Notice how the curve flattens as the sample grows, then try a smaller sample and watch the difference.';
+// Safe prose of a chosen length: distinct plain sentences with no number but "sixty three percent" (a number of the BODY card), so it passes the floor and the card-number rule.
+const POOL = ['Picture a bag of marbles that you draw from and put back each time.', 'Many draws later some marbles never showed up at all.', 'That is the whole idea behind the missing rows.',
+  'People often assume every row gets a turn and it does not.', 'Notice how the curve flattens as the sample grows larger and larger.', 'Try a smaller sample and watch the difference appear.',
+  'Think of a deck of cards that you reshuffle after every single draw.', 'Some cards come up twice while others wait a long time to appear.', 'Replacement is what makes the same row able to return.',
+  'Without it every row would be used exactly once and nothing would be left out.', 'The left out rows are not a flaw but a feature you can use later.', 'They form a free test set that no tree has seen.',
+  'Each tree in a forest is grown on its own bootstrap sample of the data.', 'The rows a tree never saw can score it honestly without a separate split.', 'This is why the method is so popular for forests.',
+  'A common mistake is to expect the same rows to be missing every time.', 'In fact each draw is independent and the missing set changes from tree to tree.', 'Watch what happens when the data set is tiny.',
+  'With very few rows the chance of being left out is still quite large.', 'As the data set grows the share that is left out settles to a steady value.', 'That steady value is the surprising part of the story.',
+  'It does not depend on how big the data set is once it is large enough.', 'You can check it yourself by drawing a sample and counting the rows that never appear.', 'Run it a few times and the count will wobble around the same figure.'];
+const wc = text => text.split(/\s+/).filter(Boolean).length;
+const CARD_SENTENCE = 'About sixty three percent of the rows are in each sample.';
+const longScript = (n = 210, { card = true } = {}) => { const out = card ? [CARD_SENTENCE] : []; for (let i = 0; wc(out.join(' ')) < n; i++) out.push(POOL[i % POOL.length]); return out.join(' '); };
+const SAFE = longScript(210);
 const reply = (scriptText, transcript = scriptText, usage = { prompt_tokens: 900, completion_tokens: 600 }) => ({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ script: scriptText, transcript }) } }], usage });
 const MP3 = new Uint8Array(24000).fill(0x55); // 3 seconds at 64 kbps
 
@@ -74,7 +85,11 @@ test('depth drives the length target: Brief 60 to 80 s, Balanced about 90 s, Det
 
 test('the numbers rule is the owner\'s: only numbers of the card, never compute; the card-example, opening and symbol rules of v1.1 stay; the reply is a script and a separate transcript', () => {
   const system = scriptSystem('balanced');
-  assert.match(system, /Use only numbers that appear in the card text or in the labels of its visuals, exactly as written there\. Never compute anything/);
+  assert.match(system, /Use only numbers that appear in the card text or in the labels of its visuals, exactly as written there\. Say at least one of the card's own numbers aloud/);
+  assert.match(system, /Never compute anything/);
+  assert.match(system, /do not invent quantities for an example: use only the card's own numbers, or no number/);
+  assert.match(system, /no Greek letters/);
+  assert.doesNotMatch(system, /soft|never pad|stop when the idea is complete|End when the last idea/i, 'the length is stated plainly: no soft, no never-pad, no stop-when-complete wording (owner 2026-11-17)');
   assert.doesNotMatch(system, /Work out any numbers|trivially simple whole numbers/);
   assert.match(system, /do not replay its example/);
   assert.match(system, /Never start with "The hardest part"/);
@@ -116,7 +131,7 @@ test('stripUnsafe: a sentence with a number outside the card is removed from scr
 test('cardNumbers reads the cards own spelled-out numbers too: a card that says "four strokes" allows the script to say four', () => {
   const allowed = cardNumbers('The engine runs a cycle of four strokes, and one of them makes power. Pressure reaches 9.5 bar.', 'twenty five percent');
   assert.deepEqual([...allowed].sort((a, b) => a - b), [4, 9.5, 25]);
-  assert.equal(stripUnsafe('Four strokes repeat. Three strokes would not work.', 'Four strokes repeat. Three strokes would not work.', allowed).script, 'Four strokes repeat.');
+  assert.equal(stripUnsafe('Four strokes repeat. Thirty strokes would not work.', 'Four strokes repeat. Thirty strokes would not work.', allowed).script, 'Four strokes repeat.');
 });
 
 test('stripUnsafe: a sentence the voice would say is never left in the window and the other way round (paired by position); a script symbol removes its sentence; unequal counts are cut on their own', () => {
@@ -124,9 +139,43 @@ test('stripUnsafe: a sentence the voice would say is never left in the window an
   // the transcript's LaTeX carries a number the script did not say: both sentences go
   assert.deepEqual(stripUnsafe('Squares grow fast. Keep going.', 'Squares grow like $x^3$. Keep going.', allowed), { script: 'Keep going.', transcript: 'Keep going.', removed: 1 });
   assert.equal(stripUnsafe('It is x = 2 here. Next.', 'It is $x = 2$ here. Next.', allowed).script, 'Next.', 'a symbol in the spoken script');
-  const uneven = stripUnsafe('First sentence. A seven here. Third.', 'First sentence. A seven here, with more words. And a fourth one.', allowed);
+  const uneven = stripUnsafe('First sentence. A fourteen here. Third.', 'First sentence. A fourteen here, with more words. And a fourth one.', allowed);
   assert.equal(uneven.script, 'First sentence. Third.');
   assert.equal(uneven.transcript, 'First sentence. And a fourth one.');
+});
+
+test('counting words are not outside numbers when the card has numbers; data values still are (owner 2026-11-17; sentences from the AUD-2 real outputs)', () => {
+  const allowed = new Set([0.368, 63]); // a card with numbers
+  const kept = [
+    'Only one of the four strokes actually creates power for the car, while the other three strokes just set things up or clean things up.', // Gemini, four-stroke
+    'Once that moisture hits the ground, it takes one of two paths.', // Gemini, water cycle
+    'Think of a test that marks ten emails as spam.', // Fireworks, precision and recall: an invented example size passes (a known cost of the rule)
+    'If eight of those are truly spam and two are legitimate, the precision is eight out of ten.',
+    'It is a pair of steps, then double the effort, twice as often, half of them, a third of the rows, a quarter of the time, the first, the second and the third.',
+  ];
+  for (const sentence of kept) assert.equal(stripUnsafe(sentence, sentence, allowed).removed, 0, sentence);
+  const dropped = [
+    'Notice instead that about thirty seven percent of your rows are missing.', // spelled-out data
+    'Exponentiating them gives roughly two point seven one and one.', // a spelled decimal
+    'This creates a challenge when you need to turn them into mutually exclusive choices that must add up to one hundred percent.',
+    'Now consider there are fifteen spam emails in the inbox.', // 11 and above spelled out
+    'The new sum is eight point three nine, making the new probability about eighty eight percent.',
+    'It is exactly 37 rows, or 0.5 of them.', // digits and decimals are always data
+    'If you change that first score to two, its exponentized value jumps to about seven point three nine.', // the count word passes, the data value does not
+  ];
+  for (const sentence of dropped) assert.equal(stripUnsafe(sentence, sentence, allowed).removed, 1, sentence);
+  assert.deepEqual(dataNumbers('If eight of those are truly spam and two are legitimate, the precision is eight out of ten.'), []);
+  assert.deepEqual(spokenNumbers('If eight of those are truly spam and two are legitimate'), [8, 2], 'the card index still reads count words (a card that says four strokes has 4)');
+  assert.deepEqual(dataNumbers('zero point three six eight, one idea, 5 rows, twenty five.'), [5, 0.368, 25], 'digits are read first');
+  assert.deepEqual(spokenNumbers('twice, half, double, a pair, first, second, third, a quarter'), []);
+  assert.deepEqual(cardDataNumbers('four strokes and two paths'), new Set(), 'a card with only counting words has no data to speak');
+});
+
+test('a card with no numbers at all: counting words are data again and follow the old rule', () => {
+  const none = cardNumbers('The water cycle moves water around the planet.');
+  assert.equal(none.size, 0);
+  assert.equal(stripUnsafe('Once it falls it takes one of two paths. It then returns.', 'Once it falls it takes one of two paths. It then returns.', none).script, 'It then returns.');
+  assert.equal(stripUnsafe('One idea, and no one knows.', 'One idea, and no one knows.', none).removed, 0, 'a lone "one" stays a word');
 });
 
 // ---- the script route ----
@@ -152,12 +201,13 @@ test('one call after delivery on Gemini Flash Lite: depth, the card\'s prose and
   assert.deepEqual(Object.keys(sent.response_format.json_schema.schema.properties), ['script', 'transcript']);
 });
 
-test('depth reaches the prompt: Detailed asks for up to about two minutes, Brief for 60 to 80 seconds', async t => {
-  const seen = providers(t, { models: [reply(SAFE)] });
+test('depth reaches the prompt: Detailed asks for up to about two minutes, Brief for 60 to 80 seconds; the Gemini asks are the measured higher words', async t => {
+  const seen = providers(t, { models: [reply(longScript(330))] });
   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'detailed' });
   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'brief' });
-  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 320 to 380 words, up to about 2 minutes/);
-  assert.match(seen.models()[1].body.messages[0].content, /Brief: write 190 to 240 words, 60 to 80 seconds/);
+  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 340 to 400 words, up to about 2 minutes/);
+  assert.match(seen.models()[1].body.messages[0].content, /Brief: write 300 to 360 words, 60 to 80 seconds of speech\. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it/);
+  assert.match(lengthLine('balanced', 'gemini'), /write 360 to 420 words, about 90 seconds of speech\.[^]*Do not stop before 360 words\./);
   assert.equal(scriptRequest({ provider: 'fireworks', model: 'm' }, { depth: 'detailed', title: 'T', prose: 'P', labels: [] }).messages[0].content, scriptSystem('detailed', 'standard'));
 });
 
@@ -187,19 +237,87 @@ test('an unreadable or empty answer is a failed step (the next provider runs); e
   assert.equal(down.events().at(-1).outcome, 'http_503');
 });
 
-test('number safety in the route: a sentence with a number outside the card is stripped from script and transcript (no regenerate, no retry); numbers of the card and of its diagram stay', async t => {
-  const spoken = `${SAFE} The chance is zero point three six eight, near sixty three percent. Take a sample of twelve rows. The curve reads zero point three four nine at ten rows.`;
-  const written = `${SAFE} The chance is $0.368$, near $63\\%$. Take a sample of $12$ rows. The curve reads $0.349$ at $10$ rows.`;
+test('number safety in the route: a sentence with a number outside the card is stripped from script and transcript; numbers of the card and of its diagram stay; counting words stay', async t => {
+  const spoken = `${SAFE} The chance is zero point three six eight, near sixty three percent. Take a sample of twelve rows. The curve reads zero point three four nine at ten rows. There are two paths here.`;
+  const written = `${SAFE} The chance is $0.368$, near $63\\%$. Take a sample of $12$ rows. The curve reads $0.349$ at $10$ rows. There are two paths here.`;
   const seen = providers(t, { models: [reply(spoken, written)] });
   const body = await (await script()).json();
-  assert.equal(seen.models().length, 1, 'one call, no retry');
+  assert.equal(seen.models().length, 1, 'long enough and speaking a card number: no re-ask');
   assert.ok(!/twelve|\$12\$/.test(body.script + body.transcript), 'the invented number is gone from both');
-  assert.ok(/zero point three six eight/.test(body.script) && /\$0\.368\$/.test(body.transcript), 'the card\'s own number stays');
-  assert.ok(/zero point three four nine/.test(body.script), 'a number written only in the card\'s diagram stays');
+  assert.ok(/zero point three six eight/.test(body.script) && /\$0\.368\$/.test(body.transcript), "the card's own number stays");
+  assert.ok(/zero point three four nine/.test(body.script), "a number written only in the card's diagram stays");
+  assert.ok(/two paths/.test(body.script), 'a counting word is not an outside number (owner 2026-11-17)');
   assert.equal(seen.events()[0].removed, 1);
-  // a script that is mostly invented numbers is shorter than the floor: no audio worth voicing, still no retry
-  providers(t, { models: [reply('Take twelve rows. Then take thirteen. Then fourteen rows more. It ends.')] });
-  assert.deepEqual(await (await script()).json(), { script: null, outcome: 'too_short', reason: 'The audio script could not be made. Try again.' });
+  assert.deepEqual([body.check.reasked, body.check.failed], [false, []]);
+  assert.equal(body.voice_estimate_credits, Math.ceil(body.script.length * 40 / 10000), "the voice's cost in AI units, from the registry row, rounded up");
+});
+
+// The floor and the card-number rule (owner 2026-11-17).
+const withDepth = depth => ({ app: 'canvas-1', title: 'Bootstrap Coverage', body: BODY, depth, question: 'why 63 percent?' });
+
+test('hard floors by depth after the strip: Brief 110, Balanced 200, Detailed 300 words, exactly; a card number must be spoken', () => {
+  assert.deepEqual(FLOOR_WORDS, { brief: 110, balanced: 200, detailed: 300 });
+  const data = cardDataNumbers('about 0.368 and 63 percent'), exact = n => longScript(n + 20).split(' ').slice(0, n).join(' ');
+  for (const [depth, floor] of Object.entries(FLOOR_WORDS)) {
+    assert.deepEqual(verdict(exact(floor - 1), depth, data), { words: floor - 1, failed: ['floor'] });
+    assert.deepEqual(verdict(exact(floor), depth, data), { words: floor, failed: [] });
+  }
+  assert.deepEqual(verdict(longScript(210, { card: false }), 'balanced', data).failed, ['example'], 'long but speaks no number of the card');
+  assert.deepEqual(verdict(exact(150).replace('sixty three', 'many'), 'balanced', data).failed, ['floor', 'example']);
+  assert.deepEqual(verdict(longScript(150, { card: false }), 'brief', cardDataNumbers('four strokes, a card with only counting words')).failed, [], 'no data number in the card: nothing to speak');
+  assert.deepEqual(verdict('Two paths. Three strokes.', 'brief', new Set()).failed, ['floor']);
+});
+
+test('under the floor: ONE re-ask to the same model with the first answer and a user turn that names the rule; a good second answer is the script, with the counts recorded', async t => {
+  const first1 = longScript(120), second = longScript(215);
+  const seen = providers(t, { models: [reply(first1), reply(second)] });
+  const body = await (await script(withDepth('balanced'))).json();
+  assert.equal(seen.models().length, 2);
+  assert.deepEqual(seen.models().map(s => s.url), [CHAIN_ENDPOINTS.google.url, CHAIN_ENDPOINTS.google.url], 'the same model, not the fallback');
+  const [one, again] = seen.models().map(s => s.body);
+  assert.deepEqual(one.messages.map(m => m.role), ['system', 'user']);
+  assert.deepEqual(again.messages.map(m => m.role), ['system', 'user', 'assistant', 'user'], 'the same prompt, the first answer, one more user turn');
+  assert.deepEqual(again.messages.slice(0, 2), one.messages);
+  assert.equal(again.messages[2].content, JSON.stringify({ script: first1, transcript: first1 }));
+  assert.equal(again.messages[3].content, `too short: ${wc(first1)} words after removing sentences with outside numbers; target 240 to 300 words; use the card's own numbers.`);
+  assert.equal(body.script, second);
+  assert.deepEqual([body.check.reasked, body.check.firstRawWords, body.check.firstStrippedWords, body.check.firstFailed, body.check.rawWords, body.check.strippedWords, body.check.failed],
+    [true, wc(first1), wc(first1), ['floor'], wc(second), wc(second), []]);
+  assert.equal(seen.events().at(-1).reasked, true, 'the log carries the re-ask and the counts, no text');
+});
+
+test('still under the floor after the one re-ask is an error answer, never short audio; there is never a second re-ask', async t => {
+  const seen = providers(t, { models: [reply(longScript(100)), reply(longScript(150)), reply(longScript(400))] });
+  const body = await (await script(withDepth('balanced'))).json();
+  assert.equal(seen.models().length, 2, 'one first call and one re-ask, the third answer is never asked for');
+  assert.deepEqual([body.script, body.outcome, body.check.reasked, body.check.failed, body.check.firstRawWords, body.check.rawWords], [null, 'too_short', true, ['floor'], wc(longScript(100)), wc(longScript(150))]);
+  assert.match(body.reason, /could not be made/);
+  const none = providers(t, { models: [reply('Take twelve rows. Then take thirteen. Then fourteen rows more. It ends.')] });
+  assert.equal((await (await script(withDepth('brief'))).json()).outcome, 'too_short');
+  assert.equal(none.models().length, 2);
+});
+
+test('the script must speak a number of the card: none is the same re-ask, naming the rule; both rules failing is one message naming both; a card with no numbers skips the rule', async t => {
+  const seen = providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(220))] });
+  const body = await (await script(withDepth('balanced'))).json();
+  assert.equal(seen.models().length, 2);
+  assert.match(seen.models()[1].body.messages[3].content, /^none of the card's own numbers \(.*\) is spoken; say at least one of them aloud in the explanation; use the card's own numbers\.$/);
+  assert.deepEqual([body.check.firstFailed, body.check.failed], [['example'], []]);
+  const both = providers(t, { models: [reply(longScript(150, { card: false })), reply(longScript(150, { card: false }))] });
+  const failed = await (await script(withDepth('balanced'))).json();
+  assert.match(both.models()[1].body.messages[3].content, /^too short: \d+ words after removing sentences with outside numbers; target 240 to 300 words; and none of the card's own numbers \(.*\) is spoken; say at least one of them aloud in the explanation; use the card's own numbers\.$/);
+  assert.deepEqual([failed.script, failed.outcome, failed.check.failed], [null, 'too_short', ['floor', 'example']]);
+  const plain = providers(t, { models: [reply(longScript(210, { card: false }))] });
+  const noNumbers = await (await script({ app: 'canvas-1', title: 'Cycle', body: `${longScript(60, { card: false })}\n\nThe water cycle moves water around.`, depth: 'balanced' })).json();
+  assert.equal(plain.models().length, 1, 'a card with no numbers has none to speak: no re-ask');
+  assert.equal(noNumbers.check.reasked, false);
+});
+
+test('a provider failing on the re-ask hands the card to the next provider, which has no re-ask left: a short answer there is an error', async t => {
+  const seen = providers(t, { models: [reply(longScript(100)), 500, reply(longScript(100))] });
+  const body = await (await script(withDepth('balanced'))).json();
+  assert.deepEqual(seen.models().map(s => s.url), [CHAIN_ENDPOINTS.google.url, CHAIN_ENDPOINTS.google.url, CHAIN_ENDPOINTS.fireworks.url]);
+  assert.deepEqual([body.script, body.outcome], [null, 'too_short']);
 });
 
 test('a step whose credential is not set is skipped; with none the call is never made; one script per card id, shared by requests in flight', async t => {
