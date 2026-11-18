@@ -302,43 +302,6 @@ function checkAmount(value, path, issue, nonnegative = false) {
 
 const atPath = (issue, prefix) => (path, message) => issue([...prefix, ...path], message);
 
-// List-transformation softmax rule (item 3, Reviewer 2026-11-17). A card whose title or operation says softmax and whose before and after items are ALL plain numbers must have
-// after_i = softmax(before)_i within half a unit of the decimals the author wrote for THAT item (0.7 against the true 0.659 passes at one decimal; 0.04 against 0.099 fails at two), plus 1e-9
-// float slack: the same allowance as the box-plot fences. The issue names the correct value of every item and is tagged arithmetic. It is OFF when the title, caption or any label says
-// temperature, scaled, scaling, masked, causal, log-softmax or "T =" (after = softmax(before / T), a scaled or masked score: the plain recompute would flag a correct card); then the only check
-// is that the after values sum to 1 (within the sum of their half-units) when the title or caption calls them probabilities. Items that are not plain numbers ("h1", tensors, "2.0 (cat)") skip the rule.
-// Why here: this is where the schema already reads a list transformation's items and links (the composition validator only checks its structure).
-const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
-// "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
-function listNumber(item) {
-  if (typeof item !== 'string') return null;
-  const m = item.replace(/\$/g, '').split(/[=:]/).pop().trim().replace(/−/g, '-').match(/^(-?\d+(?:\.(\d+))?)\s*(%?)$/);
-  if (!m) return null;
-  const places = (m[2] ?? '').length, scale = m[3] ? 100 : 1;
-  return { value: Number(m[1]) / scale, places, half: 0.5 * 10 ** -places / scale, text: m[1] + m[3] };
-}
-function checkSoftmaxList(d, issue) {
-  if (!/softmax/i.test(`${d.title} ${d.operation}`)) return;
-  const before = d.before.items.map(listNumber), after = d.after.items.map(listNumber);
-  if (before.length !== after.length || [...before, ...after].some(x => !x)) return;
-  const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
-  if (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels)) {
-    const sum = after.reduce((s, x) => s + x.value, 0), slack = after.reduce((s, x) => s + x.half, 0);
-    if (/probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(sum - 1) > slack + 1e-9) {
-      issue(['after', 'items'], `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(sum.toFixed(6))}.`, { code: 'arithmetic' });
-    }
-    return;
-  }
-  const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
-  const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;
-  // Rounding clause (Reviewer 2026-11-17, tightened): values written to sum to exactly 1 pass when at most ONE value is past its half-unit and that one is within a full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
-  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && beyond(1) <= 1 && beyond(2) === 0;
-  if (beyond(1) && !roundedToOne) {
-    const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
-    issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
-  }
-}
-
 function checkTensorNodes({ nodes }, issue) {
   nodes.forEach((node, index) => {
     if (node.tensor) validateTensor(node.tensor, atPath(issue, ['nodes', index, 'tensor']));
@@ -373,7 +336,6 @@ function validateDiagram(diagram, issue) {
           issue(['links', index], 'Mapping indices must refer to existing items');
         }
       });
-      checkSoftmaxList(diagram, issue);
       break;
     case 'number-line': checkNumberLine(diagram, issue); break;
     case 'coordinate-plot': checkPlot(diagram, issue); break;
@@ -392,14 +354,14 @@ function validateDiagram(diagram, issue) {
   // A child's title may be left out only inside panels of round-and-square trees: the panel label is their title.
   const labelledTrees = diagram.kind === 'panels' && diagram.panels.every(panel => topology.isDotTree(panel.diagram));
   for (const child of childDiagrams(diagram)) {
-    const at = (path, message, params) => issue([...child.path, ...path], message, params);
+    const at = (path, message) => issue([...child.path, ...path], message);
     if (child.diagram.title === undefined && !labelledTrees) at(['title'], 'A diagram needs a title');
     validateDiagram(child.diagram, at);
   }
 }
 export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
   if (diagram.title === undefined) ctx.addIssue({ code: 'custom', path: ['diagram', 'title'], message: 'A diagram needs a title' });
-  validateDiagram(diagram, (path, message, params) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message, ...(params && { params }) }));
+  validateDiagram(diagram, (path, message) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message }));
 });
 
 // Provider constraints describe the JSON shape. The local parse additionally

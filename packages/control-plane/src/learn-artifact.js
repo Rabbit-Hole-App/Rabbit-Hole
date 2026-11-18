@@ -17,7 +17,7 @@ import { consumeProposal, releaseProposal, verifyProposal } from './generation-p
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -169,15 +169,8 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
-// Why a wrong number gets one more repair on the same model (owner/Reviewer 2026-11-17): an arithmetic-tagged diagram issue (params.code 'arithmetic', e.g. a box-plot fence that is not
-// Q1 - 1.5 IQR) is never dropped, so a card that still has one after its repair fails the step. When the NEXT provider cannot write that kind (explanation-fast-chain.js nextCanWrite:
-// Gemini does not get box-plot unless the request names it; the last step has no next), the current model gets repairs up to this many in all before the step fails, so one miss
-// is not a dead card. When the next provider can write the kind, the old rule stands. The archive records repairs and repairedAt per step so the second repair's worth can be measured;
-// if it rarely matters, set this to 1 and the rule is gone.
-export const ARITHMETIC_REPAIRS_SAME_MODEL = 2;
-
-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null, nextCanWrite = null } = {}) {
-  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls. `nextCanWrite(kind)` (the fast chain's, see ARITHMETIC_REPAIRS_SAME_MODEL) says whether the next provider can write a diagram kind.
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null } = {}) {
+  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
   // `figures` (EXP-13, trusted): { store, scope?, adapter? } for explanation-figures.js illustrateExplanation; omitted, no picture is made and every rh-illustration fence is removed.
@@ -217,9 +210,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   };
   const verify = block => sceneVerdict(env, callModel, input.args, block);
   let { result, call } = await ask(messages);
-  // At most one repair: the first failure goes back to the model once (an arithmetic issue may get a second, ARITHMETIC_REPAIRS_SAME_MODEL).
-  let limit = repairs;
-  const failedOn = []; // card archive: the failure outcome of each answer that failed ('arithmetic' | 'validation_error'), so a mixed failure is visible later
+  // At most one repair: the first failure goes back to the model once.
   for (let attempt = 0; ; attempt++) {
     if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
     if (call.name === CLARIFY.name) {
@@ -291,9 +282,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
         { const hier = treesAsHierarchy(block.body); if (hier.count) { block = { ...block, body: hier.md }; corrections.tree_hierarchy_layout = hier.count; } } // batch-1 audit 2026-11-09: a short-key tree is drawn top-down, not as an outline
         block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
-        if (attempt >= limit) {
-          // An arithmetic-tagged issue is never dropped or simplified away, and the prose is never delivered with the wrong number: the step fails (explanation_bad_numbers) and the chain's next provider runs.
-          const numbers = numbersIssue(block); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
+        if (attempt >= repairs) {
           let trimmed = dropInvalidDiagrams(block), fallback = null;
           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
@@ -339,17 +328,13 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(failedOn.length ? { failedOn } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
-      failedOn.push(error.numbers || /explanation_bad_numbers/.test(error.message) ? 'arithmetic' : 'validation_error'); // a first answer's numbers problem has no .numbers yet (explanationProblem names it)
-      // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
-      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && error.numbers.kinds.some(kind => !nextCanWrite(kind))) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
-      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, failedOn,...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
-      const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
-      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
+      if (input.imageSource || attempt >= repairs) return { result: 'validation_error', primitive: id || null, error: error.message };
+      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
   }
 }

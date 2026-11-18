@@ -29,7 +29,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `figure` | Figure preset and named callouts. Free-body figures take direction, magnitude, and unit | Cell, cross-section, or free-body drawing; linked callout badges; proportional force arrows |
 | `tree` | Nodes with `id`, `label`, and optional `parent`. With `layout: "binary"`, each child also supplies `side: "left"` or `"right"`. | Indented hierarchy or a top-down binary tree with the approved branch styling |
 | `relationship` | Labeled nodes and directed links with relationship labels | Directional lanes with clear endpoints, including reciprocal links |
-| `transformation` | Before and after item lists, operation, optional zero-based item mappings; when the title or operation says softmax and every item is a plain number, each after value must equal softmax of the before values within half a unit of the decimals written for it (arithmetic issue); the rule is off for temperature, `T =`, scaled, scaling, masked, causal or log-softmax cards, where after values called probabilities must only sum to 1 | Two states, operation banner, and labeled mappings |
+| `transformation` | Before and after item lists, operation, optional zero-based item mappings | Two states, operation banner, and labeled mappings |
 | `argument` | Claim, support, objections, conclusion. Evidence can include a source label | Evidence lanes joined to a conclusion |
 | `number-line` | Explicit domain, value markers, intervals with open or closed endpoints | Scaled ticks, numbered markers, interval segments |
 | `coordinate-plot` | Two labeled axis domains, optional units, line or scatter series. Set `smooth: false` on a line series for straight segments. | Linear axes, monotone cubic line paths, exact point values, distinct series symbols |
@@ -51,9 +51,9 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 | Kind | New supported fields / variant | Primary source |
 | --- | --- | --- |
 | `heatmap` | Numeric `rows[].cells`, columns, explicit `range`, masked nulls and indexed highlights | `ml-statistical-*` |
-| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements; when the title, caption or a label says bootstrap (not m-out-of-n or subsample), a replacement group draws exactly as many members as there are samples (arithmetic issue) | `ml-statistical-*` |
+| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements | `ml-statistical-*` |
 | `histogram` | `binEdges`, count/proportion series, markers; unequal-width bins require `density` | `ml-statistical-*` |
-| `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis; stated fences must equal Q1 - 1.5 IQR and Q3 + 1.5 IQR and enclose both whiskers (arithmetic issues, half a unit of the decimals written), summary values and outliers must lie inside the author's axis, and the axis widens to hold a fence outside it | `ml-statistical-*` |
+| `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis | `ml-statistical-*` |
 | `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
 | `relationship` | `layout: graph`, each node drawn once, separate directed/reciprocal routes and labelled ledger | `ml-topology-*` |
 | `flow` | `fork` and `merge` for simultaneous branches. Arrivals from three or more edges use distinct top ports and staggered approaches. | `ml-topology-*` |

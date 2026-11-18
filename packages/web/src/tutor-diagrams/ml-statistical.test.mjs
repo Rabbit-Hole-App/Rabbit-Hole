@@ -18,7 +18,7 @@ const shapes = createShapes({ z, text, numeric, id, unit,
   axes: z.strictObject({ label: text(36), min: numeric, max: numeric, unit }),
 });
 const schema = z.discriminatedUnion('kind', shapes).superRefine((d, ctx) =>
-  validate(d, (path, message, params) => ctx.addIssue({ code: 'custom', path, message, ...(params && { params }) })));
+  validate(d, (path, message) => ctx.addIssue({ code: 'custom', path, message })));
 const layouts = createLayouts({ legacy: {} });
 const parse = value => schema.parse(value);
 const copy = value => structuredClone(value);
@@ -196,7 +196,7 @@ test('box plots put quartiles, whiskers, fences and repeated outliers on the sam
   assert.match(rendered, /High reading: 10/);
 });
 
-test('box plots reject unordered summaries, invalid fences, false outliers and an empty axis', () => {
+test('box plots reject unordered summaries, invalid fences, false outliers and values outside the shared domain', () => {
   const invalid = [
     d => { d.boxes[0].q1 = 4; }, d => { d.boxes[0].median = 5; },
     d => { d.boxes[0].whiskerLow = 3; }, d => { d.boxes[0].whiskerHigh = 3; },
@@ -206,63 +206,6 @@ test('box plots reject unordered summaries, invalid fences, false outliers and a
     d => { d.boxes[0].median = NaN; },
   ];
   for (const change of invalid) { const d = copy(boxes); change(d); assert.equal(schema.safeParse(d).success, false); }
-});
-
-// Fences are recomputed from the quartiles: 1.5 x IQR past Q1 and Q3, within half a unit of the last decimal written.
-const fenceCard = (box, x = { label: 'Reading', min: 0, max: 20 }) => ({ kind: 'box-plot', title: 'IQR rule', x, boxes: [{ label: 'Trial', ...box }] });
-const trial = { whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14 };
-const problems = d => { const found = []; validate(d, (path, message, params) => found.push({ path: path.join('.'), message, params })); return found; };
-
-test('box plot fences that are not Q1 - 1.5 IQR and Q3 + 1.5 IQR are rejected with the numbers, tagged arithmetic', () => {
-  const wrong = fenceCard({ ...trial, fences: { lower: 2, upper: 16 }, outliers: [{ label: 'High', value: 18 }] }, { label: 'Reading', min: 0, max: 20 });
-  assert.equal(schema.safeParse(wrong).success, false);
-  const found = problems(wrong);
-  assert.equal(found.length, 1);
-  assert.equal(found[0].message, 'Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.');
-  assert.deepEqual(found[0].params, { code: 'arithmetic' });
-  // The tag reaches the zod issue the repair path reads.
-  assert.deepEqual(schema.safeParse(wrong).error.issues.find(i => i.path.join('.') === 'boxes.0.fences').params, { code: 'arithmetic' });
-  // With the fences corrected, the outlier at 18 is inside 21 and fails the shape rule by itself.
-  const outlierInside = problems(fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'High', value: 18 }] }));
-  assert.deepEqual(outlierInside.map(i => i.message), ['An outlier must lie strictly outside the fences, or whiskers when no fences are supplied']);
-  assert.equal(outlierInside[0].params, undefined);
-});
-
-test('box plot with the true fences passes, with or without an outlier beyond them', () => {
-  const fences = { lower: -3, upper: 21 };
-  assert.deepEqual(problems(fenceCard({ ...trial, fences })), []);
-  assert.equal(schema.safeParse(fenceCard({ ...trial, fences, outliers: [{ label: 'High', value: 25 }] }, { label: 'Reading', min: 0, max: 25 })).success, true);
-});
-
-test('box plot without fences is unaffected by the fence arithmetic', () => {
-  assert.deepEqual(problems(fenceCard(trial)), []);
-  assert.deepEqual(problems(fenceCard({ ...trial, outliers: [{ label: 'High', value: 18 }] })), []);
-});
-
-test('box plot fence arithmetic keeps fractions exact and allows half a unit of the last decimal', () => {
-  const fractional = { whiskerLow: 1.25, q1: 1.25, median: 2, q3: 3.75, whiskerHigh: 3.75 };
-  assert.deepEqual(problems(fenceCard({ ...fractional, fences: { lower: -2.5, upper: 7.5 } })), []);
-  // q1 2.04, q3 5.65: the exact fences are -3.375 and 11.065; two decimals written may round them to -3.37 and 11.07.
-  const rounded = { whiskerLow: 2.04, q1: 2.04, median: 3, q3: 5.65, whiskerHigh: 5.65 };
-  assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.37, upper: 11.07 } })), []);
-  assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.39, upper: 11.07 } })).map(i => i.params), [{ code: 'arithmetic' }]);
-  assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.37, upper: 11.09 } })).map(i => i.params), [{ code: 'arithmetic' }]);
-});
-
-test('box plot axis widens to hold a computed fence below x.min instead of clipping or failing', () => {
-  const d = fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'Far reading', value: 25 }] }, { label: 'Reading', min: 0, max: 25 });
-  assert.equal(schema.safeParse(d).success, true);
-  const { width, svg: rendered } = svg(d);
-  const fence = marks(rendered, 'data-tutor-box-fence'), outlier = marks(rendered, 'data-tutor-box-outlier');
-  const xs = [...fence.map(m => num(m.tag, 'x1')), ...outlier.map(m => num(m.tag, 'cx')), ...marks(rendered, 'data-tutor-box-whisker').flatMap(m => [num(m.tag, 'x1'), num(m.tag, 'x2')])];
-  const left = 12 + 10, right = width - 12 - 10; // PAD 12 plus the 10 px inset
-  for (const value of xs) assert.ok(value >= left - 1e-6 && value <= right + 1e-6, `${value} is outside the plot ${left} to ${right}`);
-  // The widened axis runs -3 (the fence, below the author's x.min) to 25 (the outlier, at the author's x.max).
-  close(num(fence[0].tag, 'x1'), left);
-  close(num(outlier[0].tag, 'cx'), right);
-  assert.match(rendered, /Lower fence: -3; Upper fence: 21/);
-  assert.match(rendered, />-3</);
-  assert.match(rendered, />25</);
 });
 
 test('constant quartiles remain a valid zero-width box with visible median and whiskers', () => {
@@ -344,49 +287,4 @@ test('domain hooks leave unrelated legacy diagrams to the existing code', () => 
   validate(legacy, () => assert.fail('unexpected issue'));
   assert.equal(describe(legacy), null);
   assert.equal(visibleText(legacy), null);
-});
-
-// Item 4: a bootstrap draw has exactly n members for n rows (no tolerance).
-const rows = id => ({ id, label: id.toUpperCase() });
-const bootstrapCard = (draws, extra = {}) => ({ kind: 'sample-set', title: 'Bootstrap sample of training rows', caption: 'Worked example. Rows A to H are drawn with replacement.',
-  samples: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(rows), groups: [{ id: 'boot', label: 'Draw', replacement: true, members: draws }], ...extra });
-const arithmeticOf = value => { const r = schema.safeParse(value); return r.success ? [] : r.error.issues.filter(i => i.params?.code === 'arithmetic'); };
-
-test('bootstrap draw count: the archive card (6 draws from 8 rows) fails with the numbers, tagged arithmetic; 8 from 8 passes', () => {
-  const [bad] = arithmeticOf(bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f']));
-  assert.equal(bad.message, 'A bootstrap sample draws n = 8 rows, with replacement; this draws 6.');
-  assert.deepEqual(bad.path, ['groups', 0, 'members']);
-  assert.equal(schema.safeParse(bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f', 'h', 'h'])).success, true);
-  assert.equal(arithmeticOf(bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f', 'h', 'h', 'h'])).length, 1, 'more than n is wrong too');
-});
-
-test('bootstrap draw count: m-out-of-n and subsample cards, cards that never say bootstrap, and groups without replacement are left alone; any label can carry the word', () => {
-  const short = ['a', 'b', 'b', 'd'];
-  assert.deepEqual(arithmeticOf(bootstrapCard(short, { title: 'Bootstrap with m out of n draws' })), []);
-  assert.deepEqual(arithmeticOf(bootstrapCard(short, { title: 'm-out-of-n bootstrap' })), []);
-  assert.deepEqual(arithmeticOf(bootstrapCard(short, { caption: 'A bootstrap subsample of the rows' })), []);
-  assert.deepEqual(arithmeticOf(bootstrapCard(short, { title: 'Sampling with replacement', caption: 'Rows A to H, drawn with replacement.' })), [], 'bootstrap is never said');
-  const labelled = bootstrapCard(short, { title: 'Sampling with replacement', caption: undefined }); labelled.groups[0].label = 'Bootstrap draw';
-  assert.equal(arithmeticOf(labelled).length, 1, 'a group label saying bootstrap counts');
-  const noReplacement = bootstrapCard(['a', 'b', 'c', 'd']); noReplacement.groups[0].replacement = false;
-  assert.deepEqual(arithmeticOf(noReplacement), [], 'a plain subset is not a draw with replacement');
-  const oob = bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f', 'h', 'h']); oob.groups.push({ id: 'oob', label: 'Out of bag', outOfBagFor: 'boot', members: ['c', 'e', 'g'] });
-  assert.equal(schema.safeParse(oob).success, true, 'the out-of-bag group is not a draw');
-});
-
-// Item 5: a whisker beyond the (validated) fences names both numbers, tagged arithmetic, half a unit of the decimals written.
-test('box plot: a whisker beyond a correct fence is an arithmetic issue naming the whiskers and the fences; whiskers on the fence or inside pass', () => {
-  const card = box => fenceCard({ q1: 6, median: 9, q3: 12, fences: { lower: -3, upper: 21 }, whiskerLow: 4, whiskerHigh: 14, ...box }, { label: 'Reading', min: -5, max: 25 });
-  assert.equal(schema.safeParse(card({})).success, true);
-  assert.equal(schema.safeParse(card({ whiskerHigh: 21 })).success, true, 'a whisker exactly on the fence');
-  assert.equal(schema.safeParse(card({ whiskerLow: -3 })).success, true);
-  const high = schema.safeParse(card({ whiskerHigh: 23 })).error.issues;
-  assert.equal(high.length, 1, 'the fences themselves are right, so this is the only issue');
-  assert.equal(high[0].message, 'Fences must enclose both whiskers: the whiskers run from 4 to 23, outside the fences -3 and 21.');
-  assert.deepEqual([high[0].path.join('.'), high[0].params], ['boxes.0.fences', { code: 'arithmetic' }]);
-  assert.equal(schema.safeParse(card({ whiskerLow: -4 })).error.issues[0].params.code, 'arithmetic');
-  // half a unit of the decimals written: one decimal allows 0.05 beyond, not 0.2
-  const tenth = box => fenceCard({ q1: 6.5, median: 9, q3: 12.5, fences: { lower: -2.5, upper: 21.5 }, whiskerLow: 4, whiskerHigh: 14, ...box }, { label: 'Reading', min: -5, max: 25 });
-  assert.equal(schema.safeParse(tenth({ whiskerHigh: 21.5 })).success, true);
-  assert.equal(schema.safeParse(tenth({ whiskerHigh: 21.7 })).success, false);
 });
