@@ -12,7 +12,7 @@ const plan = structuredClone(STEPPER_PLANS['stepper-merge-sort-brief']);
 Object.assign(plan, {
   title: "What changes a pendulum's swing?",
   story: "A learner compares two pendulums. A is the reference at 1 kg and 1 m; B is the learner's experiment with its own mass and string length. Both start at 20 degrees and swing for 8 seconds while a plot draws each angle against time with a marker at the current moment. Changing B's mass leaves its timing with A's, while a longer string swings slower and a shorter one faster, so the period depends on length and not on mass.",
-  cardDescription: "Pendulum A (1 kg, 1 m) is the reference; set B's mass and string length and watch whether it keeps time with A.",
+  cardDescription: 'Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it.',
   instructions: 'Press play, then change the mass and the length of B.',
   learningGoal: "A pendulum's period depends on its length and not on its mass: T = 2 pi sqrt(L / g).",
   controls: [
