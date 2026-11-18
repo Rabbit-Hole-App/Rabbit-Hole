@@ -1,0 +1,383 @@
+{
+ "meta": {
+  "before": "main 9531b382f6d2735393a7f9b3c7d82988007d1327",
+  "after": "feat/fallbacks-batch tip",
+  "cells": 11,
+  "reps": 3,
+  "runs": 66
+ },
+ "items": [
+  {
+   "idx": 1,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 1,
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 2,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 2,
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 1
+  },
+  {
+   "idx": 3,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 3,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 4,
+   "set": "new",
+   "tags": [
+    "new"
+   ],
+   "cell": 4,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "brief",
+   "rep": 1
+  },
+  {
+   "idx": 5,
+   "set": "new",
+   "tags": [
+    "new"
+   ],
+   "cell": 5,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "detailed",
+   "rep": 1
+  },
+  {
+   "idx": 6,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1"
+   ],
+   "cell": 6,
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 7,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 7,
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "rep": 1
+  },
+  {
+   "idx": 8,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 8,
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "rep": 1
+  },
+  {
+   "idx": 9,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 9,
+   "prompt": "what is a learning rate schedule?",
+   "depth": "brief",
+   "rep": 1
+  },
+  {
+   "idx": 10,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 10,
+   "prompt": "compare a stack and a queue",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 11,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 11,
+   "prompt": "compare a stack and a queue",
+   "depth": "brief",
+   "rep": 1
+  },
+  {
+   "idx": 12,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 1,
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 13,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 2,
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 2
+  },
+  {
+   "idx": 14,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 3,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 15,
+   "set": "new",
+   "tags": [
+    "new"
+   ],
+   "cell": 4,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "brief",
+   "rep": 2
+  },
+  {
+   "idx": 16,
+   "set": "new",
+   "tags": [
+    "new"
+   ],
+   "cell": 5,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "detailed",
+   "rep": 2
+  },
+  {
+   "idx": 17,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1"
+   ],
+   "cell": 6,
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 18,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 7,
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "rep": 2
+  },
+  {
+   "idx": 19,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 8,
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "rep": 2
+  },
+  {
+   "idx": 20,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 9,
+   "prompt": "what is a learning rate schedule?",
+   "depth": "brief",
+   "rep": 2
+  },
+  {
+   "idx": 21,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 10,
+   "prompt": "compare a stack and a queue",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 22,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 11,
+   "prompt": "compare a stack and a queue",
+   "depth": "brief",
+   "rep": 2
+  },
+  {
+   "idx": 23,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 1,
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 3
+  },
+  {
+   "idx": 24,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 2,
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 3
+  },
+  {
+   "idx": 25,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1",
+    "simp-1"
+   ],
+   "cell": 3,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 3
+  },
+  {
+   "idx": 26,
+   "set": "new",
+   "tags": [
+    "new"
+   ],
+   "cell": 4,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "brief",
+   "rep": 3
+  },
+  {
+   "idx": 27,
+   "set": "new",
+   "tags": [
+    "new"
+   ],
+   "cell": 5,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "detailed",
+   "rep": 3
+  },
+  {
+   "idx": 28,
+   "set": "gem-s1",
+   "tags": [
+    "gem-s1"
+   ],
+   "cell": 6,
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 3
+  },
+  {
+   "idx": 29,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 7,
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "rep": 3
+  },
+  {
+   "idx": 30,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 8,
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "rep": 3
+  },
+  {
+   "idx": 31,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 9,
+   "prompt": "what is a learning rate schedule?",
+   "depth": "brief",
+   "rep": 3
+  },
+  {
+   "idx": 32,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 10,
+   "prompt": "compare a stack and a queue",
+   "depth": "balanced",
+   "rep": 3
+  },
+  {
+   "idx": 33,
+   "set": "simp-1",
+   "tags": [
+    "simp-1"
+   ],
+   "cell": 11,
+   "prompt": "compare a stack and a queue",
+   "depth": "brief",
+   "rep": 3
+  }
+ ]
+}
