@@ -293,11 +293,11 @@ test('softmax list transformation: a gated card that calls its after values prob
   assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.5', '0.3', '0.1'], { title: 'Masked softmax' })), [], 'not called probabilities: no sum check');
 });
 
-test('softmax list transformation: rounding clause: values summing to exactly 1 may be one full unit off, otherwise the half-unit rule decides', () => {
+test('softmax list transformation: rounding clause: values summing to exactly 1 pass when only one is past its half-unit (and within a full unit), otherwise the half-unit rule decides', () => {
   assert.deepEqual(softmaxIssues(softmax(['1', '1', '1'], ['0.33', '0.33', '0.34'])), [], 'true 0.3333: 0.34 is 0.0067 away, under one unit');
   assert.equal(arithmetic(softmaxIssues(softmax(['1', '1', '1'], ['0.33', '0.33', '0.35']))).length, 1, 'sum is 1.01, so the half-unit rule decides');
   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.66', '0.24', '0.04']))).length, 1, 'sum 0.94, 0.04 against 0.099');
   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.70', '0.26', '0.04']))).length, 1, 'sum 1.00 but 0.04 is 0.059 away: more than one unit');
-  // Effect on a real archive card: sum is 1.00 and 0.10 is 0.00997 from the true 0.09003, inside one unit, so the clause lets it through (0.66 vs 0.6652 and 0.24 vs 0.2447 are too).
-  assert.deepEqual(softmaxIssues(softmax(['2', '1', '0'], ['0.66', '0.24', '0.10'])), []);
+  // Tightened (Reviewer): sum 1.00 but TWO values are past half a unit (0.66 vs 0.665241 is 0.005241; 0.10 vs 0.090031 is 0.009969), so the half-unit rule decides and it fails.
+  assert.equal(arithmetic(softmaxIssues(softmax(['2', '1', '0'], ['0.66', '0.24', '0.10']))).length, 1);
 });
