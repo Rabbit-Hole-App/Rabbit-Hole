@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_8ad5813b835d44bd89aa4bcd5190fba2",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 19617,
+  "ms": 6229,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "The steep checkpoint has k=5, x0=0, marker x=1. The traced values are correct: y=0.993307 and slope=5*0.993307*0.006693=0.03324. But the slope readout falls from 0.1966 at k=1 to 0.0332 at k=5. A learner may conclude that a steeper curve has a smaller slope. The card gives no explanation that the marker is far from the midpoint. The 'Most steep' checkpoint therefore does not show the sensitivity observation well. It teaches the opposite of what it should."
+    },
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "guide.marker.x and guide.marker.y are missing in cp-steep and in bound-x0-min. The marker sits at y≈69–72, near the top of the plot, and the guides are absent, so the frame is inconsistent with the other states. The tangent is also not listed as a drawn object in any state. Only the plot series label 'Tangent' appears, so the sensitivity observation cannot be verified from the frames."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The bounds observation says the output approaches a bound without reaching it. The readouts show six decimals, so values near 1 could look like exactly 1. No extreme-value state is shown. In the shown states the values stay strictly inside (0,1), so the bounded-output claim holds."
+    },
+    {
+      "capture": "cp-shifted",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The state word reads 'Standard steepness' for k=1 in both the default and shifted states. This is acceptable. It does not mention that the midpoint was shifted."
+    }
+  ]
+}

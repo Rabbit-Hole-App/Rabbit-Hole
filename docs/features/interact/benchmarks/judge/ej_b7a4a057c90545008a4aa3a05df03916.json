@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_b7a4a057c90545008a4aa3a05df03916",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 19309,
+  "ms": 5820,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "The slope readout is wrong. At k=5, x0=0, x=1, y=0.993307 and the slope is k·y·(1−y) = 5·0.993307·0.006693 ≈ 0.03324. This matches the trace, so the number itself is right. However, the card states 'Most steep' while the slope at the marker (0.033) is far lower than the default (0.197). The 'Most steep' and 'Steeper transition' labels, together with the slope readout, could mislead learners about sensitivity at the marker. The tangent is also not shown clearly here."
+    },
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "The guide.marker.x and guide.marker.y lines are missing in this frame. They are also missing in bound-x0-min. The marker is drawn at y≈69–72 near the top of the plot, so the guides vanish when y is high. This is inconsistent with the other states. Also, the callout box at y=70 appears clamped instead of following the marker's y (69.4)."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "major",
+      "message": "Frames list the plot with only series labels 'Logistic' and 'Tangent'. No tangent geometry or Curve/Tangent legend objects appear in the frames, so the required 'tangent slope measures sensitivity' observation cannot be judged from the frames. The curve and tangent points are not visible either. The 'bounds' observation, that the output approaches but never reaches the bounds, is supported only by the readouts."
+    }
+  ]
+}

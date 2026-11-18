@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_0fc866c2b9b142369876e04d542964d0",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 37617,
+  "ms": 6412,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The drop-lane callout reads 'a = 0.0 m/s²' while the ball is held, but the card's claim and the 'sameAfterRelease' observation say both balls share acceleration. This is piecewise by design, but the state line only says 'Held' and doesn't explain that the gate supplies a support force. A learner may read a=0 at the top as the very misconception the card is meant to dispel. The same issue appears at cp-before."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "message": "The drop-lane state reads 'Released' and its acceleration is -9.8 at exactly the top (t=0). The plan says the drop acceleration is zero while the gate holds the ball and -g after release. At the switch instant the frame shows the gate open. That fits the plan, but the Toss-vs-Drop comparison at the top is shown inconsistently with 'held' at cp-before. This is minor on its own."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "message": "The end state shows the toss ball at the launch height (y=243) with a velocity arrow of 60 px for -5 m/s. At cp-before the 0.98 m/s arrow was about 11.8 px, so the scale is consistent. The scrubber ends at +0.510204 s, but the time elapsed is 1.020408 s, which is correct. The toss lane state reads 'At base' while the drop reads 'Hit base', which is an inconsistent wording for the same event. This is minor."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "The height axis runs from 0 to 10.5 m, and an apex of 10 m fits. The velocity arrow for the toss ball at the launch speed of 10 m/s would be about 120 px, which would be clipped at the top. This cannot be judged from the frames."
+    }
+  ]
+}

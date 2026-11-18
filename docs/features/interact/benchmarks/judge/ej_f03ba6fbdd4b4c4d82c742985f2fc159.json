@@ -1,0 +1,27 @@
+{
+  "jobId": "ej_f03ba6fbdd4b4c4d82c742985f2fc159",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "pass",
+  "costMicros": 22147,
+  "ms": 4827,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "object": "ball.toss",
+      "message": "At launch speed 8 the apex height is 3.265 m. The ball is drawn at y=60 against a launch level of y=230, so the scale is 52 px/m. At speed 5 the scale is 1.27551 m for 66.4 px, which is also 52 px/m. The fixed scale is therefore consistent. The ball sits close to the top of the lane box (y=34), and I can't judge clipping without pixels. The apex callout box is at y=40, which is near the lane edge."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "minor",
+      "object": "callout.toss.l0",
+      "message": "At t=1.020 the ball is back at base with v=-5, so the label 'Falling downward' is consistent. The lane state text says 'Returned to base', which is acceptable. The velocity arrow is drawn 60 px long. At launch the velocity is 5 m/s and the arrow is also 60 px, so the scale is 12 px per m/s. At 2.5 m/s it is 30 px. All of these match the traced velocities. The gravity arrow is a constant 48 px, pointing down, in every capture."
+    }
+  ]
+}

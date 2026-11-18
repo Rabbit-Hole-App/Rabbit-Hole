@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_f98bfff0c87445a7a726e94c059c06bb",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 38151,
+  "ms": 6782,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The default scale is set by the fast-toss maximum (axis 0–52.5 m). At the default inputs the apex is only 1.28 m, so the ball rises about 4 px. The toss and drop heights barely differ (238.7 vs 243). The 'Held at top' gate and the apex are visually indistinguishable from launch, so the height comparison is not usable. The scale is also not recomputed per input, though the plan says it is fixed."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The acceleration arrow is drawn about 122 px long for g=9.8. It extends to y=365, below the ground label at y=270 and below the lane box, which ends at y=279. In cp-fastTop, g=1 gives a 12.5 px arrow, so the arrow scale is consistent. At default inputs the arrow still runs outside the lane."
+    },
+    {
+      "capture": "cp-before",
+      "category": "spec",
+      "severity": "major",
+      "message": "At 0.10 s before the top, the drop ball is still held. The tossed ball's callout reads v=+0.98 and the drop's v=0, which is consistent. But the drop lane's 'g = 0.0 m/s²' while held may mislead, because the plan says acceleration is zero while held. The card's claim is that both balls share all values after release, which is satisfied only after the top."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "message": "The scrubber state at 'end' is time 1.020408. The tossed ball is 'Landed' with v=-5. After release the drop ball's height equals the tossed ball's, which is OK. The apex arrow lengths and positions otherwise agree with the traces. The scrubber range, the checkpoints and the time display at the top are consistent. The 'topMoves' observation has no readout, and the fastTop capture does not show that the readings at the top are unchanged. Cp-fastTop shows g=-1.0, so the readings do scale with the inputs."
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_ec3dec8b52044f0aadb23d4d1f2aa0d5",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 19051,
+  "ms": 5559,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "object": "guide.marker.x",
+      "message": "The steep state (k=5) and the x0=-3 state have no guide.marker.x or guide.marker.y lines. The default state has them. The marker is at y≈0.993 and y≈0.982. Those lines are missing even though the marker is still drawn and the callout is still shown. The marker guides are inconsistent across states. This weakens the 'approaches the bound' observation exactly where it matters."
+    },
+    {
+      "capture": "bound-x0-min",
+      "category": "spec",
+      "severity": "major",
+      "object": "guide.marker.x",
+      "message": "Marker guide lines are missing at x0=-3, where the marker is near the upper bound. The behavior is inconsistent with the other states."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "object": "plot.curve",
+      "message": "The tangent line and the curve are listed only as plot series. Their geometry can't be judged from the frame, so the tangent-slope observation can't be verified visually. The readout values themselves (0.731, 0.1966, 0.6225, 0.1175, 0.9933, 0.0332, 0.5, 0.25) are correct."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "object": "scene.state",
+      "message": "The state word reads 'Standard steepness' at x0=±3 and in the shifted state. The shift in midpoint isn't described. The words don't distinguish shift from sensitivity, which is the learning goal."
+    }
+  ]
+}

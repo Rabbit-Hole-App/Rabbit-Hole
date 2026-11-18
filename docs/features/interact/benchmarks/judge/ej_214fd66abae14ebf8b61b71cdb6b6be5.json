@@ -1,0 +1,39 @@
+{
+  "jobId": "ej_214fd66abae14ebf8b61b71cdb6b6be5",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 19839,
+  "ms": 6795,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "object": "guide.marker.x",
+      "message": "The guide lines are missing in cp-steep, and also in bound-x0-min. The marker is at y≈69 and y≈71.7, near the plot top. The plot spans y 24 to 323 and the guides use a baseline of 274, so the plot's mapping is unclear. The marker is shown without its projection guides, and the callout boxes are clamped to y=70. The marker's relation to the readout can't be confirmed from this frame."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.marker",
+      "message": "The marker y positions don't fit the axis. The plot has height 299 from y=24, and the guide baseline is 274. At y=0.5 the marker is at 171, which implies the plot area runs from about 68 to 274. At y=0.993 the marker is at 69.4, which fits that area. The plot object's box (24 to 323) is inconsistent with this, so the drawn axis frame may not match the marker positions."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The tangent line's geometry is not in any frame object. Only the plot series labels exist, so the tangent can't be checked against the slope readout. The sensitivity observation is only supported by the readout numbers. The numbers themselves are correct: 0.731, 0.1966, 0.6225, 0.1175, 0.9933, 0.0332, 0.5, 0.25."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The bounds observation, that the output approaches a bound without reaching it, is only partly shown. The markers show y of 0.993 and 0.982, but the frames show no explicit statement or asymptote. The scene plan's yAtMarker relation hardcodes 1 in place of xMarker, which is harmless here because xMarker=1."
+    }
+  ]
+}

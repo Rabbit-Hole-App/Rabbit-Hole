@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_ee4c39ba624e427a859777b38da37d76",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 18105,
+  "ms": 5371,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "The traced slope at k=5, x0=0, x=1 should be 5*e^-5/(1+e^-5)^2 ≈ 0.0331. The trace reports 0.03324, which is slightly off. The y value 0.993307 is correct. The slope error is small, but it is still a numeric mismatch."
+    },
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "The marker guide lines (guide.marker.x and guide.marker.y) are missing in cp-steep and bound-x0-min. They are present in the other captures. The marker readout is near 1, so the guides may have been dropped as clamped or hidden. The marker tracking is therefore inconsistent. The callout is also placed at y=70, which is clamped and does not follow the marker at y≈69."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The tangent line is not listed among the drawn objects in any frame, only as a plot series label. The 'tangent measures sensitivity' observation therefore cannot be judged from the frames."
+    },
+    {
+      "capture": "cp-gentle",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The 'bounds' observation, that the output approaches a bound without reaching it, is only weakly supported. The steep and x0-min captures show y near 1, and the readouts are rounded to 6 digits."
+    }
+  ]
+}

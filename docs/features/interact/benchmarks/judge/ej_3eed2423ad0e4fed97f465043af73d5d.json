@@ -1,0 +1,34 @@
+{
+  "jobId": "ej_3eed2423ad0e4fed97f465043af73d5d",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "pass",
+  "costMicros": 36737,
+  "ms": 4922,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "object": "axis.h",
+      "message": "The fast-toss capture has an apex height of 10 m. The height axis runs to 10.5 m, so the ball sits near the top of the lane. The numbers are consistent: apex time 2 s, scrubber -2 to 2 s, a = -5. The drawing cannot be judged for clipping without pixels."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "object": "vec.v.toss",
+      "message": "The tossed ball's velocity arrow is 60 px for 5 m/s, which is 12 px per m/s. At 0.98 m/s it is 11.76 px, and at -5 m/s it is 60 px pointing down. The arrow signs and scales agree with the traces. The gate opens at the apex, and the faint outlines keep the shared starting height."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "object": "callout.toss.l1",
+      "message": "The tossed ball's acceleration arrow is 33.3 px long at 9.8 m/s². At 5 m/s² it is 17 px. This matches the 3.4 px per m/s² scale. All checkpoints match the physics: v = ±0.98 and 0 m/s, a = -g, and the dropped ball matches the tossed ball after release. The description and title are consistent with the story, and no scene draws the story as text."
+    }
+  ]
+}

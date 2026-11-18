@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_10455fc4034b4620a7e075a4c07916ce",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 38305,
+  "ms": 6844,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The drop ball starts at the apex height, but the drop lane's ball and gate are drawn at about y=238.7 at the 1.28 m apex. The 'Launch Level' mark is at y=243, so the lane reads as nearly flat. The scale is 52.5 m full range, which makes the heights hard to read at default inputs. The acceleration arrow for a = -9.8 is 122 px long, which is far longer than the whole height scale. This makes the arrow scale inconsistent with the height scale. It is not misleading, but it is hard to read."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The drop lane callout reads 'a = 0.0 m/s²' while the card's claim is that acceleration is -g throughout. Before release the ball is held at rest, and the plan says that is piecewise. The state line 'Held at top' explains it, but the claim text 'toss acceleration is -gravity throughout' is not contradicted. The drop lane also shows the held ball at the apex from t=0, and the gate geometry is drawn at y≈253 below the ball while the ball is at 238. This is minor."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "At g=1 and v=10 the acceleration arrow is only 12.5 px long, while at g=9.8 it is 122.5 px. That matches a linear scale, so it is fine. However the apex is at 50 m on a 52.5 m axis, and the 'topMoves' observation has no readout, so it can only be judged from positions. The positions do support it (ball at y=76 versus 238)."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The end capture shows elapsed time 1.020408 with the scrubber reading 0.510204 at the range end. This is consistent. The toss ball's 'Returned' state and the drop ball's 'Landed' state are fine."
+    }
+  ]
+}

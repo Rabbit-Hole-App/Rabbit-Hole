@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_4fe1ac650f9a4033bb139d314a5a1cc1",
+  "plan": "toss-mvp-detailed",
+  "depth": "detailed",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 30865,
+  "ms": 5346,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "The fast-toss checkpoint uses launch speed 10 and gravity 1. The layout says the scrubber should then read 0 to 10 s, but it reads 0 to 20 s. The velocity plot x-axis is also 0 to 20 s in every capture, including the default 5 m/s and 9.8 m/s² case where the flight lasts about 1 s. The plot is therefore squeezed into a small part of its width, so the velocity line is hard to read as a straight line crossing zero. The apex at t = 10 s is correct physically."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The ruler runs 0 to 52.5 m and is fixed to the highest possible top. At the default apex of 1.28 m the ball moves only about 4 px (y from 243 to 238.7). The apex barely rises above the launch mark, so the rising and falling motion cannot be seen. The apex height is correct but the visual teaches little."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "At the top the velocity arrow vec.v is absent, which is acceptable for v = 0. The acceleration arrow is still drawn at full length, supporting the claim. The acceleration arrow is 122 px long for 9.8 m/s² and extends to y = 365, past the lane box, which ends at y = 279 (34 + 245). This cannot be judged without pixels."
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { shapeStyle, textStyle } from './scene-style.js';
+import { LAYOUT_BODY_SIZE, shapeStyle, textStyle } from './scene-style.js';
 import { FILLED_INK, INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
 import { LEGIBILITY_FLOORS } from './scene-layout.js';
 import { TEACHING, TEACHING_FONT, TEACHING_ROLE_FILL, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
@@ -42,6 +42,8 @@ export const interactTextStyle = typographyRole => {
 export const INTERACT_FLOORS = Object.freeze({ ...Object.fromEntries(Object.entries(TEACHING_TEXT).map(([role, text]) => [role, text.size])), metadata: LEGIBILITY_FLOORS.metadata });
 // Passed to legibleFrame / sceneLegibility so a composed card is sized by these sizes and floors.
 export const INTERACT_LOOK = Object.freeze({ size: role => interactTextStyle(role).fontSize, floor: role => INTERACT_FLOORS[role] ?? INTERACT_FLOORS.body });
+// The same for a card that declares a scene layout (brief 35 amendment G): body text is 14 px, its floor 14 px.
+export const LAYOUT_LOOK = Object.freeze({ size: role => (role === 'body' ? LAYOUT_BODY_SIZE : INTERACT_LOOK.size(role)), floor: role => (role === 'body' ? LAYOUT_BODY_SIZE : INTERACT_LOOK.floor(role)) });
 
 export function interactShapeStyle(role, state = {}, tier, identity = null) {
   const { strokeWidth } = shapeStyle(role, state, tier, identity);

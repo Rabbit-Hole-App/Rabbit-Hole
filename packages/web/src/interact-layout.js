@@ -1,5 +1,6 @@
 import { textWidth } from './tutor-diagrams/primitives.js';
 import { TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
+import { LAYOUT_BODY_SIZE } from './scene-style.js';
 
 // Brief 35: the /interactive scene layouts of docs/features/interact/layout.md (the spec; section numbers below are its). Data plus pure functions used when a card's program is built: no SDK change, no renderer
 // change (tutor-diagrams/ is read, never edited; textWidth is its width model, imported only). A card that declares no layout never reaches this module.
@@ -685,9 +686,9 @@ export const SCENE = Object.freeze({ width: 640, height: 400 });
 // The reset cell (column 12, row 1): whatever slot covers it keeps it clear.
 export const RESET_CELL = Object.freeze([587, 0, 53, 40]);
 export const GRID = Object.freeze({ columns: 12, rows: 10, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 583 });
-// The sizes a frame text object draws today: the SDK gives a text object no typography, so every text is the theme's body style (TEACHING_TEXT.body). The doc's own sizes (section 2: label 13, number 17,
+// The sizes a frame text object draws on a card with a layout (amendment G): the SDK gives a text object no typography, so every text is the body style, 14 px there (scene-style.js LAYOUT_BODY_SIZE). The doc's own sizes (section 2: label 13, number 17,
 // formula 14, note 13) stay available as DOC_TEXT_SIZES for a renderer that can draw them; a card checks its text at the size it is drawn at.
-export const DRAWN_TEXT_SIZES = Object.freeze({ value: TEACHING_TEXT.body.size, formula: TEACHING_TEXT.body.size, note: TEACHING_TEXT.body.size });
+export const DRAWN_TEXT_SIZES = Object.freeze({ value: LAYOUT_BODY_SIZE, formula: LAYOUT_BODY_SIZE, note: LAYOUT_BODY_SIZE });
 export const DOC_TEXT_SIZES = Object.freeze({ label: TEACHING_TEXT.caption.size, number: TEACHING_TEXT.display.size, formula: TEACHING_TEXT.equation.size, note: TEACHING_TEXT.caption.size });
 
 export class LayoutError extends Error {

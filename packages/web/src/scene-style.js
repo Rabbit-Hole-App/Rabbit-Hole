@@ -50,6 +50,9 @@ const TEXT_STYLE = {
   code: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)', fontFamily: 'var(--font-scene-mono)' },
   equation: { fontSize: 16, fontWeight: 400, fill: 'var(--color-ink)' },
 };
+// The body size on a card that declares a scene layout (brief 35 amendment G): every text a frame draws at the body size is 14 px there, not 15. The layout module's text fit checks, the frame's overlap
+// estimate and the Frame's drawing all read this one number; a card with no layout never does.
+export const LAYOUT_BODY_SIZE = 14;
 // Returned by reference below, so a caller mutating one would silently retune
 // the default for everyone after it.
 for (const style of Object.values(TEXT_STYLE)) Object.freeze(style);

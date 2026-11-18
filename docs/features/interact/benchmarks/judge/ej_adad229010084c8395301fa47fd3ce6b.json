@@ -1,0 +1,40 @@
+{
+  "jobId": "ej_adad229010084c8395301fa47fd3ce6b",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 37337,
+  "ms": 6481,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.drop",
+      "message": "The Drop lane draws a ball held at the apex height, but the shared height scale is fixed at 0–52.5 m. At launch speed 5 and gravity 9.8, the apex is 1.28 m, which is only about 4 px above the launch mark. The two balls, the gate and the launch guide are almost on top of each other. At the default inputs, the toss rise and the hold-then-release comparison cannot be seen, so the card does not show its main idea."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.a.toss",
+      "message": "The acceleration arrow is about 122 px long and the velocity arrow is 75 px long, both drawn from the ball. Arrows that point down run past the lane box, which ends at y=279 (arrow tip at y=365). In the cp-fastTop capture, the acceleration arrow for a = -1 is only 12 px long, so the arrow scale is not the same across inputs. The plan says the arrow scales are fixed and shared."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "minor",
+      "object": "lane.drop.state",
+      "message": "The state line reads 'Landed' while the drop ball is still shown with v = -5 and a = -9.8. The Drop lane heading reads 'Released' from time 0, while the state line says 'Held at top'. The heading is ambiguous."
+    },
+    {
+      "capture": "cp-before",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The observation 'topMoves' has no readouts. It is supported only by the apex quantities and the fastTop capture. The fastTop capture shows the apex at 50 m and 10 s, which is correct, and the scrubber range -10 to 10 matches the plan. The checkpoints before/top/after are correct: v = +0.98, 0, -0.98 and a = -9.8 throughout."
+    }
+  ]
+}

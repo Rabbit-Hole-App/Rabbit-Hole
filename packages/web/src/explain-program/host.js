@@ -53,15 +53,16 @@ function parseRequest(operation, raw, program) {
   return parseStatefulEvaluateRequest(raw);
 }
 // A Worker's value for this operation, validated: a frame (with a schema 2 viewport) or a state.
-function parseResult(operation, value, program) {
+function parseResult(operation, value, program, bodySize) {
   if (operation !== 'evaluate') {
     const state = parseState(value);
     return state.ok ? { ok: true, value: { state: state.value } } : state;
   }
-  return fitGuestLabels(parseGuestResult(value, program.manifest, program.sdkVersion), program.sdkVersion); // a label over a body is moved (an sdk-8 program), never refused
+  return fitGuestLabels(parseGuestResult(value, program.manifest, program.sdkVersion), program.sdkVersion, bodySize); // a label over a body is moved (an sdk-8 program), never refused
 }
 
-export function createProgramHost({ artifact, limits = LIMITS, createWorker = defaultWorker }) {
+// bodySize: the body text size a card with a scene layout draws at (14 px), for the label fit's estimate; absent for every other card.
+export function createProgramHost({ artifact, limits = LIMITS, createWorker = defaultWorker, bodySize = undefined }) {
   const admission = admit(artifact);
   const verified = admission.error ? Promise.reject(admission.error)
     : verifyHashes(admission.program).then(ok => {
@@ -112,7 +113,7 @@ export function createProgramHost({ artifact, limits = LIMITS, createWorker = de
       if (data.phase === 'engine' && worker === target) stopWorker(); // the Worker closed itself
       // Where the run failed and how long it had been running (a load overrun is not an evaluate overrun): kept apart like the diagnostic, never in the message.
       if (!data.ok) return reject(Object.defineProperty(new RuntimeError(data.code, data.detail), 'where', { value: { phase: data.phase, ms: data.metrics?.ms ?? performance.now() - started }, enumerable: false }));
-      const result = parseResult(operation, data.value, program);
+      const result = parseResult(operation, data.value, program, bodySize);
       if (!result.ok) return reject(new RuntimeError(result.error.code, result.issue));
       resolve({ requestId: request.requestId, ...result.value, metrics: { ms: performance.now() - started, outputBytes: data.metrics.outputBytes } });
     };

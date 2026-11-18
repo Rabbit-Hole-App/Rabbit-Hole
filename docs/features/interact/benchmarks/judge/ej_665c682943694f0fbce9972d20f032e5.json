@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_665c682943694f0fbce9972d20f032e5",
+  "plan": "toss-mvp-detailed",
+  "depth": "detailed",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 30817,
+  "ms": 5807,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The plot x-axis runs 0 to 20 s at every input, including the default. The default flight lasts only 1.02 s, so the velocity line fills about 5% of the plot width. The ball height scale is also fixed at 0 to 52.5 m. At the default the ball rises 1.28 m, or about 4 px. The plan says the scales are fixed, so this may be intentional. Even so, the apex and the velocity line are nearly unreadable at the default inputs, which hurts the velocitySamples and slope observations."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The height guide and ball move only about 4 px at the apex at default inputs. The ball is drawn 26 px wide, so the rise cannot be seen. The acceleration arrow is 122 px long, about 12.5 px per m/s². At cp-fastTop it is only 12.5 px for a = −1. The arrow length scales with g, which is acceptable."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The scrubber reads 0 to 20 s here, but the layout says Launch speed 10 with Gravity 1 should read 0 to 20 s (2×10/1), so this is consistent. However, apexTime is 10 s and apexHeight is 50 m. The ball sits at y=76, and 50 m against a 52.5 m scale is consistent."
+    }
+  ]
+}

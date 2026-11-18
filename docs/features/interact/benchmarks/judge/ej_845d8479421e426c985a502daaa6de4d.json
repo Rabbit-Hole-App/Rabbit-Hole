@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_845d8479421e426c985a502daaa6de4d",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 26153,
+  "ms": 7951,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The layout says the default scrubber reads 0 to 1.020408 s and that launch speed 3 reads 0 to 0.612245 s. Those figures are the full flight time 2v/g, so they fit a launch speed of 5 (2*5/9.8 = 1.020408). The frames show the default input as launchSpeed 5, and that matches. The layout's other example, launch speed 10, reads 0 to 2.040816 s, which is also consistent. So the range itself checks out. The problem is that the plan's own Launch speed 10 'fastTop' capture is at t=1.020408, the apex time for 10 m/s, and its scrubber range is correct. Because of this, the range is not a finding."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "message": "At the endpoint, t is 1.020408 s and the ball is back at the launch mark. The ball is still labelled and read out as 'Moving Down' with a downward v arrow of length 60. The state word is 'Back at Start', which is reasonable, but the 'Moving Down' readout and callout fit the endpoint only as the instant of landing. This is acceptable, not a clear error."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The fixed scale shows the ball at y=60 at the apex of a 10 m/s toss. The apex height is 5.10 m, which is 170 px, or 33.3 px/m. For 5 m/s the height is 1.2755 m, which is 42.5 px, also consistent. The fast toss is near the top of the lane (y=34). That is fine but leaves little margin, and the callout at y=40 sits right at the lane's top edge. I cannot judge clipping without pixels."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The scene description says 'no number readout'. The scene shows a text state label ('At Launch') and a readout 'Gravity pulls down' that is the same in every state. The gravity arrow keeps its direction and length in every frame (48 px), which supports the gravityConstant observation. At launch the callout says 'Moving Up' while the motion is at the instant of launch, so it is fine. The 'Back at Start' state at the end also carries a v arrow of 60 px pointing down. Together this is consistent with the physics. I found no other defect, so this is mostly a note."
+    }
+  ]
+}

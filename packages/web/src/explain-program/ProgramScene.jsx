@@ -7,7 +7,8 @@ import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget, ResetButton } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
-import { INTERACT_LOOK } from '../interact-style.js';
+import { INTERACT_LOOK, LAYOUT_LOOK } from '../interact-style.js';
+import { LAYOUT_BODY_SIZE } from '../scene-style.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { useProgramState } from './use-program-state.js';
@@ -30,16 +31,18 @@ const STILL = { duration: 0 };
 
 // One scalar control: the labelled range slider the scene cards' sliders use, with a readout that keeps its unit.
 // fill (brief 35, a card with a scene layout): the slider takes the room its cell gives it instead of a fixed 11 rem.
+// The slider titles and values and the time label are 14 px on a card with a scene layout (they are text-xs, 12 px, on every other card).
+const LAYOUT_CONTROL_SIZE = 14;
 function NumberInput({ input, value, onInput, fill = false }) {
   const decimals = input.step && input.step < 1 ? String(input.step).split('.')[1]?.length ?? 0 : 0;
   const shown = Number(value).toFixed(decimals);
   return (
     <div role="group" aria-label={input.label} className={fill ? 'flex min-w-0 items-center gap-1.5' : 'flex flex-wrap items-center gap-1.5'}>
-      <span className="text-xs font-medium text-ink-2">{input.label}:</span>
+      <span className="text-xs font-medium text-ink-2" style={fill ? { fontSize: LAYOUT_CONTROL_SIZE } : undefined}>{input.label}:</span>
       <input type="range" data-input-control={input.id} min={input.min} max={input.max} step={input.step ?? (input.max - input.min) / 100} value={value}
         aria-label={input.label} aria-valuetext={`${shown}${input.unit ? ` ${input.unit}` : ''}`}
         onChange={event => onInput(input.id, Number(event.target.value), { live: true })} className={fill ? 'h-8 min-w-0 flex-1 accent-accent' : 'h-8 w-44 accent-accent'} />
-      <span data-input-readout={input.id} className="text-xs tabular-nums text-ink-2">{shown}{input.unit ? ` ${input.unit}` : ''}</span>
+      <span data-input-readout={input.id} className="text-xs tabular-nums text-ink-2" style={fill ? { fontSize: LAYOUT_CONTROL_SIZE } : undefined}>{shown}{input.unit ? ` ${input.unit}` : ''}</span>
     </div>
   );
 }
@@ -109,7 +112,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // One host per artifact, disposed with the card (hidden, deleted, navigated away): a Worker is never left behind.
   useEffect(() => {
     if (!artifact) return undefined;
-    const created = createProgramHost({ artifact });
+    const created = createProgramHost({ artifact, bodySize: composition?.main?.layout ? LAYOUT_BODY_SIZE : undefined });
     host.current = created;
     setHostReady(count => count + 1);
     return () => { if (host.current === created) host.current = null; created.dispose('card closed'); };
@@ -159,7 +162,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => { setBox(null); }, [artifact]);
   useEffect(() => {
     if (!view || box) return;
-    const look = composition ? INTERACT_LOOK : null; // a composed /interactive card is sized by the written card's text sizes and floors
+    const look = composition ? (composition.main?.layout ? LAYOUT_LOOK : INTERACT_LOOK) : null; // a composed /interactive card is sized by the written card's text sizes and floors
     const legible = legibleFrame(view.scene, look);
     setBox({ ...legible, minScale: readableScale(view.scene, legible, look) });
     onProgramFrame?.(legible);
@@ -251,7 +254,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const dragTo = useRef(NOOP), dragging = useRef(null); // a drag of a declared drag target (set below), and the one in progress
   const pointer = useRef(null), dragged = useRef(false); // the captured pointer of that drag; a click right after a moved drag is not a pick
   const dragIds = useMemo(() => (manifest?.targets ?? []).filter(target => target.drag).map(target => target.id), [manifest]);
-  const picture = useMemo(() => view && <Frame interact scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={id => pick.current(id)} onRegion={NOOP} />, [view]);
+  const picture = useMemo(() => view && <Frame interact scene={view.scene} bodySize={composition?.main?.layout ? LAYOUT_BODY_SIZE : null} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={id => pick.current(id)} onRegion={NOOP} />, [view]);
   // A new artifact or host, or leaving the card, ends any drag in progress without sending anything more.
   useEffect(() => () => { dragging.current = null; pointer.current = null; }, [artifact, hostReady]);
   // The pointer side of a drag (Task 8.4), on the drawing's own container, so the shared Frame is unchanged: a press on a declared drag
@@ -360,7 +363,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const shownTime = playing ? view.time : time;
   // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
-  const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
+  const legible = box ?? legibleFrame(view.scene, composition ? (composition.main?.layout ? LAYOUT_LOOK : INTERACT_LOOK) : null);
   // A card that declares a scene layout (composition.main.layout, brief 35) draws its values inside the scene, its Reset over the scene's top-right cell and its control rows at the full width; every other card is unchanged.
   const laid = Boolean(composed && composition.main.layout);
   const readoutRows = composed && !laid ? (view.readouts || []).filter(r => rowReadoutIds(composition).includes(r.id)) : [];
@@ -401,7 +404,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           </button>
           <input type="range" aria-label={manifest.timeline?.label ?? 'Explanation time'} min={0} max={duration} step={scrubStep(manifest, composition)} value={time}
             onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value), composition, inputs), composition, inputs)); }} className="h-8 min-w-0 flex-1 accent-accent" />
-          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime, composition, inputs)}</span>
+          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2" style={laid ? { fontSize: LAYOUT_CONTROL_SIZE } : undefined}>{timeLabel(manifest, shownTime, composition, inputs)}</span>
         </div>
       )}
       {(composed ? rows.length > 0 || seeks.length > 0 || actions.length > 0 || targets.length > 0 : rows.length > 0 || actions.length > 0 || targets.length > 0) && (

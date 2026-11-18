@@ -1,0 +1,34 @@
+{
+  "jobId": "ej_cc3d0f1a520445acaf36c7279489ace7",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 18845,
+  "ms": 5784,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "object": "slope",
+      "message": "Check the steep state. With k=5, x0=0 and x=1, y=0.993307. The slope is k*y*(1-y) = 5*0.993307*0.006693 = 0.03324, so the number is correct. But the tangent is nearly flat there, so the 'Most steep' state shows a smaller slope at the marker than the default (0.1966). This could teach that steeper k means lower sensitivity, and the card never explains it. The marker was placed at a fixed x=1, which does not support the sensitivity observation for this checkpoint."
+    },
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "object": "guide.marker.x",
+      "message": "Guide lines (guide.marker.x and guide.marker.y) are missing in the steep and x0-min frames. Their absence is probably because y is near 1 and the guide is clipped, but it is inconsistent with the other frames. The marker is still drawn at y=69.4 and y=71.7."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "object": "plot.curve",
+      "message": "The tangent line and the curve are listed only as series labels. Their geometry cannot be judged from the frame, so the tangent's correctness and the 'approaches bounds without reaching' observation cannot be verified visually. The 'Standard steepness' state word is also shown for x0 shifted and x0 min/max, which is acceptable."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_62083881582b4df4abeeecbeb9c614ad",
+  "plan": "curve-logistic-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 18133,
+  "ms": 4889,
+  "findings": [
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "At k=5, x0=0, marker x=1: y=1/(1+e^-5)=0.993307, but slope=k*y*(1-y)=5*0.993307*0.006693=0.03324. This is correct. However the card's 'Most steep' state shows a smaller slope (0.033) than the default (0.197), so the 'tangent slope measures sensitivity' observation looks contradictory unless it is explained. No text says the marker has moved into the saturated region."
+    },
+    {
+      "capture": "cp-steep",
+      "category": "spec",
+      "severity": "major",
+      "message": "Frames for cp-steep, bound-x0-min and the other captures omit guide.marker.x and guide.marker.y in some states (cp-steep, bound-x0-min). The marker guides are inconsistent between states. The tangent line object is also not listed in any frame, so the tangent and its legend cannot be verified from the frames. This leaves the sensitivity observation unsupported."
+    },
+    {
+      "capture": "default",
+      "category": "spec",
+      "severity": "minor",
+      "message": "Marker callout reads 'x =1.0' with odd spacing and doesn't show the y value. The y value appears only in the readout."
+    }
+  ]
+}

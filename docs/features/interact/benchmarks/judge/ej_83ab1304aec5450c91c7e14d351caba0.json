@@ -1,0 +1,19 @@
+{
+  "jobId": "ej_83ab1304aec5450c91c7e14d351caba0",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "pass",
+  "costMicros": 19643,
+  "ms": 2946,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The frame shows the ball at y=60 (170 px above launch) for 5.10 m. That is 33.3 px/m, which matches the 1.2755 m top at 5 m/s (42.5 px). The scale is consistent and fixed. The ball is near the lane top edge (lane y=34). The ball radius is 18, so the ball's top at y=42 is just inside. This cannot be judged without pixels."
+    }
+  ]
+}

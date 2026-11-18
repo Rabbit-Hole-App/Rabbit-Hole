@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_9602111c2b4948f18f6d9a8c7d1a857e",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 26479,
+  "ms": 5843,
+  "findings": [
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.v",
+      "message": "At the end state (t = 1.020408 s, launch speed 5) the ball is back at the launch mark with v = -5 m/s. The arrow runs from y=230 to y=290, which goes below the lane box. The lane box covers y 34 to 266, and the launch line is at y=230. The Motion arrow and the 'a' arrow (to y=278) also go past the lane box. The drawing leaves its own scene, so it shows the ball falling out of the lane."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "object": "vec.v",
+      "message": "The Motion arrow scale does not match the gravity arrow scale. For example, v = 5 m/s gives a 60 px arrow, while a = 9.8 m/s^2 gives a 48 px arrow. This is acceptable if the two quantities are meant to be compared only by direction, but the plan does not say so."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "object": "callout.toss.l0",
+      "message": "At launch speed 8 the ball is at y=60, and its callout is at y=40. This is near the top of the lane at y=34, so the scale is only just big enough. Whether any part is clipped cannot be judged without pixels."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "object": "lane.toss.state",
+      "message": "The state word reads 'Apex Reached'. The callout and the readout read 'At the Top'. The wording differs, but this is not misleading."
+    }
+  ]
+}

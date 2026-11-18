@@ -12,6 +12,7 @@ import { canonicalJson } from '../../web/src/explain-contract.js';
 import { CAPTURE_BUDGET, evalScalar, indexLists, ScalarExprError } from '../../web/src/interact-plan.js';
 import { createSnapshotResolver, resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
 import { fitGuestLabels, frameOverlaps, traceFrame, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
+import { LAYOUT_BODY_SIZE } from '../../web/src/scene-style.js';
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
@@ -484,10 +485,11 @@ export function headlessCaptureCard(_env, { limits } = {}) {
       const program = artifact.program, request = { requestId: '1', inputs, time, seed: 0, state: null };
       const out = runProgram(engine, { source: program.source, request, sdkVersion: program.sdkVersion }, limits ?? LIMITS);
       if (!out.ok) return { error: { code: out.code, diagnostic: out.detail } };
-      const parsed = fitGuestLabels(parseGuestResult(out.value, program.manifest, program.sdkVersion), program.sdkVersion);
+      const bodySize = composition.main.layout ? LAYOUT_BODY_SIZE : undefined; // a card with a scene layout draws its body text at 14 px, and so does the overlap estimate
+      const parsed = fitGuestLabels(parseGuestResult(out.value, program.manifest, program.sdkVersion), program.sdkVersion, bodySize);
       if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
       const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), labels: frame.objects.filter(o => (o.kind === 'text' || o.kind === 'box') && o.text).map(o => ({ id: o.id, text: String(o.text).slice(0, 160) })), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), ...(parsed.fitted?.length ? { fitted: parsed.fitted } : {}), inputs, time };
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), labels: frame.objects.filter(o => (o.kind === 'text' || o.kind === 'box') && o.text).map(o => ({ id: o.id, text: String(o.text).slice(0, 160) })), objects: traceObjects(frame.objects), frame: { ...traceFrame(frame), ...(bodySize ? { bodySize } : {}) }, frameHash: await sha256Hex(canonicalJson(frame.objects)), ...(parsed.fitted?.length ? { fitted: parsed.fitted } : {}), inputs, time };
     };
     const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
     const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });

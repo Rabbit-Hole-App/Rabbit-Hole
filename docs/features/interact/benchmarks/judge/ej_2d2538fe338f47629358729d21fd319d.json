@@ -1,0 +1,25 @@
+{
+  "jobId": "ej_2d2538fe338f47629358729d21fd319d",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "pass",
+  "costMicros": 20733,
+  "ms": 3844,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The fast toss (10 m/s) apex is at y=60, and the callout boxes sit at y=40 to 96. The apex is 170 px above the launch mark, which is 34 px per metre. The scene scale is fixed, so this is consistent. The top of the lane is y=34, so the ball (radius 18) at y=60 is only just inside it. This is fine and I can't judge clipping without pixels."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "minor",
+      "message": "At the endpoint, the Motion arrow points down and has length 60. Its tip at y=290 is below the lane box, which ends at y=266. The arrow may extend outside the lane. This can't be judged without pixels."
+    }
+  ]
+}
