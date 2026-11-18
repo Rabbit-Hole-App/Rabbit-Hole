@@ -242,6 +242,11 @@ export function fillDerived(d) {
   for (const inst of instancesOf(d)) if (inst.computed !== undefined && (inst.written === undefined || inst.replace)) setAt(d, inst.at, inst.computed);
   return d;
 }
+// The paths (inside the diagram) of every number a derived field holds, for the diagram itself (not its child diagrams): what a prose token may name, listed when one names a path that is not there.
+export function derivedPaths(d) {
+  const leaves = (value, path) => (typeof value === 'number' ? [path.join('.')] : value && typeof value === 'object' ? Object.entries(value).flatMap(([key, child]) => leaves(child, [...path, key])) : []);
+  return instancesOf(d).flatMap(({ at, computed }) => (computed === undefined ? [] : leaves(computed, at)));
+}
 // The after items a softmax transformation computes (null when it has none), for the validator steps that need their number before the fill.
 export function derivedAfterItems(d) {
   return d.op === 'softmax' && d.before?.items ? softmaxInstance({ ...d, after: { ...d.after, items: undefined } })?.computed ?? null : null;
