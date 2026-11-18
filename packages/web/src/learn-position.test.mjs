@@ -106,7 +106,7 @@ test('a card another writer keeps moving back is moved once more at most, then l
   assert.equal(fights, 1);
 });
 
-test('the same cards issued more than 10 times within a second stop being moved (a loop), and a new card set moves again', () => {
+test('a card written 10 times within a second is never written again (a loop), and another card still moves', () => {
   const { guardLearnMoves, learnGuardMemory, LEARN_LOOP } = positionApi;
   const memory = learnGuardMemory(), block = { id: 'c', dx: 0, dy: 0, learn: { slot: true } };
   let issued = 0, loops = 0;
@@ -117,8 +117,22 @@ test('the same cards issued more than 10 times within a second stop being moved 
   }
   assert.equal(issued, LEARN_LOOP.count);
   assert.equal(loops, 1);
-  const other = guardLearnMoves(new Map([['d', { dx: 1, dy: 1 }]]), [{ id: 'd' }], memory, 1100);
+  assert.equal(guardLearnMoves(new Map([['c', { dx: 1, dy: 0 }]]), [block], memory, 5000).moves.size, 0);
+  const other = guardLearnMoves(new Map([['d', { dx: 1, dy: 1 }]]), [{ id: 'd' }], memory, 2100);
   assert.equal(other.moves.size, 1);
+});
+
+test('the brake: at most 10 writes within a second, whatever the cards; the next waits for the window', () => {
+  const { guardLearnMoves, learnGuardMemory, LEARN_LOOP } = positionApi;
+  const memory = learnGuardMemory();
+  let issued = 0, wait = null;
+  for (let k = 0; k < 30; k += 1) { // a new card every turn: no card repeats, so only the brake can end the chain
+    const out = guardLearnMoves(new Map([[`card${k}`, { dx: k, dy: 0 }]]), [{ id: `card${k}` }], memory, 1000 + k);
+    issued += out.moves.size; if (out.wait != null) wait = out.wait;
+  }
+  assert.equal(issued, LEARN_LOOP.count);
+  assert.equal(wait, LEARN_LOOP.ms - 29);
+  assert.equal(guardLearnMoves(new Map([['late', { dx: 1, dy: 0 }]]), [{ id: 'late' }], memory, 2100).moves.size, 1);
 });
 
 test('moves spread over time are never a loop', () => {
