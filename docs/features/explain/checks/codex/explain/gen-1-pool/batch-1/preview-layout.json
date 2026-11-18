@@ -1,0 +1,345 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 4507,
+  "groups": [
+    {
+      "kind": "waterfall",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-exhibit-tank-refill",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 328
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 328
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 328
+            }
+          ],
+          "bottom": 483
+        },
+        {
+          "id": "pool-trivia-team-score",
+          "top": 479,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 503,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 362
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 503,
+              "displayWidth": 408,
+              "nativeWidth": 442,
+              "height": 324
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 503,
+              "displayWidth": 408,
+              "nativeWidth": 442,
+              "height": 303
+            }
+          ],
+          "bottom": 880
+        },
+        {
+          "id": "pool-apron-fabric-stock",
+          "top": 876,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 900,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 345
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 900,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 345
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 900,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 367
+            }
+          ],
+          "bottom": 1282
+        }
+      ],
+      "bottom": 1282
+    },
+    {
+      "kind": "t-account",
+      "top": 1282,
+      "rows": [
+        {
+          "id": "pool-prepaid-recital-venue",
+          "top": 1339,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1363,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 358
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1363,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 378
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1363,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 378
+            }
+          ],
+          "bottom": 1756
+        },
+        {
+          "id": "pool-robotics-parts-payable",
+          "top": 1752,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1776,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 358
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1776,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 400
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1776,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 378
+            }
+          ],
+          "bottom": 2191
+        },
+        {
+          "id": "pool-orchard-packing-expense",
+          "top": 2187,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 2211,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 375
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 2211,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 429
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 2211,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 429
+            }
+          ],
+          "bottom": 2655
+        }
+      ],
+      "bottom": 2655
+    },
+    {
+      "kind": "box-plot",
+      "top": 2655,
+      "rows": [
+        {
+          "id": "pool-sunflower-tray-heights",
+          "top": 2712,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 2736,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 336
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 2736,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 465
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 2736,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 482
+            }
+          ],
+          "bottom": 3233
+        },
+        {
+          "id": "pool-fired-tile-widths",
+          "top": 3229,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 3253,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 421
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 3253,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 421
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 3253,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 438
+            }
+          ],
+          "bottom": 3706
+        }
+      ],
+      "bottom": 3706
+    },
+    {
+      "kind": "number-line",
+      "top": 3706,
+      "rows": [
+        {
+          "id": "pool-trailhead-elevation-offsets",
+          "top": 3763,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 3787,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 277
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 3787,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 304
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 3787,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 287
+            }
+          ],
+          "bottom": 4106
+        },
+        {
+          "id": "pool-soundcheck-time-window",
+          "top": 4102,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 4126,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 260
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 4126,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 356
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 4126,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 356
+            }
+          ],
+          "bottom": 4497
+        }
+      ],
+      "bottom": 4497
+    }
+  ]
+}

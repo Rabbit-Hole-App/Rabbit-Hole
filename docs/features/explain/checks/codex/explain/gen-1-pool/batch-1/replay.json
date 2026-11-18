@@ -1,0 +1,221 @@
+{
+  "base": "c56e4fcc8de12ab2fc114fc15c8bb1cbc0858993",
+  "localCandidate": "367da086d6b1a8609fa7131743469825fe5c75c5",
+  "existingCatalogueCases": 3072,
+  "savedPlannerCases": 474,
+  "catalogueMoves": [],
+  "savedPlannerMoves": [],
+  "newOwnPromptCases": [
+    {
+      "depth": "overview",
+      "prompt": "How much water is left in the exhibit tank after the refill and drain?",
+      "id": "pool-exhibit-tank-refill",
+      "planKind": "waterfall",
+      "score": 50
+    },
+    {
+      "depth": "standard",
+      "prompt": "How much water is left in the exhibit tank after the refill and drain?",
+      "id": "pool-exhibit-tank-refill",
+      "planKind": "waterfall",
+      "score": 50
+    },
+    {
+      "depth": "deep",
+      "prompt": "How much water is left in the exhibit tank after the refill and drain?",
+      "id": "pool-exhibit-tank-refill",
+      "planKind": "waterfall",
+      "score": 50
+    },
+    {
+      "depth": "overview",
+      "prompt": "How did the trivia team score fall after correct answers, a bonus, and a penalty?",
+      "id": "pool-trivia-team-score",
+      "planKind": "waterfall",
+      "score": 60
+    },
+    {
+      "depth": "standard",
+      "prompt": "How did the trivia team score fall after correct answers, a bonus, and a penalty?",
+      "id": "pool-trivia-team-score",
+      "planKind": "waterfall",
+      "score": 60
+    },
+    {
+      "depth": "deep",
+      "prompt": "How did the trivia team score fall after correct answers, a bonus, and a penalty?",
+      "id": "pool-trivia-team-score",
+      "planKind": "waterfall",
+      "score": 60
+    },
+    {
+      "depth": "overview",
+      "prompt": "How much apron fabric stock is left after one roll arrives and the aprons are cut?",
+      "id": "pool-apron-fabric-stock",
+      "planKind": "waterfall",
+      "score": 58
+    },
+    {
+      "depth": "standard",
+      "prompt": "How much apron fabric stock is left after one roll arrives and the aprons are cut?",
+      "id": "pool-apron-fabric-stock",
+      "planKind": "waterfall",
+      "score": 58
+    },
+    {
+      "depth": "deep",
+      "prompt": "How much apron fabric stock is left after one roll arrives and the aprons are cut?",
+      "id": "pool-apron-fabric-stock",
+      "planKind": "waterfall",
+      "score": 58
+    },
+    {
+      "depth": "overview",
+      "prompt": "Show how prepayments for the dance recital venue are used up in a T-account.",
+      "id": "pool-prepaid-recital-venue",
+      "planKind": "t-account",
+      "score": 50
+    },
+    {
+      "depth": "standard",
+      "prompt": "Show how prepayments for the dance recital venue are used up in a T-account.",
+      "id": "pool-prepaid-recital-venue",
+      "planKind": "t-account",
+      "score": 50
+    },
+    {
+      "depth": "deep",
+      "prompt": "Show how prepayments for the dance recital venue are used up in a T-account.",
+      "id": "pool-prepaid-recital-venue",
+      "planKind": "t-account",
+      "score": 50
+    },
+    {
+      "depth": "overview",
+      "prompt": "How do the invoices and payments clear the robotics parts payable account?",
+      "id": "pool-robotics-parts-payable",
+      "planKind": "t-account",
+      "score": 58
+    },
+    {
+      "depth": "standard",
+      "prompt": "How do the invoices and payments clear the robotics parts payable account?",
+      "id": "pool-robotics-parts-payable",
+      "planKind": "t-account",
+      "score": 58
+    },
+    {
+      "depth": "deep",
+      "prompt": "How do the invoices and payments clear the robotics parts payable account?",
+      "id": "pool-robotics-parts-payable",
+      "planKind": "t-account",
+      "score": 58
+    },
+    {
+      "depth": "overview",
+      "prompt": "Show how a sleeve return and the period close clear the orchard packing expense account.",
+      "id": "pool-orchard-packing-expense",
+      "planKind": "t-account",
+      "score": 58
+    },
+    {
+      "depth": "standard",
+      "prompt": "Show how a sleeve return and the period close clear the orchard packing expense account.",
+      "id": "pool-orchard-packing-expense",
+      "planKind": "t-account",
+      "score": 58
+    },
+    {
+      "depth": "deep",
+      "prompt": "Show how a sleeve return and the period close clear the orchard packing expense account.",
+      "id": "pool-orchard-packing-expense",
+      "planKind": "t-account",
+      "score": 58
+    },
+    {
+      "depth": "overview",
+      "prompt": "What does a box plot of these sunflower seedling heights from the window and shelf trays show?",
+      "id": "pool-sunflower-tray-heights",
+      "planKind": "box-plot",
+      "score": 50
+    },
+    {
+      "depth": "standard",
+      "prompt": "What does a box plot of these sunflower seedling heights from the window and shelf trays show?",
+      "id": "pool-sunflower-tray-heights",
+      "planKind": "box-plot",
+      "score": 50
+    },
+    {
+      "depth": "deep",
+      "prompt": "What does a box plot of these sunflower seedling heights from the window and shelf trays show?",
+      "id": "pool-sunflower-tray-heights",
+      "planKind": "box-plot",
+      "score": 50
+    },
+    {
+      "depth": "overview",
+      "prompt": "How do box plots of the fired clay tile widths from the north and south kilns compare?",
+      "id": "pool-fired-tile-widths",
+      "planKind": "box-plot",
+      "score": 50
+    },
+    {
+      "depth": "standard",
+      "prompt": "How do box plots of the fired clay tile widths from the north and south kilns compare?",
+      "id": "pool-fired-tile-widths",
+      "planKind": "box-plot",
+      "score": 50
+    },
+    {
+      "depth": "deep",
+      "prompt": "How do box plots of the fired clay tile widths from the north and south kilns compare?",
+      "id": "pool-fired-tile-widths",
+      "planKind": "box-plot",
+      "score": 50
+    },
+    {
+      "depth": "overview",
+      "prompt": "Can you plot the creek, pine bend and lookout elevations relative to the trailhead?",
+      "id": "pool-trailhead-elevation-offsets",
+      "planKind": "number-line",
+      "score": 62
+    },
+    {
+      "depth": "standard",
+      "prompt": "Can you plot the creek, pine bend and lookout elevations relative to the trailhead?",
+      "id": "pool-trailhead-elevation-offsets",
+      "planKind": "number-line",
+      "score": 62
+    },
+    {
+      "depth": "deep",
+      "prompt": "Can you plot the creek, pine bend and lookout elevations relative to the trailhead?",
+      "id": "pool-trailhead-elevation-offsets",
+      "planKind": "number-line",
+      "score": 62
+    },
+    {
+      "depth": "overview",
+      "prompt": "Can you show the theatre soundcheck window from stage handover until the doors open?",
+      "id": "pool-soundcheck-time-window",
+      "planKind": "number-line",
+      "score": 58
+    },
+    {
+      "depth": "standard",
+      "prompt": "Can you show the theatre soundcheck window from stage handover until the doors open?",
+      "id": "pool-soundcheck-time-window",
+      "planKind": "number-line",
+      "score": 58
+    },
+    {
+      "depth": "deep",
+      "prompt": "Can you show the theatre soundcheck window from stage handover until the doors open?",
+      "id": "pool-soundcheck-time-window",
+      "planKind": "number-line",
+      "score": 58
+    }
+  ],
+  "publishedTip": "9e5f7ba9bf81579951a36dc927734ef2263e7509"
+}

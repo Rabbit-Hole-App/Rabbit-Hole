@@ -1,0 +1,585 @@
+{
+  "sha": "367da086d6b1a8609fa7131743469825fe5c75c5",
+  "libraryCases": 3072,
+  "records": [
+    {
+      "id": "pool-exhibit-tank-refill",
+      "kind": "waterfall",
+      "standardTitle": "Exhibit tank volume after cleaning",
+      "depths": {
+        "overview": {
+          "tokens": 79,
+          "normalizedTokens": 78,
+          "nativeWidth": 408,
+          "height": 328,
+          "ownPicks": [
+            {
+              "prompt": "How much water is left in the exhibit tank after the refill and drain?",
+              "id": "pool-exhibit-tank-refill",
+              "planKind": "waterfall",
+              "score": 50
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 78,
+          "normalizedTokens": 77,
+          "nativeWidth": 408,
+          "height": 328,
+          "ownPicks": [
+            {
+              "prompt": "How much water is left in the exhibit tank after the refill and drain?",
+              "id": "pool-exhibit-tank-refill",
+              "planKind": "waterfall",
+              "score": 50
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 86,
+          "normalizedTokens": 85,
+          "nativeWidth": 408,
+          "height": 328,
+          "ownPicks": [
+            {
+              "prompt": "How much water is left in the exhibit tank after the refill and drain?",
+              "id": "pool-exhibit-tank-refill",
+              "planKind": "waterfall",
+              "score": 50
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-trivia-team-score",
+      "kind": "waterfall",
+      "standardTitle": "Trivia score after the bonus and penalty",
+      "depths": {
+        "overview": {
+          "tokens": 83,
+          "normalizedTokens": 82,
+          "nativeWidth": 408,
+          "height": 362,
+          "ownPicks": [
+            {
+              "prompt": "How did the trivia team score fall after correct answers, a bonus, and a penalty?",
+              "id": "pool-trivia-team-score",
+              "planKind": "waterfall",
+              "score": 60
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 88,
+          "normalizedTokens": 87,
+          "nativeWidth": 442,
+          "height": 350,
+          "ownPicks": [
+            {
+              "prompt": "How did the trivia team score fall after correct answers, a bonus, and a penalty?",
+              "id": "pool-trivia-team-score",
+              "planKind": "waterfall",
+              "score": 60
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 99,
+          "normalizedTokens": 98,
+          "nativeWidth": 442,
+          "height": 328,
+          "ownPicks": [
+            {
+              "prompt": "How did the trivia team score fall after correct answers, a bonus, and a penalty?",
+              "id": "pool-trivia-team-score",
+              "planKind": "waterfall",
+              "score": 60
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-apron-fabric-stock",
+      "kind": "waterfall",
+      "standardTitle": "Apron workshop fabric stock",
+      "depths": {
+        "overview": {
+          "tokens": 80,
+          "normalizedTokens": 79,
+          "nativeWidth": 408,
+          "height": 345,
+          "ownPicks": [
+            {
+              "prompt": "How much apron fabric stock is left after one roll arrives and the aprons are cut?",
+              "id": "pool-apron-fabric-stock",
+              "planKind": "waterfall",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 82,
+          "normalizedTokens": 81,
+          "nativeWidth": 408,
+          "height": 345,
+          "ownPicks": [
+            {
+              "prompt": "How much apron fabric stock is left after one roll arrives and the aprons are cut?",
+              "id": "pool-apron-fabric-stock",
+              "planKind": "waterfall",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 91,
+          "normalizedTokens": 90,
+          "nativeWidth": 408,
+          "height": 367,
+          "ownPicks": [
+            {
+              "prompt": "How much apron fabric stock is left after one roll arrives and the aprons are cut?",
+              "id": "pool-apron-fabric-stock",
+              "planKind": "waterfall",
+              "score": 58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-prepaid-recital-venue",
+      "kind": "t-account",
+      "standardTitle": "Recital venue prepayments and rent",
+      "depths": {
+        "overview": {
+          "tokens": 113,
+          "normalizedTokens": 112,
+          "nativeWidth": 408,
+          "height": 358,
+          "ownPicks": [
+            {
+              "prompt": "Show how prepayments for the dance recital venue are used up in a T-account.",
+              "id": "pool-prepaid-recital-venue",
+              "planKind": "t-account",
+              "score": 50
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 127,
+          "normalizedTokens": 126,
+          "nativeWidth": 408,
+          "height": 378,
+          "ownPicks": [
+            {
+              "prompt": "Show how prepayments for the dance recital venue are used up in a T-account.",
+              "id": "pool-prepaid-recital-venue",
+              "planKind": "t-account",
+              "score": 50
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 125,
+          "normalizedTokens": 124,
+          "nativeWidth": 408,
+          "height": 378,
+          "ownPicks": [
+            {
+              "prompt": "Show how prepayments for the dance recital venue are used up in a T-account.",
+              "id": "pool-prepaid-recital-venue",
+              "planKind": "t-account",
+              "score": 50
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-robotics-parts-payable",
+      "kind": "t-account",
+      "standardTitle": "Invoices and payments for robot parts",
+      "depths": {
+        "overview": {
+          "tokens": 106,
+          "normalizedTokens": 105,
+          "nativeWidth": 408,
+          "height": 358,
+          "ownPicks": [
+            {
+              "prompt": "How do the invoices and payments clear the robotics parts payable account?",
+              "id": "pool-robotics-parts-payable",
+              "planKind": "t-account",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 114,
+          "normalizedTokens": 113,
+          "nativeWidth": 408,
+          "height": 400,
+          "ownPicks": [
+            {
+              "prompt": "How do the invoices and payments clear the robotics parts payable account?",
+              "id": "pool-robotics-parts-payable",
+              "planKind": "t-account",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 117,
+          "normalizedTokens": 116,
+          "nativeWidth": 408,
+          "height": 378,
+          "ownPicks": [
+            {
+              "prompt": "How do the invoices and payments clear the robotics parts payable account?",
+              "id": "pool-robotics-parts-payable",
+              "planKind": "t-account",
+              "score": 58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-orchard-packing-expense",
+      "kind": "t-account",
+      "standardTitle": "Post the orchard packing expenses",
+      "depths": {
+        "overview": {
+          "tokens": 121,
+          "normalizedTokens": 120,
+          "nativeWidth": 408,
+          "height": 375,
+          "ownPicks": [
+            {
+              "prompt": "Show how a sleeve return and the period close clear the orchard packing expense account.",
+              "id": "pool-orchard-packing-expense",
+              "planKind": "t-account",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 135,
+          "normalizedTokens": 134,
+          "nativeWidth": 408,
+          "height": 429,
+          "ownPicks": [
+            {
+              "prompt": "Show how a sleeve return and the period close clear the orchard packing expense account.",
+              "id": "pool-orchard-packing-expense",
+              "planKind": "t-account",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 137,
+          "normalizedTokens": 136,
+          "nativeWidth": 408,
+          "height": 429,
+          "ownPicks": [
+            {
+              "prompt": "Show how a sleeve return and the period close clear the orchard packing expense account.",
+              "id": "pool-orchard-packing-expense",
+              "planKind": "t-account",
+              "score": 58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-sunflower-tray-heights",
+      "kind": "box-plot",
+      "standardTitle": "Sunflower heights by tray",
+      "depths": {
+        "overview": {
+          "tokens": 134,
+          "normalizedTokens": 149,
+          "nativeWidth": 408,
+          "height": 335.5,
+          "ownPicks": [
+            {
+              "prompt": "What does a box plot of these sunflower seedling heights from the window and shelf trays show?",
+              "id": "pool-sunflower-tray-heights",
+              "planKind": "box-plot",
+              "score": 50
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 172,
+          "normalizedTokens": 188,
+          "nativeWidth": 408,
+          "height": 464.5,
+          "ownPicks": [
+            {
+              "prompt": "What does a box plot of these sunflower seedling heights from the window and shelf trays show?",
+              "id": "pool-sunflower-tray-heights",
+              "planKind": "box-plot",
+              "score": 50
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 188,
+          "normalizedTokens": 204,
+          "nativeWidth": 408,
+          "height": 481.5,
+          "ownPicks": [
+            {
+              "prompt": "What does a box plot of these sunflower seedling heights from the window and shelf trays show?",
+              "id": "pool-sunflower-tray-heights",
+              "planKind": "box-plot",
+              "score": 50
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-fired-tile-widths",
+      "kind": "box-plot",
+      "standardTitle": "Fired tile width quartiles",
+      "depths": {
+        "overview": {
+          "tokens": 143,
+          "normalizedTokens": 143,
+          "nativeWidth": 408,
+          "height": 420.5,
+          "ownPicks": [
+            {
+              "prompt": "How do box plots of the fired clay tile widths from the north and south kilns compare?",
+              "id": "pool-fired-tile-widths",
+              "planKind": "box-plot",
+              "score": 50
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 154,
+          "normalizedTokens": 154,
+          "nativeWidth": 408,
+          "height": 420.5,
+          "ownPicks": [
+            {
+              "prompt": "How do box plots of the fired clay tile widths from the north and south kilns compare?",
+              "id": "pool-fired-tile-widths",
+              "planKind": "box-plot",
+              "score": 50
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 161,
+          "normalizedTokens": 161,
+          "nativeWidth": 408,
+          "height": 437.5,
+          "ownPicks": [
+            {
+              "prompt": "How do box plots of the fired clay tile widths from the north and south kilns compare?",
+              "id": "pool-fired-tile-widths",
+              "planKind": "box-plot",
+              "score": 50
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-trailhead-elevation-offsets",
+      "kind": "number-line",
+      "standardTitle": "Elevations from the trailhead",
+      "depths": {
+        "overview": {
+          "tokens": 97,
+          "normalizedTokens": 97,
+          "nativeWidth": 408,
+          "height": 277,
+          "ownPicks": [
+            {
+              "prompt": "Can you plot the creek, pine bend and lookout elevations relative to the trailhead?",
+              "id": "pool-trailhead-elevation-offsets",
+              "planKind": "number-line",
+              "score": 62
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 108,
+          "normalizedTokens": 108,
+          "nativeWidth": 408,
+          "height": 304,
+          "ownPicks": [
+            {
+              "prompt": "Can you plot the creek, pine bend and lookout elevations relative to the trailhead?",
+              "id": "pool-trailhead-elevation-offsets",
+              "planKind": "number-line",
+              "score": 62
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 107,
+          "normalizedTokens": 107,
+          "nativeWidth": 408,
+          "height": 287,
+          "ownPicks": [
+            {
+              "prompt": "Can you plot the creek, pine bend and lookout elevations relative to the trailhead?",
+              "id": "pool-trailhead-elevation-offsets",
+              "planKind": "number-line",
+              "score": 62
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-soundcheck-time-window",
+      "kind": "number-line",
+      "standardTitle": "Soundcheck before the doors open",
+      "depths": {
+        "overview": {
+          "tokens": 92,
+          "normalizedTokens": 92,
+          "nativeWidth": 408,
+          "height": 260,
+          "ownPicks": [
+            {
+              "prompt": "Can you show the theatre soundcheck window from stage handover until the doors open?",
+              "id": "pool-soundcheck-time-window",
+              "planKind": "number-line",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 135,
+          "normalizedTokens": 135,
+          "nativeWidth": 408,
+          "height": 356,
+          "ownPicks": [
+            {
+              "prompt": "Can you show the theatre soundcheck window from stage handover until the doors open?",
+              "id": "pool-soundcheck-time-window",
+              "planKind": "number-line",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 137,
+          "normalizedTokens": 137,
+          "nativeWidth": 408,
+          "height": 356,
+          "ownPicks": [
+            {
+              "prompt": "Can you show the theatre soundcheck window from stage handover until the doors open?",
+              "id": "pool-soundcheck-time-window",
+              "planKind": "number-line",
+              "score": 58
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "pool": {
+    "waterfall": {
+      "overview": {
+        "before": 0,
+        "after": 3
+      },
+      "standard": {
+        "before": 0,
+        "after": 3
+      },
+      "deep": {
+        "before": 0,
+        "after": 3
+      }
+    },
+    "t-account": {
+      "overview": {
+        "before": 0,
+        "after": 3
+      },
+      "standard": {
+        "before": 0,
+        "after": 3
+      },
+      "deep": {
+        "before": 0,
+        "after": 3
+      }
+    },
+    "box-plot": {
+      "overview": {
+        "before": 1,
+        "after": 3
+      },
+      "standard": {
+        "before": 1,
+        "after": 3
+      },
+      "deep": {
+        "before": 1,
+        "after": 3
+      }
+    },
+    "number-line": {
+      "overview": {
+        "before": 1,
+        "after": 3
+      },
+      "standard": {
+        "before": 1,
+        "after": 3
+      },
+      "deep": {
+        "before": 1,
+        "after": 3
+      }
+    }
+  },
+  "sourceCommits": [
+    {
+      "sha": "e4482698c7f4c3c82d681d56e520c79a570c448f",
+      "parent": "c56e4fcc8de12ab2fc114fc15c8bb1cbc0858993",
+      "tree": "40cea3ee76a8e1c1bb4fa9533cbf957c8e9d056a",
+      "local": "2cb49b60499890f267b942f6ddff9332a8fd94a8",
+      "message": "Add waterfall references to the GEN-1 example pool"
+    },
+    {
+      "sha": "69d0f966ce98ca1fd73fcf3a22f75256028b9d33",
+      "parent": "e4482698c7f4c3c82d681d56e520c79a570c448f",
+      "tree": "d01fa8c14cb2e01d404397bfaa9797e25941d9de",
+      "local": "0da60eb363cd0d8d7db5607f4aed1e146c8ad796",
+      "message": "Add t-account references to the GEN-1 example pool"
+    },
+    {
+      "sha": "f0f87c1d090ee40fdda2c98e52a3a07065c0b849",
+      "parent": "69d0f966ce98ca1fd73fcf3a22f75256028b9d33",
+      "tree": "9c30e46717702fa4db76ba9023158607d2e13162",
+      "local": "b061a2bfec0889e4d4d0f8d4f53f69a15b95b1ed",
+      "message": "Add box-plot references to the GEN-1 example pool"
+    },
+    {
+      "sha": "9e5f7ba9bf81579951a36dc927734ef2263e7509",
+      "parent": "f0f87c1d090ee40fdda2c98e52a3a07065c0b849",
+      "tree": "ec206b20b7a16c245b9c594a6726b35072434fb1",
+      "local": "367da086d6b1a8609fa7131743469825fe5c75c5",
+      "message": "Add number-line references to the GEN-1 example pool"
+    }
+  ],
+  "publishedTip": "9e5f7ba9bf81579951a36dc927734ef2263e7509"
+}
