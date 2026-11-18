@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardBox, drawnBox, columnEntries, fillSlot, pairStart, slotIndex, slotSize, GENERIC_SLOT } from './canvas-slots.js';
+import { cardBox, columnEntries, fillSlot, pairStart, slotIndex, slotSize, GENERIC_SLOT } from './canvas-slots.js';
 
 const blocks = ['a', 'b', 'c'].map(id => ({ id }));
 const order = entries => entries.map(entry => entry.block?.id ?? entry.slot.id);
@@ -210,19 +210,4 @@ test('a Tutor card waiting for its offsets is hidden (still laid out), then show
   assert.match(source, /const PLACING = \{ visibility: 'hidden' \};/, 'hidden keeps the layout the measurement reads');
   assert.match(source, /placing=\{pendingAt\.current\.has\(block\.id\)\}/, 'exactly while its place is pending');
   assert.match(source, /style=\{\{ \.\.\.\(placing \? PLACING : null\), transform:/);
-});
-
-// React #185 on Build (2026-11-18): Position wrote a card's offsets, then ran again on the new offsets with the box measured before them, and moved the card a second time.
-test('a box measured before an offset write is read where the card is drawn now, so a second pass moves nothing', () => {
-  const element = { offsetLeft: 0, offsetTop: 376, offsetWidth: 640, offsetHeight: 238, parentElement: null }, target = { x: 360, y: 470 };
-  let block = { id: 'lead', dx: 0, dy: 0 };
-  const box = cardBox(element, block); // the measure
-  const pass = card => { const at = drawnBox(box, card); return { ...card, dx: card.dx + target.x - at.x, dy: card.dy + target.y - at.y }; };
-  block = pass(block); // the write
-  const again = pass(block); // the effect again, on the new offsets, before the next measure
-  assert.deepEqual([again.dx, again.dy], [block.dx, block.dy]); // read as is, the box gave dx 720, dy 188: the card moved twice
-  assert.deepEqual([drawnBox(box, block).x, drawnBox(box, block).y], [360, 470]);
-  const plain = { x: 1, y: 2, w: 3, h: 4 };
-  assert.equal(drawnBox(plain, block), plain); // a box not measured by cardBox is read as is
-  assert.deepEqual(box, { x: 0, y: 376, w: 640, h: 238 }); // the box keeps its shape
 });

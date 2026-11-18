@@ -167,15 +167,5 @@ export function freeSlot(items, at, slot, { column = 560, gap = 20, fixed = [] }
 // view-only page's click selection, which finds a card by its box, never finds it.
 export function cardBox(element, card) {
   const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null;
-  const box = { x: element.offsetLeft + (slot?.offsetLeft || 0) + (card.dx || 0), y: element.offsetTop + (slot?.offsetTop || 0) + (card.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
-  measuredWith.set(box, { dx: card.dx || 0, dy: card.dy || 0 });
-  return box;
-}
-// The offsets each measured box was drawn with, kept beside the box (its shape is unchanged). A card's offsets can change after its box was measured; where it is drawn
-// NOW is its laid-out place (the box less the offsets it was measured with) plus its offsets now. Position (AdaptiveCanvas) reads boxes this way: reading a box as is, right
-// after its own offset write, moved the card twice and looped (React #185 on Build, 2026-11-18).
-const measuredWith = new WeakMap();
-export function drawnBox(box, card) {
-  const was = box && measuredWith.get(box);
-  return was ? { ...box, x: box.x - was.dx + (card.dx || 0), y: box.y - was.dy + (card.dy || 0) } : box;
+  return { x: element.offsetLeft + (slot?.offsetLeft || 0) + (card.dx || 0), y: element.offsetTop + (slot?.offsetTop || 0) + (card.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
 }
