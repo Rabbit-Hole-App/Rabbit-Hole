@@ -1,0 +1,55 @@
+import { z } from 'zod';
+
+// Brief 32 card A: the tree-trace flow (sdk.diagram) with a dot that travels the route one point takes, on a 6 s timeline. The node centres and edge routes are baked into scene.data at build time
+// (scripts/interact/bake-tree-geometry.mjs), so the program draws the dot in the same frame coordinates the renderer draws the diagram in. The route comes from the two number inputs.
+// ponytail: one tree, two tests, a fixed schedule (dwell, slide, dwell, slide, hold); no speed control, no markers.
+const text = max => z.string().min(1).max(max);
+const id = z.string().min(1).max(24).regex(/^[A-Za-z][A-Za-z0-9]*$/);
+const xy = z.tuple([z.number(), z.number()]);
+export const treeMotionSchema = z.object({
+  title: text(60),
+  nodes: z.array(z.object({ id, label: text(60), role: z.enum(['process', 'decision', 'outcome']) }).strict()).min(2).max(12),
+  edges: z.array(z.object({ from: id, to: id, label: text(30) }).strict()).min(1).max(20),
+  root: id,
+  tests: z.record(id, z.object({ input: id, max: z.number(), yes: id, no: id }).strict()),
+  prediction: z.record(id, text(40)),
+  duration: z.number().positive().max(60),
+  geometry: z.object({
+    frame: z.object({ width: z.number(), height: z.number() }).strict(), box: z.object({ x: z.number(), y: z.number(), w: z.number() }).strict(), scale: z.number(), rendered: z.object({ width: z.number(), height: z.number() }).strict(),
+    nodes: z.record(id, z.object({ centre: xy, box: z.tuple([z.number(), z.number(), z.number(), z.number()]) }).strict()), edges: z.record(z.string(), z.array(xy)),
+  }).strict(),
+}).strict();
+
+export const roles = Object.freeze([]);
+export const normalize = () => ({});
+export const geometry = range => range;
+export const states = () => ({});
+
+// The sealed program. T is the validated data; the function below the data is plain JS over `inputs` and `time`.
+export function source(ctx) {
+  const tree = ctx.geometry?.tree;
+  if (!tree) { const e = new Error('tree-motion requires its validated tree'); e.code = 'part_binding'; e.path = 'geometry.tree'; throw e; }
+  return `const T=${JSON.stringify(tree)};
+const wrap=text=>{const lines=[];let line='';for(const word of text.split(/\s+/)){if(line&&(line+' '+word).length>22){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;};
+const G=T.geometry,MOVE=1.1,HOLD=1.2,EDGE=(a,b)=>G.edges[a+':'+b];
+const route=inputs=>{const path=[T.root],says=[];let at=T.root;while(T.tests[at]){const t=T.tests[at],v=inputs[t.input],yes=v<=t.max;says.push({node:at,text:v+' ≤ '+t.max+' is '+(yes?'true':'false')+': take '+(yes?'Yes':'No')+'.'});at=yes?t.yes:t.no;path.push(at);}return {path,says};};
+const along=(points,f)=>{let total=0;const lens=[];for(let i=1;i<points.length;i++){const l=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);lens.push(l);total+=l;}let d=f*total;for(let i=0;i<lens.length;i++){if(d<=lens[i]||i===lens.length-1){const u=lens[i]?Math.min(1,d/lens[i]):1;return [points[i][0]+u*(points[i+1][0]-points[i][0]),points[i][1]+u*(points[i+1][1]-points[i][1])];}d-=lens[i];}return points[0];};
+export function evaluate({inputs,time}){
+  const t=Math.min(Math.max(time||0,0),T.duration),{path,says}=route(inputs),n=path.length,dwell=(T.duration-(n-1)*MOVE-HOLD)/(n-1);
+  // stop k holds from start[k] to start[k]+dwell (the last holds to the end); the slide k to k+1 follows each hold but the last
+  const start=path.map((_,k)=>k*(dwell+MOVE));
+  let pos=G.nodes[path[0]].centre,reached=1,phase=0,sliding=false;
+  for(let k=0;k<n;k++){
+    if(t>=start[k]){reached=k+1;pos=G.nodes[path[k]].centre;phase=k;sliding=false;}
+    if(k<n-1&&t>=start[k]+dwell){const edge=[G.nodes[path[k]].centre].concat(EDGE(path[k],path[k+1]),[G.nodes[path[k+1]].centre]),f=Math.min(1,(t-start[k]-dwell)/MOVE);pos=along(edge,f);if(f<1){sliding=true;reached=k+1;phase=k;}}
+  }
+  const leaf=!sliding&&reached===n,flow={kind:'flow',title:T.title,nodes:T.nodes,edges:T.edges};
+  if(reached>=2)flow.highlightPath=path.slice(0,reached);
+  const head=leaf?'Prediction':'Test '+(phase+1),line=leaf?'The tree predicts '+T.prediction[path[n-1]].toLowerCase()+'.':says[phase].text;
+  const lines=wrap(line),b=G.box,objects=[sdk.diagram({version:1,diagram:flow},{x:b.x,y:b.y,w:b.w}),
+    sdk.circle('dot',pos[0],pos[1],18,{role:'output'}),
+    sdk.box('callout.active.l0',450,66,178,44+lines.length*20,{role:'input',opacity:1}),sdk.text('callout.active.title',461,90,head,{role:'input',opacity:1})];
+  lines.forEach((value,j)=>objects.push(sdk.text('callout.active.s'+j,461,116+j*20,value,{role:'neutral',opacity:1})));
+  return {frame:sdk.frame(objects,{width:G.frame.width,height:G.frame.height}),quantities:{x:inputs.x,y:inputs.y}};
+}`;
+}
