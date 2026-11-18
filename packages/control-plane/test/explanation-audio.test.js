@@ -205,7 +205,7 @@ test('depth reaches the prompt: Detailed asks for up to about two minutes, Brief
   const seen = providers(t, { models: [reply(longScript(330))] });
   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'detailed' });
   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'brief' });
-  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 340 to 400 words, up to about 2 minutes/);
+  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 400 to 460 words, up to about 2 minutes of speech\.[^]*Do not stop before 400 words\./);
   assert.match(seen.models()[1].body.messages[0].content, /Brief: write 300 to 360 words, 60 to 80 seconds of speech\. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it/);
   assert.match(lengthLine('balanced', 'gemini'), /write 360 to 420 words, about 90 seconds of speech\.[^]*Do not stop before 360 words\./);
   assert.equal(scriptRequest({ provider: 'fireworks', model: 'm' }, { depth: 'detailed', title: 'T', prose: 'P', labels: [] }).messages[0].content, scriptSystem('detailed', 'standard'));
@@ -311,6 +311,38 @@ test('the script must speak a number of the card: none is the same re-ask, namin
   const noNumbers = await (await script({ app: 'canvas-1', title: 'Cycle', body: `${longScript(60, { card: false })}\n\nThe water cycle moves water around.`, depth: 'balanced' })).json();
   assert.equal(plain.models().length, 1, 'a card with no numbers has none to speak: no re-ask');
   assert.equal(noNumbers.check.reasked, false);
+});
+
+// Iteration 3 (owner 2026-11-17): the card-number rule only TRIGGERS the single re-ask; it is never an error.
+test('a card number still not spoken after the one re-ask SHIPS the script, ok, marked exampleMissing; only the floor is an error', async t => {
+  const seen = providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(230, { card: false }))] });
+  const body = await (await script(withDepth('balanced'))).json();
+  assert.equal(seen.models().length, 2, 'one re-ask, never a second');
+  assert.equal(body.script, longScript(230, { card: false }), 'the script ships');
+  assert.deepEqual([body.check.reasked, body.check.firstFailed, body.check.failed, body.check.exampleMissing], [true, ['example'], ['example'], true]);
+  assert.equal(body.outcome, undefined);
+  assert.equal(seen.events().at(-1).exampleMissing, true, 'the log carries it, no text');
+  // a first answer that misses the number but is long enough and a re-ask that then falls under the floor: the floor error wins
+  providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(120, { card: false }))] });
+  const short = await (await script(withDepth('balanced'))).json();
+  assert.deepEqual([short.script, short.outcome, short.check.failed], [null, 'too_short', ['floor', 'example']]);
+});
+
+test('the example rule reads the numbers the prose and the question state, not a diagram: six measured cards had only a JSON version field as their number', async t => {
+  const diagramOnly = { app: 'canvas-1', title: 'Four strokes', depth: 'balanced', body: `${longScript(40, { card: false })}
+
+\`\`\`rh-diagram
+{"version":1,"diagram":{"title":"Cycle","x":{"min":0,"max":4},"series":[{"label":"Stroke","points":[{"x":1,"y":0.25}]}]}}
+\`\`\`` };
+  const seen = providers(t, { models: [reply(longScript(220, { card: false }))] });
+  const body = await (await script(diagramOnly)).json();
+  assert.equal(seen.models().length, 1, 'no number in the prose: nothing to speak, no re-ask');
+  assert.equal(body.check.reasked, false);
+  assert.equal(cardDataNumbers(splitCard(diagramOnly.body).prose).size, 0);
+  assert.ok(cardNumbers(splitCard(diagramOnly.body).prose, splitCard(diagramOnly.body).visualText).has(0.25), 'the strip still allows every number of the diagram');
+  const asked = providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(220))] });
+  await (await script(withDepth('balanced'))).json();
+  assert.equal(asked.models().length, 2, 'a card whose prose states numbers still asks for one to be spoken');
 });
 
 test('a provider failing on the re-ask hands the card to the next provider, which has no re-ask left: a short answer there is an error', async t => {
