@@ -542,6 +542,18 @@ test('logout revokes every session of the user; a cross-site logout does nothing
   assert.equal((await authed(env, fresh)).status, 404);
 });
 
+test('LOCAL_NO_SIGNIN: on a test instance a request with no session is the one local user; production and a test instance without it stay signed out', async (t) => {
+  const local = withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, LOCAL_NO_SIGNIN: 'true' });
+  const bare = () => new Request(`${ORIGIN}/`);
+  const first = await sessionOf(bare(), local), again = await sessionOf(bare(), local);
+  assert.equal(first.email, 'owner@rabbithole.test');
+  assert.equal(again.uid, first.uid, 'the same user every time');
+  assert.equal(local.q('SELECT count(*) n FROM users')[0].n, 1);
+  assert.equal(await sessionOf(bare(), withDb(t, { ...PROD, LOCAL_NO_SIGNIN: 'true' })), null, 'never in production');
+  assert.equal(await sessionOf(bare(), withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'dev', TEST_BYPASS_SECRET: SECRET, LOCAL_NO_SIGNIN: 'true' })), null, 'never on a public dev control plane');
+  assert.equal(await sessionOf(bare(), withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET })), null, 'off unless asked');
+});
+
 test('sessions: pre-users sessions (no uid), unknown users, forged epochs and D1 errors are all signed out', async (t) => {
   const env = withDb(t, PROD);
   const legacy = await sign({ t: 'sess', email: 'a@corp.test', exp: now() + 3600 }, KEY);
