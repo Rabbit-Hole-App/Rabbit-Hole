@@ -2,7 +2,17 @@ import * as data from './topic-logistic-regression-data.js';
 import replay from './topic-logistic-regression-replay-cases.json' with { type: 'json' };
 const metadata = data.metadata;
 const spec = diagram => ({ version: 1, diagram });
-const reference = ({ id, keywords, useWhen, overview, standard, deep }) => { const row = replay.prompts.find(item => item.referenceId === id); return { id, topic: metadata.topic, artifactTopic: metadata.artifactTopic, lessons: metadata.lessons, sources: metadata.sources, origin: 'lesson', lesson: metadata.lessons[0], promptOrigins: [{ id: row.id, prompt: row.prompt, origin: 'lesson', lesson: metadata.lessons[0] }], prompts: [row.prompt, ...row.paraphrases], paraphrases: row.paraphrases, keywords, shortKeywords: keywords, useWhen, ...standard, depths: { overview, standard, deep } }; };
+const reference = ({ id, keywords: shortKeywords, learnerPhrases = [], useWhen, overview, standard, deep }) => {
+  const row = replay.prompts.find(item => item.referenceId === id);
+  return {
+    id, topic: metadata.topic, artifactTopic: metadata.artifactTopic, lessons: metadata.lessons, sources: metadata.sources,
+    origin: 'lesson', lesson: metadata.lessons[0],
+    promptOrigins: [{ id: row.id, prompt: row.prompt, origin: 'lesson', lesson: metadata.lessons[0] }],
+    prompts: [row.prompt, ...row.paraphrases], paraphrases: row.paraphrases,
+    keywords: [...shortKeywords, ...learnerPhrases], shortKeywords,
+    useWhen, ...standard, depths: { overview, standard, deep },
+  };
+};
 export const topicMetadata = metadata;
 const parts = [
 (() => {
@@ -299,7 +309,15 @@ function lr3Threshold(depth) {
       : `Same ${middle.n} cases. Raising the threshold increases precision and reduces recall. Metrics are rounded.`,
   };
 }
-return { references: [reference({ id: 'ml-logistic-regression-softmax', keywords: ['softmax', 'probabilities sum', 'multi class'], useWhen: 'Show raw multiclass scores becoming normalized softmax probabilities, with the largest score retaining the largest probability. Not the binary sigmoid.', overview: { spec: spec(lr3Softmax('overview')) }, standard: { spec: spec(lr3Softmax('standard')) }, deep: { spec: spec(lr3Softmax('deep')), detailSpec: spec(lr3SoftmaxRaised()) } }),
+return { references: [reference({
+  id: 'ml-logistic-regression-softmax',
+  keywords: ['softmax', 'probabilities sum', 'multi class'],
+  learnerPhrases: ['logits to probabilities', 'what is softmax and how'],
+  useWhen: 'Show raw multiclass scores becoming normalized softmax probabilities, with the largest score retaining the largest probability. Not the binary sigmoid.',
+  overview: { spec: spec(lr3Softmax('overview')) },
+  standard: { spec: spec(lr3Softmax('standard')) },
+  deep: { spec: spec(lr3Softmax('deep')), detailSpec: spec(lr3SoftmaxRaised()) },
+}),
 reference({ id: 'ml-logistic-regression-accuracy-trap', keywords: ['class imbalance', 'accuracy trap', 'zero recall'], useWhen: 'Explain why an always-negative classifier has high accuracy on an imbalanced dataset while missing every positive case.', overview: { spec: spec(lr3Imbalance('overview')) }, standard: { spec: spec(lr3Imbalance('standard')) }, deep: { spec: spec(lr3Imbalance('deep')) } }),
 reference({ id: 'ml-logistic-regression-confusion-matrix', keywords: ['confusion matrix', 'true positive', 'false negative'], useWhen: 'Place the supplied probability predictions into actual-by-predicted confusion cells at the fixed threshold, then calculate precision, recall and F-score.', overview: { spec: spec(lr3Confusion('overview')) }, standard: { spec: spec(lr3Confusion('standard')) }, deep: { spec: spec(lr3Confusion('deep')) } }),
 reference({ id: 'ml-logistic-regression-threshold-tradeoff', keywords: ['threshold tuning', 'precision recall', 'tradeoff'], useWhen: 'Compare precision and recall as the probability threshold changes on the same supplied predictions. Use threshold on the horizontal axis, not a ROC curve or a sigmoid.', overview: { spec: spec(lr3Threshold('overview')) }, standard: { spec: spec(lr3Threshold('standard')) }, deep: { spec: spec(lr3Threshold('deep')) } })], derived: () => ({}), softmaxSingle: lr3SoftmaxSingle() };
