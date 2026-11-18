@@ -60,8 +60,12 @@ const branchFor = (schema, value) => {
   if (!options) return schema;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return options.find(o => Object.entries(o.properties ?? {}).some(([k, s]) => s?.const !== undefined && value[k] === s.const))
-    ?? options.find(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
+    // VAR-1: an option whose `required` keys are all present can still be the wrong one when another option declares more of the value's keys (a visual transformation state {label, diagram}
+    // satisfies a list state whose `items` became optional); the option that declares the most of them wins, the first on a tie.
+    ?? options.filter(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k)))
+      .reduce((best, o) => (best && declared(best, value) >= declared(o, value) ? best : o), null);
 };
+const declared = (option, value) => Object.keys(value).filter(key => Object.hasOwn(option.properties ?? {}, key)).length;
 export function stripUnknown(value, schema, kind, out) {
   const s = schema && value && typeof value === 'object' ? branchFor(schema, value) : null;
   if (!s) return value;
