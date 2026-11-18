@@ -35,7 +35,7 @@ try {
   browser = await chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const errors = []; page.on('pageerror', e => { errors.push(e.message.slice(0, 200)); mark('PAGE ERROR', { error: e.message.slice(0, 300) }); });
-  page.on('console', m => { if (['error', 'warning'].includes(m.type())) mark(`console ${m.type()}`, { text: m.text().slice(0, 300) }); });
+  page.on('console', m => { const text = m.text(); if (text.includes('learn_section_perform_timeout')) mark('PERFORM TIMEOUT', JSON.parse(text)); else if (m.type() === 'error' && !text.startsWith('Failed to load resource')) mark('console error', { text: text.slice(0, 300) }); });
   page.on('dialog', d => { mark('DIALOG', { type: d.type(), text: d.message().slice(0, 200) }); d.dismiss().catch(() => {}); });
   const msg = key => page.locator(`[data-rehearsal-message="${key}"]`);
   const row = (key, label) => msg(key).locator('[data-choice-list]').getByRole('button', { name: label, exact: true });

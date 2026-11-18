@@ -61,7 +61,9 @@ function repositoryCards(input, ctx) {
     const out = ranges.find(r => !Number.isInteger(r.start) || !Number.isInteger(r.end) || r.end < r.start || r.start < s || r.end > e);
     if (out) return { error: `The highlight ${out.start}-${out.end} lies outside the card's lines ${s}-${e}` };
     const label = String(card.label ?? '').trim();
-    if (!label || label.split(/\s+/).length > MAX_LABEL_WORDS) return { error: `Label each card with the beat's idea in at most ${MAX_LABEL_WORDS} words` };
+    if (!label) return { error: `Label each card with the beat's idea in at most ${MAX_LABEL_WORDS} words` };
+    const words = label.split(/\s+/).length; // Reviewer 20:30 (section-run-fixes-spec.md §8): the error quotes the label and its count, so a repair can fix it
+    if (words > MAX_LABEL_WORDS) return { error: `label "${label}" is ${words} words; at most ${MAX_LABEL_WORDS}: the beat's idea, shorter` };
     const nodeId = ctx.snapshot?.graph?.nodes?.find(n => n.path === at.path && n.line === s)?.id;
     cards.push({ path: at.path, start: s, end: e, ...(nodeId ? { nodeId } : {}), label, ranges: ranges.map((r, i) => ({ id: `r${i + 1}`, start: r.start, end: r.end })) });
   }

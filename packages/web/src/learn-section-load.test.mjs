@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { briefAndCompose, compositionForMake } from './learn-section-load.js';
+import { mock } from 'node:test';
+import { SECTION_ITEM_MS, briefAndCompose, compositionForMake, withinTime } from './learn-section-load.js';
+import { frame } from './learn-section-perform.js';
+import { SENTENCES } from './tutor-rehearsal-text.js';
 
 // A server that answers in order and records the actions asked. answers: action -> list of answers, each used once.
 const server = answers => { const asked = []; const post = async body => { asked.push(body.action); return answers[body.action].shift(); }; return { post, asked }; };
@@ -30,4 +33,29 @@ test('a stored composition is used as it is: one compose call, no brief', async 
   const { post, asked } = server({ learn_section_compose: [{ composition }] });
   assert.deepEqual(await compositionForMake(post, '1.1'), { composition });
   assert.deepEqual(asked, ['learn_section_compose']);
+});
+
+// Reviewer 2026-11-17 20:30 §7: never a silent stop.
+
+test('§7.2 an item whose card never arrives is timed out at 90 s (fake timers); the learner reads the plain sentence', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const late = withinTime(new Promise(() => {}));
+    mock.timers.tick(SECTION_ITEM_MS - 1);
+    await Promise.resolve();
+    mock.timers.tick(1);
+    assert.deepEqual(await late, { timedOut: true });
+  } finally { mock.timers.reset(); }
+  assert.deepEqual(await withinTime(Promise.resolve({ cardId: 'c1' })), { value: { cardId: 'c1' } }, 'a card that arrives is passed on');
+  assert.equal(SENTENCES.sectionCardLate, 'The card for this step did not arrive. Try again or skip this section.');
+});
+
+test('§7.1 frame() resolves with requestAnimationFrame never firing (a hidden page)', async () => {
+  const saved = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = () => 0; // paused: never calls back
+  try {
+    const started = Date.now();
+    await frame();
+    assert.ok(Date.now() - started < 1000, 'resolved on the 50 ms timer');
+  } finally { globalThis.requestAnimationFrame = saved; }
 });
