@@ -1,5 +1,5 @@
 // Steffen's limiter bounds a tangent using the two neighbouring secants.
-export function limitedTangent(left, right, before, after) {
+function limitedTangent(left, right, before, after) {
   const sign = Math.sign(left);
   if (sign !== Math.sign(right)) return 0;
   const centered = (left * after + right * before) / (before + after);

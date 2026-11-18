@@ -39,7 +39,7 @@ test('token links accept bounded, position-indexed tokens and reject ambiguous o
     { ...repeated, queries: [repeated.queries[0], repeated.queries[0]] },
     { ...repeated, queries: [{ index: 0, weights: [0, 0.1, 0.9] }] },
     { ...repeated, queries: [{ index: 0, weights: [-0.1, 0, 0.6, 0.5] }] },
-    { ...repeated, normalized: false, queries: [{ index: 0, weights: [0, 0, 0, 1.01] }] }, // VAR-1: with normalized true this is raw input and is normalised, not rejected
+    { ...repeated, queries: [{ index: 0, weights: [0, 0, 0, 1.01] }] },
     { ...repeated, queries: [{ index: 0, weights: [0, 0, 0, 1], extra: true }] },
   ]) assert.equal(schema.safeParse(invalid).success, false, JSON.stringify(invalid));
 });
@@ -49,10 +49,8 @@ test('normalization includes both tolerance boundaries and permits arbitrary val
   for (const weights of [[0.49, 0.49, 0, 0], [0.51, 0.51, 0, 0], [0.06, 0.57, 0.35, 0], [0.01, 0.34, 0.56, 0.11]]) {
     assert.ok(schema.safeParse(spec(weights, true)).success, weights.join(', '));
   }
-  // VAR-1 (derived.js): weights outside 0.98 to 1.02 under `normalized` are raw scores and are normalised, no longer rejected (derived.test.mjs checks the filled shares); only a zero total has no shares.
-  for (const weights of [[0.49, 0.4899, 0, 0], [0.51, 0.5101, 0, 0]]) assert.ok(schema.safeParse(spec(weights, true)).success, weights.join(', '));
-  assert.equal(schema.safeParse(spec([0, 0, 0, 0], true)).success, false);
   for (const weights of [[0.49, 0.4899, 0, 0], [0.51, 0.5101, 0, 0], [0, 0, 0, 0]]) {
+    assert.equal(schema.safeParse(spec(weights, true)).success, false, weights.join(', '));
     assert.ok(schema.safeParse(spec(weights)).success);
     assert.ok(schema.safeParse(spec(weights, false)).success);
   }
@@ -203,7 +201,7 @@ test('compact head panels wrap long labels at the native font size', () => {
 test('token link children retain normalization validation inside a comparison', () => {
   const comparison = sixTokenComparison();
   assert.ok(tutorDiagramSchema.safeParse({ version: 1, diagram: comparison }).success);
-  comparison.panels[1].diagram.queries[0].weights.fill(0); // VAR-1: a total of zero cannot be normalised (a wrong sum is now raw input)
+  comparison.panels[1].diagram.queries[0].weights[0] = 0;
   const invalid = tutorDiagramSchema.safeParse({ version: 1, diagram: comparison });
   assert.equal(invalid.success, false);
   assert.ok(invalid.error.issues.some(issue => issue.path.join('.') === 'diagram.panels.1.diagram.queries.0.weights'));

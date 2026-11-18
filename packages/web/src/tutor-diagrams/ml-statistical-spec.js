@@ -1,7 +1,5 @@
 // Four bounded teaching schemas. Positions, colors and derived density heights
 // remain renderer-owned; all values here are the author's literal data.
-import { checkDerived, absentFrom, histogramCounts, heatmapRange } from './derived.js';
-
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const cell = z.strictObject({ row: z.int().min(0).max(5), column: z.int().min(0).max(5) });
   return [
@@ -10,16 +8,14 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
       rowLabel: text(36).optional(), columnLabel: text(36).optional(),
       columns: z.array(text(28)).min(1).max(6),
       rows: z.array(z.strictObject({ label: text(28), cells: z.array(z.union([numeric, z.null()])).min(1).max(6) })).min(1).max(6),
-      // range: left out, it is the smallest and largest numeric cell (derived.js); written, it is the scale every cell must sit inside.
-      range: z.strictObject({ min: numeric, max: numeric }).optional(),
+      range: z.strictObject({ min: numeric, max: numeric }),
       highlights: z.array(cell).min(1).max(12).optional(),
     }),
     z.strictObject({
       ...titled, kind: z.literal('sample-set'),
       samples: z.array(z.strictObject({ id, label: text(30).optional(), class: text(24).optional(), weight: numeric.positive().optional() })).min(1).max(18),
       groups: z.array(z.strictObject({
-        // members: left out only for an out-of-bag set (outOfBagFor), whose members are the samples absent from that draw (derived.js).
-        id, label: text(42), members: z.array(id).max(36).optional(), replacement: z.boolean().optional(),
+        id, label: text(42), members: z.array(id).max(36), replacement: z.boolean().optional(),
         omitted: z.array(id).max(18).optional(), outOfBagFor: id.optional(),
       })).min(1).max(4),
     }),
@@ -48,15 +44,13 @@ function within(value, min, max) { return value >= min && value <= max; }
 function sameMembers(a, b) { return a.length === b.length && a.every(value => b.includes(value)); }
 
 function checkHeatmap(d, issue) {
-  // An absent range is the cells' own extent (derived.js reports a range that cannot be computed); the explicit-range checks run on a written one.
-  const range = d.range ?? heatmapRange(d) ?? { min: 0, max: 1 };
-  if (d.range && !(d.range.min < d.range.max)) issue(['range', 'max'], 'The range maximum must exceed its minimum');
+  if (!(d.range.min < d.range.max)) issue(['range', 'max'], 'The range maximum must exceed its minimum');
   unique(d.columns, ['columns'], issue, 'Column labels');
   unique(d.rows.map(row => row.label), ['rows'], issue, 'Row labels');
   d.rows.forEach((row, i) => {
     if (row.cells.length !== d.columns.length) issue(['rows', i, 'cells'], 'Every row needs one cell per column');
     row.cells.forEach((value, j) => {
-      if (value !== null && !within(value, range.min, range.max)) issue(['rows', i, 'cells', j], 'Cell value is outside the explicit range');
+      if (value !== null && !within(value, d.range.min, d.range.max)) issue(['rows', i, 'cells', j], 'Cell value is outside the explicit range');
     });
   });
   unique((d.highlights ?? []).map(({ row, column }) => `${row}:${column}`), ['highlights'], issue, 'Highlighted cells');
@@ -77,26 +71,29 @@ function checkSamples(d, issue) {
   const words = [d.title, d.caption, ...d.groups.map(group => group.label), ...d.samples.flatMap(sample => [sample.label, sample.class])].filter(Boolean).join(' ');
   const bootstrap = /bootstrap/i.test(words) && !/m[- ]out[- ]of[- ]n|subsample/i.test(words);
   d.groups.forEach((group, i) => {
-    // An out-of-bag set may leave its members out: they are the samples absent from the referenced draw (derived.js fills them).
-    const source = group.outOfBagFor ? groups.get(group.outOfBagFor) : null;
-    const members = group.members ?? (group.outOfBagFor && source?.members ? absentFrom(d.samples, source.members) : null);
-    if (!members) return issue(['groups', i, 'members'], 'A group needs members (only an out-of-bag set may leave them out)');
-    if (bootstrap && group.replacement && members.length !== d.samples.length) {
-      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${members.length}.`, { code: 'arithmetic' });
+    if (bootstrap && group.replacement && group.members.length !== d.samples.length) {
+      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${group.members.length}.`, { code: 'arithmetic' });
     }
-    for (const [field, list] of [['members', group.members], ['omitted', group.omitted]]) {
-      (list ?? []).forEach((sampleId, j) => {
+    for (const field of ['members', 'omitted']) {
+      (group[field] ?? []).forEach((sampleId, j) => {
         if (!ids.includes(sampleId)) issue(['groups', i, field, j], 'Membership refers to an unknown sample ID');
       });
     }
-    if (!group.replacement) unique(members, ['groups', i, 'members'], issue, 'Members without replacement');
-    if (group.omitted) unique(group.omitted, ['groups', i, 'omitted'], issue, 'Omitted sample IDs');
+    if (!group.replacement) unique(group.members, ['groups', i, 'members'], issue, 'Members without replacement');
+    const omitted = ids.filter(id => !group.members.includes(id));
+    if (group.omitted) {
+      unique(group.omitted, ['groups', i, 'omitted'], issue, 'Omitted sample IDs');
+      if (!sameMembers(group.omitted, omitted)) issue(['groups', i, 'omitted'], 'Omitted IDs must be exactly the samples absent from this group');
+    }
     if (group.outOfBagFor) {
+      const source = groups.get(group.outOfBagFor);
       if (!source || source === group || source.outOfBagFor || !source.replacement) {
         issue(['groups', i, 'outOfBagFor'], 'Out-of-bag membership must reference a different replacement draw');
       } else {
-        unique(members, ['groups', i, 'members'], issue, 'Out-of-bag sample IDs');
+        unique(group.members, ['groups', i, 'members'], issue, 'Out-of-bag sample IDs');
         if (group.replacement) issue(['groups', i, 'replacement'], 'An out-of-bag set cannot use replacement');
+        const expected = ids.filter(id => !source.members.includes(id));
+        if (!sameMembers(group.members, expected)) issue(['groups', i, 'members'], 'Out-of-bag members must be exactly the samples absent from the referenced draw');
       }
     }
   });
@@ -124,7 +121,7 @@ function checkHistogram(d, issue) {
     const sum = series.values.reduce((a, b) => a + b, 0);
     if (!(sum > 0)) issue(['series', i, 'values'], 'A distribution must contain positive mass');
     if (d.measure === 'count' && series.values.some(value => !Number.isInteger(value))) issue(['series', i, 'values'], 'Counts must be nonnegative integers');
-    if (d.measure === 'proportion' && !histogramCounts(series.values) && (series.values.some(value => value > 1) || Math.abs(sum - 1) > 1e-6)) issue(['series', i, 'values'], 'Bin proportions must be in [0, 1] and sum to 1');
+    if (d.measure === 'proportion' && (series.values.some(value => value > 1) || Math.abs(sum - 1) > 1e-6)) issue(['series', i, 'values'], 'Bin proportions must be in [0, 1] and sum to 1');
     if (histogramHeights(d, series).some(value => !Number.isFinite(value))) issue(['series', i, 'values'], 'Bin density must remain finite');
   });
   (d.markers ?? []).forEach((marker, i) => {
@@ -141,7 +138,20 @@ function checkBoxes(d, issue) {
       if (!within(box[field], d.x.min, d.x.max)) issue(['boxes', i, field], 'Summary is outside the shared axis domain');
       if (j && box[field] < box[fields[j - 1]]) issue(['boxes', i, field], 'Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh');
     });
-    // The fences (written, or computed from q1 and q3 when left out) are checked against the whiskers and their own arithmetic by derived.js; fences may fall outside the author's x range (the renderer widens the axis to hold them).
+    if (box.fences) {
+      const { lower, upper } = box.fences;
+      // Fences may fall outside the author's x range (the renderer widens the axis to hold them); summary values and outliers may not.
+      const places = Math.max(0, ...[box.q1, box.q3, lower, upper].map(value => (String(value).split('.')[1] ?? '').length));
+      // A whisker beyond a stated fence (the fences are checked against Q1 and Q3 just below, so these are the validated fences) names both numbers; same half-unit allowance (item 5, Reviewer 2026-11-17).
+      if (lower - box.whiskerLow > 0.5 * 10 ** -places + 1e-9 || box.whiskerHigh - upper > 0.5 * 10 ** -places + 1e-9) {
+        issue(['boxes', i, 'fences'], `Fences must enclose both whiskers: the whiskers run from ${box.whiskerLow} to ${box.whiskerHigh}, outside the fences ${lower} and ${upper}.`, { code: 'arithmetic' });
+      }
+      const spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, round = value => Number(value.toFixed(places + 1));
+      // Same rounding allowance as the waterfall total: half a unit of the last decimal written.
+      if (Math.abs(lower - low) > 0.5 * 10 ** -places + 1e-9 || Math.abs(upper - high) > 0.5 * 10 ** -places + 1e-9) {
+        issue(['boxes', i, 'fences'], `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.`, { code: 'arithmetic' });
+      }
+    }
     (box.outliers ?? []).forEach(({ value }, j) => {
       if (!within(value, d.x.min, d.x.max)) issue(['boxes', i, 'outliers', j, 'value'], 'Outlier is outside the shared axis domain');
       const lower = box.fences?.lower ?? box.whiskerLow, upper = box.fences?.upper ?? box.whiskerHigh;
@@ -152,10 +162,10 @@ function checkBoxes(d, issue) {
 
 export function validate(diagram, issue) {
   switch (diagram.kind) {
-    case 'heatmap': checkDerived(diagram, issue); return checkHeatmap(diagram, issue); // VAR-1: derived fields (derived.js)
-    case 'sample-set': checkDerived(diagram, issue); return checkSamples(diagram, issue);
-    case 'histogram': checkDerived(diagram, issue); return checkHistogram(diagram, issue);
-    case 'box-plot': checkDerived(diagram, issue); return checkBoxes(diagram, issue);
+    case 'heatmap': return checkHeatmap(diagram, issue);
+    case 'sample-set': return checkSamples(diagram, issue);
+    case 'histogram': return checkHistogram(diagram, issue);
+    case 'box-plot': return checkBoxes(diagram, issue);
   }
 }
 

@@ -82,7 +82,7 @@ export const references = [
     plot('Regression-tree leaves give constant predictions', axis('Feature', 0, 8), axis('Prediction', 0, 6), [series('Tree prediction', [[0, 2], [3, 5], [6, 3], [8, 3]], 'step')], [line('x', 3, 'First split'), line('x', 6, 'Second split')])),
   ref('ensemble-votes', ['04', '11'], 'How does voting combine several weak classifiers?', ['votes', 'ensemble', 'bagging', 'voting'],
     'Compare vote totals and confidence-weighted contributions for each class.',
-    bar('Hard votes and confidence-weighted votes', 'grouped', ['Class A', 'Class B', 'Class C'], [{ label: 'Hard votes', values: [4, 2, 1] }, { label: 'Weighted votes', values: [3.1, 1.5, 0.8] }])) ,
+    bar('Hard votes and confidence-weighted votes', 'grouped', ['Class A', 'Class B', 'Class C'], [{ label: 'Hard votes', values: [4, 2, 1] }, { label: 'Weighted votes', values: [3.1, 2.4, 0.8] }])) ,
   ref('svm-margin-support-slack', ['05'], 'What are support vectors, the SVM margin and slack?', ['svm', 'margin', 'support vectors', 'slack'],
     'Use an axis-aligned boundary so distances to each margin are explicit.',
     plot('An SVM boundary, support vectors and slack', axis('Feature 1', -3, 3), axis('Feature 2', -3, 3), [

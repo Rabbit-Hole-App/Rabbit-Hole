@@ -1,6 +1,5 @@
 import originalExamples from './examples.json' with { type: 'json' };
 import learnerKeywords from './reference-learner-keywords.json' with { type: 'json' };
-import { referenceVary } from './reference-vary.js';
 import { references as batch1Followups } from './batch-1-followup-references.js';
 import { references as statistical } from './ml-statistical-references.js';
 import { references as plot } from './ml-plot-references.js';
@@ -101,12 +100,11 @@ export const diagramReferences = Object.freeze([
   ...estimationEvaluationReferences,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
-  const vary = referenceVary[ref.id];
-  if (!topics && !vary) return ref;
+  if (!topics) return ref;
   return {
     ...ref,
-    ...(vary ? { vary } : {}),
-    ...(topics ? { keywords: [...ref.keywords, ...topics], shortKeywords: [...(ref.shortKeywords ?? []), ...topics] } : {}),
+    keywords: [...ref.keywords, ...topics],
+    shortKeywords: [...(ref.shortKeywords ?? []), ...topics],
   };
 }));
 

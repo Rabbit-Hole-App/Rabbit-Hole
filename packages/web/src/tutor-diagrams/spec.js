@@ -10,7 +10,6 @@ import { flowPathShape, flowPaths, validateFlowPaths } from './flow-paths.js';
 import { z } from 'zod';
 import { formatMinor, sumMinor, toMinor } from './balance-values.js';
 import { tokenizeMath } from '../math-tokens.js';
-import { checkDerived, derivedAfterItems, fillDerived } from './derived.js';
 
 const MAX_JSON_LENGTH = 16_384;
 // Text is rendered literally. The SVG renderer must escape XML punctuation.
@@ -147,7 +146,7 @@ for (const schema of [createTensorShape(helpers), tokenLinks, blockStack]) shape
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
-export function childDiagrams(diagram) {
+function childDiagrams(diagram) {
   if ((diagram.kind === 'comparison' && diagram.variant === 'panels') || diagram.kind === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
   if (diagram.kind === 'transformation' && diagram.variant === 'visual') return ['before', 'after'].filter(side => diagram[side]?.diagram).map(side => ({ diagram: diagram[side].diagram, path: [side, 'diagram'] }));
   return [];
@@ -303,6 +302,43 @@ function checkAmount(value, path, issue, nonnegative = false) {
 
 const atPath = (issue, prefix) => (path, message) => issue([...prefix, ...path], message);
 
+// List-transformation softmax rule (item 3, Reviewer 2026-11-17). A card whose title or operation says softmax and whose before and after items are ALL plain numbers must have
+// after_i = softmax(before)_i within half a unit of the decimals the author wrote for THAT item (0.7 against the true 0.659 passes at one decimal; 0.04 against 0.099 fails at two), plus 1e-9
+// float slack: the same allowance as the box-plot fences. The issue names the correct value of every item and is tagged arithmetic. It is OFF when the title, caption or any label says
+// temperature, scaled, scaling, masked, causal, log-softmax or "T =" (after = softmax(before / T), a scaled or masked score: the plain recompute would flag a correct card); then the only check
+// is that the after values sum to 1 (within the sum of their half-units) when the title or caption calls them probabilities. Items that are not plain numbers ("h1", tensors, "2.0 (cat)") skip the rule.
+// Why here: this is where the schema already reads a list transformation's items and links (the composition validator only checks its structure).
+const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
+// "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
+function listNumber(item) {
+  if (typeof item !== 'string') return null;
+  const m = item.replace(/\$/g, '').split(/[=:]/).pop().trim().replace(/−/g, '-').match(/^(-?\d+(?:\.(\d+))?)\s*(%?)$/);
+  if (!m) return null;
+  const places = (m[2] ?? '').length, scale = m[3] ? 100 : 1;
+  return { value: Number(m[1]) / scale, places, half: 0.5 * 10 ** -places / scale, text: m[1] + m[3] };
+}
+function checkSoftmaxList(d, issue) {
+  if (!/softmax/i.test(`${d.title} ${d.operation}`)) return;
+  const before = d.before.items.map(listNumber), after = d.after.items.map(listNumber);
+  if (before.length !== after.length || [...before, ...after].some(x => !x)) return;
+  const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
+  if (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels)) {
+    const sum = after.reduce((s, x) => s + x.value, 0), slack = after.reduce((s, x) => s + x.half, 0);
+    if (/probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(sum - 1) > slack + 1e-9) {
+      issue(['after', 'items'], `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(sum.toFixed(6))}.`, { code: 'arithmetic' });
+    }
+    return;
+  }
+  const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
+  const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;
+  // Rounding clause (Reviewer 2026-11-17, tightened): values written to sum to exactly 1 pass when at most ONE value is past its half-unit and that one is within a full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
+  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && beyond(1) <= 1 && beyond(2) === 0;
+  if (beyond(1) && !roundedToOne) {
+    const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
+    issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
+  }
+}
+
 function checkTensorNodes({ nodes }, issue) {
   nodes.forEach((node, index) => {
     if (node.tensor) validateTensor(node.tensor, atPath(issue, ['nodes', index, 'tensor']));
@@ -328,17 +364,16 @@ function validateDiagram(diagram, issue) {
     case 'transformation':
       // The composition validator reports a mixed representation. Do not read
       // list fields on a visual state before it can return that useful error.
-      // An `op: 'softmax'` card may leave its after items out: they are computed (derived.js), and the links are read against the computed count.
-      checkDerived(diagram, issue); // VAR-1: the softmax rule (derived.js); the other kinds call it from their own validators
-      if (diagram.variant === 'visual' || !diagram.before.items || !(diagram.after.items ?? derivedAfterItems(diagram))) break;
-      for (const side of ['before', 'after']) (diagram[side].items ?? []).forEach((item, index) => {
+      if (diagram.variant === 'visual' || !diagram.before.items || !diagram.after.items) break;
+      for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
         if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
       });
       diagram.links?.forEach(({ from, to }, index) => {
-        if (from >= diagram.before.items.length || to >= (diagram.after.items ?? derivedAfterItems(diagram)).length) {
+        if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
           issue(['links', index], 'Mapping indices must refer to existing items');
         }
       });
+      checkSoftmaxList(diagram, issue);
       break;
     case 'number-line': checkNumberLine(diagram, issue); break;
     case 'coordinate-plot': checkPlot(diagram, issue); break;
@@ -387,13 +422,6 @@ authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properti
 })(authorOnlyFree);
 export const tutorDiagramAuthorJsonSchema = authorOnlyFree;
 
-// A parsed diagram with EVERY derived value on it, silent ones too (derived.js): what a prose token reads and what the reference lint compares against. Not for drawing.
-export function fillAllDerived(diagram) {
-  fillDerived(diagram, { all: true });
-  for (const child of childDiagrams(diagram)) fillAllDerived(child.diagram);
-  return diagram;
-}
-
 export function parseTutorDiagram(value) {
   if (typeof value === 'string') {
     if (value.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
@@ -401,11 +429,7 @@ export function parseTutorDiagram(value) {
     catch { throw new Error('Invalid diagram JSON'); }
   }
   if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
-  // An absent derived field is computed here, before any layout reads the diagram (derived.js); a child diagram inside panels or a visual transformation too.
-  const fill = diagram => { fillDerived(diagram); for (const child of childDiagrams(diagram)) fill(child.diagram); return diagram; };
-  const parsed = tutorDiagramSchema.parse(value);
-  fill(parsed.diagram);
-  return parsed;
+  return tutorDiagramSchema.parse(value);
 }
 
 // BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read

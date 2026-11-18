@@ -1,20 +1,14 @@
 // The author supplies data coordinates and semantic marks; styles and placement
 // remain renderer-owned. No extension field changes a saved basic plot's layout.
-import { checkDerived, fillDerived } from './derived.js';
-
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const coordinate = z.strictObject({ x: numeric, y: numeric });
   const named = { label: text(60) };
-  // VAR-1: `derive` ('series.<i>:on' | ':mean' | ':median' | ':min' | ':max' | ':centroid', derived.js) says a number is computed from a series: the author gives x only for a point,
-  // segment end or vector end that sits on a series (y optional), and no value for a reference line at a statistic. It is the one new property, on the four kinds that carry it.
-  const derive = z.string().regex(/^series\.\d:(on|mean|median|min|max|centroid)$/).optional();
-  const onCurve = z.strictObject({ x: numeric, y: numeric.optional() });
-  const ends = { from: onCurve, to: onCurve };
+  const ends = { from: coordinate, to: coordinate };
   const annotation = z.discriminatedUnion('kind', [
-    z.strictObject({ kind: z.literal('point'), ...named, x: numeric.optional(), y: numeric.optional(), derive }),
-    z.strictObject({ kind: z.literal('segment'), ...named, ...ends, derive }),
-    z.strictObject({ kind: z.literal('vector'), ...named, ...ends, derive }),
-    z.strictObject({ kind: z.literal('reference-line'), ...named, axis: z.enum(['x', 'y']), value: numeric.optional(), derive }),
+    z.strictObject({ kind: z.literal('point'), ...named, x: numeric, y: numeric }),
+    z.strictObject({ kind: z.literal('segment'), ...named, ...ends }),
+    z.strictObject({ kind: z.literal('vector'), ...named, ...ends }),
+    z.strictObject({ kind: z.literal('reference-line'), ...named, axis: z.enum(['x', 'y']), value: numeric }),
     z.strictObject({ kind: z.literal('rectangle'), ...named, xMin: numeric, xMax: numeric, yMin: numeric, yMax: numeric }),
     z.strictObject({ kind: z.literal('polygon'), ...named, points: z.array(coordinate).min(3).max(16) }),
     z.strictObject({ kind: z.literal('circle'), ...named, center: coordinate, radius: numeric.positive() }),
@@ -164,18 +158,14 @@ function checkPlot(d, issue) {
       }
     });
   });
-  // Annotation numbers a derive computes are read as the renderer will see them; one that cannot be computed was named by derived.js and is skipped here.
-  const resolved = fillDerived({ ...d, annotations: structuredClone(d.annotations ?? []) }).annotations;
-  const known = point => point.x !== undefined && point.y !== undefined;
-  resolved.forEach((a, i) => {
+  (d.annotations ?? []).forEach((a, i) => {
     const path = ['annotations', i];
-    if (a.kind === 'point' && known(a)) checkPoint(a, path);
+    if (a.kind === 'point') checkPoint(a, path);
     if (a.kind === 'segment' || a.kind === 'vector') {
-      if (known(a.from)) checkPoint(a.from, [...path, 'from']);
-      if (known(a.to)) checkPoint(a.to, [...path, 'to']);
-      if (known(a.from) && known(a.to) && a.from.x === a.to.x && a.from.y === a.to.y) issue(path, 'A segment or vector needs distinct endpoints');
+      checkPoint(a.from, [...path, 'from']); checkPoint(a.to, [...path, 'to']);
+      if (a.from.x === a.to.x && a.from.y === a.to.y) issue(path, 'A segment or vector needs distinct endpoints');
     }
-    if (a.kind === 'reference-line' && a.value !== undefined && !inAxis(a.value, d[a.axis])) issue([...path, 'value'], 'Reference line must be within the axis bounds');
+    if (a.kind === 'reference-line' && !inAxis(a.value, d[a.axis])) issue([...path, 'value'], 'Reference line must be within the axis bounds');
     if (a.kind === 'band') {
       if (a.from >= a.to) issue(path, 'A band requires an increasing interval');
       if (!inAxis(a.from, d[a.axis]) || !inAxis(a.to, d[a.axis])) issue(path, 'Band must be within the axis bounds');
@@ -231,7 +221,7 @@ function checkBars(d, issue) {
 }
 
 export function validate(diagram, issue) {
-  if (diagram.kind === 'coordinate-plot') { checkDerived(diagram, issue); checkPlot(diagram, issue); } // VAR-1: `derive` annotations (derived.js)
+  if (diagram.kind === 'coordinate-plot') checkPlot(diagram, issue);
   else if (diagram.kind === 'bar-chart') checkBars(diagram, issue);
 }
 

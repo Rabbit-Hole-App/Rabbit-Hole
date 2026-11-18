@@ -76,22 +76,10 @@ const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.cont
 // learn-artifact.js ARITHMETIC_REPAIRS_SAME_MODEL reads this to decide whether a step whose answer has a wrong number gets a second repair or hands over to the next provider.
 const geminiWrites = (kind, keep) => !NEW.has(kind) || keep.has(kind);
 export const canWriteKind = (step, kind, keep = new Set()) => step.provider !== 'google' || geminiWrites(kind, keep);
-// VAR-1 step 1 (2026-11-17): the author's `derive` (four annotation kinds) and `op` / `t` (list transformation) cost 6 properties in the mixed plot, heatmap and block-stack bundle, 360 to 366
-// against the 362 limit, so Gemini's step does not get them, and the fields they make optional (an annotation's y or value, a softmax card's after items) stay required for it. The validator
-// still accepts and computes them from any step, and every Gemini bundle stays byte-identical to before.
-const REQUIRED_AGAIN = { point: ['x', 'y'], 'reference-line': ['value'] };
-const withoutDerived = o => {
-  const { derive, op, t, ...properties } = o.properties, kind = properties.kind?.const, again = (schema, names) => ({ ...schema, required: [...(schema.required ?? []), ...names] });
-  for (const end of ['from', 'to']) if (kind === 'segment' || kind === 'vector') properties[end] = again(properties[end], ['y']);
-  if (kind === 'transformation') properties.after = again(properties.after, ['items']);
-  return { ...o, properties, ...(REQUIRED_AGAIN[kind] && { required: [...o.required, ...REQUIRED_AGAIN[kind]] }) };
-};
 export const forGemini = (o, keep = new Set()) => {
   if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep));
   if (!o || typeof o !== 'object') return o;
-  if (o.properties?.kind?.const === 'transformation') return withoutDerived(listForm(o));
-  if (o.properties?.kind?.const === 'comparison') return listForm(o);
-  if (o.properties?.derive && o.properties.kind) o = withoutDerived(o); // an annotation that carries `derive`
+  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
 };
 
