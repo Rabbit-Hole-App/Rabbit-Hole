@@ -1,0 +1,808 @@
+{
+  "job": {
+    "id": "ej_478cdb571ab44e4d962044f0eb0513f1",
+    "version": 1,
+    "boardId": "7fbe0fd6-b544-4b2a-a3a8-76ff81adafe1",
+    "cardId": "81915696-12ce-4d0e-9ea1-9243870f0efc",
+    "requestClass": "simple",
+    "stage": "ready",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "accepted",
+    "failure": null,
+    "recovery": [],
+    "usage": {
+      "credits": 1,
+      "unknown": false
+    },
+    "result": {
+      "jobId": "ej_478cdb571ab44e4d962044f0eb0513f1",
+      "resultId": "er_5a5da36e853f44ba931be929806f33f8",
+      "cardId": "81915696-12ce-4d0e-9ea1-9243870f0efc",
+      "canvas": {
+        "boardId": "7fbe0fd6-b544-4b2a-a3a8-76ff81adafe1"
+      },
+      "promptRef": "eb3590feaff2654f",
+      "revision": "xr_031af9f55d4c4d749fcfb723da454ff8",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "23b9889ef9ae1711d746666d5bd691faecb0dc8a94075e8d1bc7d84c532ee541",
+      "sourceHash": "f56559959a0827333db922e28c80ac82ea474b770c3d928058d7a7caffd9f447",
+      "manifestHash": "4460d42ef75dc362d163459ae4c38ea0cdd1fd3bcb5497119ac47aec9b1df310",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+        "envelopeHash": "406a036f1087c86b32298fe3bed9b4a310d295d93ba296d08a59b589c51ecafd",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      },
+      "program": {
+        "kind": "explain_program",
+        "schemaVersion": 1,
+        "runtimeVersion": "quickjs-release-sync@0.32.0",
+        "sdkVersion": "sdk-8",
+        "rendererVersion": "renderer-5",
+        "runtimePolicyVersion": "policy-1",
+        "permissionProfileVersion": "perm-1",
+        "fingerprints": {
+          "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+          "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+          "renderer": "renderer-5"
+        },
+        "dependencies": [],
+        "manifest": {
+          "title": "The Sigmoid Curve",
+          "summary": "Explore how the logistic sigmoid curve maps continuous inputs between zero and one. Adjust the steepness parameter to see how it changes the transition around the midpoint.",
+          "assumptions": [
+            "Dimensionless logistic with positive steepness; a finite displayed input domain."
+          ],
+          "description": "Explore how the logistic sigmoid curve maps continuous inputs between zero and one. Adjust the steepness parameter to see how it changes the transition around the midpoint.",
+          "inputs": [
+            {
+              "type": "number",
+              "id": "k",
+              "label": "Steepness k",
+              "default": 1,
+              "min": 0.2,
+              "max": 5,
+              "step": 0.1
+            }
+          ],
+          "readouts": [
+            {
+              "id": "yAtMarker",
+              "label": "Output value",
+              "unit": "",
+              "decimals": 3
+            }
+          ],
+          "capabilities": [
+            "number_inputs",
+            "props",
+            "figures"
+          ]
+        },
+        "source": "\nconst W = {\"heading\":\"Logistic Sigmoid\",\"state\":{\"default\":\"Standard transition\",\"gentler\":\"Genther transition\",\"steeper\":\"Steeper transition\"},\"axis\":{\"x\":\"Input x\",\"y\":\"Output y\"},\"marker\":{\"heading\":\"Marker at x = 1\",\"at\":\"x =\",\"note\":\"Sigmoid output\"},\"readout\":{\"y\":\"Output value\"}}, G = {\"width\":640,\"height\":328,\"left\":56,\"right\":414,\"top\":68,\"bottom\":274,\"plot\":{\"x\":16,\"y\":44,\"w\":414,\"h\":279},\"x\":[-6,6],\"y\":[0,1],\"kDefault\":1}, SLOTS = {\"y\":\"y\",\"slope\":\"slope\",\"yAtMarker\":\"yAtMarker\"}, READOUTS = [\"yAtMarker\"], TANGENT = false;\nconst Q = { \"k\": (inputs, x) => { const {k} = inputs; return k; },\n\"x0\": (inputs, x) => { const {k} = inputs; return 0; },\n\"xMarker\": (inputs, x) => { const {k} = inputs; return 1; },\n\"y\": (inputs, x) => { const {k} = inputs; return (1 / (1 + Math.exp((((-1) * k) * x)))); },\n\"slope\": (inputs, x) => { const {k} = inputs; return ((k * Math.exp((((-1) * k) * x))) / ((1 + Math.exp((((-1) * k) * x))) * (1 + Math.exp((((-1) * k) * x))))); },\n\"yAtMarker\": (inputs, x) => { const {k} = inputs; return (1 / (1 + Math.exp((((-1) * k) * 1)))); } };\nconst fmt = n => n.toFixed(1).replace('-', '−');\nfunction samples(inputs, midpoint, marker) {\n  const f = x => Q[SLOTS.y](inputs, x);\n  const xs = [G.x[0], G.x[1], midpoint, marker].filter(x => x >= G.x[0] && x <= G.x[1]);\n  let points = Array.from(new Set(xs)).sort((a,b) => a-b).map(x => ({x, y:f(x)}));\n  while (points.length < 24) {\n    let best = -1, split = 0, error = -1;\n    for (let i = 0; i < points.length-1; i++) {\n      const a = points[i], b = points[i+1];\n      for (const t of [0.25, 0.5, 0.75]) {\n        const x = a.x + (b.x-a.x)*t, e = Math.abs(f(x) - (a.y + (b.y-a.y)*t));\n        if (e > error) { best = i; split = x; error = e; }\n      }\n    }\n    if (best < 0) break;\n    points.splice(best+1, 0, {x:split, y:f(split)});\n  }\n  return points;\n}\nexport function evaluate({inputs}) {\n  const markerX = Q.xMarker(inputs, 0), midpoint = Q.x0(inputs, 0), k = Q.k(inputs, 0);\n  const quantities = {};\n  for (const id of Object.keys(Q)) quantities[id] = Q[id](inputs, markerX);\n  const value = quantities[SLOTS.y], slope = quantities[SLOTS.slope];\n  const sx = sdk.linear(G.x, [G.left, G.right]), sy = sdk.linear(G.y, [G.bottom, G.top]);\n  const state = k < G.kDefault ? W.state.gentler : k > G.kDefault ? W.state.steeper : W.state.default;\n  // sdk.plot owns its visible axes. The sdk.axis declarations supply their\n  // metadata; they are not drawn a second time or printed twice.\n  const ax = sdk.axis('axis.x', {x:G.left, y:G.bottom, length:G.right-G.left, orientation:'x', min:G.x[0], max:G.x[1], label:W.axis.x});\n  const ay = sdk.axis('axis.y', {x:G.left, y:G.bottom, length:G.bottom-G.top, orientation:'y', min:G.y[0], max:G.y[1], label:W.axis.y});\n  const series = [{label:TANGENT ? W.legend.curve : W.heading, kind:'line', points:samples(inputs, midpoint, markerX)}];\n  if (TANGENT) {\n    let lo = Math.max(G.x[0], markerX-1), hi = Math.min(G.x[1], markerX+1);\n    if (Math.abs(slope) > 1e-15) {\n      const a = markerX + (G.y[0]-value)/slope, b = markerX + (G.y[1]-value)/slope;\n      lo = Math.max(lo, Math.min(a,b)); hi = Math.min(hi, Math.max(a,b));\n    }\n    series.push({label:W.legend.tangent, kind:'line', points:[lo,hi].map(x => ({x, y:Math.max(G.y[0], Math.min(G.y[1], value+slope*(x-markerX)))}))});\n  }\n  const objects = [\n    sdk.text('scene.heading', 16, 14, W.heading), sdk.text('scene.state', 438, 14, state),\n    sdk.plot('plot.curve', {...G.plot, axes:{x:{min:ax.min,max:ax.max,label:ax.label}, y:{min:ay.min,max:ay.max,label:ay.label}}, series}),\n  ];\n  // At either bound, guides almost coincide with the plot border; omit them\n  // within one marker diameter so the legend and border stay readable.\n  if (sy(value)-G.top >= 12 && G.bottom-sy(value) >= 12) objects.push(\n    sdk.line('guide.marker.x', sx(markerX), sy(value), sx(markerX), G.bottom, {opacity:0.3}),\n    sdk.line('guide.marker.y', G.left, sy(value), sx(markerX), sy(value), {opacity:0.3}),\n  );\n  objects.push(sdk.circle('ball.marker', sx(markerX), sy(value), 12));\n  const lines = [W.marker.heading, W.marker.at + fmt(markerX), ...(TANGENT ? [] : [W.marker.note])];\n  objects.push(...sdk.callout(438, sdk.clamp(sy(value)-28, 70, G.bottom-lines.length*28), lines, {id:'callout.marker'}));\n  return {frame:sdk.frame(objects, {width:G.width, height:G.height, readouts:READOUTS.map(id => ({id, value:quantities[id]}))}), quantities};\n}\n",
+        "sourceHash": "f56559959a0827333db922e28c80ac82ea474b770c3d928058d7a7caffd9f447",
+        "manifestHash": "4460d42ef75dc362d163459ae4c38ea0cdd1fd3bcb5497119ac47aec9b1df310",
+        "bundleHash": "23b9889ef9ae1711d746666d5bd691faecb0dc8a94075e8d1bc7d84c532ee541"
+      },
+      "execution": {
+        "allowed": true
+      }
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 92,
+      "proposalMs": 2543,
+      "generateToResultMs": 160,
+      "processingMs": 2610,
+      "approvalWaitMs": 0,
+      "calls": 1,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 2400,
+          "calls": 1,
+          "inputTokens": 2080,
+          "outputTokens": 500,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 51,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "authoring",
+          "ms": 26,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 26,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 107,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 5,
+          "outcome": "accepted"
+        }
+      ]
+    },
+    "createdAt": 1794962051550,
+    "updatedAt": 1794962054253,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "block": {
+    "type": "animation",
+    "id": "81915696-12ce-4d0e-9ea1-9243870f0efc",
+    "title": "The Sigmoid Curve",
+    "program": {
+      "kind": "explain_program",
+      "resultId": "er_5a5da36e853f44ba931be929806f33f8",
+      "bundleHash": "23b9889ef9ae1711d746666d5bd691faecb0dc8a94075e8d1bc7d84c532ee541"
+    },
+    "interact": {
+      "version": 1,
+      "planHash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+      "composition": {
+        "version": 1,
+        "planHash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+        "depth": "brief",
+        "title": "The Sigmoid Curve",
+        "cardDescription": "Explore how the logistic sigmoid curve maps continuous inputs between zero and one. Adjust the steepness parameter to see how it changes the transition around the midpoint.",
+        "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the marker output update in real time.",
+        "order": [
+          "title",
+          "description",
+          "main",
+          "controls"
+        ],
+        "supporting": [],
+        "main": {
+          "artifact": {
+            "kind": "program",
+            "hash": "23b9889ef9ae1711d746666d5bd691faecb0dc8a94075e8d1bc7d84c532ee541"
+          },
+          "runtime": {
+            "renderer": "program",
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "programTuple": {
+              "schemaVersion": 1,
+              "sdkVersion": "sdk-8",
+              "rendererVersion": "renderer-5",
+              "runtimeVersion": "quickjs-release-sync@0.32.0",
+              "runtimePolicyVersion": "policy-1",
+              "permissionProfileVersion": "perm-1",
+              "fingerprints": {
+                "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+                "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+                "renderer": "renderer-5"
+              }
+            },
+            "requiredHelpers": [],
+            "requiredCapabilities": [
+              "number_inputs",
+              "props",
+              "figures"
+            ],
+            "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+          },
+          "mode": "static",
+          "readoutIds": [
+            "yAtMarker"
+          ],
+          "inputDefaults": {
+            "k": 1
+          },
+          "controls": [
+            {
+              "id": "k",
+              "type": "number",
+              "label": "Steepness k",
+              "nativeControlId": "program.number",
+              "binding": {
+                "kind": "input",
+                "id": "k"
+              },
+              "row": "controls",
+              "native": {
+                "in": "manifest.inputs",
+                "declaration": {
+                  "type": "number",
+                  "id": "k",
+                  "label": "Steepness k",
+                  "default": 1,
+                  "min": 0.2,
+                  "max": 5,
+                  "step": 0.1
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "curve"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "marker"
+                },
+                {
+                  "scope": "main",
+                  "kind": "quantity",
+                  "id": "k"
+                },
+                {
+                  "scope": "main",
+                  "kind": "readout",
+                  "id": "yAtMarker"
+                }
+              ],
+              "unit": "",
+              "default": 1,
+              "min": 0.2,
+              "max": 5,
+              "step": 0.1,
+              "onChange": "recompute_still"
+            },
+            {
+              "id": "resetAll",
+              "type": "reset",
+              "label": "Reset experiment",
+              "nativeControlId": "program.reset",
+              "binding": {
+                "kind": "reset"
+              },
+              "row": "controls",
+              "native": {
+                "in": "card.reset",
+                "declaration": null
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "curve"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "marker"
+                }
+              ]
+            }
+          ],
+          "timeline": null,
+          "onInputChange": "recompute_still"
+        },
+        "envelopeHash": "406a036f1087c86b32298fe3bed9b4a310d295d93ba296d08a59b589c51ecafd"
+      }
+    },
+    "explain": {
+      "jobId": "ej_478cdb571ab44e4d962044f0eb0513f1",
+      "resultId": "er_5a5da36e853f44ba931be929806f33f8",
+      "cardId": "81915696-12ce-4d0e-9ea1-9243870f0efc",
+      "canvas": {
+        "boardId": "7fbe0fd6-b544-4b2a-a3a8-76ff81adafe1"
+      },
+      "promptRef": "eb3590feaff2654f",
+      "revision": "xr_031af9f55d4c4d749fcfb723da454ff8",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "23b9889ef9ae1711d746666d5bd691faecb0dc8a94075e8d1bc7d84c532ee541",
+      "sourceHash": "f56559959a0827333db922e28c80ac82ea474b770c3d928058d7a7caffd9f447",
+      "manifestHash": "4460d42ef75dc362d163459ae4c38ea0cdd1fd3bcb5497119ac47aec9b1df310",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+        "envelopeHash": "406a036f1087c86b32298fe3bed9b4a310d295d93ba296d08a59b589c51ecafd",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      }
+    }
+  },
+  "scenePlan": {
+    "version": 1,
+    "hash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+    "revision": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "depth": "brief",
+      "title": "The Sigmoid Curve",
+      "story": "When modeling growth or decision thresholds, a simple linear scale often fails because real-world systems saturate at extremes. We need a function that maps any input smoothly between zero and one. The logistic sigmoid function provides this smooth transition, taking an input value and compressing it into a bounded range. By adjusting the steepness parameter, we can control how abruptly the transition occurs around the midpoint.",
+      "cardDescription": "Explore how the logistic sigmoid curve maps continuous inputs between zero and one. Adjust the steepness parameter to see how it changes the transition around the midpoint.",
+      "learningGoal": "Explain why changing steepness preserves the sigmoid bounds.",
+      "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the marker output update in real time.",
+      "supportingVisuals": [],
+      "scene": {
+        "description": "One curve, a fixed-input marker, a plain-word callout, an output readout and one steepness slider.",
+        "runtime": {
+          "renderer": "program",
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "programTuple": {
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "rendererVersion": "renderer-5",
+            "runtimeVersion": "quickjs-release-sync@0.32.0",
+            "runtimePolicyVersion": "policy-1",
+            "permissionProfileVersion": "perm-1",
+            "fingerprints": {
+              "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+              "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+              "renderer": "renderer-5"
+            }
+          },
+          "requiredHelpers": [],
+          "requiredCapabilities": [
+            "number_inputs",
+            "props",
+            "figures"
+          ],
+          "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+        },
+        "entities": [
+          {
+            "id": "curve",
+            "label": "Sigmoid curve",
+            "purpose": "Show output as a function of input."
+          },
+          {
+            "id": "marker",
+            "label": "Selected point",
+            "purpose": "Link an input coordinate to its output."
+          }
+        ],
+        "quantities": [
+          {
+            "id": "k",
+            "label": "Steepness k",
+            "unit": "",
+            "meaning": "Positive steepness of the transition.",
+            "reference": "At x0 the slope is k / 4.",
+            "formula": "k"
+          },
+          {
+            "id": "x0",
+            "label": "Midpoint x₀",
+            "unit": "",
+            "meaning": "Input at the centre of the transition.",
+            "reference": "The output at x0 is one half. Increasing x0 shifts the curve right.",
+            "formula": "x0"
+          },
+          {
+            "id": "xMarker",
+            "label": "Marker x",
+            "unit": "",
+            "meaning": "Input coordinate of the selected point on the curve.",
+            "reference": "The marker readout is y evaluated at this input.",
+            "formula": "xMarker"
+          },
+          {
+            "id": "y",
+            "label": "Output y",
+            "unit": "",
+            "meaning": "Dimensionless output at x; strictly between zero and one for finite inputs. Positive is upward.",
+            "reference": "y = 1 / (1 + exp(-k * (x - x0)))",
+            "relation": "y = 1 / (1 + exp((-1) * k * x))",
+            "formula": "1 / (1 + exp((-1) * k * x))"
+          },
+          {
+            "id": "slope",
+            "label": "Slope dy/dx",
+            "unit": "",
+            "meaning": "Signed derivative of y with respect to x. Positive means the curve rises to the right.",
+            "reference": "slope = k / (2 + exp(k * (x - x0)) + exp(-k * (x - x0)))",
+            "relation": "slope = k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)",
+            "formula": "k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)"
+          },
+          {
+            "id": "yAtMarker",
+            "label": "Output y",
+            "unit": "",
+            "meaning": "Dimensionless output at the selected input xMarker; the same curve, not a second rule.",
+            "reference": "yAtMarker = 1 / (1 + exp(-k * (xMarker - x0)))",
+            "relation": "yAtMarker = 1 / (1 + exp((-1) * k * 1))",
+            "formula": "1 / (1 + exp((-1) * k * 1))"
+          }
+        ],
+        "observations": [
+          {
+            "id": "bounds",
+            "text": "The output approaches either bound without reaching it at a finite input.",
+            "quantityIds": [
+              "y"
+            ],
+            "readoutIds": [
+              "yAtMarker"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "default",
+            "label": "Default curve",
+            "time": null,
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "The marker lies on the curve and its readout is the output at the marked input."
+          },
+          {
+            "id": "gentle",
+            "label": "Least steep",
+            "time": null,
+            "inputOverrides": {
+              "k": 0.2
+            },
+            "actions": [],
+            "expected": "The transition is gentler; its output stays within the same bounds."
+          },
+          {
+            "id": "steep",
+            "label": "Most steep",
+            "time": null,
+            "inputOverrides": {
+              "k": 5
+            },
+            "actions": [],
+            "expected": "The transition is sharper around its midpoint; its output stays within the same bounds."
+          }
+        ],
+        "readoutIds": [
+          "yAtMarker"
+        ],
+        "template": "curve-one",
+        "slots": {
+          "y": "y",
+          "slope": "slope",
+          "yAtMarker": "yAtMarker"
+        },
+        "words": {
+          "heading": "Logistic Sigmoid",
+          "state_default": "Standard transition",
+          "state_gentler": "Genther transition",
+          "state_steeper": "Steeper transition",
+          "axis_x": "Input x",
+          "axis_y": "Output y",
+          "marker_heading": "Marker at x = 1",
+          "marker_at": "x =",
+          "readout_y": "Output value",
+          "marker_note": "Sigmoid output"
+        }
+      },
+      "mode": {
+        "kind": "static",
+        "initialState": "The curve at the default parameters with its linked marker; no elapsed time.",
+        "fixedValues": {
+          "x0": 0,
+          "xMarker": 1
+        },
+        "adjustableIds": [
+          "k"
+        ],
+        "timeline": null,
+        "onInputChange": "recompute_still"
+      },
+      "controls": [
+        {
+          "id": "k",
+          "label": "Steepness k",
+          "purpose": "Positive steepness of the transition.",
+          "selectionReason": "A continuous slider exposes nearby values and intermediate changes in the curve.",
+          "nativeControlId": "program.number",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "curve"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "marker"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "k"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "yAtMarker"
+            }
+          ],
+          "type": "number",
+          "binding": {
+            "kind": "input",
+            "id": "k"
+          },
+          "unit": "",
+          "default": 1,
+          "min": 0.2,
+          "max": 5,
+          "step": 0.1,
+          "onChange": "recompute_still"
+        },
+        {
+          "id": "resetAll",
+          "label": "Reset experiment",
+          "purpose": "Restore the default parameters and marker.",
+          "selectionReason": "One reset restores all linked settings together.",
+          "nativeControlId": "program.reset",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "curve"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "marker"
+            }
+          ],
+          "type": "reset",
+          "binding": {
+            "kind": "reset"
+          },
+          "effect": "Restores the default parameters and marker input."
+        }
+      ],
+      "assumptions": [
+        "Dimensionless logistic with positive steepness; a finite displayed input domain."
+      ],
+      "limitations": [
+        "The plot shows a finite input interval; its bounds describe the full logistic."
+      ],
+      "claims": [
+        {
+          "id": "boundedOutput",
+          "text": "The output is strictly between zero and one for finite inputs with positive steepness.",
+          "evidenceIds": [],
+          "check": "exp(z) > 0, hence 1 + exp(z) > 1 and its reciprocal is strictly between zero and one."
+        }
+      ]
+    },
+    "open": [],
+    "carried": [],
+    "fit": {
+      "styleVersion": "card-description-v1:estimate"
+    },
+    "review": null
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "How does the sigmoid output change as its input goes from -6 to 6?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": "gemini-3.5-flash-lite",
+      "calls": 1,
+      "fallback": "none",
+      "firstProblem": null,
+      "costUsd": 0.001874,
+      "pick": {
+        "family": "curve-sliders",
+        "confidence": 0.99,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0.99,
+          "stepper-states": 0,
+          "none": 0.01
+        },
+        "ms": 160,
+        "reason": "fit"
+      }
+    },
+    "findings": [
+      {
+        "round": 0,
+        "stage": "reviewing",
+        "accepted": true,
+        "findings": [],
+        "review": "shadow"
+      }
+    ],
+    "candidates": [],
+    "settings": {
+      "presentation": "static"
+    },
+    "calls": [
+      {
+        "key": "ej_478cdb571ab44e4d962044f0eb0513f1-design_fill-1",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": "gemini-3.5-flash-lite",
+        "served": "gemini-3.5-flash-lite",
+        "status": "settled",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 1874,
+        "inputTokens": 2080,
+        "outputTokens": 500,
+        "startedAt": 1794962051812,
+        "endedAt": 1794962053740,
+        "error": null
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794962051550,
+        "firstFeedback": 1794962051642,
+        "proposalReady": 1794962054093,
+        "generate": 1794962054093,
+        "result": 1794962054253
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794962051642,
+          "endedAt": 1794962054042,
+          "calls": 1,
+          "inputTokens": 2080,
+          "outputTokens": 500,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794962054042,
+          "endedAt": 1794962054093,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "authoring",
+          "startedAt": 1794962054094,
+          "endedAt": 1794962054120,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1794962054120,
+          "endedAt": 1794962054146,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1794962054146,
+          "endedAt": 1794962054253,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 5,
+          "outcome": "accepted"
+        }
+      ],
+      "v": 2
+    },
+    "ledger": {
+      "jobId": "ej_478cdb571ab44e4d962044f0eb0513f1",
+      "planHash": "0e1040cd1e161a6a1327679374bd7bc205c5181b8fe429653b607cda805ff2b9",
+      "depth": "brief",
+      "result": "ready",
+      "stopReason": "accepted",
+      "oracleId": "curve-logistic-brief",
+      "oracleChecked": 36,
+      "oracleFailed": 0,
+      "bindingProblems": 0,
+      "overlapProblems": 0,
+      "repairs": 0,
+      "repairCauses": "",
+      "profile": "opus-baseline",
+      "fixture": null,
+      "authorModel": "template",
+      "fallbackFired": false,
+      "judgeVerdict": null,
+      "judgeMajor": null,
+      "judgeCostUsd": null,
+      "costUsd": 0.001874,
+      "msSteer": null,
+      "msAuthor": null,
+      "msValidate": 19,
+      "msRun": 81,
+      "msCheck": 2,
+      "msCompose": 16,
+      "msReview": null,
+      "msRepair": null,
+      "msTotal": 2703,
+      "msJudge": null,
+      "timing": "v2",
+      "buildKind": "template",
+      "msHopWait": 42,
+      "judgeFindingsPath": null,
+      "designModel": "gemini-3.5-flash-lite",
+      "designKind": "fast",
+      "msFill": null,
+      "designFallback": "none",
+      "designCalls": 1,
+      "msDesign": 2543,
+      "designCostUsd": 0.001874,
+      "pickFamily": "curve-sliders",
+      "pickConfidence": 0.99,
+      "msPick": 160,
+      "approvedBy": "fast-path",
+      "pickProbabilities": "{\"vertical-throw\":0,\"curve-sliders\":0.99,\"stepper-states\":0,\"none\":0.01}",
+      "prompt": "How does the sigmoid output change as its input goes from -6 to 6?"
+    }
+  }
+}
