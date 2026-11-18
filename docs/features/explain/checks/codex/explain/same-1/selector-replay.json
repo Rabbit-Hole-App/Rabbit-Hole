@@ -1,0 +1,451 @@
+{
+  "base": "2aeca536d19346699535c3cb599b01651c6c8d2e",
+  "keywordsCommit": "27d72f6a193e32e712301d9e083a5e6ab94963e2",
+  "dataTip": "144f125669196d0bd7c3e505cb08a0babaf1bfa7",
+  "cases": 3069,
+  "stableCases": 3054,
+  "keywordsMoves": 9,
+  "topKMoves": 6,
+  "archivedReplay": {
+    "cases": 474,
+    "savedBaselineMismatches": 0,
+    "moves": 0
+  },
+  "changes": [
+    {
+      "questionId": "A",
+      "prompt": "Can we retrieve the probability of a specific token after generation?",
+      "depth": "brief",
+      "before": {
+        "id": "A",
+        "depth": "brief",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "A",
+        "depth": "brief",
+        "planKind": "block-stack",
+        "kindSource": "reference",
+        "picked": [
+          "ml-transformer-vocabulary-softmax"
+        ],
+        "steer": {
+          "kind": "block-stack",
+          "source": "reference",
+          "id": "ml-transformer-vocabulary-softmax",
+          "referenceKind": "block-stack",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "A",
+      "prompt": "Can we retrieve the probability of a specific token after generation?",
+      "depth": "balanced",
+      "before": {
+        "id": "A",
+        "depth": "balanced",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "A",
+        "depth": "balanced",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-transformer-vocabulary-softmax"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-transformer-vocabulary-softmax",
+          "referenceKind": "bar-chart",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "A",
+      "prompt": "Can we retrieve the probability of a specific token after generation?",
+      "depth": "detailed",
+      "before": {
+        "id": "A",
+        "depth": "detailed",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "A",
+        "depth": "detailed",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-transformer-vocabulary-softmax"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-transformer-vocabulary-softmax",
+          "referenceKind": "bar-chart",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "B",
+      "prompt": "what is softmax, and how does it work here?",
+      "depth": "brief",
+      "before": {
+        "id": "B",
+        "depth": "brief",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "B",
+        "depth": "brief",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-logistic-regression-softmax-single"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-logistic-regression-softmax",
+          "referenceKind": "panels",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "B",
+      "prompt": "what is softmax, and how does it work here?",
+      "depth": "balanced",
+      "before": {
+        "id": "B",
+        "depth": "balanced",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "B",
+        "depth": "balanced",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-logistic-regression-softmax-single"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-logistic-regression-softmax",
+          "referenceKind": "panels",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "B",
+      "prompt": "what is softmax, and how does it work here?",
+      "depth": "detailed",
+      "before": {
+        "id": "B",
+        "depth": "detailed",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "B",
+        "depth": "detailed",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-logistic-regression-softmax-single"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-logistic-regression-softmax",
+          "referenceKind": "panels",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "B-wrapped",
+      "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+      "depth": "brief",
+      "before": {
+        "id": "B-wrapped",
+        "depth": "brief",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "B-wrapped",
+        "depth": "brief",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-logistic-regression-softmax-single"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-logistic-regression-softmax",
+          "referenceKind": "panels",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "B-wrapped",
+      "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+      "depth": "balanced",
+      "before": {
+        "id": "B-wrapped",
+        "depth": "balanced",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "B-wrapped",
+        "depth": "balanced",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-logistic-regression-softmax-single"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-logistic-regression-softmax",
+          "referenceKind": "panels",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "B-wrapped",
+      "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+      "depth": "detailed",
+      "before": {
+        "id": "B-wrapped",
+        "depth": "detailed",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "B-wrapped",
+        "depth": "detailed",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-logistic-regression-softmax-single"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-logistic-regression-softmax",
+          "referenceKind": "panels",
+          "score": 12
+        }
+      }
+    },
+    {
+      "questionId": "C",
+      "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+      "depth": "brief",
+      "before": {
+        "id": "C",
+        "depth": "brief",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "C",
+        "depth": "brief",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-sampling-top-k"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-sampling-top-k",
+          "referenceKind": "bar-chart",
+          "score": 58
+        }
+      }
+    },
+    {
+      "questionId": "C",
+      "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+      "depth": "balanced",
+      "before": {
+        "id": "C",
+        "depth": "balanced",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "C",
+        "depth": "balanced",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-sampling-top-k"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-sampling-top-k",
+          "referenceKind": "bar-chart",
+          "score": 58
+        }
+      }
+    },
+    {
+      "questionId": "C",
+      "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+      "depth": "detailed",
+      "before": {
+        "id": "C",
+        "depth": "detailed",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "C",
+        "depth": "detailed",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-sampling-top-k"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-sampling-top-k",
+          "referenceKind": "bar-chart",
+          "score": 58
+        }
+      }
+    },
+    {
+      "questionId": "C-archived",
+      "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+      "depth": "brief",
+      "before": {
+        "id": "C-archived",
+        "depth": "brief",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "C-archived",
+        "depth": "brief",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-sampling-top-k"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-sampling-top-k",
+          "referenceKind": "bar-chart",
+          "score": 58
+        }
+      }
+    },
+    {
+      "questionId": "C-archived",
+      "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+      "depth": "balanced",
+      "before": {
+        "id": "C-archived",
+        "depth": "balanced",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "C-archived",
+        "depth": "balanced",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-sampling-top-k"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-sampling-top-k",
+          "referenceKind": "bar-chart",
+          "score": 58
+        }
+      }
+    },
+    {
+      "questionId": "C-archived",
+      "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+      "depth": "detailed",
+      "before": {
+        "id": "C-archived",
+        "depth": "detailed",
+        "planKind": "transformation",
+        "kindSource": "planner",
+        "picked": [],
+        "steer": null
+      },
+      "after": {
+        "id": "C-archived",
+        "depth": "detailed",
+        "planKind": "bar-chart",
+        "kindSource": "reference",
+        "picked": [
+          "ml-sampling-top-k"
+        ],
+        "steer": {
+          "kind": "bar-chart",
+          "source": "reference",
+          "id": "ml-sampling-top-k",
+          "referenceKind": "bar-chart",
+          "score": 58
+        }
+      }
+    }
+  ]
+}

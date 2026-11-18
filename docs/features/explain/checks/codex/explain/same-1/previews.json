@@ -1,0 +1,106 @@
+{
+  "width": 408,
+  "sha256": "79753aefdce1c9416f064af9463d34167eb2c871bd3d31b1de8b4208165ae9e1",
+  "previews": [
+    {
+      "id": "shape-transformation-overview",
+      "group": "Transformation gallery",
+      "path": "408/shape-transformation-overview.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 333,
+      "scale": 1,
+      "sha256": "d8dc161b1231bdb55f3b1321143986a97f3290799c90fc9d45e5abab61dc09d3"
+    },
+    {
+      "id": "shape-transformation-standard",
+      "group": "Transformation gallery",
+      "path": "408/shape-transformation-standard.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 355,
+      "scale": 1,
+      "sha256": "070d176496bba4f4f4cc6bf1577247116c042fef38b1894267e6f61077e78414"
+    },
+    {
+      "id": "shape-transformation-deep",
+      "group": "Transformation gallery",
+      "path": "408/shape-transformation-deep.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 381,
+      "scale": 1,
+      "sha256": "747608cf9fc9990bc9dcf9afb086b6ec84225c544429eea413482a4e66ed5d97"
+    },
+    {
+      "id": "ml-sampling-top-k-overview",
+      "group": "Top-k sampling",
+      "path": "408/ml-sampling-top-k-overview.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 431,
+      "scale": 1,
+      "sha256": "d534b4c058a7c910f5353d794659048798a36ee6b2477d05a2b6f7d32b771b26"
+    },
+    {
+      "id": "ml-sampling-top-k-standard",
+      "group": "Top-k sampling",
+      "path": "408/ml-sampling-top-k-standard.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 431,
+      "scale": 1,
+      "sha256": "afd1f5e4f7556129d0920a197a6408d88d0e2d20000ec70910c2de10f4a240c6"
+    },
+    {
+      "id": "ml-sampling-top-k-deep",
+      "group": "Top-k sampling",
+      "path": "408/ml-sampling-top-k-deep.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 414,
+      "scale": 1,
+      "sha256": "a516aaee1c75200bc9d39e669f04b79e87b17959ba3d93ddda1c3195ac29fbd6"
+    },
+    {
+      "id": "ml-transformer-vocabulary-softmax",
+      "group": "Softmax references in the Balanced author request",
+      "path": "408/ml-transformer-vocabulary-softmax.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 380,
+      "scale": 1,
+      "sha256": "6ec23d9039886238d07bc91e41d1ce35f391ee6cccacb544f645f0e7752c6d10"
+    },
+    {
+      "id": "ml-transformer-vocabulary-softmax-detail",
+      "group": "Softmax references in the Balanced author request",
+      "path": "408/ml-transformer-vocabulary-softmax-detail.svg",
+      "requested": 408,
+      "width": 638,
+      "height": 334,
+      "scale": 0.6394984326018809,
+      "sha256": "99eb7d30c4e2988e1aee9175113c5e621c5b3171b1de90500758c01349c3da40"
+    },
+    {
+      "id": "ml-logistic-regression-softmax-single",
+      "group": "Softmax references in the Balanced author request",
+      "path": "408/ml-logistic-regression-softmax-single.svg",
+      "requested": 408,
+      "width": 408,
+      "height": 414,
+      "scale": 1,
+      "sha256": "b2f3abfd84c517f593ba29030ecafdf1b02472f3e892907b927e200900775110"
+    },
+    {
+      "id": "ml-logistic-regression-softmax",
+      "group": "Logistic-regression softmax in the reference library",
+      "path": "408/ml-logistic-regression-softmax.svg",
+      "requested": 408,
+      "width": 622,
+      "height": 371,
+      "scale": 0.6559485530546624,
+      "sha256": "7704b0817d3f881fda2287ebcf48df54140db5e3ee189cb1001053dd7267a30f"
+    }
+  ]
+}
