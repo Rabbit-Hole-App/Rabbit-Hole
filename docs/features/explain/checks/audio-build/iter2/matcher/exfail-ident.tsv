@@ -1,0 +1,44 @@
+row	card	depth	cardData(measured)	from prose+question	spoke(old)	spoke(new)	new parser passes?
+0	precision-recall	brief	1	(none: only title/visual JSON)	-	-	false
+1	precision-recall	brief	1	(none: only title/visual JSON)	-	-	false
+2	precision-recall	brief	1	(none: only title/visual JSON)	20 20	twenty | twenty	false
+3	tcp-handshake	brief	1	(none: only title/visual JSON)	-	-	false
+4	tcp-handshake	brief	1	(none: only title/visual JSON)	-	-	false
+5	precision-recall	brief	1	(none: only title/visual JSON)	-	-	false
+6	precision-recall	brief	1	(none: only title/visual JSON)	-	-	false
+7	precision-recall	brief	1	(none: only title/visual JSON)	-	-	false
+8	tcp-handshake	brief	1	(none: only title/visual JSON)	-	-	false
+9	tcp-handshake	brief	1	(none: only title/visual JSON)	-	-	false
+10	roman-empire	brief	1 509 27 476	(none: only title/visual JSON)	-	-	false
+11	tcp-handshake	brief	1	(none: only title/visual JSON)	-	-	false
+12	roman-empire	brief	1 509 27 476	(none: only title/visual JSON)	-	-	false
+13	tcp-handshake	brief	1	(none: only title/visual JSON)	-	-	false
+14	roman-empire	brief	1 509 27 476	(none: only title/visual JSON)	-	-	false
+15	roman-empire	brief	1 509 27 476	(none: only title/visual JSON)	-	-	false
+16	roman-empire	brief	1 509 27 476	(none: only title/visual JSON)	-	-	false
+17	roman-empire	brief	1 509 27 476	(none: only title/visual JSON)	-	-	false
+18	gradient-descent	brief	1 0 8 12 10 2 6 4	(none: only title/visual JSON)	-	-	false
+19	gradient-descent	brief	1 0 8 12 10 2 6 4	(none: only title/visual JSON)	-	-	false
+20	gradient-descent	brief	1 0 8 12 10 2 6 4	(none: only title/visual JSON)	-	-	false
+24	gradient-descent	brief	1 0 8 12 10 2 6 4	(none: only title/visual JSON)	-	-	false
+26	gradient-descent	brief	1 0 8 12 10 2 6 4	(none: only title/visual JSON)	-	-	false
+36	four-stroke	balanced	1	(none: only title/visual JSON)	-	-	false
+37	four-stroke	balanced	1	(none: only title/visual JSON)	4	4	false
+38	four-stroke	balanced	1	(none: only title/visual JSON)	-	-	false
+39	four-stroke	balanced	1	(none: only title/visual JSON)	4	4	false
+40	four-stroke	balanced	1	(none: only title/visual JSON)	-	-	false
+41	public-key-encryption	balanced	1	(none: only title/visual JSON)	0	zero	false
+42	four-stroke	balanced	1	(none: only title/visual JSON)	-	-	false
+43	public-key-encryption	balanced	1	(none: only title/visual JSON)	-	-	false
+44	public-key-encryption	balanced	1	(none: only title/visual JSON)	-	-	false
+45	public-key-encryption	balanced	1	(none: only title/visual JSON)	-	-	false
+47	public-key-encryption	balanced	1	(none: only title/visual JSON)	-	-	false
+49	public-key-encryption	balanced	1	(none: only title/visual JSON)	-	-	false
+58	bst	detailed	1 7 8 3 6 10	(none: only title/visual JSON)	-	a quarter	false
+59	water-cycle	detailed	1	(none: only title/visual JSON)	-	-	false
+61	water-cycle	detailed	1	(none: only title/visual JSON)	-	-	false
+62	water-cycle	detailed	1	(none: only title/visual JSON)	-	-	false
+65	water-cycle	detailed	1	(none: only title/visual JSON)	-	-	false
+66	water-cycle	detailed	1	(none: only title/visual JSON)	-	-	false
+67	water-cycle	detailed	1	(none: only title/visual JSON)	-	-	false
+71	gradient-descent	detailed	0 1 3 2 1.4 2.5 1.1 0.6	0 1	-	-	false

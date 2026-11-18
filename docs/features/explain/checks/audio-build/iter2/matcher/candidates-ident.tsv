@@ -1,0 +1,500 @@
+row	card	depth	run	phrase	class	old_status	old_value	new_value
+0	precision-recall	brief	1	point	noun "point" (not a number)	n/a		
+0	precision-recall	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+1	precision-recall	brief	2	one	lone "one" (pronoun/article, not a number)	n/a		
+1	precision-recall	brief	2	one	lone "one" (pronoun/article, not a number)	n/a		
+2	precision-recall	brief	3	ten	counting word two..ten (free by the owner rule)	ok	10	10
+2	precision-recall	brief	3	nine	counting word two..ten (free by the owner rule)	ok	9	9
+2	precision-recall	brief	3	twenty	other number words (zero, eleven..ninety, compounds)	ok	20	20
+2	precision-recall	brief	3	twenty	other number words (zero, eleven..ninety, compounds)	ok	20	20
+3	tcp-handshake	brief	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+3	tcp-handshake	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+3	tcp-handshake	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+3	tcp-handshake	brief	1	first	ordinal (not a number)	n/a		
+3	tcp-handshake	brief	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+4	tcp-handshake	brief	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+4	tcp-handshake	brief	2	first	ordinal (not a number)	n/a		
+5	precision-recall	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+5	precision-recall	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+5	precision-recall	brief	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+6	precision-recall	brief	2	point	noun "point" (not a number)	n/a		
+6	precision-recall	brief	2	ten	counting word two..ten (free by the owner rule)	ok	10	10
+6	precision-recall	brief	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+6	precision-recall	brief	2	one	lone "one" (pronoun/article, not a number)	n/a		
+6	precision-recall	brief	2	one	lone "one" (pronoun/article, not a number)	n/a		
+7	precision-recall	brief	3	point	noun "point" (not a number)	n/a		
+7	precision-recall	brief	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+8	tcp-handshake	brief	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+8	tcp-handshake	brief	1	first	ordinal (not a number)	n/a		
+9	tcp-handshake	brief	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+9	tcp-handshake	brief	3	first	ordinal (not a number)	n/a		
+9	tcp-handshake	brief	3	second	ordinal (not a number)	n/a		
+9	tcp-handshake	brief	3	first	ordinal (not a number)	n/a		
+9	tcp-handshake	brief	3	first	ordinal (not a number)	n/a		
+9	tcp-handshake	brief	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+9	tcp-handshake	brief	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+10	roman-empire	brief	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+10	roman-empire	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+10	roman-empire	brief	1	half	bare half/quarter (not a number by design)	n/a		
+11	tcp-handshake	brief	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+11	tcp-handshake	brief	2	first	ordinal (not a number)	n/a		
+11	tcp-handshake	brief	2	second	ordinal (not a number)	n/a		
+11	tcp-handshake	brief	2	first	ordinal (not a number)	n/a		
+11	tcp-handshake	brief	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+11	tcp-handshake	brief	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+11	tcp-handshake	brief	2	first	ordinal (not a number)	n/a		
+12	roman-empire	brief	2	half	bare half/quarter (not a number by design)	n/a		
+12	roman-empire	brief	2	one	lone "one" (pronoun/article, not a number)	n/a		
+12	roman-empire	brief	2	one	lone "one" (pronoun/article, not a number)	n/a		
+13	tcp-handshake	brief	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+14	roman-empire	brief	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+14	roman-empire	brief	1	half	bare half/quarter (not a number by design)	n/a		
+14	roman-empire	brief	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+15	roman-empire	brief	3	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+16	roman-empire	brief	2	point	noun "point" (not a number)	n/a		
+17	roman-empire	brief	3	one	lone "one" (pronoun/article, not a number)	n/a		
+17	roman-empire	brief	3	half	bare half/quarter (not a number by design)	n/a		
+17	roman-empire	brief	3	half	bare half/quarter (not a number by design)	n/a		
+18	gradient-descent	brief	1	point	noun "point" (not a number)	n/a		
+19	gradient-descent	brief	1	one	lone "one" (pronoun/article, not a number)	n/a		
+20	gradient-descent	brief	2	point	noun "point" (not a number)	n/a		
+20	gradient-descent	brief	2	first	ordinal (not a number)	n/a		
+20	gradient-descent	brief	2	point	noun "point" (not a number)	n/a		
+21	gradient-descent	brief	3	first	ordinal (not a number)	n/a		
+21	gradient-descent	brief	3	point	noun "point" (not a number)	n/a		
+21	gradient-descent	brief	3	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+21	gradient-descent	brief	3	point	noun "point" (not a number)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	first	ordinal (not a number)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	twice	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	thirty six point eight percent	spoken decimal	ok	36.8	36.8
+22	ml-trees-bootstrap-coverage	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	minus one	minus as subtraction (not a number)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	zero point three six eight	spoken decimal	ok	0.368	0.368
+22	ml-trees-bootstrap-coverage	balanced	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+22	ml-trees-bootstrap-coverage	balanced	1	zero point three six eight	spoken decimal	ok	0.368	0.368
+22	ml-trees-bootstrap-coverage	balanced	1	zero point six three two	spoken decimal	ok	0.632	0.632
+22	ml-trees-bootstrap-coverage	balanced	1	sixty three percent	percent	ok	63	63
+22	ml-trees-bootstrap-coverage	balanced	1	thirty seven percent	percent	ok	37	37
+23	ml-trees-bootstrap-coverage	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+23	ml-trees-bootstrap-coverage	balanced	2	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+23	ml-trees-bootstrap-coverage	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+23	ml-trees-bootstrap-coverage	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+23	ml-trees-bootstrap-coverage	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+23	ml-trees-bootstrap-coverage	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+23	ml-trees-bootstrap-coverage	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+23	ml-trees-bootstrap-coverage	balanced	2	zero point three six eight	spoken decimal	ok	0.368	0.368
+23	ml-trees-bootstrap-coverage	balanced	2	zero point six three two	spoken decimal	ok	0.632	0.632
+23	ml-trees-bootstrap-coverage	balanced	2	sixty three percent	percent	ok	63	63
+25	ml-trees-bootstrap-coverage	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	minus one	minus as subtraction (not a number)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+25	ml-trees-bootstrap-coverage	balanced	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+25	ml-trees-bootstrap-coverage	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+25	ml-trees-bootstrap-coverage	balanced	3	zero point three six eight	spoken decimal	ok	0.368	0.368
+25	ml-trees-bootstrap-coverage	balanced	3	zero point six three two	spoken decimal	ok	0.632	0.632
+25	ml-trees-bootstrap-coverage	balanced	3	sixty three percent	percent	ok	63	63
+25	ml-trees-bootstrap-coverage	balanced	3	sixty three percent	percent	ok	63	63
+25	ml-trees-bootstrap-coverage	balanced	3	thirty seven percent	percent	ok	37	37
+26	gradient-descent	brief	3	first	ordinal (not a number)	n/a		
+26	gradient-descent	brief	3	point	noun "point" (not a number)	n/a		
+26	gradient-descent	brief	3	first	ordinal (not a number)	n/a		
+26	gradient-descent	brief	3	point	noun "point" (not a number)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	half	bare half/quarter (not a number by design)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	twelve	other number words (zero, eleven..ninety, compounds)	ok	12	12
+27	ref-box-plot-iqr-fences	balanced	1	minus six	minus as subtraction (not a number)	n/a	6	6
+27	ref-box-plot-iqr-fences	balanced	1	six	counting word two..ten (free by the owner rule)	ok	6	6
+27	ref-box-plot-iqr-fences	balanced	1	one point five	spoken decimal	ok	1.5	1.5
+27	ref-box-plot-iqr-fences	balanced	1	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	first	ordinal (not a number)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	third	ordinal (not a number)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+27	ref-box-plot-iqr-fences	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	first	ordinal (not a number)	n/a		
+27	ref-box-plot-iqr-fences	balanced	1	fifty percent	percent	ok	50	50
+28	ml-trees-bootstrap-coverage	balanced	1	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+28	ml-trees-bootstrap-coverage	balanced	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+28	ml-trees-bootstrap-coverage	balanced	1	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+28	ml-trees-bootstrap-coverage	balanced	1	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+28	ml-trees-bootstrap-coverage	balanced	1	zero point three six eight	spoken decimal	ok	0.368	0.368
+28	ml-trees-bootstrap-coverage	balanced	1	thirty six point eight percent	spoken decimal	ok	36.8	36.8
+28	ml-trees-bootstrap-coverage	balanced	1	sixty three percent	percent	ok	63	63
+28	ml-trees-bootstrap-coverage	balanced	1	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	first	ordinal (not a number)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	half	bare half/quarter (not a number by design)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	six	counting word two..ten (free by the owner rule)	ok	6	6
+29	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	fifty percent	percent	ok	50	50
+29	ref-box-plot-iqr-fences	balanced	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+29	ref-box-plot-iqr-fences	balanced	2	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+29	ref-box-plot-iqr-fences	balanced	2	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+29	ref-box-plot-iqr-fences	balanced	2	one point five	spoken decimal	ok	1.5	1.5
+29	ref-box-plot-iqr-fences	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	six	counting word two..ten (free by the owner rule)	ok	6	6
+29	ref-box-plot-iqr-fences	balanced	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+29	ref-box-plot-iqr-fences	balanced	2	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+29	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+29	ref-box-plot-iqr-fences	balanced	2	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+29	ref-box-plot-iqr-fences	balanced	2	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+29	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	first	ordinal (not a number)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	one point five	spoken decimal	ok	1.5	1.5
+29	ref-box-plot-iqr-fences	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+29	ref-box-plot-iqr-fences	balanced	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+29	ref-box-plot-iqr-fences	balanced	2	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+29	ref-box-plot-iqr-fences	balanced	2	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+30	ml-trees-bootstrap-coverage	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+30	ml-trees-bootstrap-coverage	balanced	2	once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+30	ml-trees-bootstrap-coverage	balanced	2	zero point three six eight	spoken decimal	ok	0.368	0.368
+30	ml-trees-bootstrap-coverage	balanced	2	1	digits	ok	1	1
+30	ml-trees-bootstrap-coverage	balanced	2	zero point three six eight	spoken decimal	ok	0.368	0.368
+30	ml-trees-bootstrap-coverage	balanced	2	zero point six three two	spoken decimal	ok	0.632	0.632
+30	ml-trees-bootstrap-coverage	balanced	2	63	digits	review	63	
+30	ml-trees-bootstrap-coverage	balanced	2	percent	percent	review		
+31	ref-box-plot-iqr-fences	balanced	3	fifty percent	percent	ok	50	50
+31	ref-box-plot-iqr-fences	balanced	3	six	counting word two..ten (free by the owner rule)	ok	6	6
+31	ref-box-plot-iqr-fences	balanced	3	twelve	other number words (zero, eleven..ninety, compounds)	ok	12	12
+31	ref-box-plot-iqr-fences	balanced	3	point	noun "point" (not a number)	n/a		
+31	ref-box-plot-iqr-fences	balanced	3	one point five	spoken decimal	ok	1.5	1.5
+31	ref-box-plot-iqr-fences	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+31	ref-box-plot-iqr-fences	balanced	3	point	noun "point" (not a number)	n/a		
+31	ref-box-plot-iqr-fences	balanced	3	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+32	ml-trees-bootstrap-coverage	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	minus one	minus as subtraction (not a number)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	minus one	minus as subtraction (not a number)	n/a		
+32	ml-trees-bootstrap-coverage	balanced	3	zero point three	spoken decimal	review	0.3	
+32	ml-trees-bootstrap-coverage	balanced	3	eight	counting word two..ten (free by the owner rule)	review	8	
+32	ml-trees-bootstrap-coverage	balanced	3	thirty six point eight percent	spoken decimal	ok	36.8	36.8
+32	ml-trees-bootstrap-coverage	balanced	3	zero point three six eight	spoken decimal	ok	0.368	0.368
+32	ml-trees-bootstrap-coverage	balanced	3	zero point six three two	spoken decimal	ok	0.632	0.632
+32	ml-trees-bootstrap-coverage	balanced	3	sixty three percent	percent	ok	63	63
+32	ml-trees-bootstrap-coverage	balanced	3	thirty seven percent	percent	ok	37	37
+32	ml-trees-bootstrap-coverage	balanced	3	sixty three percent	percent	ok	63	63
+32	ml-trees-bootstrap-coverage	balanced	3	sixty three percent	percent	ok	63	63
+33	ref-box-plot-iqr-fences	balanced	1	half	bare half/quarter (not a number by design)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	first	ordinal (not a number)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	third	ordinal (not a number)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	six	counting word two..ten (free by the owner rule)	ok	6	6
+33	ref-box-plot-iqr-fences	balanced	1	one point five	spoken decimal	ok	1.5	1.5
+33	ref-box-plot-iqr-fences	balanced	1	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+33	ref-box-plot-iqr-fences	balanced	1	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+33	ref-box-plot-iqr-fences	balanced	1	point	noun "point" (not a number)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	point	noun "point" (not a number)	n/a		
+33	ref-box-plot-iqr-fences	balanced	1	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+33	ref-box-plot-iqr-fences	balanced	1	point	noun "point" (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	fifty percent	percent	ok	50	50
+34	ref-box-plot-iqr-fences	balanced	2	first	ordinal (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	third	ordinal (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	half	bare half/quarter (not a number by design)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	half	bare half/quarter (not a number by design)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	first	ordinal (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	third	ordinal (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	six	counting word two..ten (free by the owner rule)	ok	6	6
+34	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	one point five	spoken decimal	ok	1.5	1.5
+34	ref-box-plot-iqr-fences	balanced	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+34	ref-box-plot-iqr-fences	balanced	2	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+34	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	point	noun "point" (not a number)	n/a		
+34	ref-box-plot-iqr-fences	balanced	2	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+35	ref-box-plot-iqr-fences	balanced	3	point	noun "point" (not a number)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	first	ordinal (not a number)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	third	ordinal (not a number)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+35	ref-box-plot-iqr-fences	balanced	3	six	counting word two..ten (free by the owner rule)	ok	6	6
+35	ref-box-plot-iqr-fences	balanced	3	one point five	spoken decimal	ok	1.5	1.5
+35	ref-box-plot-iqr-fences	balanced	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	eighteen	other number words (zero, eleven..ninety, compounds)	ok	18	18
+35	ref-box-plot-iqr-fences	balanced	3	six and twelve	other number words (zero, eleven..ninety, compounds)	ok	6,12	6,12
+35	ref-box-plot-iqr-fences	balanced	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+35	ref-box-plot-iqr-fences	balanced	3	sixteen	other number words (zero, eleven..ninety, compounds)	ok	16	16
+35	ref-box-plot-iqr-fences	balanced	3	point	noun "point" (not a number)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	first	ordinal (not a number)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	point	noun "point" (not a number)	n/a		
+35	ref-box-plot-iqr-fences	balanced	3	point	noun "point" (not a number)	n/a		
+36	four-stroke	balanced	1	point	noun "point" (not a number)	n/a		
+36	four-stroke	balanced	1	four	counting word two..ten (free by the owner rule)	ok	4	4
+37	four-stroke	balanced	1	point	noun "point" (not a number)	n/a		
+37	four-stroke	balanced	1	4	digits	ok	4	4
+37	four-stroke	balanced	1	four	counting word two..ten (free by the owner rule)	ok	4	4
+37	four-stroke	balanced	1	point	noun "point" (not a number)	n/a		
+38	four-stroke	balanced	2	four	counting word two..ten (free by the owner rule)	ok	4	4
+38	four-stroke	balanced	2	point	noun "point" (not a number)	n/a		
+39	four-stroke	balanced	2	4	digits	ok	4	4
+40	four-stroke	balanced	3	point	noun "point" (not a number)	n/a		
+40	four-stroke	balanced	3	second	ordinal (not a number)	n/a		
+40	four-stroke	balanced	3	second	ordinal (not a number)	n/a		
+40	four-stroke	balanced	3	four	counting word two..ten (free by the owner rule)	ok	4	4
+41	public-key-encryption	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+41	public-key-encryption	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+41	public-key-encryption	balanced	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+41	public-key-encryption	balanced	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+42	four-stroke	balanced	3	point	noun "point" (not a number)	n/a		
+42	four-stroke	balanced	3	four	counting word two..ten (free by the owner rule)	ok	4	4
+43	public-key-encryption	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+43	public-key-encryption	balanced	2	Once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+43	public-key-encryption	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+43	public-key-encryption	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+44	public-key-encryption	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+44	public-key-encryption	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+44	public-key-encryption	balanced	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+44	public-key-encryption	balanced	1	one	lone "one" (pronoun/article, not a number)	n/a		
+44	public-key-encryption	balanced	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+45	public-key-encryption	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+45	public-key-encryption	balanced	3	point	noun "point" (not a number)	n/a		
+45	public-key-encryption	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+45	public-key-encryption	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+46	softmax	detailed	1	two point zero	spoken decimal	ok	2	2
+46	softmax	detailed	1	one point zero	spoken decimal	ok	1	1
+46	softmax	detailed	1	zero point one	spoken decimal	ok	0.1	0.1
+46	softmax	detailed	1	two point zero	spoken decimal	ok	2	2
+46	softmax	detailed	1	one point zero	spoken decimal	ok	1	1
+46	softmax	detailed	1	zero point one	spoken decimal	ok	0.1	0.1
+46	softmax	detailed	1	two point zero	spoken decimal	ok	2	2
+46	softmax	detailed	1	zero point one	spoken decimal	ok	0.1	0.1
+46	softmax	detailed	1	Once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+46	softmax	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+46	softmax	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+47	public-key-encryption	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+47	public-key-encryption	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+47	public-key-encryption	balanced	2	one	lone "one" (pronoun/article, not a number)	n/a		
+48	softmax	detailed	2	2.0	digits	ok	2	2
+48	softmax	detailed	2	1.0 and 0.1	digits	ok	1,0.1	1,0.1
+48	softmax	detailed	2	first	ordinal (not a number)	n/a		
+48	softmax	detailed	2	2.0	digits	ok	2	2
+48	softmax	detailed	2	2.0	digits	ok	2	2
+48	softmax	detailed	2	1.0	digits	ok	1	1
+48	softmax	detailed	2	1.0 and 0.1	digits	ok	1,0.1	1,0.1
+48	softmax	detailed	2	0.1	digits	ok	0.1	0.1
+48	softmax	detailed	2	second	ordinal (not a number)	n/a		
+48	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+48	softmax	detailed	2	zero and one	other number words (zero, eleven..ninety, compounds)	ok	0	0
+48	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+48	softmax	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+48	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+48	softmax	detailed	2	2.0	digits	ok	2	2
+48	softmax	detailed	2	1.0	digits	ok	1	1
+48	softmax	detailed	2	2.0	digits	ok	2	2
+48	softmax	detailed	2	1.0	digits	ok	1	1
+48	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+49	public-key-encryption	balanced	3	one	lone "one" (pronoun/article, not a number)	n/a		
+49	public-key-encryption	balanced	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+50	softmax	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+50	softmax	detailed	1	three	counting word two..ten (free by the owner rule)	ok	3	3
+50	softmax	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+50	softmax	detailed	1	2.0	digits	ok	2	2
+50	softmax	detailed	1	1.0	digits	ok	1	1
+50	softmax	detailed	1	a third	a third/fourth as an ordinal (not a number)	n/a		
+50	softmax	detailed	1	0.1	digits	ok	0.1	0.1
+50	softmax	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+50	softmax	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+50	softmax	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+50	softmax	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+50	softmax	detailed	1	first	ordinal (not a number)	n/a		
+50	softmax	detailed	1	second	ordinal (not a number)	n/a		
+51	softmax	detailed	3	2.0	digits	ok	2	2
+51	softmax	detailed	3	1.0 and 0.1	digits	ok	1,0.1	1,0.1
+51	softmax	detailed	3	first	ordinal (not a number)	n/a		
+51	softmax	detailed	3	2.0	digits	ok	2	2
+51	softmax	detailed	3	1.0	digits	ok	1	1
+51	softmax	detailed	3	0.1	digits	ok	0.1	0.1
+51	softmax	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+51	softmax	detailed	3	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+51	softmax	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+51	softmax	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+51	softmax	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+51	softmax	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+51	softmax	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+51	softmax	detailed	3	point	noun "point" (not a number)	n/a		
+51	softmax	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+52	bst	detailed	1	half	bare half/quarter (not a number by design)	n/a		
+52	bst	detailed	1	half	bare half/quarter (not a number by design)	n/a		
+52	bst	detailed	1	half	bare half/quarter (not a number by design)	n/a		
+52	bst	detailed	1	7	digits	ok	7	7
+52	bst	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+52	bst	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+52	bst	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+52	bst	detailed	1	half	bare half/quarter (not a number by design)	n/a		
+53	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+53	softmax	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+53	softmax	detailed	2	two point zero	spoken decimal	ok	2	2
+53	softmax	detailed	2	one point zero	spoken decimal	ok	1	1
+53	softmax	detailed	2	one point one	spoken decimal	ok	1.1	1.1
+53	softmax	detailed	2	first	ordinal (not a number)	n/a		
+53	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+53	softmax	detailed	2	two point zero	spoken decimal	ok	2	2
+53	softmax	detailed	2	one point zero	spoken decimal	ok	1	1
+53	softmax	detailed	2	point one	spoken decimal, no leading digit	missed		0.1
+53	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+53	softmax	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+53	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+53	softmax	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+53	softmax	detailed	2	0	digits	ok	0	0
+53	softmax	detailed	2	1	digits	ok	1	1
+53	softmax	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+53	softmax	detailed	2	minus one point five	negative (minus/negative)	wrong value	1.5	-1.5
+53	softmax	detailed	2	two point three	spoken decimal	ok	2.3	2.3
+54	softmax	detailed	3	two point zero	spoken decimal	ok	2	2
+54	softmax	detailed	3	one point zero	spoken decimal	ok	1	1
+54	softmax	detailed	3	zero point one	spoken decimal	ok	0.1	0.1
+54	softmax	detailed	3	zero and one	other number words (zero, eleven..ninety, compounds)	ok	0	0
+54	softmax	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+54	softmax	detailed	3	one hundred percent	percent	ok	100	100
+54	softmax	detailed	3	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+54	softmax	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+55	bst	detailed	2	half	bare half/quarter (not a number by design)	n/a		
+55	bst	detailed	2	half	bare half/quarter (not a number by design)	n/a		
+55	bst	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+55	bst	detailed	2	8	digits	ok	8	8
+55	bst	detailed	2	3	digits	ok	3	3
+55	bst	detailed	2	10	digits	ok	10	10
+55	bst	detailed	2	1	digits	ok	1	1
+55	bst	detailed	2	6	digits	ok	6	6
+55	bst	detailed	2	7	digits	ok	7	7
+55	bst	detailed	2	8	digits	ok	8	8
+55	bst	detailed	2	7	digits	ok	7	7
+55	bst	detailed	2	3	digits	ok	3	3
+55	bst	detailed	2	7	digits	ok	7	7
+55	bst	detailed	2	6	digits	ok	6	6
+55	bst	detailed	2	6	digits	ok	6	6
+55	bst	detailed	2	1	digits	ok	1	1
+55	bst	detailed	2	2	digits	ok	2	2
+55	bst	detailed	2	3	digits	ok	3	3
+55	bst	detailed	2	4	digits	ok	4	4
+55	bst	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+55	bst	detailed	2	halves	bare half/quarter (not a number by design)	n/a		
+56	bst	detailed	3	first	ordinal (not a number)	n/a		
+56	bst	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+56	bst	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+56	bst	detailed	3	first	ordinal (not a number)	n/a		
+56	bst	detailed	3	second	ordinal (not a number)	n/a		
+56	bst	detailed	3	half	bare half/quarter (not a number by design)	n/a		
+56	bst	detailed	3	half	bare half/quarter (not a number by design)	n/a		
+56	bst	detailed	3	first	ordinal (not a number)	n/a		
+56	bst	detailed	3	half	bare half/quarter (not a number by design)	n/a		
+56	bst	detailed	3	7	digits	ok	7	7
+56	bst	detailed	3	7	digits	ok	7	7
+56	bst	detailed	3	8	digits	ok	8	8
+56	bst	detailed	3	3	digits	ok	3	3
+56	bst	detailed	3	6	digits	ok	6	6
+56	bst	detailed	3	6	digits	ok	6	6
+56	bst	detailed	3	7	digits	ok	7	7
+56	bst	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+56	bst	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+56	bst	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+56	bst	detailed	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+57	bst	detailed	1	8	digits	ok	8	8
+57	bst	detailed	1	10	digits	ok	10	10
+57	bst	detailed	1	3	digits	ok	3	3
+57	bst	detailed	1	1	digits	ok	1	1
+57	bst	detailed	1	8	digits	ok	8	8
+57	bst	detailed	1	3	digits	ok	3	3
+57	bst	detailed	1	6	digits	ok	6	6
+57	bst	detailed	1	7	digits	ok	7	7
+57	bst	detailed	1	8 and 10	digits	ok	8,10	8,10
+57	bst	detailed	1	1	digits	ok	1	1
+57	bst	detailed	1	3	digits	ok	3	3
+57	bst	detailed	1	6	digits	ok	6	6
+57	bst	detailed	1	7	digits	ok	7	7
+57	bst	detailed	1	8	digits	ok	8	8
+57	bst	detailed	1	10	digits	ok	10	10
+58	bst	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+58	bst	detailed	2	point	noun "point" (not a number)	n/a		
+58	bst	detailed	2	half	bare half/quarter (not a number by design)	n/a		
+58	bst	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+58	bst	detailed	2	half	bare half/quarter (not a number by design)	n/a		
+58	bst	detailed	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+58	bst	detailed	2	a quarter	fraction (a half, two thirds)	missed		0.25
+58	bst	detailed	2	eight	counting word two..ten (free by the owner rule)	ok	8	8
+58	bst	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+58	bst	detailed	2	ten	counting word two..ten (free by the owner rule)	ok	10	10
+58	bst	detailed	2	seven	counting word two..ten (free by the owner rule)	ok	7	7
+58	bst	detailed	2	first	ordinal (not a number)	n/a		
+58	bst	detailed	2	eight	counting word two..ten (free by the owner rule)	ok	8	8
+58	bst	detailed	2	seven	counting word two..ten (free by the owner rule)	ok	7	7
+58	bst	detailed	2	three	counting word two..ten (free by the owner rule)	ok	3	3
+58	bst	detailed	2	seven	counting word two..ten (free by the owner rule)	ok	7	7
+58	bst	detailed	2	six	counting word two..ten (free by the owner rule)	ok	6	6
+58	bst	detailed	2	seven	counting word two..ten (free by the owner rule)	ok	7	7
+58	bst	detailed	2	six	counting word two..ten (free by the owner rule)	ok	6	6
+58	bst	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+58	bst	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+59	water-cycle	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+60	bst	detailed	3	8 and 3 and 10 and 1 and 6	digits	ok	8,3,10,1,6	8,3,10,1,6
+60	bst	detailed	3	7	digits	ok	7	7
+60	bst	detailed	3	7	digits	ok	7	7
+60	bst	detailed	3	8	digits	ok	8	8
+60	bst	detailed	3	3	digits	ok	3	3
+60	bst	detailed	3	7	digits	ok	7	7
+60	bst	detailed	3	3	digits	ok	3	3
+60	bst	detailed	3	6	digits	ok	6	6
+60	bst	detailed	3	7	digits	ok	7	7
+60	bst	detailed	3	6	digits	ok	6	6
+60	bst	detailed	3	6	digits	ok	6	6
+60	bst	detailed	3	halves	bare half/quarter (not a number by design)	n/a		
+60	bst	detailed	3	half	bare half/quarter (not a number by design)	n/a		
+61	water-cycle	detailed	2	second	ordinal (not a number)	n/a		
+61	water-cycle	detailed	2	first	ordinal (not a number)	n/a		
+62	water-cycle	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+62	water-cycle	detailed	3	point	noun "point" (not a number)	n/a		
+63	gradient-descent	detailed	1	point	noun "point" (not a number)	n/a		
+63	gradient-descent	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+64	gradient-descent	detailed	2	one	lone "one" (pronoun/article, not a number)	n/a		
+64	gradient-descent	detailed	2	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+64	gradient-descent	detailed	2	1	digits	ok	1	1
+64	gradient-descent	detailed	2	2	digits	ok	2	2
+64	gradient-descent	detailed	2	1	digits	ok	1	1
+64	gradient-descent	detailed	2	2	digits	ok	2	2
+64	gradient-descent	detailed	2	3	digits	ok	3	3
+64	gradient-descent	detailed	2	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+64	gradient-descent	detailed	2	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+65	water-cycle	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+65	water-cycle	detailed	1	two	counting word two..ten (free by the owner rule)	ok	2	2
+65	water-cycle	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+65	water-cycle	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+65	water-cycle	detailed	1	one	lone "one" (pronoun/article, not a number)	n/a		
+67	water-cycle	detailed	3	point	noun "point" (not a number)	n/a		
+67	water-cycle	detailed	3	point	noun "point" (not a number)	n/a		
+67	water-cycle	detailed	3	Once	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+68	gradient-descent	detailed	1	point	noun "point" (not a number)	n/a		
+68	gradient-descent	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+68	gradient-descent	detailed	1	point	noun "point" (not a number)	n/a		
+68	gradient-descent	detailed	1	point	noun "point" (not a number)	n/a		
+68	gradient-descent	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+68	gradient-descent	detailed	1	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+69	gradient-descent	detailed	2	two	counting word two..ten (free by the owner rule)	ok	2	2
+69	gradient-descent	detailed	2	First	ordinal (not a number)	n/a		
+69	gradient-descent	detailed	2	1	digits	ok	1	1
+69	gradient-descent	detailed	2	2	digits	ok	2	2
+69	gradient-descent	detailed	2	3	digits	ok	3	3
+70	gradient-descent	detailed	3	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+70	gradient-descent	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+70	gradient-descent	detailed	3	times	multiplier/frequency word (twice, times, once; not a number by design)	n/a		
+70	gradient-descent	detailed	3	1	digits	ok	1	1
+70	gradient-descent	detailed	3	2	digits	ok	2	2
+70	gradient-descent	detailed	3	1	digits	ok	1	1
+70	gradient-descent	detailed	3	2	digits	ok	2	2
+70	gradient-descent	detailed	3	3	digits	ok	3	3
+70	gradient-descent	detailed	3	zero	other number words (zero, eleven..ninety, compounds)	ok	0	0
+71	gradient-descent	detailed	3	point	noun "point" (not a number)	n/a		
+71	gradient-descent	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+71	gradient-descent	detailed	3	one	lone "one" (pronoun/article, not a number)	n/a		
+71	gradient-descent	detailed	3	two	counting word two..ten (free by the owner rule)	ok	2	2
+71	gradient-descent	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+71	gradient-descent	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+71	gradient-descent	detailed	3	first	ordinal (not a number)	n/a		
+71	gradient-descent	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3
+71	gradient-descent	detailed	3	three	counting word two..ten (free by the owner rule)	ok	3	3

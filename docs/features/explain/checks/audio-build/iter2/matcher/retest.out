@@ -1,0 +1,159 @@
+mode: shipped digit reading (Q1 is the number 1)
+
+== 1. candidate phrases in the 72 scored first-answer scripts (generous pattern) ==
+┌─────────┬──────────────────────────────────────────────────────────────────────────┬───────┬────┬────────┬─────────────┬────────┬─────┐
+│ (index) │ class                                                                    │ total │ ok │ missed │ wrong value │ review │ n/a │
+├─────────┼──────────────────────────────────────────────────────────────────────────┼───────┼────┼────────┼─────────────┼────────┼─────┤
+│ 0       │ 'digits'                                                                 │ 88    │ 87 │ 0      │ 0           │ 1      │ 0   │
+│ 1       │ 'counting word two..ten (free by the owner rule)'                        │ 77    │ 76 │ 0      │ 0           │ 1      │ 0   │
+│ 2       │ 'lone "one" (pronoun/article, not a number)'                             │ 76    │ 0  │ 0      │ 0           │ 0      │ 76  │
+│ 3       │ 'ordinal (not a number)'                                                 │ 47    │ 0  │ 0      │ 0           │ 0      │ 47  │
+│ 4       │ 'noun "point" (not a number)'                                            │ 44    │ 0  │ 0      │ 0           │ 0      │ 44  │
+│ 5       │ 'spoken decimal'                                                         │ 41    │ 40 │ 0      │ 0           │ 1      │ 0   │
+│ 6       │ 'other number words (zero, eleven..ninety, compounds)'                   │ 39    │ 39 │ 0      │ 0           │ 0      │ 0   │
+│ 7       │ 'multiplier/frequency word (twice, times, once; not a number by design)' │ 37    │ 0  │ 0      │ 0           │ 0      │ 37  │
+│ 8       │ 'bare half/quarter (not a number by design)'                             │ 24    │ 0  │ 0      │ 0           │ 0      │ 24  │
+│ 9       │ 'percent'                                                                │ 17    │ 16 │ 0      │ 0           │ 1      │ 0   │
+│ 10      │ 'minus as subtraction (not a number)'                                    │ 5     │ 0  │ 0      │ 0           │ 0      │ 5   │
+│ 11      │ 'a third/fourth as an ordinal (not a number)'                            │ 1     │ 0  │ 0      │ 0           │ 0      │ 1   │
+│ 12      │ 'spoken decimal, no leading digit'                                       │ 1     │ 0  │ 1      │ 0           │ 0      │ 0   │
+│ 13      │ 'negative (minus/negative)'                                              │ 1     │ 0  │ 0      │ 1           │ 0      │ 0   │
+│ 14      │ 'fraction (a half, two thirds)'                                          │ 1     │ 0  │ 1      │ 0           │ 0      │ 0   │
+└─────────┴──────────────────────────────────────────────────────────────────────────┴───────┴────┴────────┴─────────────┴────────┴─────┘
+true spoken-number phrases: 265; old index missed (nothing parsed): 2; parsed to a wrong value: 1; prototype has no reading (review): 4
+scripts with at least one missed/wrong phrase: 2/72 (3%); phrases per affected script: 1 2
+review list (prototype has no reading): [[30,"63"],[30,"percent"],[32,"zero point three"],[32,"eight"]]
+
+== 2/3a. example-rule FAILURES on the first answer, by depth ==
+┌─────────┬────────────┬────┬─────────────────────────┬─────────────────────────┬──────────────────────┬──────────────────────┬────────────────────────────┬────────────────────────────────────────────┐
+│ (index) │ depth      │ n  │ as measured, old parser │ as measured, new parser │ tip rule, old parser │ tip rule, new parser │ tip rule applies (old/new) │ scripts speaking any data number (old/new) │
+├─────────┼────────────┼────┼─────────────────────────┼─────────────────────────┼──────────────────────┼──────────────────────┼────────────────────────────┼────────────────────────────────────────────┤
+│ 0       │ 'brief'    │ 24 │ '23/24 (96%)'           │ '23/24 (96%)'           │ '0/24 (0%)'          │ '0/24 (0%)'          │ '0/0'                      │ '2/2'                                      │
+│ 1       │ 'balanced' │ 24 │ '12/24 (50%)'           │ '12/24 (50%)'           │ '0/24 (0%)'          │ '0/24 (0%)'          │ '12/12'                    │ '15/15'                                    │
+│ 2       │ 'detailed' │ 24 │ '8/24 (33%)'            │ '8/24 (33%)'            │ '1/24 (4%)'          │ '1/24 (4%)'          │ '12/12'                    │ '16/17'                                    │
+└─────────┴────────────┴────┴─────────────────────────┴─────────────────────────┴──────────────────────┴──────────────────────┴────────────────────────────┴────────────────────────────────────────────┘
+total: measured old 43, measured new 43, tip old 1 (applies 24), tip new 1 (applies 24), of 72
+as-measured failures where the card data had NO number from prose/question (only title or diagram JSON): 42 of 43 ; failures the new parser turns into a pass: 0
+
+== 3b. OUTSIDE numbers (not in the card set) the shipped strip kept, the prototype catches ==
+rows where the first-answer strip removed nothing (firstRaw == firstStripped words): 53/72 (74%); old strip re-run on the first answers flags 42 sentences in 19 rows
+leaked mentions: 2 (script 1, transcript 1); scripts affected (script or transcript): 1/72 (1%); by script text alone: 1/72 (1%)
+leaked per affected script: 1
+leaked script mentions by kind: {"fraction":1}
+┌─────────┬─────┬───────┬────────────┬─────────────┬───────┬────────────┬──────────────────────────────────────────────────────────────────────────┐
+│ (index) │ row │ card  │ depth      │ phrase      │ value │ kind       │ sentence                                                                 │
+├─────────┼─────┼───────┼────────────┼─────────────┼───────┼────────────┼──────────────────────────────────────────────────────────────────────────┤
+│ 0       │ 58  │ 'bst' │ 'detailed' │ 'a quarter' │ 0.25  │ 'fraction' │ 'In other words, after one comparison you have at most half the tree le' │
+└─────────┴─────┴───────┴────────────┴─────────────┴───────┴────────────┴──────────────────────────────────────────────────────────────────────────┘
+counterfactual, NOT counted by design: bare half/quarter whose value (0.5, 0.25) is not in the card: 22 words in 13 scripts
+numbers kept only because the card's ALLOWED set contains a number from a diagram's JSON structure (not its prose, title, question or labels): 20 mentions in 8 scripts
+┌─────────┬─────┬───────────────────────────────┬────────┬───────┬────────────────────────────────────────────────────────────────────────────────────┐
+│ (index) │ row │ card                          │ phrase │ value │ sentence                                                                           │
+├─────────┼─────┼───────────────────────────────┼────────┼───────┼────────────────────────────────────────────────────────────────────────────────────┤
+│ 0       │ 21  │ 'gradient-descent'            │ 'zero' │ 0     │ 'Pay attention to how the algorithm stops moving altogether when the slope reache' │
+│ 1       │ 21  │ 'gradient-descent'            │ 'zero' │ 0     │ 'Pay attention to how the algorithm stops moving altogether when the slope reache' │
+│ 2       │ 23  │ 'ml-trees-bootstrap-coverage' │ 'zero' │ 0     │ 'It approaches a fundamental constant limit, rather than dropping all the way to ' │
+│ 3       │ 23  │ 'ml-trees-bootstrap-coverage' │ 'zero' │ 0     │ 'It approaches a fundamental constant limit, rather than dropping all the way to ' │
+│ 4       │ 46  │ 'softmax'                     │ 'zero' │ 0     │ 'They simply transform into tiny positive values that approach zero without ever ' │
+│ 5       │ 46  │ 'softmax'                     │ 'zero' │ 0     │ 'They simply transform into tiny positive values that approach zero without ever ' │
+│ 6       │ 48  │ 'softmax'                     │ 'zero' │ 0     │ 'Because every term in the numerator and denominator is positive, each fraction i' │
+│ 7       │ 48  │ 'softmax'                     │ 'zero' │ 0     │ 'Because every term in the numerator and denominator is positive, each fraction i' │
+│ 8       │ 50  │ 'softmax'                     │ 'zero' │ 0     │ 'Because e to the power of a large negative number gets very close to zero, the c' │
+│ 9       │ 50  │ 'softmax'                     │ 'zero' │ 0     │ 'Because e to the power of a large negative number gets very close to zero, the c' │
+│ 10      │ 50  │ 'softmax'                     │ 'zero' │ 0     │ 'Because $e$ to the power of a large negative number gets very close to zero, the' │
+│ 11      │ 50  │ 'softmax'                     │ 'zero' │ 0     │ 'Because $e$ to the power of a large negative number gets very close to zero, the' │
+│ 12      │ 51  │ 'softmax'                     │ 'zero' │ 0     │ 'Those three values are all larger than zero, and the larger original score produ' │
+│ 13      │ 51  │ 'softmax'                     │ 'zero' │ 0     │ 'Those three values are all larger than zero, and the larger original score produ' │
+│ 14      │ 53  │ 'softmax'                     │ '0'    │ 0     │ 'A common misconception is to think that softmax simply scales the raw scores lin' │
+│ 15      │ 53  │ 'softmax'                     │ '0'    │ 0     │ 'A common misconception is to think that softmax simply scales the raw scores lin' │
+│ 16      │ 54  │ 'softmax'                     │ 'zero' │ 0     │ 'Then, dividing each exponentized value by the sum of all of them scales everythi' │
+│ 17      │ 54  │ 'softmax'                     │ 'zero' │ 0     │ 'A common edge case happens when you have a very large negative score, which expo' │
+│ 18      │ 54  │ 'softmax'                     │ 'zero' │ 0     │ 'Then, dividing each exponentized value by the sum of all of them scales everythi' │
+│ 19      │ 54  │ 'softmax'                     │ 'zero' │ 0     │ 'A common edge case happens when you have a very large negative score, which expo' │
+└─────────┴─────┴───────────────────────────────┴────────┴───────┴────────────────────────────────────────────────────────────────────────────────────┘
+
+== 4. every mention the prototype reads in the 12 card prose + question texts, and every distinct one in the scripts ==
+card prose+question mentions: 31
+┌─────────┬───────────────────────────────┬─────────┬───────────┬──────────┐
+│ (index) │ card                          │ text    │ kind      │ counting │
+├─────────┼───────────────────────────────┼─────────┼───────────┼──────────┤
+│ 0       │ 'precision-recall'            │ 'two'   │ 'word'    │ true     │
+│ 1       │ 'ml-trees-bootstrap-coverage' │ '1'     │ 'digit'   │ false    │
+│ 2       │ 'ml-trees-bootstrap-coverage' │ '1'     │ 'digit'   │ false    │
+│ 3       │ 'ml-trees-bootstrap-coverage' │ '1'     │ 'digit'   │ false    │
+│ 4       │ 'ml-trees-bootstrap-coverage' │ '1'     │ 'digit'   │ false    │
+│ 5       │ 'ml-trees-bootstrap-coverage' │ '0.368' │ 'digit'   │ false    │
+│ 6       │ 'ml-trees-bootstrap-coverage' │ '1'     │ 'digit'   │ false    │
+│ 7       │ 'ml-trees-bootstrap-coverage' │ '0.368' │ 'digit'   │ false    │
+│ 8       │ 'ml-trees-bootstrap-coverage' │ '36.8'  │ 'digit'   │ false    │
+│ 9       │ 'ml-trees-bootstrap-coverage' │ '1'     │ 'digit'   │ false    │
+│ 10      │ 'ml-trees-bootstrap-coverage' │ '0.368' │ 'digit'   │ false    │
+│ 11      │ 'ml-trees-bootstrap-coverage' │ '0.632' │ 'digit'   │ false    │
+│ 12      │ 'ml-trees-bootstrap-coverage' │ '63'    │ 'digit'   │ false    │
+│ 13      │ 'ml-trees-bootstrap-coverage' │ '63%'   │ 'percent' │ false    │
+│ 14      │ 'ref-box-plot-iqr-fences'     │ 'five'  │ 'word'    │ true     │
+│ 15      │ 'ref-box-plot-iqr-fences'     │ '1'     │ 'digit'   │ false    │
+│ 16      │ 'ref-box-plot-iqr-fences'     │ '3'     │ 'digit'   │ false    │
+│ 17      │ 'ref-box-plot-iqr-fences'     │ '3'     │ 'digit'   │ false    │
+│ 18      │ 'ref-box-plot-iqr-fences'     │ '1'     │ 'digit'   │ false    │
+│ 19      │ 'ref-box-plot-iqr-fences'     │ '12'    │ 'digit'   │ false    │
+│ 20      │ 'ref-box-plot-iqr-fences'     │ '6'     │ 'digit'   │ false    │
+│ 21      │ 'ref-box-plot-iqr-fences'     │ '6'     │ 'digit'   │ false    │
+│ 22      │ 'ref-box-plot-iqr-fences'     │ '1.5'   │ 'digit'   │ false    │
+│ 23      │ 'ref-box-plot-iqr-fences'     │ '2'     │ 'digit'   │ false    │
+│ 24      │ 'ref-box-plot-iqr-fences'     │ '16'    │ 'digit'   │ false    │
+│ 25      │ 'ref-box-plot-iqr-fences'     │ '18'    │ 'digit'   │ false    │
+│ 26      │ 'four-stroke'                 │ 'four'  │ 'word'    │ true     │
+│ 27      │ 'four-stroke'                 │ 'four'  │ 'word'    │ true     │
+│ 28      │ 'softmax'                     │ '1'     │ 'digit'   │ false    │
+│ 29      │ 'gradient-descent'            │ '0'     │ 'digit'   │ false    │
+│ 30      │ 'gradient-descent'            │ '1'     │ 'digit'   │ false    │
+└─────────┴───────────────────────────────┴─────────┴───────────┴──────────┘
+distinct script mentions (kind, text, count):
+┌─────────┬────────────┬──────────────────────────────────┬────┐
+│ (index) │ kind       │ text                             │ n  │
+├─────────┼────────────┼──────────────────────────────────┼────┤
+│ 0       │ 'word'     │ 'two'                            │ 26 │
+│ 1       │ 'word'     │ 'three'                          │ 26 │
+│ 2       │ 'word'     │ 'zero'                           │ 18 │
+│ 3       │ 'digit'    │ '3'                              │ 14 │
+│ 4       │ 'digit'    │ '1'                              │ 13 │
+│ 5       │ 'digit'    │ '7'                              │ 13 │
+│ 6       │ 'word'     │ 'six'                            │ 11 │
+│ 7       │ 'digit'    │ '6'                              │ 11 │
+│ 8       │ 'digit'    │ '8'                              │ 9  │
+│ 9       │ 'decimal'  │ 'zero point three six eight'     │ 8  │
+│ 10      │ 'percent'  │ 'sixty three percent'            │ 8  │
+│ 11      │ 'word'     │ 'eighteen'                       │ 8  │
+│ 12      │ 'word'     │ 'sixteen'                        │ 8  │
+│ 13      │ 'digit'    │ '2.0'                            │ 8  │
+│ 14      │ 'digit'    │ '1.0'                            │ 8  │
+│ 15      │ 'decimal'  │ 'one point five'                 │ 7  │
+│ 16      │ 'decimal'  │ 'two point zero'                 │ 6  │
+│ 17      │ 'digit'    │ '0.1'                            │ 6  │
+│ 18      │ 'digit'    │ '2'                              │ 6  │
+│ 19      │ 'decimal'  │ 'zero point six three two'       │ 5  │
+│ 20      │ 'word'     │ 'four'                           │ 5  │
+│ 21      │ 'decimal'  │ 'one point zero'                 │ 5  │
+│ 22      │ 'digit'    │ '10'                             │ 5  │
+│ 23      │ 'percent'  │ 'fifty percent'                  │ 4  │
+│ 24      │ 'decimal'  │ 'zero point one'                 │ 4  │
+│ 25      │ 'word'     │ 'seven'                          │ 4  │
+│ 26      │ 'word'     │ 'ten'                            │ 3  │
+│ 27      │ 'percent'  │ 'thirty six point eight percent' │ 3  │
+│ 28      │ 'percent'  │ 'thirty seven percent'           │ 3  │
+│ 29      │ 'word'     │ 'twelve'                         │ 3  │
+│ 30      │ 'digit'    │ '4'                              │ 3  │
+│ 31      │ 'word'     │ 'twenty'                         │ 2  │
+│ 32      │ 'word'     │ 'eight'                          │ 2  │
+│ 33      │ 'word'     │ 'nine'                           │ 1  │
+│ 34      │ 'percent'  │ '63$ percent'                    │ 1  │
+│ 35      │ 'decimal'  │ 'zero point three six  eight'    │ 1  │
+│ 36      │ 'decimal'  │ 'one point one'                  │ 1  │
+│ 37      │ 'decimal'  │ 'point one'                      │ 1  │
+│ 38      │ 'digit'    │ '0'                              │ 1  │
+│ 39      │ 'negative' │ 'minus one point five'           │ 1  │
+│ 40      │ 'decimal'  │ 'two point three'                │ 1  │
+│ 41      │ 'percent'  │ 'one hundred percent'            │ 1  │
+│ 42      │ 'fraction' │ 'a quarter'                      │ 1  │
+└─────────┴────────────┴──────────────────────────────────┴────┘

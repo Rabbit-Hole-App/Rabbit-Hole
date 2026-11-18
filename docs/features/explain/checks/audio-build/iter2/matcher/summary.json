@@ -1,0 +1,184 @@
+{
+ "realPhrases": 265,
+ "missed": 2,
+ "wrong": 1,
+ "review": 4,
+ "scriptsAffected": 2,
+ "byClass": {
+  "noun \"point\" (not a number)": {
+   "total": 44,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 44
+  },
+  "lone \"one\" (pronoun/article, not a number)": {
+   "total": 76,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 76
+  },
+  "counting word two..ten (free by the owner rule)": {
+   "total": 77,
+   "ok": 76,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 1,
+   "n/a": 0
+  },
+  "other number words (zero, eleven..ninety, compounds)": {
+   "total": 39,
+   "ok": 39,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 0
+  },
+  "ordinal (not a number)": {
+   "total": 47,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 47
+  },
+  "multiplier/frequency word (twice, times, once; not a number by design)": {
+   "total": 37,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 37
+  },
+  "bare half/quarter (not a number by design)": {
+   "total": 24,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 24
+  },
+  "spoken decimal": {
+   "total": 41,
+   "ok": 40,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 1,
+   "n/a": 0
+  },
+  "minus as subtraction (not a number)": {
+   "total": 5,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 5
+  },
+  "percent": {
+   "total": 17,
+   "ok": 16,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 1,
+   "n/a": 0
+  },
+  "digits": {
+   "total": 88,
+   "ok": 87,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 1,
+   "n/a": 0
+  },
+  "a third/fourth as an ordinal (not a number)": {
+   "total": 1,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 1
+  },
+  "spoken decimal, no leading digit": {
+   "total": 1,
+   "ok": 0,
+   "missed": 1,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 0
+  },
+  "negative (minus/negative)": {
+   "total": 1,
+   "ok": 0,
+   "missed": 0,
+   "wrong value": 1,
+   "review": 0,
+   "n/a": 0
+  },
+  "fraction (a half, two thirds)": {
+   "total": 1,
+   "ok": 0,
+   "missed": 1,
+   "wrong value": 0,
+   "review": 0,
+   "n/a": 0
+  }
+ },
+ "rate": {
+  "brief": {
+   "n": 24,
+   "measuredOld": 23,
+   "measuredNew": 23,
+   "tipOld": 0,
+   "tipNew": 0,
+   "tipOldApplies": 0,
+   "tipNewApplies": 0,
+   "scriptsWithAnyDataOld": 2,
+   "scriptsWithAnyDataNew": 2
+  },
+  "balanced": {
+   "n": 24,
+   "measuredOld": 12,
+   "measuredNew": 12,
+   "tipOld": 0,
+   "tipNew": 0,
+   "tipOldApplies": 12,
+   "tipNewApplies": 12,
+   "scriptsWithAnyDataOld": 15,
+   "scriptsWithAnyDataNew": 15
+  },
+  "detailed": {
+   "n": 24,
+   "measuredOld": 8,
+   "measuredNew": 8,
+   "tipOld": 1,
+   "tipNew": 1,
+   "tipOldApplies": 12,
+   "tipNewApplies": 12,
+   "scriptsWithAnyDataOld": 16,
+   "scriptsWithAnyDataNew": 17
+  }
+ },
+ "exfailCount": 43,
+ "exfailNoProseNumber": 42,
+ "exfailFixedByNew": 0,
+ "bareHalf": 22,
+ "bareHalfScripts": 13,
+ "leaks": 2,
+ "leaksScript": 1,
+ "scriptsLeaking": 1,
+ "scriptsLeakingScriptOnly": 1,
+ "perScript": {
+  "58": 1
+ },
+ "kinds": {
+  "fraction": 1
+ },
+ "structOnly": 20,
+ "structOnlyScripts": 8,
+ "stripNoRemoval": 53,
+ "proseHits": 31,
+ "scriptMentions": 275
+}
