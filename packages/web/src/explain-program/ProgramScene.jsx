@@ -29,15 +29,16 @@ const NOOP = () => {};
 const STILL = { duration: 0 };
 
 // One scalar control: the labelled range slider the scene cards' sliders use, with a readout that keeps its unit.
-function NumberInput({ input, value, onInput }) {
+// fill (brief 35, a card with a scene layout): the slider takes the room its cell gives it instead of a fixed 11 rem.
+function NumberInput({ input, value, onInput, fill = false }) {
   const decimals = input.step && input.step < 1 ? String(input.step).split('.')[1]?.length ?? 0 : 0;
   const shown = Number(value).toFixed(decimals);
   return (
-    <div role="group" aria-label={input.label} className="flex flex-wrap items-center gap-1.5">
+    <div role="group" aria-label={input.label} className={fill ? 'flex min-w-0 items-center gap-1.5' : 'flex flex-wrap items-center gap-1.5'}>
       <span className="text-xs font-medium text-ink-2">{input.label}:</span>
       <input type="range" data-input-control={input.id} min={input.min} max={input.max} step={input.step ?? (input.max - input.min) / 100} value={value}
         aria-label={input.label} aria-valuetext={`${shown}${input.unit ? ` ${input.unit}` : ''}`}
-        onChange={event => onInput(input.id, Number(event.target.value), { live: true })} className="h-8 w-44 accent-accent" />
+        onChange={event => onInput(input.id, Number(event.target.value), { live: true })} className={fill ? 'h-8 min-w-0 flex-1 accent-accent' : 'h-8 w-44 accent-accent'} />
       <span data-input-readout={input.id} className="text-xs tabular-nums text-ink-2">{shown}{input.unit ? ` ${input.unit}` : ''}</span>
     </div>
   );
@@ -360,7 +361,10 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
-  const readoutRows = composed ? (view.readouts || []).filter(r => rowReadoutIds(composition).includes(r.id)) : [];
+  // A card that declares a scene layout (composition.main.layout, brief 35) draws its values inside the scene, its Reset over the scene's top-right cell and its control rows at the full width; every other card is unchanged.
+  const laid = Boolean(composed && composition.main.layout);
+  const readoutRows = composed && !laid ? (view.readouts || []).filter(r => rowReadoutIds(composition).includes(r.id)) : [];
+  const controlCells = rows.length + (seeks.length > 0 ? 1 : 0) + (actions.length > 0 ? 1 : 0) + (targets.length > 0 ? 1 : 0);
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
@@ -372,11 +376,15 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
         </>}
       {/* A composed card's experiment heading row (Codex .experiment-heading): Reset as the one icon at its right, one row above the scene. The card's title is the block header's, so the row repeats no title
           (owner 2026-11-13 16:50). ponytail: Codex's scene title and subtitle ("Upward is positive") wait for a plan field. */}
-      {composed && (<div data-interact-heading className="flex shrink-0 items-center"><ResetButton onReset={reset} disabled={!changed} /></div>)}
+      {composed && !laid && (<div data-interact-heading className="flex shrink-0 items-center"><ResetButton onReset={reset} disabled={!changed} /></div>)}
       <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
-        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
-          style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>{picture}</div>
+        <div data-program-frame role="group" aria-label={manifest.description} className={laid ? 'relative flex-1' : 'flex-1'} {...(dragIds.length ? pointerDrag : {})}
+          style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>
+          {picture}
+          {/* The scene layout's reset cell (layout.md section 1): the card's own button, 24 x 24 at x 608, y 8 of the 640 x 320 scene. */}
+          {laid && <div data-interact-reset-cell className="absolute" style={{ left: `${608 / 6.4}%`, top: `${8 / 3.2}%`, width: '3.75%', height: '7.5%' }}><ResetButton compact onReset={reset} disabled={!changed} /></div>}
+        </div>
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
@@ -399,9 +407,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       {(composed ? rows.length > 0 || seeks.length > 0 || actions.length > 0 || targets.length > 0 : rows.length > 0 || actions.length > 0 || targets.length > 0) && (
         <div data-scene-controls className="rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
           {!composed && <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className={laid ? 'grid items-center gap-x-4 gap-y-2' : 'flex flex-wrap items-center gap-x-4 gap-y-2'} style={laid ? { gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, controlCells))}, minmax(0, 1fr))` } : undefined}>
             {rows.map(input => (input.type === 'number'
-              ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
+              ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} fill={laid} />
               : <InputWidget key={input.id} {...programInputWidget(input, inputs)} value={inputs[input.id]} onInput={setInput} />))}
             {/* After a rule, the plan's seek buttons (At top): each jumps the timeline to its marker and pauses. */}
             {seeks.length > 0 && (

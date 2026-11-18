@@ -18,6 +18,9 @@ export function useReducer(reducer, arg, init) {
 export function useRef(value) { const i = cursor++; if (!(i in slots)) slots[i] = { current: value }; return slots[i]; }
 export function useMemo(make, deps) { const i = cursor++; if (!(i in slots) || !same(slots[i].deps, deps)) slots[i] = { value: make(), deps }; return slots[i].value; }
 export const useCallback = (fn, deps) => useMemo(() => fn, deps);
+// Never called by a hook test: modules a hook's imports reach (tutor-diagrams/primitives.js through the pendulum template, brief 35) name them at load.
+export const createElement = () => null;
+export const cloneElement = element => element;
 export function useEffect(effect, deps) {
   const i = cursor++, previous = slots[i];
   if (previous && deps && same(previous.deps, deps)) return;
