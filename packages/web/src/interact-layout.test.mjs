@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LAYOUTS, DOC_TEXT_SIZES, DRAWN_TEXT_SIZES, VALUE_DOT, LayoutError, checkText, fitPanel, fitValues, layoutById, pickLayout, valueBoxes } from './interact-layout.js';
 import { textWidth } from './tutor-diagrams/primitives.js';
+import { LAYOUT_RESET_BUTTON } from './scene-style.js';
 
 // Brief 35 (amendments E and H: 640 x 400, ten rows, an 8 px padding round the grid): docs/features/interact/layout.md is the spec. DOC_BOXES is section 5's JSON boxes typed out of it; the grid test derives each again from section 1's column and row edges.
 const DOC_BOXES = {
@@ -21,7 +22,7 @@ test('the six layouts are in the doc order and every box equals the doc', () => 
 
 test('every slot box is its cells on the padded grid (8 px padding, 52 x 38.4 px cells), 4 px inside: 12 px from the scene edge, 8 px from a neighbour (the reset button is the one fixed box)', () => {
   for (const layout of LAYOUTS) for (const [slot, { cols, rows, box }] of Object.entries(layout.slots)) {
-    if (slot === 'reset') { assert.deepEqual(box, [604, 12, 24, 24]); assert.deepEqual([cols, rows], [[12, 12], [1, 1]]); continue; }
+    if (slot === 'reset') { assert.deepEqual(box, [...LAYOUT_RESET_BUTTON]); assert.deepEqual(box, [604, 12, 24, 24]); assert.deepEqual([cols, rows], [[12, 12], [1, 1]]); continue; }
     const x = r2(8 + (cols[0] - 1) * 52 + 4), w = r2((cols[1] - cols[0] + 1) * 52 - 8), y = r2(8 + (rows[0] - 1) * 38.4 + 4), h = r2((rows[1] - rows[0] + 1) * 38.4 - 8);
     assert.deepEqual(box, [x, y, w, h], `${layout.id} ${slot}`);
   }

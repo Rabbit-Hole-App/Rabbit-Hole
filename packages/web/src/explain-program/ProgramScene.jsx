@@ -8,7 +8,7 @@ import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget, ResetButton } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { INTERACT_LOOK, LAYOUT_LOOK } from '../interact-style.js';
-import { LAYOUT_BODY_SIZE } from '../scene-style.js';
+import { LAYOUT_BODY_SIZE, LAYOUT_RESET_BUTTON } from '../scene-style.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { useProgramState } from './use-program-state.js';
@@ -385,8 +385,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
         <div data-program-frame role="group" aria-label={manifest.description} className={laid ? 'relative flex-1' : 'flex-1'} {...(dragIds.length ? pointerDrag : {})}
           style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>
           {picture}
-          {/* The scene layout's reset cell (layout.md section 1): the card's own button, 24 x 24 at x 608, y 8 of the 640 x 320 scene. */}
-          {laid && <div data-interact-reset-cell className="absolute" style={{ left: `${608 / 6.4}%`, top: `${8 / 3.2}%`, width: '3.75%', height: '7.5%' }}><ResetButton compact onReset={reset} disabled={!changed} /></div>}
+          {/* The scene layout's reset button (layout.md section 1, amendment H): the card's own, 24 x 24 at x 604, y 12 of the scene, placed from the centre of the frame (the scene is drawn centred at its own size). */}
+          {laid && <div data-interact-reset-cell className="absolute" style={{ left: `calc(50% + ${LAYOUT_RESET_BUTTON[0] - view.scene.width / 2}px)`, top: `calc(50% + ${LAYOUT_RESET_BUTTON[1] - view.scene.height / 2}px)`, width: LAYOUT_RESET_BUTTON[2], height: LAYOUT_RESET_BUTTON[3] }}><ResetButton compact onReset={reset} disabled={!changed} /></div>}
         </div>
       </div>
       <p className="sr-only">{manifest.summary}</p>

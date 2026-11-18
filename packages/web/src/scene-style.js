@@ -53,6 +53,8 @@ const TEXT_STYLE = {
 // The body size on a card that declares a scene layout (brief 35 amendment G): every text a frame draws at the body size is 14 px there, not 15. The layout module's text fit checks, the frame's overlap
 // estimate and the Frame's drawing all read this one number; a card with no layout never does.
 export const LAYOUT_BODY_SIZE = 14;
+// The card's own Reset button on a card with a scene layout (amendment H): 24 x 24 at x 604, y 12 of the scene, 12 px from its top and right edges (interact-layout.js: every layout's `reset` box is this).
+export const LAYOUT_RESET_BUTTON = Object.freeze([604, 12, 24, 24]);
 // Returned by reference below, so a caller mutating one would silently retune
 // the default for everyone after it.
 for (const style of Object.values(TEXT_STYLE)) Object.freeze(style);
