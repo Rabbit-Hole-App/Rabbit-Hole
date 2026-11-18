@@ -196,6 +196,17 @@ async function limited(env, category, prefix, access) {
   return over ? json({ error: 'You have made a lot of audio in a short time. Try again later.', code: 'rate_limited' }, 429) : null;
 }
 
+// ONE place that builds what the script step reads from a request, used by the route and by the measurement and live-check scripts, so a rule cannot be measured on one definition and shipped on another.
+// allowed: every number of the card (prose, question, title, everything inside its diagrams) that the strip lets a script say; cardData: only the numbers the card's PROSE or the learner's question state,
+// which the example rule asks to be spoken (a diagram's structure, an axis bound or a heading is not an example; measured: six bench cards had only a JSON version field as their number).
+export function scriptInputOf(body) {
+  const card = splitCard(`${body.body}${body.more ? `
+
+${body.more}` : ''}`);
+  return { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels,
+    allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, body.question) };
+}
+
 async function scriptRoute(env, body, access) {
   const bad = () => json({ error: 'Invalid request' }, 400);
   if (Object.keys(body).some(key => !['app', 'id', 'title', 'body', 'more', 'depth', 'question'].includes(key)) || typeof body.title !== 'string' || body.title.length > 300 || typeof body.body !== 'string' || !body.body.trim() || body.body.length > BODY_CHARS
@@ -204,11 +215,10 @@ async function scriptRoute(env, body, access) {
   const started = Date.now(), key = keyOf(access.org, body.app, body.id), log = (outcome, extra = {}) => console.log(JSON.stringify({ event: 'explanation_audio', step: 'script', ms: Date.now() - started, outcome, ...extra }));
   const earlier = memo.get(key);
   if (earlier) { log('stored', { words: wordCount(earlier.script) }); return json(earlier); }
-  const card = splitCard(`${body.body}${body.more ? `\n\n${body.more}` : ''}`);
-  if (!card.prose) return bad();
+  const input = scriptInputOf(body);
+  if (!input.prose) return bad();
   // The check and the set are one synchronous step, so two requests for one card share one call (and one cap count).
   if (!pending.has(key)) {
-    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, body.question) }; // the example rule reads the numbers the card's prose and the learner's question state, not a diagram's structure, an axis bound or a heading (measured: the only number of six cards was a JSON version field)
     pending.set(key, (async () => (await limited(env, 'explanation_script', 'EXPLANATION_SCRIPT', access)) || writeScript(env, input, access.org, { userId: access.user_id || access.email }))().finally(() => pending.delete(key)));
   }
   const done = await pending.get(key);
