@@ -1,7 +1,8 @@
 // offline 2a/2b for the VAR-1 bench (no spend): classify the old-classifier flags on the Gemini-live slice, count first-attempt-invalid answers by error code
 import fs from 'node:fs';
-const rows = fs.readFileSync('results.jsonl', 'utf8').trim().split('\n').map(JSON.parse);
-const live = rows.filter(r => r.set !== 'vary' && r.idx < 155);
+const [IN = 'results.jsonl', OUT = 'offline-2ab.md', MAXIDX = '155'] = process.argv.slice(2);
+const rows = fs.readFileSync(IN, 'utf8').trim().split('\n').map(JSON.parse);
+const live = rows.filter(r => r.set !== 'vary' && r.idx < Number(MAXIDX));
 const out = [];
 const P = s => out.push(s);
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -70,6 +71,6 @@ const kinds = {};
 for (const arm of ['before', 'after']) for (const r of inv(arm)) { const k = `${code(r)} / ${r.plannerKind ?? 'no plan'}`; (kinds[k] ||= { before: 0, after: 0 })[arm]++; }
 P('\nBy planned kind:\n\n| code / planned kind | before | after |\n|---|---|---|');
 for (const [k, v] of Object.entries(kinds).sort((a, b) => b[1].before + b[1].after - a[1].before - a[1].after)) P(`| ${k} | ${v.before} | ${v.after} |`);
-fs.writeFileSync('offline-2ab.md', out.join('\n') + '\n');
+fs.writeFileSync(OUT, out.join('\n') + '\n');
 console.log(out.join('\n').split('\n### Every flag')[0]);
 console.log(out.join('\n').split('## 2b.')[1]);
