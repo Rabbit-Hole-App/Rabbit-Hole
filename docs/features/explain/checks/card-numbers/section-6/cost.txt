@@ -1,0 +1,1 @@
+Section 6 total spend, upper bound: US$2.1299 = US$2.0727 over 606 runs + US$0.0572 for 18 discarded v0 runs (results-aborted-v0.jsonl; stopped to add dropped-diagram fields) (settled ledger cost US$1.9515 + reservations of calls with no settled cost + US$0.0002 per run for the TypeSafe planner, an estimate). Stop line US$3.60; hard cap US$4.00.

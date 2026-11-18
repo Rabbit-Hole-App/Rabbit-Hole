@@ -1,0 +1,3079 @@
+{
+ "items": [
+  {
+   "set": "audit",
+   "prompt": "what is cross entropy",
+   "depth": "detailed",
+   "ids": [
+    "cross-entropy"
+   ],
+   "cardsBefore": 24,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 20
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 0
+  },
+  {
+   "set": "audit",
+   "prompt": "what is gradient descent?",
+   "depth": "detailed",
+   "ids": [
+    "gradient-descent"
+   ],
+   "cardsBefore": 25,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 3,
+    "gemini-3.5-flash-lite": 21,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 1
+  },
+  {
+   "set": "audit",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "detailed",
+   "ids": [
+    "lr-schedule"
+   ],
+   "cardsBefore": 26,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 21,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 2
+  },
+  {
+   "set": "audit",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "detailed",
+   "ids": [
+    "precision-recall"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 3
+  },
+  {
+   "set": "audit",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "detailed",
+   "ids": [
+    "sigmoid"
+   ],
+   "cardsBefore": 24,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 20
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 4
+  },
+  {
+   "set": "audit",
+   "prompt": "what does softmax do?",
+   "depth": "detailed",
+   "ids": [
+    "softmax"
+   ],
+   "cardsBefore": 24,
+   "flaggedBefore": 1,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 20
+   },
+   "numericKinds": [
+    "bar-chart",
+    "transformation"
+   ],
+   "idx": 5
+  },
+  {
+   "set": "audit",
+   "prompt": "what is cross entropy",
+   "depth": "brief",
+   "ids": [
+    "cross-entropy"
+   ],
+   "cardsBefore": 14,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 6,
+    "gemini-3.5-flash-lite": 8
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 6
+  },
+  {
+   "set": "audit",
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "ids": [
+    "gradient-descent"
+   ],
+   "cardsBefore": 10,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 3,
+    "gemini-3.5-flash-lite": 7
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 7
+  },
+  {
+   "set": "audit",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "brief",
+   "ids": [
+    "lr-schedule"
+   ],
+   "cardsBefore": 12,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 8
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 8
+  },
+  {
+   "set": "audit",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "brief",
+   "ids": [
+    "precision-recall"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 9
+  },
+  {
+   "set": "audit",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "brief",
+   "ids": [
+    "sigmoid"
+   ],
+   "cardsBefore": 12,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 8
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 10
+  },
+  {
+   "set": "audit",
+   "prompt": "what does softmax do?",
+   "depth": "brief",
+   "ids": [
+    "softmax"
+   ],
+   "cardsBefore": 23,
+   "flaggedBefore": 2,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 19
+   },
+   "numericKinds": [
+    "bar-chart",
+    "transformation"
+   ],
+   "idx": 11
+  },
+  {
+   "set": "audit",
+   "prompt": "what is cross entropy",
+   "depth": "balanced",
+   "ids": [
+    "cross-entropy"
+   ],
+   "cardsBefore": 69,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 65
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 12
+  },
+  {
+   "set": "audit",
+   "prompt": "what is gradient descent?",
+   "depth": "balanced",
+   "ids": [
+    "gradient-descent"
+   ],
+   "cardsBefore": 88,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 84
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 13
+  },
+  {
+   "set": "audit",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "balanced",
+   "ids": [
+    "lr-schedule"
+   ],
+   "cardsBefore": 89,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 6,
+    "gemini-3.5-flash-lite": 83
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 14
+  },
+  {
+   "set": "audit",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "balanced",
+   "ids": [
+    "precision-recall"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 15
+  },
+  {
+   "set": "audit",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "balanced",
+   "ids": [
+    "sigmoid"
+   ],
+   "cardsBefore": 70,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 5,
+    "gemini-3.5-flash-lite": 65
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 16
+  },
+  {
+   "set": "audit",
+   "prompt": "what is gini impurity",
+   "depth": "detailed",
+   "ids": [
+    "gini"
+   ],
+   "cardsBefore": 32,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 3,
+    "gemini-3.5-flash-lite": 29
+   },
+   "numericKinds": [
+    "bar-chart",
+    "coordinate-plot"
+   ],
+   "idx": 17
+  },
+  {
+   "set": "audit",
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "ids": [
+    "gini"
+   ],
+   "cardsBefore": 17,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 3,
+    "gemini-3.5-flash-lite": 14
+   },
+   "numericKinds": [
+    "bar-chart",
+    "coordinate-plot"
+   ],
+   "idx": 18
+  },
+  {
+   "set": "audit",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "brief",
+   "ids": [
+    "roman-empire"
+   ],
+   "cardsBefore": 33,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 29
+   },
+   "numericKinds": [
+    "timeline"
+   ],
+   "idx": 19
+  },
+  {
+   "set": "audit",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "balanced",
+   "ids": [
+    "roman-empire"
+   ],
+   "cardsBefore": 96,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 4,
+    "gemini-3.5-flash-lite": 92
+   },
+   "numericKinds": [
+    "timeline"
+   ],
+   "idx": 20
+  },
+  {
+   "set": "audit",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "detailed",
+   "ids": [
+    "roman-empire"
+   ],
+   "cardsBefore": 22,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 2,
+    "gemini-3.5-flash-lite": 20
+   },
+   "numericKinds": [
+    "timeline"
+   ],
+   "idx": 21
+  },
+  {
+   "set": "audit",
+   "prompt": "how are attention weights computed?",
+   "depth": "brief",
+   "ids": [
+    "attention-weights"
+   ],
+   "cardsBefore": 13,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1,
+    "gemini-3.5-flash-lite": 12
+   },
+   "numericKinds": [
+    "bar-chart",
+    "token-links"
+   ],
+   "idx": 22
+  },
+  {
+   "set": "audit",
+   "prompt": "what is gini impurity",
+   "depth": "balanced",
+   "ids": [
+    "gini"
+   ],
+   "cardsBefore": 77,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 3,
+    "gemini-3.5-flash-lite": 74
+   },
+   "numericKinds": [
+    "bar-chart",
+    "coordinate-plot"
+   ],
+   "idx": 23
+  },
+  {
+   "set": "audit",
+   "prompt": "what does softmax do?",
+   "depth": "balanced",
+   "ids": [
+    "softmax"
+   ],
+   "cardsBefore": 83,
+   "flaggedBefore": 5,
+   "models": {
+    "gpt-oss-120b": 1,
+    "gemini-3.5-flash-lite": 82
+   },
+   "numericKinds": [
+    "bar-chart",
+    "transformation"
+   ],
+   "idx": 24
+  },
+  {
+   "set": "audit",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "depth": "balanced",
+   "ids": [
+    "raw-log"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "transformation"
+   ],
+   "idx": 25
+  },
+  {
+   "set": "audit",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "depth": "balanced",
+   "ids": [
+    "two-histograms"
+   ],
+   "cardsBefore": 27,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1,
+    "gemini-3.5-flash-lite": 26
+   },
+   "numericKinds": [
+    "histogram"
+   ],
+   "idx": 26
+  },
+  {
+   "set": "audit",
+   "prompt": "How does Bayesian optimization decide which setting to try next?",
+   "depth": "balanced",
+   "ids": [
+    "bayes-acquisition"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "matrix"
+   ],
+   "idx": 27
+  },
+  {
+   "set": "audit",
+   "prompt": "How does successive halving decide which trials get more training?",
+   "depth": "balanced",
+   "ids": [
+    "successive-halving"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "matrix"
+   ],
+   "idx": 28
+  },
+  {
+   "set": "audit",
+   "prompt": "what is entropy?",
+   "depth": "detailed",
+   "ids": [
+    "entropy"
+   ],
+   "cardsBefore": 3,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 3
+   },
+   "numericKinds": [
+    "transformation"
+   ],
+   "idx": 29
+  },
+  {
+   "set": "audit",
+   "prompt": "how does compound interest grow money over time?",
+   "depth": "balanced",
+   "ids": [
+    "compound-interest"
+   ],
+   "cardsBefore": 23,
+   "flaggedBefore": 1,
+   "models": {
+    "gemini-3.5-flash-lite": 21,
+    "gpt-oss-120b": 2
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 30
+  },
+  {
+   "set": "audit",
+   "prompt": "how do populations grow?",
+   "depth": "balanced",
+   "ids": [
+    "population-growth"
+   ],
+   "cardsBefore": 24,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 23,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 31
+  },
+  {
+   "set": "audit",
+   "prompt": "what is overfitting?",
+   "depth": "balanced",
+   "ids": [
+    "overfitting"
+   ],
+   "cardsBefore": 76,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 75,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 32
+  },
+  {
+   "set": "audit",
+   "prompt": "what is quantization?",
+   "depth": "balanced",
+   "ids": [
+    "quantization"
+   ],
+   "cardsBefore": 19,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 19
+   },
+   "numericKinds": [
+    "transformation"
+   ],
+   "idx": 33
+  },
+  {
+   "set": "audit",
+   "prompt": "how does tokenization work?",
+   "depth": "balanced",
+   "ids": [
+    "tokenization"
+   ],
+   "cardsBefore": 15,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 15
+   },
+   "numericKinds": [
+    "transformation"
+   ],
+   "idx": 34
+  },
+  {
+   "set": "audit",
+   "prompt": "what is a vector database?",
+   "depth": "balanced",
+   "ids": [
+    "vector-db"
+   ],
+   "cardsBefore": 20,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 19,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 35
+  },
+  {
+   "set": "audit",
+   "prompt": "how are attention weights computed?",
+   "depth": "detailed",
+   "ids": [
+    "attention-weights"
+   ],
+   "cardsBefore": 13,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 13
+   },
+   "numericKinds": [
+    "bar-chart",
+    "token-links"
+   ],
+   "idx": 36
+  },
+  {
+   "set": "audit",
+   "prompt": "what is cross entropy loss?",
+   "depth": "detailed",
+   "ids": [
+    "cross-entropy"
+   ],
+   "cardsBefore": 9,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 9
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 37
+  },
+  {
+   "set": "audit",
+   "prompt": "what is cross entropy loss?",
+   "depth": "brief",
+   "ids": [
+    "cross-entropy"
+   ],
+   "cardsBefore": 6,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 6
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 38
+  },
+  {
+   "set": "audit",
+   "prompt": "what is cross entropy loss?",
+   "depth": "balanced",
+   "ids": [
+    "cross-entropy"
+   ],
+   "cardsBefore": 9,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 9
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 39
+  },
+  {
+   "set": "audit",
+   "prompt": "what is batch normalization?",
+   "depth": "balanced",
+   "ids": [
+    "batchnorm"
+   ],
+   "cardsBefore": 3,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 3
+   },
+   "numericKinds": [
+    "transformation"
+   ],
+   "idx": 40
+  },
+  {
+   "set": "audit",
+   "prompt": "how does dropout work?",
+   "depth": "balanced",
+   "ids": [
+    "dropout"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1
+   },
+   "numericKinds": [
+    "transformation"
+   ],
+   "idx": 41
+  },
+  {
+   "set": "audit",
+   "prompt": "how does attention work in a transformer?",
+   "depth": "balanced",
+   "ids": [
+    "attention"
+   ],
+   "cardsBefore": 14,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 13,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links",
+    "matrix"
+   ],
+   "idx": 42
+  },
+  {
+   "set": "audit",
+   "prompt": "how are attention weights computed?",
+   "depth": "balanced",
+   "ids": [
+    "attention-weights"
+   ],
+   "cardsBefore": 51,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 50,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 43
+  },
+  {
+   "set": "audit",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "balanced",
+   "ids": [
+    "cross-validation"
+   ],
+   "cardsBefore": 12,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 12
+   },
+   "numericKinds": [
+    "bar-chart",
+    "coordinate-plot"
+   ],
+   "idx": 44
+  },
+  {
+   "set": "audit",
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "ids": [
+    "ml-self-attention-token-links"
+   ],
+   "cardsBefore": 12,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 12
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 45
+  },
+  {
+   "set": "audit",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-attention-softmax"
+   ],
+   "cardsBefore": 12,
+   "flaggedBefore": 3,
+   "models": {
+    "gemini-3.5-flash-lite": 12
+   },
+   "numericKinds": [
+    "transformation",
+    "token-links"
+   ],
+   "idx": 46
+  },
+  {
+   "set": "audit",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-causal-mask"
+   ],
+   "cardsBefore": 9,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 8,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links",
+    "heatmap"
+   ],
+   "idx": 47
+  },
+  {
+   "set": "audit",
+   "prompt": "How does the decoder use the encoder's words while writing the next word?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-cross-attention"
+   ],
+   "cardsBefore": 11,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 10,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 48
+  },
+  {
+   "set": "audit",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-parallel-attention-heads"
+   ],
+   "cardsBefore": 12,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 12
+   },
+   "numericKinds": [
+    "token-links",
+    "bar-chart"
+   ],
+   "idx": 49
+  },
+  {
+   "set": "audit",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-scaled-attention-scores"
+   ],
+   "cardsBefore": 11,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 10,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links",
+    "matrix"
+   ],
+   "idx": 50
+  },
+  {
+   "set": "audit",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-weighted-values"
+   ],
+   "cardsBefore": 9,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 9
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 51
+  },
+  {
+   "set": "audit",
+   "prompt": "How does a transformer get query, key and value vectors from one token?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-qkv-projections"
+   ],
+   "cardsBefore": 3,
+   "flaggedBefore": 0,
+   "models": {
+    "gpt-oss-120b": 3
+   },
+   "numericKinds": [
+    "tensor"
+   ],
+   "idx": 52
+  },
+  {
+   "set": "audit",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "detailed",
+   "ids": [
+    "cross-validation"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "coordinate-plot",
+    "bar-chart"
+   ],
+   "idx": 53
+  },
+  {
+   "set": "audit",
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "ids": [
+    "ml-self-attention-token-links"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 54
+  },
+  {
+   "set": "audit",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "detailed",
+   "ids": [
+    "ml-transformer-attention-softmax"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 55
+  },
+  {
+   "set": "audit",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "ids": [
+    "ml-transformer-causal-mask"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 56
+  },
+  {
+   "set": "audit",
+   "prompt": "How does the decoder use the encoder's words while writing the next word?",
+   "depth": "detailed",
+   "ids": [
+    "ml-transformer-cross-attention"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 57
+  },
+  {
+   "set": "audit",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "ids": [
+    "ml-transformer-parallel-attention-heads"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 58
+  },
+  {
+   "set": "audit",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "detailed",
+   "ids": [
+    "ml-transformer-scaled-attention-scores"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 59
+  },
+  {
+   "set": "audit",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "detailed",
+   "ids": [
+    "ml-transformer-weighted-values"
+   ],
+   "cardsBefore": 1,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1
+   },
+   "numericKinds": [
+    "token-links"
+   ],
+   "idx": 60
+  },
+  {
+   "set": "audit",
+   "prompt": "what is maximum likelihood estimation?",
+   "depth": "detailed",
+   "ids": [
+    "mle"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 61
+  },
+  {
+   "set": "audit",
+   "prompt": "what is overfitting?",
+   "depth": "detailed",
+   "ids": [
+    "overfitting"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 1,
+    "gemini-3.5-flash": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 62
+  },
+  {
+   "set": "audit",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-bootstrap-roots"
+   ],
+   "cardsBefore": 7,
+   "flaggedBefore": 1,
+   "models": {
+    "gpt-oss-120b": 7
+   },
+   "numericKinds": [
+    "sample-set"
+   ],
+   "idx": 63
+  },
+  {
+   "set": "audit",
+   "prompt": "how does a decision tree split a two-feature dataset into regions?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-decision-regions"
+   ],
+   "cardsBefore": 29,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 29
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 64
+  },
+  {
+   "set": "audit",
+   "prompt": "how does held-out error change as a decision tree grows deeper?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-depth-overfit"
+   ],
+   "cardsBefore": 29,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 29
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 65
+  },
+  {
+   "set": "audit",
+   "prompt": "how does a decision tree search for the best threshold on one feature?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-threshold-search"
+   ],
+   "cardsBefore": 29,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 29
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 66
+  },
+  {
+   "set": "audit",
+   "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-bootstrap-coverage"
+   ],
+   "cardsBefore": 28,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 28
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 67
+  },
+  {
+   "set": "audit",
+   "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-cost-complexity-pruning"
+   ],
+   "cardsBefore": 28,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 27,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 68
+  },
+  {
+   "set": "audit",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-feature-importance"
+   ],
+   "cardsBefore": 28,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 27,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "bar-chart"
+   ],
+   "idx": 69
+  },
+  {
+   "set": "audit",
+   "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-forest-size-accuracy"
+   ],
+   "cardsBefore": 28,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 28
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 70
+  },
+  {
+   "set": "audit",
+   "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-gini-vs-entropy"
+   ],
+   "cardsBefore": 28,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 27,
+    "gpt-oss-120b": 1
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 71
+  },
+  {
+   "set": "audit",
+   "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-regression-step-fit"
+   ],
+   "cardsBefore": 38,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 35,
+    "gpt-oss-120b": 3
+   },
+   "numericKinds": [
+    "coordinate-plot"
+   ],
+   "idx": 72
+  },
+  {
+   "set": "audit",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "ids": [
+    "ml-trees-gini-split"
+   ],
+   "cardsBefore": 32,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 32
+   },
+   "numericKinds": [
+    "matrix"
+   ],
+   "idx": 73
+  },
+  {
+   "set": "audit",
+   "prompt": "How does a transformer turn scores into a guess for the next word?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-vocabulary-softmax"
+   ],
+   "cardsBefore": 2,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 2
+   },
+   "numericKinds": [
+    "bar-chart"
+   ],
+   "idx": 74
+  },
+  {
+   "set": "audit",
+   "prompt": "How can I compare encoder self-attention heatmaps from different heads?",
+   "depth": "balanced",
+   "ids": [
+    "d2l-transformer-encoder-head-weight-grids"
+   ],
+   "cardsBefore": 26,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 26
+   },
+   "numericKinds": [
+    "heatmap"
+   ],
+   "idx": 75
+  },
+  {
+   "set": "audit",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "ids": [
+    "ml-stable-diffusion-forward-noise"
+   ],
+   "cardsBefore": 9,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 9
+   },
+   "numericKinds": [
+    "transformation",
+    "heatmap"
+   ],
+   "idx": 76
+  },
+  {
+   "set": "audit",
+   "prompt": "How does next-token training compare a probability vector with a one-hot target?",
+   "depth": "balanced",
+   "ids": [
+    "ml-transformer-one-hot-target"
+   ],
+   "cardsBefore": 25,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 25
+   },
+   "numericKinds": [
+    "tensor",
+    "matrix"
+   ],
+   "idx": 77
+  },
+  {
+   "set": "audit",
+   "prompt": "How do I read the colored cells of a Word2vec embedding heatmap?",
+   "depth": "balanced",
+   "ids": [
+    "ml-word2vec-signed-embedding-heatmap"
+   ],
+   "cardsBefore": 26,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 26
+   },
+   "numericKinds": [
+    "heatmap"
+   ],
+   "idx": 78
+  },
+  {
+   "set": "audit",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "depth": "balanced",
+   "ids": [
+    "ref-box-plot-iqr-fences"
+   ],
+   "cardsBefore": 7,
+   "flaggedBefore": 1,
+   "models": {
+    "gpt-oss-120b": 7
+   },
+   "numericKinds": [
+    "box-plot"
+   ],
+   "idx": 79
+  },
+  {
+   "set": "audit",
+   "prompt": "Explain post entries to cash",
+   "depth": "balanced",
+   "ids": [
+    "ref-t-account-cash"
+   ],
+   "cardsBefore": 26,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 26
+   },
+   "numericKinds": [
+    "t-account"
+   ],
+   "idx": 80
+  },
+  {
+   "set": "audit",
+   "prompt": "Explain from opening cash to closing cash",
+   "depth": "balanced",
+   "ids": [
+    "ref-waterfall-cash"
+   ],
+   "cardsBefore": 26,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 26
+   },
+   "numericKinds": [
+    "waterfall"
+   ],
+   "idx": 81
+  },
+  {
+   "set": "audit",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "depth": "balanced",
+   "ids": [
+    "ml-word2vec-trait-rescale"
+   ],
+   "cardsBefore": 22,
+   "flaggedBefore": 0,
+   "models": {
+    "gemini-3.5-flash-lite": 22
+   },
+   "numericKinds": [
+    "transformation",
+    "number-line"
+   ],
+   "idx": 82
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "brief",
+   "rep": 1,
+   "boxId": 1,
+   "idx": 83
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "brief",
+   "rep": 2,
+   "boxId": 1,
+   "idx": 84
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "brief",
+   "rep": 3,
+   "boxId": 1,
+   "idx": 85
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "balanced",
+   "rep": 1,
+   "boxId": 1,
+   "idx": 86
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "balanced",
+   "rep": 2,
+   "boxId": 1,
+   "idx": 87
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "balanced",
+   "rep": 3,
+   "boxId": 1,
+   "idx": 88
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "detailed",
+   "rep": 1,
+   "boxId": 1,
+   "idx": 89
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "detailed",
+   "rep": 2,
+   "boxId": 1,
+   "idx": 90
+  },
+  {
+   "set": "box",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "detailed",
+   "rep": 3,
+   "boxId": 1,
+   "idx": 91
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "brief",
+   "rep": 1,
+   "boxId": 2,
+   "idx": 92
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "brief",
+   "rep": 2,
+   "boxId": 2,
+   "idx": 93
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "brief",
+   "rep": 3,
+   "boxId": 2,
+   "idx": 94
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "balanced",
+   "rep": 1,
+   "boxId": 2,
+   "idx": 95
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "balanced",
+   "rep": 2,
+   "boxId": 2,
+   "idx": 96
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "balanced",
+   "rep": 3,
+   "boxId": 2,
+   "idx": 97
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "detailed",
+   "rep": 1,
+   "boxId": 2,
+   "idx": 98
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "detailed",
+   "rep": 2,
+   "boxId": 2,
+   "idx": 99
+  },
+  {
+   "set": "box",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "detailed",
+   "rep": 3,
+   "boxId": 2,
+   "idx": 100
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "brief",
+   "rep": 1,
+   "boxId": 3,
+   "idx": 101
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "brief",
+   "rep": 2,
+   "boxId": 3,
+   "idx": 102
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "brief",
+   "rep": 3,
+   "boxId": 3,
+   "idx": 103
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "balanced",
+   "rep": 1,
+   "boxId": 3,
+   "idx": 104
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "balanced",
+   "rep": 2,
+   "boxId": 3,
+   "idx": 105
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "balanced",
+   "rep": 3,
+   "boxId": 3,
+   "idx": 106
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "detailed",
+   "rep": 1,
+   "boxId": 3,
+   "idx": 107
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "detailed",
+   "rep": 2,
+   "boxId": 3,
+   "idx": 108
+  },
+  {
+   "set": "box",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "detailed",
+   "rep": 3,
+   "boxId": 3,
+   "idx": 109
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "brief",
+   "rep": 1,
+   "boxId": 4,
+   "idx": 110
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "brief",
+   "rep": 2,
+   "boxId": 4,
+   "idx": 111
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "brief",
+   "rep": 3,
+   "boxId": 4,
+   "idx": 112
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "balanced",
+   "rep": 1,
+   "boxId": 4,
+   "idx": 113
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "balanced",
+   "rep": 2,
+   "boxId": 4,
+   "idx": 114
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "balanced",
+   "rep": 3,
+   "boxId": 4,
+   "idx": 115
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "detailed",
+   "rep": 1,
+   "boxId": 4,
+   "idx": 116
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "detailed",
+   "rep": 2,
+   "boxId": 4,
+   "idx": 117
+  },
+  {
+   "set": "box",
+   "prompt": "Compare the spread of two classes with box plots: class A scored 60, 65, 70, 75, 80, 85, 90 and class B scored 40, 70, 72, 74, 76, 78, 100.",
+   "depth": "detailed",
+   "rep": 3,
+   "boxId": 4,
+   "idx": 118
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "brief",
+   "rep": 1,
+   "boxId": 5,
+   "idx": 119
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "brief",
+   "rep": 2,
+   "boxId": 5,
+   "idx": 120
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "brief",
+   "rep": 3,
+   "boxId": 5,
+   "idx": 121
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "balanced",
+   "rep": 1,
+   "boxId": 5,
+   "idx": 122
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "balanced",
+   "rep": 2,
+   "boxId": 5,
+   "idx": 123
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "balanced",
+   "rep": 3,
+   "boxId": 5,
+   "idx": 124
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "detailed",
+   "rep": 1,
+   "boxId": 5,
+   "idx": 125
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "detailed",
+   "rep": 2,
+   "boxId": 5,
+   "idx": 126
+  },
+  {
+   "set": "box",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "detailed",
+   "rep": 3,
+   "boxId": 5,
+   "idx": 127
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "brief",
+   "rep": 1,
+   "boxId": 6,
+   "idx": 128
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "brief",
+   "rep": 2,
+   "boxId": 6,
+   "idx": 129
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "brief",
+   "rep": 3,
+   "boxId": 6,
+   "idx": 130
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "balanced",
+   "rep": 1,
+   "boxId": 6,
+   "idx": 131
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "balanced",
+   "rep": 2,
+   "boxId": 6,
+   "idx": 132
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "balanced",
+   "rep": 3,
+   "boxId": 6,
+   "idx": 133
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "detailed",
+   "rep": 1,
+   "boxId": 6,
+   "idx": 134
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "detailed",
+   "rep": 2,
+   "boxId": 6,
+   "idx": 135
+  },
+  {
+   "set": "box",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "detailed",
+   "rep": 3,
+   "boxId": 6,
+   "idx": 136
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what is gini impurity",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 137
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what is gini impurity",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 138
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does softmax do?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 139
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does softmax do?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 140
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does softmax do?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 141
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does softmax do?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 142
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does softmax do?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 143
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does softmax do?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 144
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "how does compound interest grow money over time?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 145
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "how does compound interest grow money over time?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 146
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 147
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 148
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 149
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 150
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 151
+  },
+  {
+   "set": "flag-repeat",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 152
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 153
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gradient descent?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 154
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 155
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 156
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 157
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 158
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 159
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 160
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 161
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 162
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 163
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gradient descent?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 164
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 165
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 166
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 167
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 168
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 169
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 170
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 171
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how are attention weights computed?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 172
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gini impurity",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 173
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 174
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 175
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does Bayesian optimization decide which setting to try next?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 176
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does successive halving decide which trials get more training?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 177
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is entropy?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 178
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how do populations grow?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 179
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is overfitting?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 180
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is quantization?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 181
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does tokenization work?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 182
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a vector database?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 183
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how are attention weights computed?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 184
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy loss?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 185
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy loss?",
+   "depth": "brief",
+   "rep": 2,
+   "idx": 186
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy loss?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 187
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is batch normalization?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 188
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does dropout work?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 189
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does attention work in a transformer?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 190
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how are attention weights computed?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 191
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 192
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 193
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 194
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the decoder use the encoder's words while writing the next word?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 195
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 196
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 197
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 198
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer get query, key and value vectors from one token?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 199
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 200
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 201
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 202
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 203
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the decoder use the encoder's words while writing the next word?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 204
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 205
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 206
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 207
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is maximum likelihood estimation?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 208
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is overfitting?",
+   "depth": "detailed",
+   "rep": 2,
+   "idx": 209
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does a decision tree split a two-feature dataset into regions?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 210
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does held-out error change as a decision tree grows deeper?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 211
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does a decision tree search for the best threshold on one feature?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 212
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 213
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 214
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 215
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 216
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 217
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 218
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 219
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer turn scores into a guess for the next word?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 220
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How can I compare encoder self-attention heatmaps from different heads?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 221
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 222
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does next-token training compare a probability vector with a one-hot target?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 223
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How do I read the colored cells of a Word2vec embedding heatmap?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 224
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Explain post entries to cash",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 225
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Explain from opening cash to closing cash",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 226
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "depth": "balanced",
+   "rep": 2,
+   "idx": 227
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 228
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gradient descent?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 229
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 230
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 231
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 232
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 233
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gradient descent?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 234
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 235
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 236
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 237
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 238
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gradient descent?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 239
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a learning rate schedule?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 240
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is the difference between precision and recall?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 241
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what does the sigmoid activation function do?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 242
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gini impurity",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 243
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 244
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 245
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 246
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how are attention weights computed?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 247
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is gini impurity",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 248
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 249
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 250
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does Bayesian optimization decide which setting to try next?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 251
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does successive halving decide which trials get more training?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 252
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is entropy?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 253
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how do populations grow?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 254
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is overfitting?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 255
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is quantization?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 256
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does tokenization work?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 257
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is a vector database?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 258
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how are attention weights computed?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 259
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy loss?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 260
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy loss?",
+   "depth": "brief",
+   "rep": 3,
+   "idx": 261
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is cross entropy loss?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 262
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is batch normalization?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 263
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does dropout work?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 264
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does attention work in a transformer?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 265
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how are attention weights computed?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 266
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 267
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 268
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 269
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the decoder use the encoder's words while writing the next word?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 270
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 271
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 272
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 273
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer get query, key and value vectors from one token?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 274
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 275
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 276
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 277
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 278
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does the decoder use the encoder's words while writing the next word?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 279
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 280
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 281
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 282
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is maximum likelihood estimation?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 283
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "what is overfitting?",
+   "depth": "detailed",
+   "rep": 3,
+   "idx": 284
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does a decision tree split a two-feature dataset into regions?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 285
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does held-out error change as a decision tree grows deeper?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 286
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does a decision tree search for the best threshold on one feature?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 287
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 288
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 289
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 290
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 291
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 292
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 293
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 294
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does a transformer turn scores into a guess for the next word?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 295
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How can I compare encoder self-attention heatmaps from different heads?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 296
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 297
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does next-token training compare a probability vector with a one-hot target?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 298
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How do I read the colored cells of a Word2vec embedding heatmap?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 299
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Explain post entries to cash",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 300
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "Explain from opening cash to closing cash",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 301
+  },
+  {
+   "set": "audit-repeat",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "depth": "balanced",
+   "rep": 3,
+   "idx": 302
+  }
+ ],
+ "meta": {
+  "mainPairs": 83,
+  "box": 54,
+  "repeats": 16,
+  "auditRepeats": 150
+ }
+}
