@@ -1,0 +1,5 @@
+Card-audio script length measurement, 2026-11-17
+Calls: 144 (72 Gemini-first: 12 cards x 3 runs x 2 passes; 72 Fireworks-first same). Voice/ElevenLabs calls: 0.
+Tokens (provider usage in each reply): input 176,166, output 82,135 (output includes reasoning/thinking).
+Cost, computed from the registry rows (not an invoice): Gemini 3.5 Flash Lite 0.30/2.50 per M tokens = USD 0.1131 (0.0016 a call); Fireworks gpt-oss-120b 0.15/0.60 per M = USD 0.0419 (0.0006 a call).
+Total about USD 0.155 of the USD 1.00 cap.

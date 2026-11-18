@@ -1,0 +1,12 @@
+VARIANT (c), NOT RUN: writeScript(env, input, org, identity) takes no prompt override. The system prompt is built inside scriptRequest() by scriptSystem(depth, family) from explanation-audio-script.js
+and the model/endpoint are fixed by the chain; testing this needs a code change (an optional system override) or a request rewrite, so per the brief it is only described.
+
+Change: only the Gemini family LENGTHS block in explanation-audio-script.js (the Fireworks/standard block stays). Measured Gemini raw medians against its current ask:
+Brief ask 190-240, got 129 (about 0.60 of the midpoint); Balanced ask 260-320, got 205 (0.71); Detailed ask 320-380, got 318 (0.91). Asking for the owner's target after that ratio gives:
+
+  brief:    'Brief: write 300 to 360 words, 60 to 80 seconds of speech. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it, and one sentence on what to notice next. Do not stop before 300 words.',
+  balanced: 'Balanced: write 360 to 420 words, about 90 seconds of speech. Include: the clarification, two different examples, one misconception, a second angle on the hardest part, and what to notice next. Do not stop before 360 words.',
+  detailed: 'Detailed: write 340 to 400 words, up to about 2 minutes of speech. Include: a fuller second explanation, two different examples, an edge case, one misconception, and what to try next.',
+
+Prediction only (linear in the measured ratio, unmeasured): Brief median about 180-200 words (65 s), Balanced about 255-270 (85-90 s), Detailed unchanged near 320-340. Detailed already meets its range; raising it risks overrunning the 2 minute ceiling.
+To measure: run run-length.mjs with a one-line request rewrite for the system message on the Gemini arm (36 calls, about USD 0.06).
