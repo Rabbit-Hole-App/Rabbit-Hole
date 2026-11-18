@@ -1,0 +1,108 @@
+diff --git a/packages/control-plane/src/learn-artifact.js b/packages/control-plane/src/learn-artifact.js
+index c03dc3480..d3bd02fce 100644
+--- a/packages/control-plane/src/learn-artifact.js
++++ b/packages/control-plane/src/learn-artifact.js
+@@ -344,7 +344,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
+       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
+       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
+       // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
+-      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && !nextCanWrite(error.numbers.kind)) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
++      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && error.numbers.kinds.some(kind => !nextCanWrite(kind))) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
+       if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, ...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
+       const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
+       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
+diff --git a/packages/control-plane/src/learn-primitives.js b/packages/control-plane/src/learn-primitives.js
+index 52a163c6f..a0ef9628d 100644
+--- a/packages/control-plane/src/learn-primitives.js
++++ b/packages/control-plane/src/learn-primitives.js
+@@ -435,22 +435,33 @@ export function diagramProblem(md) {
+ // An issue the diagram validator tagged params { code: 'arithmetic' } (spec.js issue callback; today the box-plot fence check) means a number in the diagram is wrong: the
+ // problem is named explanation_bad_numbers, its tagged issue first, and learn-artifact.js never drops or simplifies such a diagram (the card fails or is repaired instead).
+ const arithmeticOf = error => (Array.isArray(error?.issues) ? error.issues : []).filter(i => i.params?.code === 'arithmetic');
+-function fenceProblem(error) {
++// The issues of one failed diagram as one string: its arithmetic-tagged issues first, then the others, three at most.
++function issuesText(error) {
+   const all = Array.isArray(error?.issues) ? error.issues : [], numbers = arithmeticOf(error);
+-  const issues = all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
+-  return numbers.length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
++  return all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
++}
++function fenceProblem(error) {
++  const issues = issuesText(error);
++  return arithmeticOf(error).length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+ }
+-// -> null, or { problem, issue, kind } for the first closed rh-diagram fence of the card (body or folded sections) that carries an arithmetic-tagged issue:
+-// the problem text (explanation_bad_numbers: ...), the tagged issue's own message, and the diagram's kind.
++// -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
++// such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
++// "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
+ export function numbersIssue(block) {
++  const hits = [];
++  let n = 0;
+   for (const md of [block?.body, ...(block?.more || []).map(s => s?.text)]) for (const f of split(md).fences) {
+     if (f.lang !== DIAGRAM || !f.closed) continue;
++    n++;
+     try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
+       const [first] = arithmeticOf(error);
+-      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } return { problem: fenceProblem(error), issue: first.message, kind }; }
++      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
+     }
+   }
+-  return null;
++  if (!hits.length) return null;
++  const problem = hits.length === 1 ? fenceProblem(hits[0].error)
++    : `explanation_bad_numbers: the rh-diagram specs state wrong numbers. ${hits.map(h => `Diagram ${h.n}: ${issuesText(h.error).slice(0, 280)}`).join(' | ')}`;
++  return { problem, issue: hits[0].issue, kind: hits[0].kind, kinds: hits.map(h => h.kind) };
+ }
+ 
+ // -> { ok: true, spec: { version, id, prompt, alt, caption } } | { ok: false, problem }. The renderer and the server read the same parse.
+@@ -1184,7 +1195,9 @@ export function explanationLayoutProblem(block, question = '') {
+ // depth: kept for the callers; EXP-13 has one budget for every Depth (asked for 600, refused above 700).
+ export function explanationProblem(block, depth, question = '') {
+   const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
+-  const diagrams = [block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(Boolean);
++  // Every wrong-numbers diagram in ONE message (numbersIssue), so the single repair fixes them together; diagramProblem alone names only the first failing fence of each section.
++  const numbers = numbersIssue(block);
++  const diagrams = [...(numbers ? [numbers.problem] : []), ...[block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(p => p && !(numbers && p.startsWith('explanation_bad_numbers')))];
+   const pictures = markdownIllustrations(block?.body), ids = pictures.filter(p => p.ok).map(p => p.spec.id);
+   const problems = [];
+   if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters of prose (paragraph, heading and list text), the limit is ${cap} (aim for ${EXPLANATION_BUDGET.target}); the title, tables, diagrams and illustrations do not count; shorten the prose.`);
+diff --git a/packages/control-plane/test/explanation-visual-fallback.test.js b/packages/control-plane/test/explanation-visual-fallback.test.js
+index 43f0e20a2..7b410115b 100644
+--- a/packages/control-plane/test/explanation-visual-fallback.test.js
++++ b/packages/control-plane/test/explanation-visual-fallback.test.js
+@@ -4,7 +4,7 @@
+ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFileSync } from 'node:fs';
+-import { simplifiedDiagram, markdownVisuals } from '../src/learn-primitives.js';
++import { simplifiedDiagram, markdownVisuals, numbersIssue } from '../src/learn-primitives.js';
+ import { generateArtifact } from '../src/learn-artifact.js';
+ import { planFromAnswers } from '../src/explanation-planner.js';
+ 
+@@ -69,3 +69,25 @@ test('a diagram with an arithmetic issue fails the step (explanation_bad_numbers
+   const dropped = await asked({ title: 'Fences', body: prose(other) }, 0);
+   assert.equal([dropped.result, dropped.block?.visualFallback].join(), 'artifact,dropped');
+ });
++
++// Item 1 (Reviewer 2026-11-17): every arithmetic issue of the card is in ONE repair message, so one repair fixes them together.
++test('numbersIssue names every wrong diagram in one message ("Diagram N:" each with its own correct numbers); one wrong diagram keeps the single-diagram text', async () => {
++  const box = (title, q1, q3, lower, upper, whiskerLow, whiskerHigh) => ({ version: 1, diagram: { kind: 'box-plot', title, x: { label: 'Reading', min: 0, max: 40 }, boxes: [{ label: 'Trial', whiskerLow, q1, median: (q1 + q3) / 2, q3, whiskerHigh, fences: { lower, upper } }] } });
++  const wrong1 = box('First fences', 6, 12, 2, 16, 4, 14), right = box('Right fences', 6, 12, -3, 21, 4, 14), wrong2 = box('Second fences', 10, 20, 0, 30, 8, 28);
++  const md = specs => specs.map(fence).join('\n\nText between.\n\n');
++  const both = numbersIssue({ body: md([wrong1, right]), more: [{ text: md([wrong2]) }] });
++  assert.match(both.problem, /^explanation_bad_numbers: the rh-diagram specs state wrong numbers\. Diagram 1: .*not 2 and 16. | Diagram 3: \| Diagram 3: .*that is -5 and 35, not 0 and 30/);
++  assert.doesNotMatch(both.problem, /Diagram 2/);
++  assert.deepEqual(both.kinds, ['box-plot', 'box-plot']);
++  const one = numbersIssue({ body: md([wrong1, right]) });
++  assert.match(one.problem, /^explanation_bad_numbers: the rh-diagram spec states wrong numbers \(.*not 2 and 16\.\)$/);
++  assert.doesNotMatch(one.problem, /Diagram \d/);
++  assert.equal(numbersIssue({ body: md([right]) }), null);
++  // End to end: the one repair message carries both diagrams and the rewrite sentence once.
++  const sent = [], recorded = async (e, b) => { sent.push(b); return model({ title: 'Fences', body: `The fences from the quartiles mark where an outlier begins.\n\n${md([wrong1, wrong2])}\n\nA reading beyond a fence is an outlier, so the quartiles decide the fences.` })(); };
++  const out = (await quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'box plot fences', planned: true, plan: null }, { callModel: recorded, repairs: 1 }))).value;
++  assert.equal(out.result, 'validation_error');
++  const message = sent[1].messages.at(-1).content[0].content;
++  assert.match(message, /Diagram 1: .*not 2 and 16\. \| Diagram 2: .*not 0 and 30/);
++  assert.equal(message.split('Rewrite every sentence that states these numbers.').length - 1, 1);
++});

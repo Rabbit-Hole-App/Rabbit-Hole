@@ -1,0 +1,8 @@
+# Item 1: every arithmetic issue of the card in ONE repair message
+
+Before: numbersIssue returned the first failing diagram only; and the first repair message came from explanationProblem -> diagramProblem, which names only the first failing fence per section. A card with two wrong box plots needed two repairs.
+After (learn-primitives.js numbersIssue ~:445, explanationProblem ~:1198): all closed rh-diagram fences (body + folded sections) with an arithmetic-tagged issue are collected. One wrong diagram: the old text, unchanged. Several: `explanation_bad_numbers: the rh-diagram specs state wrong numbers. Diagram 1: <its issues> | Diagram 3: <its issues>` (N counts the card's closed rh-diagram fences). explanationProblem puts that one message in place of the per-section bad_numbers texts. The rewrite sentence (learn-artifact.js repair message) is appended once. numbersIssue also returns `kinds`; the same-model second repair now fires when ANY failing diagram's kind cannot be written by the next provider.
+
+Example message (two wrong fences, tests): `explanation_bad_numbers: the rh-diagram specs state wrong numbers. Diagram 1: diagram.boxes.0.fences: Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16. | Diagram 3: ... with Q1 10 and Q3 20 that is -5 and 35, not 0 and 30.`
+
+Test: explanation-visual-fallback.test.js, 'numbersIssue names every wrong diagram in one message' (two wrong + one right diagram: Diagram 1 and 3 named, 2 not; one wrong: old text; none: null; end to end: the repair message sent to the model names both, rewrite sentence once).

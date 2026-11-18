@@ -1,0 +1,143 @@
+diff --git a/packages/web/src/tutor-diagrams/README.md b/packages/web/src/tutor-diagrams/README.md
+index 36f71f932..12be1ea3f 100644
+--- a/packages/web/src/tutor-diagrams/README.md
++++ b/packages/web/src/tutor-diagrams/README.md
+@@ -29,7 +29,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
+ | `figure` | Figure preset and named callouts. Free-body figures take direction, magnitude, and unit | Cell, cross-section, or free-body drawing; linked callout badges; proportional force arrows |
+ | `tree` | Nodes with `id`, `label`, and optional `parent`. With `layout: "binary"`, each child also supplies `side: "left"` or `"right"`. | Indented hierarchy or a top-down binary tree with the approved branch styling |
+ | `relationship` | Labeled nodes and directed links with relationship labels | Directional lanes with clear endpoints, including reciprocal links |
+-| `transformation` | Before and after item lists, operation, optional zero-based item mappings | Two states, operation banner, and labeled mappings |
++| `transformation` | Before and after item lists, operation, optional zero-based item mappings; when the title or operation says softmax and every item is a plain number, each after value must equal softmax of the before values within half a unit of the decimals written for it (arithmetic issue); the rule is off for temperature, `T =`, scaled, scaling, masked, causal or log-softmax cards, where after values called probabilities must only sum to 1 | Two states, operation banner, and labeled mappings |
+ | `argument` | Claim, support, objections, conclusion. Evidence can include a source label | Evidence lanes joined to a conclusion |
+ | `number-line` | Explicit domain, value markers, intervals with open or closed endpoints | Scaled ticks, numbered markers, interval segments |
+ | `coordinate-plot` | Two labeled axis domains, optional units, line or scatter series. Set `smooth: false` on a line series for straight segments. | Linear axes, monotone cubic line paths, exact point values, distinct series symbols |
+diff --git a/packages/web/src/tutor-diagrams/spec.js b/packages/web/src/tutor-diagrams/spec.js
+index 2cda0e47c..9ed04d655 100644
+--- a/packages/web/src/tutor-diagrams/spec.js
++++ b/packages/web/src/tutor-diagrams/spec.js
+@@ -302,6 +302,40 @@ function checkAmount(value, path, issue, nonnegative = false) {
+ 
+ const atPath = (issue, prefix) => (path, message) => issue([...prefix, ...path], message);
+ 
++// List-transformation softmax rule (item 3, Reviewer 2026-11-17). A card whose title or operation says softmax and whose before and after items are ALL plain numbers must have
++// after_i = softmax(before)_i within half a unit of the decimals the author wrote for THAT item (0.7 against the true 0.659 passes at one decimal; 0.04 against 0.099 fails at two), plus 1e-9
++// float slack: the same allowance as the box-plot fences. The issue names the correct value of every item and is tagged arithmetic. It is OFF when the title, caption or any label says
++// temperature, scaled, scaling, masked, causal, log-softmax or "T =" (after = softmax(before / T), a scaled or masked score: the plain recompute would flag a correct card); then the only check
++// is that the after values sum to 1 (within the sum of their half-units) when the title or caption calls them probabilities. Items that are not plain numbers ("h1", tensors, "2.0 (cat)") skip the rule.
++// Why here: this is where the schema already reads a list transformation's items and links (the composition validator only checks its structure).
++const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
++// "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
++function listNumber(item) {
++  if (typeof item !== 'string') return null;
++  const m = item.replace(/\$/g, '').split(/[=:]/).pop().trim().replace(/−/g, '-').match(/^(-?\d+(?:\.(\d+))?)\s*(%?)$/);
++  if (!m) return null;
++  const places = (m[2] ?? '').length, scale = m[3] ? 100 : 1;
++  return { value: Number(m[1]) / scale, places, half: 0.5 * 10 ** -places / scale, text: m[1] + m[3] };
++}
++function checkSoftmaxList(d, issue) {
++  if (!/softmax/i.test(`${d.title} ${d.operation}`)) return;
++  const before = d.before.items.map(listNumber), after = d.after.items.map(listNumber);
++  if (before.length !== after.length || [...before, ...after].some(x => !x)) return;
++  const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
++  if (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels)) {
++    const sum = after.reduce((s, x) => s + x.value, 0), slack = after.reduce((s, x) => s + x.half, 0);
++    if (/probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(sum - 1) > slack + 1e-9) {
++      issue(['after', 'items'], `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(sum.toFixed(6))}.`, { code: 'arithmetic' });
++    }
++    return;
++  }
++  const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
++  if (after.some((x, i) => Math.abs(p[i] - x.value) > x.half + 1e-9)) {
++    const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
++    issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
++  }
++}
++
+ function checkTensorNodes({ nodes }, issue) {
+   nodes.forEach((node, index) => {
+     if (node.tensor) validateTensor(node.tensor, atPath(issue, ['nodes', index, 'tensor']));
+@@ -336,6 +370,7 @@ function validateDiagram(diagram, issue) {
+           issue(['links', index], 'Mapping indices must refer to existing items');
+         }
+       });
++      checkSoftmaxList(diagram, issue);
+       break;
+     case 'number-line': checkNumberLine(diagram, issue); break;
+     case 'coordinate-plot': checkPlot(diagram, issue); break;
+diff --git a/packages/web/src/tutor-diagrams/spec.test.mjs b/packages/web/src/tutor-diagrams/spec.test.mjs
+index e5098b35c..49cdb5103 100644
+--- a/packages/web/src/tutor-diagrams/spec.test.mjs
++++ b/packages/web/src/tutor-diagrams/spec.test.mjs
+@@ -237,3 +237,58 @@ test('a flow node title parses, within its limit, and is not in the author schem
+   const shapes = tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf;
+   assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'tensor', 'role']);
+ });
++
++// Softmax recompute for list transformations (item 3): after_i = softmax(before)_i within half a unit of the decimals the author wrote for that item; off for temperature, scaled, masked, causal, log-softmax and "T =" cards.
++const softmax = (before, after, extra = {}) => ({ version: 1, diagram: { kind: 'transformation', title: 'Softmax transformation', before: { label: 'Scores', items: before }, after: { label: 'Probabilities', items: after }, operation: 'Apply softmax', ...extra } });
++const softmaxIssues = value => { const r = tutorDiagramSchema.safeParse(value); return r.success ? [] : r.error.issues; };
++const arithmetic = issues => issues.filter(i => i.params?.code === 'arithmetic');
++
++test('softmax list transformation: the real failing archive cards fail with the correct values for EVERY item, tagged arithmetic', () => {
++  const [wrong] = arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.70', '0.26', '0.04'])));
++  assert.match(wrong.message, /softmax\(2\.0, 1\.0, 0\.1\) = 0\.66, 0\.24, 0\.10, not 0\.70, 0\.26, 0\.04\./);
++  assert.deepEqual(wrong.path, ['diagram', 'after', 'items']);
++  assert.match(arithmetic(softmaxIssues(softmax(['-2', '0', '3'], ['0.04', '0.11', '0.85'])))[0].message, /softmax\(-2, 0, 3\) = 0\.01, 0\.05, 0\.95, not 0\.04, 0\.11, 0\.85\./);
++  assert.throws(() => parseTutorDiagram(softmax(['2.0', '1.0', '0.1'], ['0.70', '0.26', '0.04'])), /softmax of the before values/);
++});
++
++test('softmax list transformation: half a unit of the decimals the author wrote for THAT item decides', () => {
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.2', '0.1'])), [], 'one decimal: 0.7 against the true 0.659 passes');
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.66', '0.24', '0.10'])), []);
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.659', '0.242', '0.099'])), []);
++  assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.66', '0.24', '0.04']))).length, 1, 'two decimals: 0.04 against 0.099 fails');
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.24', '0.099'])), [], 'each item has its own decimals');
++  assert.deepEqual(softmaxIssues(softmax(['z_1 = 2.0', 'z_2 = 1.0', 'z_3 = 0.1'], ['p_1 = 0.66', 'p_2 = 0.24', 'p_3 = 0.10'])), [], 'a label before the number is read past');
++  assert.deepEqual(softmaxIssues(softmax(['2', '1', '0.1'], ['66%', '24%', '10%'])), [], 'percent items');
++  assert.equal(arithmetic(softmaxIssues(softmax(['2', '1', '0.1'], ['70%', '26%', '4%']))).length, 1);
++});
++
++test('softmax list transformation: only with softmax in the title or operation and plain numbers on both sides', () => {
++  assert.deepEqual(softmaxIssues(softmax(['h1', 'h2', 'h3'], ['0.7', '0.26', '0.04'])), [], 'non-numeric before items skip the rule');
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.26', 'about 0.04'])), [], 'a non-numeric after item skips the rule');
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.26'])), [], 'different lengths skip the rule');
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.26', '0.04'], { title: 'Scores to shares', operation: 'Normalize' })), [], 'no softmax named');
++  assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.26', '0.04'], { title: 'Scores to shares', operation: 'Apply softmax' }))).length, 1, 'softmax in the operation alone is enough');
++});
++
++test('softmax list transformation: temperature, T =, scaled, scaling, masked, causal and log-softmax turn the recompute off; a correct softmax(before / T) card passes', () => {
++  const plain = ['0.70', '0.26', '0.04'];
++  for (const extra of [{ title: 'Softmax with temperature' }, { caption: 'Temperature T lowers the entropy' }, { operation: 'Apply softmax with T = 0.5' }, { operation: 'Softmax, T=2' }, { title: 'Scaled softmax' },
++    { title: 'Softmax after scaling' }, { title: 'Masked softmax' }, { operation: 'Causal softmax' }, { title: 'Log-softmax' }, { title: 'Log softmax' }, { before: { label: 'Scaled scores', items: ['2.0', '1.0', '0.1'] } }, { after: { label: 'Softmax at temperature 2', items: plain } }]) {
++    assert.deepEqual(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], plain, extra))), [], JSON.stringify(extra));
++  }
++  // softmax(2.0 / 0.5, 1.0 / 0.5, 0.1 / 0.5) = softmax(4, 2, 0.2) = 0.86, 0.12, 0.02: correct for T = 0.5, wrong for a plain softmax of the before values
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.86', '0.12', '0.02'], { operation: 'Softmax of scores divided by temperature T = 0.5' })), []);
++  assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.86', '0.12', '0.02']))).length, 1, 'the same numbers without the gate word are a plain softmax and are wrong');
++  assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], plain, { title: 'Softmax result, set t = 3' }))).length, 1, 'a lowercase t is not the temperature marker');
++});
++
++test('softmax list transformation: a gated card that calls its after values probabilities must still sum to 1 within the half-units', () => {
++  const gated = { title: 'Softmax with temperature', caption: 'The probabilities after scaling' };
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.86', '0.12', '0.02'], gated)), []);
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.33', '0.33', '0.34'], gated)), []);
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.2', '0.1'], gated)), []);
++  const [bad] = arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.86', '0.22', '0.02'], gated)));
++  assert.match(bad.message, /must sum to 1: 0\.86 \+ 0\.22 \+ 0\.02 = 1\.1\./);
++  assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.5', '0.2', '0.1'], { title: 'Masked softmax', caption: 'Probabilities of each token' }))).length, 1);
++  assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.5', '0.3', '0.1'], { title: 'Masked softmax' })), [], 'not called probabilities: no sum check');
++});
+diff --git a/scripts/topic-pipeline/agents/inputs/renderer-constraints.md b/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
+index 804544cba..23562c53e 100644
+--- a/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
++++ b/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
+@@ -162,7 +162,9 @@ Generated by `build-renderer-constraints.mjs` from the tutor-diagram parser sour
+ 
+ ## transformation
+ 
++- After values must be softmax of the before values: softmax(…) = …, not ….
+ - Mapping indices must refer to existing items
++- The after values are called probabilities, so they must sum to 1: … = ….
+ 
+ ## tree
+ 

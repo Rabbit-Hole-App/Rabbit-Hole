@@ -1,0 +1,111 @@
+diff --git a/packages/control-plane/src/explanation-fast-chain.js b/packages/control-plane/src/explanation-fast-chain.js
+index 3e8e1d88a..72483bcb9 100644
+--- a/packages/control-plane/src/explanation-fast-chain.js
++++ b/packages/control-plane/src/explanation-fast-chain.js
+@@ -254,10 +254,10 @@ export async function generateWithFallbacks(env, input, options, generate) {
+       if (error.final || seen.final) break;
+       continue;
+     }
+-    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
++    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}), ...(out.failedOn?.length ? { failedOn: out.failedOn } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
+     if (out.result !== 'validation_error') return { ...out, attempts }; // a plan refusal or a question back is not a provider failure
+     last = { ...out, reason: 'validation_error' };
+-    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
++    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.failedOn?.length ? { failedOn: out.failedOn } : {}), ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
+   }
+   if (last instanceof Error) throw Object.assign(last, { attempts });
+   return last ? { ...last, attempts } : { result: 'unsupported', message: 'Explanations are not set up on this server yet, so nothing was sent or charged.', reason: 'credential_missing', attempts };
+diff --git a/packages/control-plane/src/learn-artifact.js b/packages/control-plane/src/learn-artifact.js
+index d3bd02fce..ec88fb7fc 100644
+--- a/packages/control-plane/src/learn-artifact.js
++++ b/packages/control-plane/src/learn-artifact.js
+@@ -219,6 +219,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
+   let { result, call } = await ask(messages);
+   // At most one repair: the first failure goes back to the model once (an arithmetic issue may get a second, ARITHMETIC_REPAIRS_SAME_MODEL).
+   let limit = repairs;
++  const failedOn = []; // card archive: the failure outcome of each answer that failed ('arithmetic' | 'validation_error'), so a mixed failure is visible later
+   for (let attempt = 0; ; attempt++) {
+     if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
+     if (call.name === CLARIFY.name) {
+@@ -338,14 +339,15 @@ export async function generateArtifact(env, input, { callModel: injected = null,
+       if (GATES[id]) block = GATES[id](block);
+       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
+       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
+-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
++      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(failedOn.length ? { failedOn } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
+     } catch (error) {
+       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
+       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
+       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
++      failedOn.push(error.numbers || /explanation_bad_numbers/.test(error.message) ? 'arithmetic' : 'validation_error'); // a first answer's numbers problem has no .numbers yet (explanationProblem names it)
+       // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
+       if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && error.numbers.kinds.some(kind => !nextCanWrite(kind))) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
+-      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, ...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
++      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, failedOn,...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
+       const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
+       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
+     }
+diff --git a/packages/control-plane/test/explanation-fast-chain.test.js b/packages/control-plane/test/explanation-fast-chain.test.js
+index 8f4ba739a..7199031d8 100644
+--- a/packages/control-plane/test/explanation-fast-chain.test.js
++++ b/packages/control-plane/test/explanation-fast-chain.test.js
+@@ -414,7 +414,7 @@ test('arithmetic: the next provider cannot write box-plot, so the same model get
+   const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+   assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'fireworks'], 'Gemini would not get box-plot, so no hand-over');
+   assert.deepEqual([out.result, out.repaired, out.repairs, out.repairedAt], ['artifact', true, 2, 2]);
+-  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 2, repairedAt: 2 }]);
++  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 2, repairedAt: 2, failedOn: ['arithmetic', 'arithmetic'] }]);
+   for (const call of [sent[1], sent[2]]) assert.ok(call.body.messages.at(-1).content.startsWith('Validation failed: explanation_bad_numbers: ') && call.body.messages.at(-1).content.includes(SENTENCE), 'the exact numbers, then the sentence');
+   assert.ok(sent[1].body.messages.at(-1).content.includes(FENCE_ISSUE), 'the validator\'s first issue names the true fences');
+ });
+@@ -424,7 +424,7 @@ test('arithmetic: success on the first repair stops there (no second repair)', a
+   const sent = providers(t, ok(wrongFences), ok(goodFences));
+   const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+   assert.equal(sent.length, 2);
+-  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 1, repairedAt: 1 }]);
++  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 1, repairedAt: 1, failedOn: ['arithmetic'] }]);
+ });
+ 
+ test('arithmetic: when the next provider CAN write the kind (it is named, or it is Fireworks) the old rule stands: one repair, the step fails, the next provider runs', async t => {
+@@ -449,8 +449,8 @@ test('arithmetic: every step failing gives validation_error explanation_bad_numb
+   assert.match(out.error, /^explanation_bad_numbers: /);
+   assert.equal(out.block, undefined);
+   assert.deepEqual(out.attempts, [
+-    { provider: 'google', model: 'gemini-3.5-flash-lite', outcome: 'arithmetic', repairs: 1, issues: [FENCE_ISSUE] },
+-    { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, issues: [FENCE_ISSUE] }]);
++    { provider: 'google', model: 'gemini-3.5-flash-lite', outcome: 'arithmetic', repairs: 1, failedOn: ['arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] },
++    { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, failedOn: ['arithmetic', 'arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] }]);
+ });
+ 
+ test('a non-arithmetic invalid answer never gets the second repair and keeps its own issue text per step', async t => {
+@@ -459,10 +459,22 @@ test('a non-arithmetic invalid answer never gets the second repair and keeps its
+   const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+   assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google', 'google']);
+   assert.deepEqual(out.attempts.map(a => [a.outcome, a.repairs]), [['validation_error', 1], ['validation_error', 1]]);
++  assert.deepEqual(out.attempts.map(a => a.failedOn), [['validation_error', 'validation_error'], ['validation_error', 'validation_error']]);
+   assert.match(out.attempts[0].issues[0], /^explanation_/);
+   assert.ok(!sent[1].body.messages.at(-1).content.includes(SENTENCE), 'the sentence belongs to arithmetic issues only');
+ });
+ 
++test('a step that failed a validation and then arithmetic records both in failedOn, in order; a clean first answer has no failedOn', async t => {
++  quiet(t);
++  providers(t, ok(long), ok(wrongFences));
++  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
++  assert.deepEqual(out.attempts[0].failedOn, ['validation_error', 'arithmetic', 'arithmetic']);
++  assert.equal(out.attempts[0].outcome, 'arithmetic');
++  providers(t, ok(goodFences));
++  const clean = await ask(offline('fireworks-low'), 'Explain the box plot fences');
++  assert.ok(!('failedOn' in clean.attempts[0]));
++});
++
+ test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs and issue text, and the client gets the validation_error', async t => {
+   quiet(t);
+   providers(t, ok(wrongFences));
+@@ -474,6 +486,6 @@ test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs a
+   assert.equal(puts.length, 1);
+   assert.equal(puts[0].outcome, 'validation_error');
+   assert.match(puts[0].error, /^explanation_bad_numbers: /);
+-  assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues]), [['google', 'arithmetic', 1, [FENCE_ISSUE]], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE]]]);
++  assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues, a.failedOn]), [['google', 'arithmetic', 1, [FENCE_ISSUE], ['arithmetic', 'arithmetic']], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE], ['arithmetic', 'arithmetic', 'arithmetic']]]);
+   assert.ok(!JSON.stringify(puts[0]).includes('private@example.test'));
+ });

@@ -1,0 +1,80 @@
+diff --git a/packages/web/src/tutor-diagrams/README.md b/packages/web/src/tutor-diagrams/README.md
+index 12be1ea3f..a4a161109 100644
+--- a/packages/web/src/tutor-diagrams/README.md
++++ b/packages/web/src/tutor-diagrams/README.md
+@@ -51,7 +51,7 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
+ | Kind | New supported fields / variant | Primary source |
+ | --- | --- | --- |
+ | `heatmap` | Numeric `rows[].cells`, columns, explicit `range`, masked nulls and indexed highlights | `ml-statistical-*` |
+-| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements | `ml-statistical-*` |
++| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements; when the title, caption or a label says bootstrap (not m-out-of-n or subsample), a replacement group draws exactly as many members as there are samples (arithmetic issue) | `ml-statistical-*` |
+ | `histogram` | `binEdges`, count/proportion series, markers; unequal-width bins require `density` | `ml-statistical-*` |
+ | `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis; stated fences must equal Q1 - 1.5 IQR and Q3 + 1.5 IQR (arithmetic issue), summary values and outliers must lie inside the author's axis, and the axis widens to hold a fence outside it | `ml-statistical-*` |
+ | `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
+diff --git a/packages/web/src/tutor-diagrams/ml-statistical-spec.js b/packages/web/src/tutor-diagrams/ml-statistical-spec.js
+index 738914bbe..2ed0b9b7a 100644
+--- a/packages/web/src/tutor-diagrams/ml-statistical-spec.js
++++ b/packages/web/src/tutor-diagrams/ml-statistical-spec.js
+@@ -66,7 +66,14 @@ function checkSamples(d, issue) {
+   unique(d.groups.map(group => group.id), ['groups'], issue, 'Group IDs');
+   if (new Set(d.samples.map(sample => sample.class).filter(Boolean)).size > 6) issue(['samples'], 'Use at most six sample classes');
+   const groups = new Map(d.groups.map(group => [group.id, group]));
++  // A bootstrap draw is n rows from n rows, with replacement (exact, no tolerance; item 4, Reviewer 2026-11-17). The diagram says bootstrap in its title, caption or any label, and not
++  // m-out-of-n or subsample (those draw fewer on purpose); a replacement group draws from the whole sample set. Tagged arithmetic: the repair names the numbers.
++  const words = [d.title, d.caption, ...d.groups.map(group => group.label), ...d.samples.flatMap(sample => [sample.label, sample.class])].filter(Boolean).join(' ');
++  const bootstrap = /bootstrap/i.test(words) && !/m[- ]out[- ]of[- ]n|subsample/i.test(words);
+   d.groups.forEach((group, i) => {
++    if (bootstrap && group.replacement && group.members.length !== d.samples.length) {
++      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${group.members.length}.`, { code: 'arithmetic' });
++    }
+     for (const field of ['members', 'omitted']) {
+       (group[field] ?? []).forEach((sampleId, j) => {
+         if (!ids.includes(sampleId)) issue(['groups', i, field, j], 'Membership refers to an unknown sample ID');
+diff --git a/packages/web/src/tutor-diagrams/ml-statistical.test.mjs b/packages/web/src/tutor-diagrams/ml-statistical.test.mjs
+index bd0def34f..23fbcd126 100644
+--- a/packages/web/src/tutor-diagrams/ml-statistical.test.mjs
++++ b/packages/web/src/tutor-diagrams/ml-statistical.test.mjs
+@@ -345,3 +345,31 @@ test('domain hooks leave unrelated legacy diagrams to the existing code', () =>
+   assert.equal(describe(legacy), null);
+   assert.equal(visibleText(legacy), null);
+ });
++
++// Item 4: a bootstrap draw has exactly n members for n rows (no tolerance).
++const rows = id => ({ id, label: id.toUpperCase() });
++const bootstrapCard = (draws, extra = {}) => ({ kind: 'sample-set', title: 'Bootstrap sample of training rows', caption: 'Worked example. Rows A to H are drawn with replacement.',
++  samples: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(rows), groups: [{ id: 'boot', label: 'Draw', replacement: true, members: draws }], ...extra });
++const arithmeticOf = value => { const r = schema.safeParse(value); return r.success ? [] : r.error.issues.filter(i => i.params?.code === 'arithmetic'); };
++
++test('bootstrap draw count: the archive card (6 draws from 8 rows) fails with the numbers, tagged arithmetic; 8 from 8 passes', () => {
++  const [bad] = arithmeticOf(bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f']));
++  assert.equal(bad.message, 'A bootstrap sample draws n = 8 rows, with replacement; this draws 6.');
++  assert.deepEqual(bad.path, ['groups', 0, 'members']);
++  assert.equal(schema.safeParse(bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f', 'h', 'h'])).success, true);
++  assert.equal(arithmeticOf(bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f', 'h', 'h', 'h'])).length, 1, 'more than n is wrong too');
++});
++
++test('bootstrap draw count: m-out-of-n and subsample cards, cards that never say bootstrap, and groups without replacement are left alone; any label can carry the word', () => {
++  const short = ['a', 'b', 'b', 'd'];
++  assert.deepEqual(arithmeticOf(bootstrapCard(short, { title: 'Bootstrap with m out of n draws' })), []);
++  assert.deepEqual(arithmeticOf(bootstrapCard(short, { title: 'm-out-of-n bootstrap' })), []);
++  assert.deepEqual(arithmeticOf(bootstrapCard(short, { caption: 'A bootstrap subsample of the rows' })), []);
++  assert.deepEqual(arithmeticOf(bootstrapCard(short, { title: 'Sampling with replacement', caption: 'Rows A to H, drawn with replacement.' })), [], 'bootstrap is never said');
++  const labelled = bootstrapCard(short, { title: 'Sampling with replacement', caption: undefined }); labelled.groups[0].label = 'Bootstrap draw';
++  assert.equal(arithmeticOf(labelled).length, 1, 'a group label saying bootstrap counts');
++  const noReplacement = bootstrapCard(['a', 'b', 'c', 'd']); noReplacement.groups[0].replacement = false;
++  assert.deepEqual(arithmeticOf(noReplacement), [], 'a plain subset is not a draw with replacement');
++  const oob = bootstrapCard(['a', 'b', 'b', 'd', 'f', 'f', 'h', 'h']); oob.groups.push({ id: 'oob', label: 'Out of bag', outOfBagFor: 'boot', members: ['c', 'e', 'g'] });
++  assert.equal(schema.safeParse(oob).success, true, 'the out-of-bag group is not a draw');
++});
+diff --git a/scripts/topic-pipeline/agents/inputs/renderer-constraints.md b/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
+index 23562c53e..2ef4aff6e 100644
+--- a/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
++++ b/scripts/topic-pipeline/agents/inputs/renderer-constraints.md
+@@ -130,6 +130,7 @@ Generated by `build-renderer-constraints.mjs` from the tutor-diagram parser sour
+ 
+ ## sample-set
+ 
++- A bootstrap sample draws n = … rows, with replacement; this draws ….
+ - An out-of-bag set cannot use replacement
+ - Membership refers to an unknown sample ID
+ - Omitted IDs must be exactly the samples absent from this group
