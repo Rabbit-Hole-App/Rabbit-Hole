@@ -12,7 +12,7 @@ across turns until the learner clicks the red microphone again:
 VOICE ON
   LISTENING   learner speaks; realtime STT runs hidden; nothing of it is shown
   THINKING    committed utterance -> the SAME Tutor turn as typed input (input_modality 'voice')
-  SPEAKING    canvas actions already applied; Fish TTS speaks the Tutor's words; left caption shows them
+  SPEAKING    canvas actions already applied; the narrator (ElevenLabs Jessica) speaks the Tutor's words; left caption shows them
   -> LISTENING again, automatically
 VOICE OFF     normal composer
 ```
@@ -35,8 +35,8 @@ Rabbit Holes under it ([production-tutor-entry.md](production-tutor-entry.md)). 
   `/api/learn/voice/scribe-token` answers every signed-in request, direct ones included, with 503
   `{ "error": "Voice is currently unavailable" }` before minting a token or calling ElevenLabs (FX-71, owner
   2026-10-29). One switch drives both: `LISTENING_PAUSED` in `packages/control-plane/src/voice-availability.js`,
-  read by `LearnVoice.jsx` and `learn-voice-routes.js`; set it to `false` to re-enable listening. Metered Fish
-  narration still plays. The scripted `?voice=fake` adapters stay available for the checks. Revisit after r36.
+  read by `LearnVoice.jsx` and `learn-voice-routes.js`; set it to `false` to re-enable listening. Metered narration
+  (the one ElevenLabs voice) still plays. The scripted `?voice=fake` adapters stay available for the checks. Revisit after r36.
 - Voice Mode stays on until the learner clicks the red mic (owner, 2026-10-01). Going down or back up a
   Rabbit Hole remounts the Learn surface and ends its session, so the next surface turns Voice Mode back
   on by itself (a new mic stream and a new Scribe token).
@@ -156,7 +156,7 @@ onEvent({ type: 'speech_start' | 'partial' | 'commit' | 'error', text?, kind? })
 ### 4. TTS adapter: `packages/web/src/voice-tts.js` (owner C)
 
 ```js
-createFishTts({ post, onEvent, makeAudio, MediaSource }) -> { speak(text, { turnId }) -> Promise<'ended'|'stopped'|'failed'>, stop() }
+createNarratorTts({ post, onEvent, makeAudio, MediaSource }) -> { speak(text, { turnId }) -> Promise<'ended'|'stopped'|'failed'>, stop() }
 createFakeTts({ onEvent, ms }) -> same; resolves 'ended' after ms (scripted QA and tests)
 speakable(text) -> string
 onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts_play_end' | 'tts_stopped' | 'tts_error', turnId })
@@ -174,7 +174,7 @@ onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts
     and the element starts sounding when the first chunk is buffered. Each chunk is appended to its
     SourceBuffer as it arrives, and `endOfStream()` follows the last one. Elsewhere the whole body is buffered
     into a Blob URL first, as before.
-  - Measured locally with a real narrator MP3 at the live Fish pace (`e2e/voice-tts-stream-check.mjs`):
+  - Measured locally with a real narrator MP3 at the pace of the Fish narrator this route used before VOICE-1 (`e2e/voice-tts-stream-check.mjs`; ElevenLabs Flash returns a whole clip in about 2 s, so streaming no longer matters and the client is unchanged):
     request to first audio went from 2736 ms buffered to 285 ms streamed (5 runs each). After Stop the audio
     pauses within 0.6 ms, and the playhead stays frozen for 2.5 s while the server keeps streaming.
   - It resolves on `ended`.
@@ -215,18 +215,16 @@ The handlers:
   - Returns only `{ token }`. The API key never appears in a response.
 - `voiceSpeech`:
   - `text` must be a string of 1–1200 characters.
-  - POST `https://api.fish.audio/v1/tts` with:
-    - `Authorization: Bearer FISH_AUDIO_API_KEY`;
-    - header `model: s1`;
-    - JSON `{ text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } }`.
-    - Lower sampling and a slightly slower pace keep the narrator calm and the same from reply to reply
-      (owner, 2026-10-01).
-  - That is the same pinned narrator as `/api/learn/tts`.
-  - It streams the body back as `audio/mpeg` with no-store.
+  - **One voice (VOICE-1, owner 2026-11-17).** It speaks through `speakNarration` in
+    `packages/control-plane/src/narration-voice.js`: ElevenLabs Jessica (`cgSgspJ2msm6clMCkdW9`), model
+    `eleven_flash_v2_5`, speed 1.1, stability 0.4, `mp3_44100_64`, header `xi-api-key` from `ELEVENLABS_API_KEY`. The
+    same config and function serve the card audio, "Read it aloud" (`/api/learn/tts`) and /whiteboard narration;
+    this route owns only its 1200-character cap and its 20 s abort. Until VOICE-1 it called Fish s1.
+  - It returns the body as `audio/mpeg` with no-store.
   - It logs one line, `{"event":"learn_voice","kind":"tts","turn_id","status","ms","chars"}`, with no text.
 - The dispatch in dev-worker.js goes after the `/api/learn/transcribe` block, not between the ask block
   and `/api/learn/tts`, because `canvases.test.js` slices that range.
-- Local secrets: `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY` go in `packages/web/.dev.vars`, which is
+- Local secret: `ELEVENLABS_API_KEY` (Scribe and the narrator) goes in `packages/web/.dev.vars`, which is
   gitignored.
 
 ### 6. UI (owner A)
@@ -277,7 +275,7 @@ The handlers:
     cleared, as a typed turn clears it.
   - It returns `null` when `!tutor?.active`.
   - Otherwise `voice` is `{ state, caption: { current, previous, error }, enter, exit, interrupt }`.
-  - It picks the adapters: fake STT and TTS when the URL has `?voice=fake`, Scribe and Fish otherwise.
+  - It picks the adapters: fake STT and TTS when the URL has `?voice=fake`, Scribe and the narrator otherwise.
   - In fake mode it exposes `window.__voiceFake = { say(text), failStt(), failTts(), ttsMs }` for e2e
     and the review.
 - **`AskPanel` (ask.jsx, owner A)** gets a new optional prop `voice`, the object above or null.
@@ -347,7 +345,7 @@ All of these use the fake STT, the fake TTS and a stubbed Tutor:
   - 428 without `confirmed`;
   - 503 without a key;
   - the token response never containing the key;
-  - the Fish request shape;
+  - the narrator request shape (Jessica, Flash v2.5, the shared config);
   - 502 masking the provider error;
   - `null` for foreign paths.
 - `packages/web/e2e/voice-check.mjs`: the local stack, with the Tutor and voice routes stubbed through
@@ -356,7 +354,7 @@ All of these use the fake STT, the fake TTS and a stubbed Tutor:
 
 ## Live test (after `GO VOICE LIVE` only)
 
-Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The sequence:
+Real mic → ElevenLabs Scribe → real Tutor → ElevenLabs narrator → speakers. The sequence:
 
 1. normal question
 2. clarification
@@ -371,7 +369,7 @@ Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The seq
 **Setup for the live run.**
 
 1. Add these keys to `packages/web/.dev.vars` in this worktree. The file is gitignored; never print it.
-   - `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY`, which are in `small-parallel/.env`.
+   - `ELEVENLABS_API_KEY`, which is in `small-parallel/.env`.
    - `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` and `TYPESAFE_API_KEY`, the Tutor's own keys.
 2. Restart the app worker.
 3. Open the Tutor board **without** `?voice=fake`. The owner speaks; a microphone is needed, so this
@@ -384,7 +382,7 @@ Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The seq
 | Item | Assumption | Estimated cost |
 |---|---|---|
 | ElevenLabs Scribe v2 Realtime | $0.39 per audio hour. The socket stays open while Voice is on, and audio is sent only while listening. About 15 minutes connected, at most 0.25 h. | About $0.10 or less |
-| Fish Audio s1 | $15 per million UTF-8 bytes. About 25 Tutor utterances of about 200 characters each, about 5,000 bytes. | About $0.08 |
+| ElevenLabs Flash v2.5 (the narrator) | $0.04 per 1,000 characters (an estimate; plan credits). About 25 Tutor utterances of about 200 characters each, about 5,000 characters. | About $0.20 |
 | Tutor model calls | The same calls as typed turns: about 25 Opus 5.5 planner calls plus JEV and the larger evaluator when uncertain. | Like a 25-turn typed Tutor session; this dominates |
 | Scribe tokens | One single-use token per connect, plus one per reconnect. | Free |
 
