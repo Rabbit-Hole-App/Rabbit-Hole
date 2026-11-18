@@ -1,0 +1,22 @@
+web ml-statistical: tests 25 pass 25 fail 0 
+web spec: tests 25 pass 25 fail 0 
+web content-contract: tests 13 pass 13 fail 0 
+web reference-content-contract: tests 1 pass 1 fail 0 
+web ml-reference-integration: tests 473 pass 473 fail 0 
+web svg-snapshots: tests 1 pass 1 fail 0 
+web geometry-lint: tests 9 pass 9 fail 0 
+web kind-gallery: tests 28 pass 28 fail 0 
+web kind-gallery-depths: tests 126 pass 126 fail 0 
+web theme/stray-hex: tests 2 pass 2 fail 0 
+web theme/palette-guard: tests 1 pass 1 fail 0 
+web learn-slash: tests 39 pass 39 fail 0 
+cp explanation-fast-chain: tests 22 pass 22 fail 0 
+cp explanation-visual-fallback: tests 5 pass 5 fail 0 
+cp learn-artifact: tests 23 pass 23 fail 0 
+cp explain-card-archive: tests 3 pass 3 fail 0 
+cp explanation-references: tests 11 pass 11 fail 0 
+cp explanation-prose-pass: tests 9 pass 9 fail 0 
+
+real	3m3.101s
+user	0m5.439s
+sys	0m17.849s
