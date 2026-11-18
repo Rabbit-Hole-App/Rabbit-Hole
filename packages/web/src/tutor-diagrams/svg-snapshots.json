@@ -3232,19 +3232,19 @@
       "height": 147
     },
     "shape-transformation/320": {
-      "sha256": "d12cc073b63fdf02f528ccf6c530773247495ec35dc0bf5f4e86d9e9f32786c8",
+      "sha256": "a6c8b91c274134b360338bf2f0d66f6e185ec1248920c0982137b96af971a550",
       "width": 320,
-      "height": 190
+      "height": 374
     },
     "shape-transformation/408": {
-      "sha256": "144fe94bfaa7a254b4b8737970fa732efcd90965f741938702c514f1d0d96a9f",
+      "sha256": "1d5d41e3cdf4746ed12e3057ee056360e1121ffc630504eb457a38fb682171db",
       "width": 408,
-      "height": 190
+      "height": 355
     },
     "shape-transformation/720": {
-      "sha256": "ea36c43d36893341e265dde631341db913c3f3a41ac4ab91289aadc18096c236",
+      "sha256": "b5b4bf200cbf98e93b24018784c286985e62dafb18a4d1ab966bacea35a2c5fd",
       "width": 720,
-      "height": 190
+      "height": 276
     },
     "shape-tree/320": {
       "sha256": "e2416133bf44956100e93022199284b14c7db7f4d2e9b7ec5a12bac4df656f42",
