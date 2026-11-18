@@ -554,6 +554,15 @@ test('LOCAL_NO_SIGNIN: on a test instance a request with no session is the one l
   assert.equal(await sessionOf(bare(), withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET })), null, 'off unless asked');
 });
 
+test('LOCAL_NO_SIGNIN_EMAIL: the local stack can name which existing user every request is; unset it stays the default local user', async (t) => {
+  const named = withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, LOCAL_NO_SIGNIN: 'true', LOCAL_NO_SIGNIN_EMAIL: 'me@local.test' });
+  const bare = () => new Request(`${ORIGIN}/`);
+  const one = await sessionOf(bare(), named), two = await sessionOf(bare(), named);
+  assert.equal(one.email, 'me@local.test');
+  assert.equal(two.uid, one.uid, 'the same user every time');
+  assert.equal((await sessionOf(bare(), withDb(t, { ...PROD, LOCAL_NO_SIGNIN: 'true', LOCAL_NO_SIGNIN_EMAIL: 'me@local.test' }))), null, 'never in production');
+});
+
 test('sessions: pre-users sessions (no uid), unknown users, forged epochs and D1 errors are all signed out', async (t) => {
   const env = withDb(t, PROD);
   const legacy = await sign({ t: 'sess', email: 'a@corp.test', exp: now() + 3600 }, KEY);
