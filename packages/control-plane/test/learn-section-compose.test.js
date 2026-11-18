@@ -41,7 +41,19 @@ test('validateComposition: a planted motion item and an unknown command are refu
   assert.deepEqual(validateComposition({ items: [item('i1', 'b1', 'motion'), ...rest] }, opts).errors, [`item i1: motion is not one of the tools you were given (${commands.join(', ')})`, 'beat b1 has no item']);
   assert.match(validateComposition({ items: [item('i1', 'b1', 'teleport'), ...rest] }, opts).errors[0], /^item i1: teleport is not one of the tools you were given/);
   assert.match(validateComposition({ items: [item('i1', 'b1', 'explain'), ...rest] }, opts).errors[0], /^item i1: explain is not one of the tools/, 'the visual explain is not in the section set');
-  assert.deepEqual(validateComposition({ items: [item('i1', 'b1', 'explanation', { request: 'Explain how src/progress.js computes the share.' }), ...rest] }, opts).errors, ['item i1: the request for explanation must be plain words, with no path, file name, flag or code name']);
+  assert.deepEqual(validateComposition({ items: [item('i1', 'b1', 'explanation', { request: 'Explain how src/progress.js computes the share.' }), ...rest] }, opts).errors, ['item i1: the request for explanation must have no path, file name or flag (found "src/progress.js")']);
+});
+
+// Reviewer 19:55 (section-run-fixes-spec.md §4): the brief's rule against the covering beat. A code name the beat spells may appear in backticks, exactly as the beat spells it.
+test('validateComposition code names: `n_embd` spelled by the beat passes in backticks; bare it is refused by name; a name the beat does not spell and a path are refused; a code request is as before', () => {
+  const named = { ...brief, beats: [{ ...brief.beats[0], shows: 'Shapes stay (b, t, n_embd) through the blocks.' }, brief.beats[1]] };
+  const o = { ...opts, brief: named }, rest = [item('i2', 'b2', 'document')];
+  const errors = request => validateComposition({ items: [item('i1', 'b1', 'diagram', { request }), ...rest] }, o).errors || [];
+  assert.deepEqual(errors('A flow of token ids to embeddings; every box is labelled (b, t, `n_embd`).'), []);
+  assert.deepEqual(errors('A flow of token ids to embeddings; every box is labelled (b, t, n_embd).'), ['item i1: the request for diagram must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "n_embd")']);
+  assert.deepEqual(errors('A flow through `n_layer` blocks.'), ['item i1: the request for diagram names `n_layer`, which the anchored lines do not']);
+  assert.match(errors('A flow of the code in src/progress.js.').join(), /must have no path, file name or flag \(found "src\/progress\.js"\)/);
+  assert.deepEqual(validateComposition({ items: [item('i1', 'b1', 'code', { request: 'Show progress_share(done, total) with n_layer.', source: 'example' }), ...rest] }, o).errors || [], [], 'a code request may name code');
 });
 
 test('validateComposition: D fields, F caps, pairing, item count and coverage', () => {
@@ -77,6 +89,7 @@ test('learn_section_compose: one submit over the stored brief; tools are reading
   const stored = await readSection(f.env, ACTOR, '1.1');
   assert.deepEqual(stored.composition.toolsOffered, commands);
   assert.deepEqual((await f.learn()).sections, [{ id: '1.1', status: 'composed' }]);
-  f.deps.callModel = scripted(toolUse('submit_section_composition', { items: [item('i1', 'b1', 'motion')] }), toolUse('submit_section_composition', { items: [item('i1', 'b1', 'motion')] }));
-  assert.deepEqual((await f.post({ action: 'learn_section_compose', sectionId: '1.1', redo: true })).body, { error: 'sectionComposeFailed', words: SECTION_COMPOSE_FAILED }, 'refused twice: the sentence, never silent');
+  const motion = () => toolUse('submit_section_composition', { items: [item('i1', 'b1', 'motion')] });
+  f.deps.callModel = scripted(motion(), motion(), motion());
+  assert.deepEqual((await f.post({ action: 'learn_section_compose', sectionId: '1.1', redo: true })).body, { error: 'sectionComposeFailed', words: SECTION_COMPOSE_FAILED }, 'refused three times (the answer and two repairs, Reviewer 19:55): the sentence, never silent');
 });
