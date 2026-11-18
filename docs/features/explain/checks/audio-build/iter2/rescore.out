@@ -1,0 +1,54 @@
+{
+ "rows": 108,
+ "perDepth": {
+  "brief": {
+   "scripts": 36,
+   "applicableOld": 0,
+   "exFailOld": 0,
+   "applicableNew": 0,
+   "exFailNew": 0,
+   "floorFailOld": 0,
+   "floorFailNew": 0,
+   "removedOld": 3,
+   "removedNew": 2
+  },
+  "balanced": {
+   "scripts": 36,
+   "applicableOld": 18,
+   "exFailOld": 0,
+   "applicableNew": 18,
+   "exFailNew": 0,
+   "floorFailOld": 0,
+   "floorFailNew": 0,
+   "removedOld": 18,
+   "removedNew": 17
+  },
+  "detailed": {
+   "scripts": 36,
+   "applicableOld": 18,
+   "exFailOld": 1,
+   "applicableNew": 9,
+   "exFailNew": 0,
+   "floorFailOld": 15,
+   "floorFailNew": 17,
+   "removedOld": 22,
+   "removedNew": 22
+  }
+ }
+}
+OLD STRIP KEPT, NEW STRIP REMOVES (2):
+  2 softmax/detailed r2: A common misconception is to think that softmax simply scales the raw scores linearly into the 0 to 1 range.
+  2 bst/detailed r2: In other words, after one comparison you have at most half the tree left to explore, after two comparisons at most a quarter, and so on.
+NEW STRIP KEEPS, OLD REMOVED (4):
+  2 precision-recall/brief r2: If there are ten apples sitting in front of you and you only pick up two, your recall drops because you missed so many of the targets that were waiting to be found.
+  2 public-key-encryption/balanced r1: It holds zero power to reverse the process it just created.
+  2 softmax/detailed r3: Another way to picture this is setting up a row of lights where each raw score controls a dimmer switch, and the final normalization step ensures the total brightness across all bulbs equals a fixed amount of one hundred percent.
+  v3 bst/detailed r2: If you now insert five, you first compare with eight, go left because five is smaller, compare with three, go right because five is larger, compare with six, go left because five is smaller, and finally place five as the left child of six.
+FIRST-PASS STATUS CHANGED (7 of 108):
+  2 precision-recall/brief r2: floor false->false, example false->false (applicable false->false), removed 1->0, words 171->204
+  2 public-key-encryption/balanced r1: floor false->false, example false->false (applicable false->false), removed 1->0, words 392->403
+  2 softmax/detailed r2: floor false->true, example false->false (applicable true->true), removed 2->3, words 319->299
+  2 softmax/detailed r3: floor true->true, example false->false (applicable true->true), removed 1->0, words 248->288
+  2 bst/detailed r2: floor false->true, example false->false (applicable false->false), removed 1->2, words 303->277
+  2 gradient-descent/detailed r3: floor false->false, example true->false (applicable true->false), removed 0->0, words 348->348
+  v3 bst/detailed r2: floor true->true, example false->false (applicable false->false), removed 4->3, words 194->238

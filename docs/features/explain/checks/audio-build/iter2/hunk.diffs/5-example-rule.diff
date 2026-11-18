@@ -1,0 +1,92 @@
+commit c393ef7c925c5e38bf554ed72ffac5d4b9eab888
+Author: yudhisteer <yudhisteer.chin@gmail.com>
+Date:   Tue Nov 17 19:23:39 2026 -0800
+
+    Card audio iteration 3: the card-number rule only triggers the one re-ask and never errors (ships with exampleMissing), and it reads numbers the prose or question state, not diagram structure
+
+diff --git a/packages/control-plane/src/explanation-audio.js b/packages/control-plane/src/explanation-audio.js
+index c280cbb96..64e5dc170 100644
+--- a/packages/control-plane/src/explanation-audio.js
++++ b/packages/control-plane/src/explanation-audio.js
+@@ -84,7 +84,7 @@ export const voiceCredits = script => { const price = priceUsage({ provider: 'el
+ 
+ // -> { script, transcript, seconds_estimate, scriptBy, removed, check } or { script: null, outcome, check }. input: { depth, question, title, prose, labels, allowed, cardData } already checked.
+ // The kept script must pass the floor and speak one of the card's numbers (verdict). One call to a step that fails them is followed by ONE bounded re-ask to the same model with the first
+-// answer and a user turn naming the failed rule(s) (owner 2026-11-17, superseding "no model retry in v1"); still failing after it, the script is an error, never short audio.
++// answer and a user turn naming the failed rule(s) (owner 2026-11-17, superseding "no model retry in v1"); still under the floor after it, the script is an error, never short audio; still without a card number it ships (exampleMissing).
+ export async function writeScript(env, input, org, identity = {}) {
+   const steps = chainSteps(resolveExplanationProfile(SCRIPT_PROFILE).roles.author).filter(step => env[step.credentialRef]);
+   let outcome = 'no_credential', reasked = false;
+@@ -105,8 +105,9 @@ export async function writeScript(env, input, org, identity = {}) {
+       if (!read) { outcome = 'empty'; continue; }
+       check = verdict(read.kept.script, input.depth, input.cardData);
+     }
+-    const info = { reasked, ...before, ...(reasked ? { firstFailed } : {}), rawWords: read.rawWords, strippedWords: check.words, failed: check.failed };
+-    if (check.failed.length) return { script: null, outcome: check.failed.includes('floor') ? 'too_short' : 'no_card_number', removed: read.kept.removed, scriptBy: by, check: info };
++    // Only the floor is an error. The card-number rule only triggers the (shared, single) re-ask; still missing after it, the script ships and says so (owner 2026-11-17, iteration 3).
++    const info = { reasked, ...before, ...(reasked ? { firstFailed } : {}), rawWords: read.rawWords, strippedWords: check.words, failed: check.failed, ...(check.failed.includes('example') ? { exampleMissing: true } : {}) };
++    if (check.failed.includes('floor')) return { script: null, outcome: 'too_short', removed: read.kept.removed, scriptBy: by, check: info };
+     // The window shows the script's own words when the model sent no transcript, or one the check emptied.
+     return { script: read.kept.script, transcript: read.kept.transcript || read.kept.script, seconds_estimate: secondsEstimate(read.kept.script), scriptBy: by, removed: read.kept.removed, check: info };
+   }
+@@ -207,7 +208,7 @@ async function scriptRoute(env, body, access) {
+   if (!card.prose) return bad();
+   // The check and the set are one synchronous step, so two requests for one card share one call (and one cap count).
+   if (!pending.has(key)) {
+-    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, card.visualText, body.title, body.question) };
++    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, body.question) }; // the example rule reads the numbers the card's prose and the learner's question state, not a diagram's structure, an axis bound or a heading (measured: the only number of six cards was a JSON version field)
+     pending.set(key, (async () => (await limited(env, 'explanation_script', 'EXPLANATION_SCRIPT', access)) || writeScript(env, input, access.org, { userId: access.user_id || access.email }))().finally(() => pending.delete(key)));
+   }
+   const done = await pending.get(key);
+diff --git a/packages/control-plane/test/explanation-audio.test.js b/packages/control-plane/test/explanation-audio.test.js
+index fe3b27c54..b3973768f 100644
+--- a/packages/control-plane/test/explanation-audio.test.js
++++ b/packages/control-plane/test/explanation-audio.test.js
+@@ -205,7 +205,7 @@ test('depth reaches the prompt: Detailed asks for up to about two minutes, Brief
+   const seen = providers(t, { models: [reply(longScript(330))] });
+   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'detailed' });
+   await script({ app: 'canvas-1', title: 'T', body: BODY, depth: 'brief' });
+-  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 340 to 400 words, up to about 2 minutes/);
++  assert.match(seen.models()[0].body.messages[0].content, /Detailed: write 400 to 460 words, up to about 2 minutes of speech\.[^]*Do not stop before 400 words\./);
+   assert.match(seen.models()[1].body.messages[0].content, /Brief: write 300 to 360 words, 60 to 80 seconds of speech\. Include: one clarification of the hardest idea, one short worked example in words, a second angle on it/);
+   assert.match(lengthLine('balanced', 'gemini'), /write 360 to 420 words, about 90 seconds of speech\.[^]*Do not stop before 360 words\./);
+   assert.equal(scriptRequest({ provider: 'fireworks', model: 'm' }, { depth: 'detailed', title: 'T', prose: 'P', labels: [] }).messages[0].content, scriptSystem('detailed', 'standard'));
+@@ -313,6 +313,38 @@ test('the script must speak a number of the card: none is the same re-ask, namin
+   assert.equal(noNumbers.check.reasked, false);
+ });
+ 
++// Iteration 3 (owner 2026-11-17): the card-number rule only TRIGGERS the single re-ask; it is never an error.
++test('a card number still not spoken after the one re-ask SHIPS the script, ok, marked exampleMissing; only the floor is an error', async t => {
++  const seen = providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(230, { card: false }))] });
++  const body = await (await script(withDepth('balanced'))).json();
++  assert.equal(seen.models().length, 2, 'one re-ask, never a second');
++  assert.equal(body.script, longScript(230, { card: false }), 'the script ships');
++  assert.deepEqual([body.check.reasked, body.check.firstFailed, body.check.failed, body.check.exampleMissing], [true, ['example'], ['example'], true]);
++  assert.equal(body.outcome, undefined);
++  assert.equal(seen.events().at(-1).exampleMissing, true, 'the log carries it, no text');
++  // a first answer that misses the number but is long enough and a re-ask that then falls under the floor: the floor error wins
++  providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(120, { card: false }))] });
++  const short = await (await script(withDepth('balanced'))).json();
++  assert.deepEqual([short.script, short.outcome, short.check.failed], [null, 'too_short', ['floor', 'example']]);
++});
++
++test('the example rule reads the numbers the prose and the question state, not a diagram: six measured cards had only a JSON version field as their number', async t => {
++  const diagramOnly = { app: 'canvas-1', title: 'Four strokes', depth: 'balanced', body: `${longScript(40, { card: false })}
++
++\`\`\`rh-diagram
++{"version":1,"diagram":{"title":"Cycle","x":{"min":0,"max":4},"series":[{"label":"Stroke","points":[{"x":1,"y":0.25}]}]}}
++\`\`\`` };
++  const seen = providers(t, { models: [reply(longScript(220, { card: false }))] });
++  const body = await (await script(diagramOnly)).json();
++  assert.equal(seen.models().length, 1, 'no number in the prose: nothing to speak, no re-ask');
++  assert.equal(body.check.reasked, false);
++  assert.equal(cardDataNumbers(splitCard(diagramOnly.body).prose).size, 0);
++  assert.ok(cardNumbers(splitCard(diagramOnly.body).prose, splitCard(diagramOnly.body).visualText).has(0.25), 'the strip still allows every number of the diagram');
++  const asked = providers(t, { models: [reply(longScript(220, { card: false })), reply(longScript(220))] });
++  await (await script(withDepth('balanced'))).json();
++  assert.equal(asked.models().length, 2, 'a card whose prose states numbers still asks for one to be spoken');
++});
++
+ test('a provider failing on the re-ask hands the card to the next provider, which has no re-ask left: a short answer there is an error', async t => {
+   const seen = providers(t, { models: [reply(longScript(100)), 500, reply(longScript(100))] });
+   const body = await (await script(withDepth('balanced'))).json();

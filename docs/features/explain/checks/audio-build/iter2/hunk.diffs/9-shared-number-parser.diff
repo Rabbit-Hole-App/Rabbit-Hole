@@ -1,0 +1,376 @@
+commit dec5b2a47f51653d074cf75a47290a690ef79fcc
+Author: yudhisteer <yudhisteer.chin@gmail.com>
+Date:   Tue Nov 17 19:47:30 2026 -0800
+
+    Card audio: one shared number parser (digits, percents, spoken decimals, fractions, scales, signs, spoken years, equivalent forms) reads card and script; allowed numbers are what the learner sees (spec version, ids, node references and arrow end points left out) plus names with digits; the example set is prose and question numbers without names or counting words; lone zero and one are free
+
+diff --git a/packages/control-plane/src/explanation-audio-script.js b/packages/control-plane/src/explanation-audio-script.js
+index c34223baf..f6d59e03a 100644
+--- a/packages/control-plane/src/explanation-audio-script.js
++++ b/packages/control-plane/src/explanation-audio-script.js
+@@ -82,12 +82,22 @@ function collect(value, into, labels = true) {
+   if (Array.isArray(value)) value.forEach(item => collect(item, into, labels));
+   else if (value && typeof value === 'object') for (const [key, item] of Object.entries(value)) { if (typeof item === 'string' && LABEL_KEYS.has(key)) into.labels.add(item); else collect(item, into, labels); }
+ }
+-// -> { prose, labels: [string], visualText } prose: the body with the fences removed; visualText: every string and number inside the fences, for the allowed-number set.
++// What the learner never sees in a diagram spec: the format marker (`version`), ids and node references (`id`, `key`, `from`, `to` as link indices or arrow end points, `source`, `target`, `index`).
++// The rest of a spec renders (labels, captions, items, axis bounds, plotted values, box-plot values). shortcut: this is a key list read from the 12 bench cards' specs, not each kind's layout; a kind with another
++// unrendered field would still count it (listed in the build README), and a spec key that is shown under one of these names would be missed.
++const UNSEEN = new Set(['version', 'id', 'ids', 'key', 'keys', 'from', 'to', 'source', 'target', 'index']);
++const seen = value => (Array.isArray(value) ? value.map(seen) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([key]) => !UNSEEN.has(key)).map(([key, item]) => [key, seen(item)])) : value);
++// -> { prose, labels: [string], visualText } prose: the body with the fences removed; visualText: every string and number a learner can see inside the fences (see UNSEEN), for the allowed-number set.
+ export function splitCard(body) {
+   const into = { labels: new Set() }, inside = [];
+   for (const [, , source] of String(body ?? '').matchAll(FENCE)) {
+-    inside.push(source);
+-    try { collect(JSON.parse(source), into); } catch { /* an unreadable fence contributes its raw text to the numbers only */ }
++    let kept = source;
++    try {
++      const parsed = JSON.parse(source);
++      collect(parsed, into);
++      kept = JSON.stringify(seen(parsed));
++    } catch { /* an unreadable fence contributes its raw text to the numbers only */ }
++    inside.push(kept);
+   }
+   return { prose: String(body ?? '').replace(FENCE, ' ').replace(/\n{3,}/g, '\n\n').trim(), labels: [...into.labels].slice(0, 40).map(label => label.slice(0, 160)), visualText: inside.join('\n') };
+ }
+@@ -101,80 +111,130 @@ export function scriptUser({ depth, question, title, prose, labels }) {
+ 
+ // ---- number and symbol safety (deterministic, no model) ----
+ // The owner's rule: every number in the script is a number of the card. After the model answers, each sentence that speaks a number outside the card's set is removed from the script
+-// and the transcript (no regenerate, no retry). A number is read from digits and from spelled-out words, so "zero point three six eight" and 0.368 are the same value.
++// and the transcript (no regenerate, no retry). ONE parser (mentions) reads both the card's text and the script's: digits, percents, spoken decimals ("zero point three six eight", "point five"), fractions ("two thirds",
++// "a third of", "1/2"), hundred, thousand and million, "two and a half", signs ("minus two", "negative zero point five", "-2"), hyphenated compounds and spoken years ("nineteen eighty four", "twenty twenty four").
++// Every mention carries equivalent forms ("36.8 percent" is 36.8 and 0.368; "two thirds" is 0.6667), and it matches the card when any form equals any form of the card (a fraction also matches a rounded
++// decimal within 0.5 percent). Deliberately not numbers: a lone "one" (pronoun, article), ordinals ("first", "a third" not followed by "of"), once, twice, double, a bare "half" or "quarter", "hundreds of", the
++// noun "point" and subtraction ("n minus one"). Counting words (a lone two to ten) are numbers to the parser and free to the rule while the card has any number (owner 2026-11-17).
++// Digits inside a name (Q1, w_0) are numbers the script may say (they are the card's own words, "w zero") but never the example the rule asks for. A lone zero or one is free like the counting words. Table of expected readings: the unit test "the one shared number parser".
++// mention = { text, v, forms[], kind, counting }.
+ const UNITS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+ const TENS = { twenty: 20, thirty: 30, forty: 40, fourty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+-const SCALE = { hundred: 100, thousand: 1000, million: 1e6, billion: 1e9 };
+-const DIGIT_WORDS = new Set(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']);
+-const has = (table, word) => Object.hasOwn(table, word); // never `in`: a spoken word like "constructor" is on every object
+-const isNumberWord = word => has(UNITS, word) || has(TENS, word) || has(SCALE, word);
+-// A comma is a thousands separator only before exactly three digits: "10,0.349" in a JSON array is two numbers.
+-const DIGITS = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g;
+-const round = value => Number(value.toFixed(9));
+-
+-// Every number written in digits in a text (a comma between thousands is dropped).
+-const digitNumbers = text => [...String(text ?? '').matchAll(DIGITS)].map(match => round(Number(match[0].replace(/,/g, '')))).filter(Number.isFinite);
+-
+-// A run of number words -> its values. "twenty five" 25, "two hundred" 200, "zero point three six" 0.36; "twenty twenty four" is two numbers (20 and 24), as are two bare units in a row.
+-// shortcut: a year read as "twenty twenty four" is checked as 20 and 24; a spoken year is rare in these scripts, and a miss only removes its sentence.
+-function runValues(tokens) {
+-  const out = [];
+-  let i = 0;
+-  while (i < tokens.length) {
+-    let total = 0, part = 0, sawTens = false, sawUnit = false, sawAny = false;
+-    for (; i < tokens.length; i++) {
+-      const word = tokens[i];
+-      if (word === 'point') break;
+-      if (has(SCALE, word)) { part = (part || 1) * SCALE[word]; if (SCALE[word] >= 1000) { total += part; part = 0; } sawTens = sawUnit = false; sawAny = true; continue; }
+-      if (has(TENS, word)) { if (sawTens || sawUnit) break; part += TENS[word]; sawTens = true; sawAny = true; continue; }
+-      if (has(UNITS, word)) { if (sawUnit || (sawTens && UNITS[word] >= 10)) break; part += UNITS[word]; sawUnit = UNITS[word] < 10 || sawUnit; if (UNITS[word] >= 10) sawTens = true; sawAny = true; continue; }
++const SCALE = { hundred: 100, thousand: 1e3, million: 1e6, billion: 1e9 };
++const DENOM = { half: 2, halves: 2, third: 3, thirds: 3, quarter: 4, quarters: 4, fourth: 4, fourths: 4, fifth: 5, fifths: 5, sixth: 6, sixths: 6, seventh: 7, sevenths: 7, eighth: 8, eighths: 8, ninth: 9, ninths: 9, tenth: 10, tenths: 10 };
++const DIGIT_WORDS = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 };
++const has = (t, w) => Object.hasOwn(t, w);
++const round = v => Number(v.toFixed(9));
++const TOKEN = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|[a-z]+|%|[,;:.!?()—–]/g;
++
++// -> [{ s, e, v }] a spelled number starting at tokens[i] (no sign, no percent): integer part + optional "point d d d", or "point d d" alone. null when tokens[i] does not start one.
++function wordNumber(tk, i) {
++  const w = k => tk[k]?.t;
++  let k = i, value = null, lone = false, kind = 'word';
++  const a = w(k) === 'a' || w(k) === 'an';
++  if (a && (has(SCALE, w(k + 1)))) { value = SCALE[w(k + 1)]; k += 2; kind = 'scale'; }
++  else if (a && has(DENOM, w(k + 1)) && w(k + 1) !== 'halves' && (w(k + 1) === 'half' || w(k + 1) === 'quarter' || w(k + 2) === 'of' || !tk[k + 2] || /^[,;:.!?()]$/.test(w(k + 2)))) return { k: k + 2, v: 1 / DENOM[w(k + 1)], kind: 'fraction', forms: [1 / DENOM[w(k + 1)]] };
++  else if (w(k) === 'point' && has(DIGIT_WORDS, w(k + 1))) value = 0;
++  else if (has(UNITS, w(k)) || has(TENS, w(k)) || has(SCALE, w(k))) {
++    // a spoken year: "nineteen eighty four", "twenty twenty four", "nineteen oh five" -> 1984, 2024, 1905
++    if (UNITS[w(k)] >= 13 && UNITS[w(k)] <= 19 || w(k) === 'twenty') {
++      const hi = has(UNITS, w(k)) ? UNITS[w(k)] : 20;
++      if (has(TENS, w(k + 1))) { let lo = TENS[w(k + 1)], n = k + 2; if (has(UNITS, w(n)) && UNITS[w(n)] < 10 && UNITS[w(n)] > 0) { lo += UNITS[w(n)]; n++; } if (!has(SCALE, w(n))) return { k: n, v: hi * 100 + lo, kind: 'year', forms: [hi * 100 + lo] }; }
++      else if ((w(k + 1) === 'oh' || w(k + 1) === 'zero') && has(UNITS, w(k + 2)) && UNITS[w(k + 2)] > 0 && UNITS[w(k + 2)] < 10) return { k: k + 3, v: hi * 100 + UNITS[w(k + 2)], kind: 'year', forms: [hi * 100 + UNITS[w(k + 2)]] };
++    }
++    let total = 0, part = 0, sawTens = false, sawUnit = false, any = false, first = k;
++    for (; k < tk.length; k++) {
++      const x = w(k);
++      if (has(SCALE, x)) { part = (part || 1) * SCALE[x]; if (SCALE[x] >= 1e3) { total += part; part = 0; } sawTens = sawUnit = false; any = true; kind = 'scale'; continue; }
++      if (x === 'and' && any && (has(UNITS, w(k + 1)) || has(TENS, w(k + 1))) && has(SCALE, w(k - 1))) continue; // "one hundred and five"
++      if (has(TENS, x)) { if (sawTens || sawUnit) break; part += TENS[x]; sawTens = true; any = true; continue; }
++      if (has(UNITS, x)) { if (sawUnit || (sawTens && UNITS[x] >= 10)) break; part += UNITS[x]; sawUnit = UNITS[x] < 10 || sawUnit; if (UNITS[x] >= 10) sawTens = true; any = true; continue; }
+       break;
+     }
+-    let value = total + part;
+-    if (tokens[i] === 'point' && DIGIT_WORDS.has(tokens[i + 1])) {
+-      let fraction = '';
+-      for (i++; i < tokens.length && DIGIT_WORDS.has(tokens[i]); i++) fraction += UNITS[tokens[i]];
+-      value = round(Number(`${value}.${fraction}`));
+-      out.push(value);
+-    } else if (sawAny) out.push(value);
+-    else i++; // a stray 'point'
++    if (!any) return null;
++    value = total + part;
++    lone = k - first === 1 && has(UNITS, w(first));
++  } else return null;
++  // spoken decimal
++  if (w(k) === 'point' && has(DIGIT_WORDS, w(k + 1))) {
++    let f = ''; k++;
++    while (has(DIGIT_WORDS, w(k))) f += DIGIT_WORDS[w(k++)];
++    return { k, v: round(Number(`${value}.${f}`)), kind: 'decimal', forms: [round(Number(`${value}.${f}`))] };
+   }
+-  return out;
++  // "two and a half"
++  if (w(k) === 'and' && (w(k + 1) === 'a' || w(k + 1) === 'an') && w(k + 2) === 'half') { return { k: k + 3, v: value + 0.5, kind: 'decimal', forms: [value + 0.5] }; }
++  // fraction: "two thirds", "one half", "three quarters"
++  if (has(DENOM, w(k)) && value >= 1 && value < DENOM[w(k)] && kind === 'word') { const f = value / DENOM[w(k)]; return { k: k + 1, v: f, kind: 'fraction', forms: [f] }; }
++  return { k, v: value, kind, lone: lone && value >= 0 && value <= 10, bareOne: lone && value === 1, forms: [value] };
+ }
+ 
+-// Every number spoken in a sentence, from digits and from words. A lone "one" is not read as a number: it is also the pronoun and the article ("one idea", "no one").
+-// counting: false also leaves out the spelled counting words two to ten when they stand alone ("two paths", "the other three"); they are not data. Digits, decimals, spelled-out data
+-// ("zero point three six eight", "thirty seven", "twelve") and anything inside a longer number word stay. Ordinals, twice, half, double, pair and the like are not number words at all.
+-function numbersIn(sentence, { counting = true } = {}) {
+-  const text = String(sentence ?? '');
+-  const found = digitNumbers(text);
+-  const words = text.toLowerCase().replace(DIGITS, ' ').match(/[a-z]+|[,;:.!?()]/g) || []; // punctuation is a token, so "point three six eight, one idea" ends the number at the comma
+-  let run = [];
+-  const flush = () => {
+-    const lone = run.length === 1 ? run[0] : null;
+-    if (run.length && lone !== 'one' && !(!counting && lone && has(UNITS, lone) && UNITS[lone] >= 2 && UNITS[lone] <= 10)) found.push(...runValues(run));
+-    run = [];
++export function mentions(text) {
++  const src = String(text ?? '').toLowerCase().replace(/‑/g, '-').replace(/(?<=(?:zero|one|two|three|four|five|six|seven|eight|nine|point))\d+(?![a-z])/g, d => ' '.repeat(d.length)); // a digit glued to a number word ("six0 eight", a model typo seen once) drops out and the words join, as the shipped index reads it
++  const tk = [...src.matchAll(TOKEN)].map(m => ({ t: m[0], s: m.index, e: m.index + m[0].length }));
++  const out = [];
++  const signBefore = (i, startChar) => { // "minus two", "negative zero point five", "-2" / "−2" at the start of a token run
++    const prev = tk[i - 1]?.t, before = tk[i - 2]?.t; // 'minus' after a number or a one-letter name is subtraction ("n minus one", "ten minus six"), not a sign
++    if (prev === 'negative' || (prev === 'minus' && !(before && (/^[0-9]/.test(before) || before.length === 1 && before !== 'a' || has(UNITS, before) || has(TENS, before) || has(SCALE, before))))) return tk[i - 1].s;
++    const c = src[startChar - 1]; if ((c === '-' || c === '−') && (startChar - 1 === 0 || /[\s(=:,[]/.test(src[startChar - 2]))) return startChar - 1;
++    return -1;
+   };
+-  for (const [index, word] of words.entries()) {
+-    if (isNumberWord(word) || (word === 'point' && run.length && DIGIT_WORDS.has(words[index + 1]))) run.push(word);
+-    else if (word === 'and' && run.length && has(UNITS, words[index + 1]) && run.some(w => has(SCALE, w))) continue; // "one hundred and five"
+-    else flush();
++  for (let i = 0; i < tk.length;) {
++    const t = tk[i].t; let m = null, k = i + 1;
++    if (/^\d/.test(t)) {
++      const v = round(Number(t.replace(/,/g, '')));
++      const next = tk[i + 1]?.t, adj = tk[i + 1] && tk[i + 1].s === tk[i].e;
++      if ((next === '%' && adj) || next === 'percent' || (next === 'per' && tk[i + 2]?.t === 'cent')) { m = { v, kind: 'percent', forms: [v, round(v / 100)] }; k = i + (next === 'per' ? 3 : 2); }
++      else if (adj && /^(st|nd|rd|th)$/.test(next ?? '') ) { k = i + 2; }                                  // 1st, 2nd: ordinal
++      else if (src[tk[i].e] === '/' && /^\d/.test(src.slice(tk[i].e + 1))) { const d = src.slice(tk[i].e + 1).match(/^\d+/)[0]; if (v < Number(d)) { const f = v / Number(d); m = { v: f, kind: 'fraction', forms: [f] }; k = i + 1; while (tk[k] && tk[k].s < tk[i].e + 1 + d.length) k++; } else m = { v, kind: 'digit', forms: [v] }; }
++      else m = { v, kind: 'digit', forms: [v] };
++      if (m) { m.s = tk[i].s; if (/[a-z_]/.test(src[tk[i].s - 1] ?? '') || /_\{[^}]*$/.test(src.slice(0, tk[i].s))) m.ident = true; } // a digit glued to a letter or underscore, or inside a subscript brace, is a name (Q1, w_0, w_{t+1}): allowed to be said, never an example
++    } else if (/^[a-z]+$/.test(t)) {
++      const r = wordNumber(tk, i);
++      if (r) {
++        k = r.k; const next = tk[k]?.t;
++        m = { v: r.v, kind: r.kind, forms: r.forms, lone: r.lone, s: tk[i].s };
++        if (r.kind !== 'fraction' && (next === 'percent' || (next === 'per' && tk[k + 1]?.t === 'cent'))) { m = { ...m, kind: 'percent', forms: [r.v, round(r.v / 100)], lone: false }; k += next === 'per' ? 2 : 1; }
++        if (r.bareOne && m.kind !== 'percent') m.bare = true; // lone "one": a number only after minus/negative
++      }
++    }
++    if (m) {
++      const sb = signBefore(i, tk[i].s);
++      if (sb >= 0 && m.kind !== 'fraction') { m.v = -m.v; m.forms = m.forms.map(x => -x); m.kind = 'negative'; m.lone = false; m.bare = false; m.s = sb; }
++      if (m.bare) { i = Math.max(k, i + 1); continue; }
++      m.e = tk[k - 1].e; m.text = src.slice(m.s, m.e); m.counting = !!m.lone; m.span = [m.s, m.e]; delete m.lone; delete m.s; delete m.e; delete m.bare;
++      out.push(m);
++    }
++    i = Math.max(k, i + 1);
+   }
+-  flush();
+-  return found;
++  return out;
+ }
+-export const spokenNumbers = sentence => numbersIn(sentence);
+-export const dataNumbers = sentence => numbersIn(sentence, { counting: false });
+ 
+-// The numbers the card has: its prose, the learner's question and everything written inside its visuals, in digits or in words (a card that says "four strokes" has the number 4).
+-export const cardNumbers = (...texts) => new Set(texts.flatMap(text => spokenNumbers(text)));
+-// The card's data values only: what a script must speak at least one of (a card with none, only counting words, asks for no example).
+-export const cardDataNumbers = (...texts) => new Set(texts.flatMap(text => dataNumbers(text)));
++
++const keyOf = value => round(value);
++// Every number a text mentions (counting words included) / only data (counting words left out), as the sets of all their forms.
++const formsOf = (texts, keep) => new Set(texts.flatMap(text => mentions(text).filter(keep).flatMap(m => m.forms.map(keyOf))));
++export const cardNumbers = (...texts) => formsOf(texts, () => true);
++// The card's data values only: what a script must speak at least one of. Not counting words (a lone zero to ten) and not names with digits (Q1, w_0): a card with only those asks for no example.
++export const cardDataNumbers = (...texts) => formsOf(texts, m => !m.counting && !m.ident);
++// A mention is the card's when one of its forms is in the set; a fraction also matches a rounded decimal within 0.5% (two thirds = 0.667 = 66.7 percent).
++export function inCard(m, set) {
++  if (m.forms.some(f => set.has(keyOf(f)))) return true;
++  if (m.kind !== 'fraction') return false;
++  return m.forms.some(f => [...set].some(c => c !== 0 && (Math.abs(f - c) / Math.abs(c) <= 0.005 || Math.abs(f * 100 - c) / Math.abs(c) <= 0.005)));
++}
++// The mentions of a text outside the card. Counting words are free when the card has numbers; a card with none has nothing to be outside of, so every number a script speaks is data (the old rule).
++export const outsideMentions = (text, allowed) => mentions(text).filter(m => !(m.counting && allowed.size) && !inCard(m, allowed));
++export const spokenNumbers = text => mentions(text).map(m => m.v);
++export const dataNumbers = text => mentions(text).filter(m => !m.counting).map(m => m.v);
++export const outsideNumbers = (text, allowed) => outsideMentions(text, allowed).map(m => m.v);
++// Whether a script speaks at least one of the card's data numbers.
++export const speaksCardNumber = (text, cardData) => mentions(text).some(m => !m.counting && inCard(m, cardData));
+ 
+ const SYMBOLS = /[=+*/^<>[\]%\u00d7\u00f7\\$~\u00b2\u00b3\u00b9\u2070-\u209f]/;
+ export const sentencesOf = text => String(text ?? '').split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+-// Counting words are free when the card has numbers; a card with none has nothing to be outside of, so every number a script speaks is data (the old rule).
+-const outside = (sentence, allowed) => numbersIn(sentence, { counting: allowed.size === 0 }).some(n => !allowed.has(n));
++const outside = (sentence, allowed) => outsideMentions(sentence, allowed).length > 0;
++// The transcript writes the counting words as LaTeX digits ("toward zero" becomes "$0$"): a whole digit zero to ten is as free there as the word is in the script, while the card has numbers.
++const outsideWritten = (sentence, allowed) => mentions(sentence).some(m => !(allowed.size && (m.counting || (m.kind === 'digit' && Number.isInteger(m.v) && m.v >= 0 && m.v <= 10))) && !inCard(m, allowed));
+ const clean = text => String(text ?? '').replace(/\u2011/g, '-').replace(/\s+/g, ' ').trim();
+ 
+ // -> { script, transcript, removed } with every sentence that speaks a number outside `allowed` (or carries a symbol in the script) taken out of both. When the two have the same number of
+@@ -183,10 +243,10 @@ export function stripUnsafe(script, transcript, allowed) {
+   const spoken = sentencesOf(clean(script)), written = sentencesOf(clean(transcript));
+   const badSpoken = s => SYMBOLS.test(s) || outside(s, allowed);
+   if (!written.length || written.length !== spoken.length) {
+-    const keptSpoken = spoken.filter(s => !badSpoken(s)), keptWritten = written.filter(s => !outside(s, allowed));
++    const keptSpoken = spoken.filter(s => !badSpoken(s)), keptWritten = written.filter(s => !outsideWritten(s, allowed));
+     return { script: keptSpoken.join(' '), transcript: written.length ? keptWritten.join(' ') : '', removed: spoken.length - keptSpoken.length + written.length - keptWritten.length };
+   }
+-  const keep = spoken.map((s, i) => !badSpoken(s) && !outside(written[i], allowed));
++  const keep = spoken.map((s, i) => !badSpoken(s) && !outsideWritten(written[i], allowed));
+   return { script: spoken.filter((_, i) => keep[i]).join(' '), transcript: written.filter((_, i) => keep[i]).join(' '), removed: keep.filter(k => !k).length };
+ }
+ 
+@@ -198,7 +258,7 @@ export const secondsEstimate = text => Math.round(wordCount(text) / 3);
+ export function verdict(script, depth, cardData) {
+   const words = wordCount(script), failed = [];
+   if (words < floorWords(depth)) failed.push('floor');
+-  if (cardData.size && !dataNumbers(script).some(n => cardData.has(n))) failed.push('example');
++  if (cardData.size && !speaksCardNumber(script, cardData)) failed.push('example');
+   return { words, failed };
+ }
+ // The one extra user turn of the single re-ask; names each rule that failed.
+diff --git a/packages/control-plane/test/explanation-audio.test.js b/packages/control-plane/test/explanation-audio.test.js
+index f0ecbe1aa..59a3ca9cd 100644
+--- a/packages/control-plane/test/explanation-audio.test.js
++++ b/packages/control-plane/test/explanation-audio.test.js
+@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
+ import { readFileSync } from 'node:fs';
+ import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
+ import { AUDIO_LIMITS, SCRIPT_PATH, VOICE_PATH, VOICE_ID, VOICE_SETTINGS, VOICE_URL, explanationAudioRoute, scriptInputOf, scriptRequest } from '../src/explanation-audio.js';
+-import { FLOOR_WORDS, LENGTH_TARGET_WORDS, cardDataNumbers, cardNumbers, dataNumbers, lengthLine, scriptSystem, scriptUser, secondsEstimate, spokenNumbers, splitCard, stripUnsafe, verdict } from '../src/explanation-audio-script.js';
++import { FLOOR_WORDS, mentions, outsideMentions, LENGTH_TARGET_WORDS, cardDataNumbers, cardNumbers, dataNumbers, lengthLine, scriptSystem, scriptUser, secondsEstimate, spokenNumbers, splitCard, stripUnsafe, verdict } from '../src/explanation-audio-script.js';
+ import { withUsage, noteUsageIdentity, usageFeature, FEATURES } from '../src/learn-usage.js';
+ import { rateOf, priceUsage } from '../src/pricing-registry.js';
+ import { memoryBucket } from './live-storage-spy.js';
+@@ -114,7 +114,7 @@ test('spokenNumbers reads digits and spelled-out numbers as the same values; a l
+   assert.deepEqual(spokenNumbers('twenty-one and one hundred'), [21, 100]);
+   assert.deepEqual(spokenNumbers('One idea, and no one knows the point of it. Constructor and valueOf are words.'), []);
+   assert.deepEqual(spokenNumbers('three six'), [3, 6], 'two bare units are two numbers');
+-  assert.deepEqual(spokenNumbers('twenty twenty four'), [20, 24]);
++  assert.deepEqual(spokenNumbers('twenty twenty four'), [2024], 'a spoken year is one number');
+ });
+ 
+ test('stripUnsafe: a sentence with a number outside the card is removed from script and transcript; the card\'s numbers, digits or spelled out, stay', () => {
+@@ -130,20 +130,75 @@ test('stripUnsafe: a sentence with a number outside the card is removed from scr
+ 
+ test('cardNumbers reads the cards own spelled-out numbers too: a card that says "four strokes" allows the script to say four', () => {
+   const allowed = cardNumbers('The engine runs a cycle of four strokes, and one of them makes power. Pressure reaches 9.5 bar.', 'twenty five percent');
+-  assert.deepEqual([...allowed].sort((a, b) => a - b), [4, 9.5, 25]);
++  assert.deepEqual([...allowed].sort((a, b) => a - b), [0.25, 4, 9.5, 25], 'every form: 25 percent is 25 and 0.25');
+   assert.equal(stripUnsafe('Four strokes repeat. Thirty strokes would not work.', 'Four strokes repeat. Thirty strokes would not work.', allowed).script, 'Four strokes repeat.');
+ });
+ 
+ test('stripUnsafe: a sentence the voice would say is never left in the window and the other way round (paired by position); a script symbol removes its sentence; unequal counts are cut on their own', () => {
+   const allowed = new Set([2]);
+   // the transcript's LaTeX carries a number the script did not say: both sentences go
+-  assert.deepEqual(stripUnsafe('Squares grow fast. Keep going.', 'Squares grow like $x^3$. Keep going.', allowed), { script: 'Keep going.', transcript: 'Keep going.', removed: 1 });
++  assert.deepEqual(stripUnsafe('Squares grow fast. Keep going.', 'Squares grow like $x^{14}$. Keep going.', allowed), { script: 'Keep going.', transcript: 'Keep going.', removed: 1 });
++  assert.equal(stripUnsafe('Probabilities shrink toward zero. Keep going.', 'Probabilities shrink toward $0$. Keep going.', allowed).removed, 0, 'a counting word the transcript writes as a digit zero to ten stays free');
+   assert.equal(stripUnsafe('It is x = 2 here. Next.', 'It is $x = 2$ here. Next.', allowed).script, 'Next.', 'a symbol in the spoken script');
+   const uneven = stripUnsafe('First sentence. A fourteen here. Third.', 'First sentence. A fourteen here, with more words. And a fourth one.', allowed);
+   assert.equal(uneven.script, 'First sentence. Third.');
+   assert.equal(uneven.transcript, 'First sentence. And a fourth one.');
+ });
+ 
++// The 40 phrases of the offline matcher test (iter2/matcher/checks.md), with the value(s) each must read as. A phrase with no value is not a number. forms: every equivalent form the mention carries.
++const TABLE = [
++  ['zero point three six eight', [0.368]], ['point five', [0.5]], ['point zero five', [0.05]], ['point one', [0.1]], ['three point five', [3.5]], ['thirty-six point eight percent', [36.8, 0.368]], ['36.8%', [36.8, 0.368]],
++  ['36.8 percent', [36.8, 0.368]], ['eighty percent', [80, 0.8]], ['one percent', [1, 0.01]], ['two thirds', [2 / 3]], ['a third of the data', [1 / 3]], ['three quarters', [0.75]], ['a quarter', [0.25]], ['a half', [0.5]],
++  ['one half', [0.5]], ['two and a half', [2.5]], ['one hundred', [100]], ['a hundred', [100]], ['one hundred and five', [105]], ['two hundred fifty', [250]], ['a thousand', [1000]],
++  ['two thousand and twenty four', [2024]], ['a million', [1e6]], ['minus two', [-2]], ['negative zero point five', [-0.5]], ['-2', [-2]], ['thirty-six', [36]], ['twenty five', [25]], ['nineteen eighty four', [1984]],
++  ['twenty twenty four', [2024]], ['1,250', [1250]], ['1/2', [0.5]], ['seven', [7]],
++  ['no one knows', []], ['one idea at a time', []], ['the lowest point of the curve', []], ['the first, second and third step', []], ['it takes one second', []], ['half of the time', []], ['it happens once or twice', []], ['hundreds of examples', []],
++  // and the ones the review added: subtraction is not a sign, a bare "a third" is an ordinal use, a plural scale is not a number
++  ['n minus one', []], ['the third step', []], ['n minus one point five', [1.5]],
++];
++test('the one shared number parser reads the 40 phrases of the matcher test (and the review additions) as expected', () => {
++  assert.ok(TABLE.length >= 40);
++  for (const [phrase, expected] of TABLE) {
++    const found = mentions(phrase);
++    if (!expected.length) { assert.deepEqual(found.map(m => m.v), [], `${phrase}: not a number`); continue; }
++    assert.equal(found.length, 1, `${phrase}: one mention`);
++    for (const value of expected) assert.ok(found[0].forms.some(f => Math.abs(f - value) < 1e-9), `${phrase}: ${JSON.stringify(found[0].forms)} has ${value}`);
++  }
++  assert.deepEqual(spokenNumbers('lots of 5 and 6 rows'), [5, 6]);
++});
++
++test('every mention carries its equivalent forms and matches the card through any of them; a fraction matches a rounded decimal; the same function reads card and script', () => {
++  const card = cardNumbers('The omission chance is 36.8 percent, so 0.632 are in. A third of the rows is 0.333 of them.');
++  assert.ok(outsideMentions('about thirty six point eight percent', card).length === 0, 'spoken percent matches the card percent');
++  assert.ok(outsideMentions('a chance of zero point three six eight', card).length === 0, 'and its decimal form');
++  assert.ok(outsideMentions('about sixty three percent', card).length === 1, 'a different number is outside');
++  assert.ok(outsideMentions('a third of the rows', card).length === 0, 'a fraction matches the rounded decimal within half a percent');
++  assert.ok(outsideMentions('two thirds of the rows', card).length === 1);
++});
++
++test('a lone zero and the counting words are free when the card has numbers; names with digits (Q1, w_0) may be said but are never the example', () => {
++  const card = cardNumbers('The fence is 1.5 times Q1 to Q3, and w_0 starts at 9.');
++  assert.equal(stripUnsafe('Start from zero. The other three steps follow.', 'Start from zero. The other three steps follow.', card).removed, 0, 'zero and three are free');
++  assert.equal(stripUnsafe('Start from zero. The other three steps follow.', 'Start from zero. The other three steps follow.', cardNumbers('A card with no number at all.')).removed, 2, 'a card with no numbers keeps the old rule');
++  assert.equal(stripUnsafe('Look at Q1 and Q3 and w 0.', 'Look at Q1 and Q3 and w 0.', card).removed, 0, 'identifier digits are allowed');
++  const example = cardDataNumbers('The fence is 1.5 times Q1 to Q3, and w_0 starts at 9, also w_{t+1}.');
++  assert.ok(example.has(1.5) && example.has(9));
++  assert.ok(!example.has(1) && !example.has(3) && !example.has(0), 'Q1, Q3 and w_0 are not examples');
++  assert.deepEqual([...cardDataNumbers('Gradient descent updates w_0 and w_1 and nothing else.')], [], 'a card whose only digits are names asks for no example');
++  assert.deepEqual(verdict('word '.repeat(220), 'balanced', cardDataNumbers('w_0 and Q1 only')).failed, [], 'so a script that says no number passes it');
++});
++
++test('the allowed numbers are what the learner can see: a diagram specs version, ids, node references and arrow end points are not numbers of the card', () => {
++  const FENCE = String.fromCharCode(96).repeat(3);
++  const spec = '{"version":1,"diagram":{"kind":"coordinate-plot","title":"Plot","x":{"min":3,"max":9},"series":[{"label":"s","points":[{"x":5,"y":0.25}]}],"links":[{"from":7,"to":8}],"annotations":[{"label":"Step 1","from":{"x":2.5,"y":2},"to":{"x":1.4,"y":1.1}}]}}';
++  const body = ['A plot of the omission chance.', '', `${FENCE}rh-diagram`, spec, FENCE, '', `${FENCE}rh-illustration`, '{"id":"pic-4","alt":"A tree"}', FENCE].join(String.fromCharCode(10));
++  const { visualText } = splitCard(body);
++  const allowed = cardNumbers(visualText);
++  for (const seenNumber of [3, 9, 5, 0.25, 1]) assert.ok(allowed.has(seenNumber), `${seenNumber} renders (axis bounds, a plotted value, the "1" of the label Step 1)`);
++  for (const hidden of [7, 8, 2.5, 1.4, 1.1, 4]) assert.ok(!allowed.has(hidden), `${hidden} is spec-internal`);
++  assert.ok(!/"version"|"from"|"to"|"id"/.test(visualText));
++});
++
+ test('counting words are not outside numbers when the card has numbers; data values still are (owner 2026-11-17; sentences from the AUD-2 real outputs)', () => {
+   const allowed = new Set([0.368, 63]); // a card with numbers
+   const kept = [
+@@ -151,7 +206,7 @@ test('counting words are not outside numbers when the card has numbers; data val
+     'Once that moisture hits the ground, it takes one of two paths.', // Gemini, water cycle
+     'Think of a test that marks ten emails as spam.', // Fireworks, precision and recall: an invented example size passes (a known cost of the rule)
+     'If eight of those are truly spam and two are legitimate, the precision is eight out of ten.',
+-    'It is a pair of steps, then double the effort, twice as often, half of them, a third of the rows, a quarter of the time, the first, the second and the third.',
++    'It is a pair of steps, then double the effort, twice as often, half of them, the first, the second and the third.', // bare half, ordinals, once or twice, double and pair are not numbers
+   ];
+   for (const sentence of kept) assert.equal(stripUnsafe(sentence, sentence, allowed).removed, 0, sentence);
+   const dropped = [
+@@ -161,13 +216,15 @@ test('counting words are not outside numbers when the card has numbers; data val
+     'Now consider there are fifteen spam emails in the inbox.', // 11 and above spelled out
+     'The new sum is eight point three nine, making the new probability about eighty eight percent.',
+     'It is exactly 37 rows, or 0.5 of them.', // digits and decimals are always data
++    'About a third of the rows, or a quarter of the time, is left out.', // a fraction of a whole is data (it was let through before the shared parser)
+     'If you change that first score to two, its exponentized value jumps to about seven point three nine.', // the count word passes, the data value does not
+   ];
+   for (const sentence of dropped) assert.equal(stripUnsafe(sentence, sentence, allowed).removed, 1, sentence);
+   assert.deepEqual(dataNumbers('If eight of those are truly spam and two are legitimate, the precision is eight out of ten.'), []);
+   assert.deepEqual(spokenNumbers('If eight of those are truly spam and two are legitimate'), [8, 2], 'the card index still reads count words (a card that says four strokes has 4)');
+-  assert.deepEqual(dataNumbers('zero point three six eight, one idea, 5 rows, twenty five.'), [5, 0.368, 25], 'digits are read first');
+-  assert.deepEqual(spokenNumbers('twice, half, double, a pair, first, second, third, a quarter'), []);
++  assert.deepEqual(dataNumbers('zero point three six eight, one idea, 5 rows, twenty five.'), [0.368, 5, 25], 'in the order spoken');
++  assert.deepEqual(spokenNumbers('twice, half, double, a pair, first, second, third, once'), []);
++  assert.deepEqual(spokenNumbers('a quarter, a third of the rows'), [0.25, 1 / 3], 'a fraction of a whole is a number');
+   assert.deepEqual(cardDataNumbers('four strokes and two paths'), new Set(), 'a card with only counting words has no data to speak');
+ });
+ 

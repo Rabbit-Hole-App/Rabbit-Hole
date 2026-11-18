@@ -1,0 +1,58 @@
+LIVE CHECK 1: bench card ml-trees-bootstrap-coverage (Balanced), question: why does a bootstrap sample contain only about 63% of the unique training rows?
+
+SCRIPT STEP
+{
+ "step": "script",
+ "http": 200,
+ "ms": 3062,
+ "provider": {
+  "provider": "google",
+  "model": "gemini-3.5-flash-lite"
+ },
+ "outcome": "ok",
+ "depth": "balanced",
+ "floor": 200,
+ "check": {
+  "reasked": false,
+  "firstRawWords": 317,
+  "firstStrippedWords": 241,
+  "rawWords": 317,
+  "strippedWords": 241,
+  "failed": []
+ },
+ "words": 241,
+ "seconds_estimate": 80,
+ "dataNumbersOutsideCardInScript": [],
+ "dataNumbersOutsideCardInTranscript": [],
+ "cardNumbersSpoken": [
+  "zero point three six eight",
+  "thirty six point eight percent",
+  "zero point six three two",
+  "sixty three percent"
+ ],
+ "symbolsInScript": false,
+ "voice_estimate_credits": 6,
+ "serverLog": {
+  "outcome": "ok",
+  "removed": 3,
+  "reasked": false
+ }
+}
+
+VOICE STEP
+{
+ "step": "voice",
+ "http": 200,
+ "ms": 1907,
+ "status": "ready",
+ "seconds": 75,
+ "bytes": 596888,
+ "voiceCostUsdEstimate": 0.05624,
+ "voiceCostCredits": 6
+}
+
+=== SCRIPT (what the voice speaks; 241 words) ===
+When you draw rows with replacement to build a sample, it feels like every row should have an equal chance of landing inside your new set. But selection is random, so some rows get picked multiple times while other rows get left behind completely. Think of dropping balls into labeled buckets where each drop is totally independent of the last drop. Even if you drop a large number of balls, some buckets remain completely empty just by pure chance. As your sample size grows larger, this compounding chance of omission stabilizes near zero point three six eight. That means roughly thirty six point eight percent of your original rows are omitted from any given bootstrap sample. A common misconception is that if you increase your sample size, you will eventually capture every single row in your training set. But the limit approaches one over e, meaning a permanent fraction of your data always stays outside the bootstrap sample. To see this in action, imagine shuffling a deck of cards and drawing cards with replacement where you put each card back before drawing again. You will notice that certain cards show up three or four times in your hand while several other cards never appear at all. When you look at your bootstrap summary, notice how the expected proportion of unique training rows included in the sample is the complement, which is zero point six three two or about sixty three percent.
+
+=== TRANSCRIPT (what the window shows) ===
+When you draw rows with replacement to build a sample, it feels like every row should have an equal chance of landing inside your new set. But selection is random, so some rows get picked multiple times while other rows get left behind completely. Think of dropping balls into labeled buckets where each drop is totally independent of the last drop. Even if you drop a large number of balls, some buckets remain completely empty just by pure chance. As your sample size grows larger, this compounding chance of omission stabilizes near $0.368$. That means roughly $36.8$ percent of your original rows are omitted from any given bootstrap sample. A common misconception is that if you increase your sample size, you will eventually capture every single row in your training set. But the limit approaches $1/e$, meaning a permanent fraction of your data always stays outside the bootstrap sample. To see this in action, imagine shuffling a deck of cards and drawing cards with replacement where you put each card back before drawing again. You will notice that certain cards show up three or four times in your hand while several other cards never appear at all. When you look at your bootstrap summary, notice how the expected proportion of unique training rows included in the sample is the complement, which is $0.632$ or about $63$ percent.
