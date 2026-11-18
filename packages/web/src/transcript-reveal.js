@@ -35,7 +35,24 @@ export function revealScript(script, t, d) {
     }
   }
   const shown = text.slice(0, end).trimEnd();
-  let split = 0;
-  for (const m of shown.matchAll(/[.!?。！？]["'”)\]]*\s+/g)) if (!inside(m.index)) split = m.index + m[0].length;
-  return { text: shown, split };
+  return { text: shown, split: sentenceStarts(shown, spans).at(-1) };
+}
+
+// Where each sentence of `text` starts (the first at 0): after a . ! ? (or the CJK forms) and the space that follows, never one inside an equation.
+function sentenceStarts(text, spans) {
+  const starts = [0];
+  for (const m of text.matchAll(/[.!?。！？]["'”)\]]*\s+/g)) if (!spans.some(([s, e]) => m.index > s && m.index < e)) starts.push(m.index + m[0].length);
+  return starts;
+}
+
+// The window's fixed height for a transcript: about seven sentences of it, so a long and a short card get a comparable window and the height never moves while the text streams in.
+// Average sentence length of the whole displayed text x 7, over the characters one line holds at 288 px of 13 px text, times the line height (leading-snug 13 px = 18 px), clamped.
+// shortcut: 45 characters a line is an average for proportional text, so a narrow-glyph or wide-glyph script fills a few lines more or fewer; the text scrolls either way.
+export const TRANSCRIPT_LINE_PX = 18, TRANSCRIPT_MIN_PX = 160, TRANSCRIPT_MAX_PX = 360;
+export function transcriptHeight(script) {
+  const text = (typeof script === 'string' ? script : '').trim();
+  if (!text) return TRANSCRIPT_MIN_PX;
+  const starts = sentenceStarts(text, mathSpans(text)), average = text.length / starts.filter(i => i < text.length).length;
+  const px = Math.ceil((7 * average) / 45) * TRANSCRIPT_LINE_PX;
+  return Math.min(TRANSCRIPT_MAX_PX, Math.max(TRANSCRIPT_MIN_PX, px));
 }
