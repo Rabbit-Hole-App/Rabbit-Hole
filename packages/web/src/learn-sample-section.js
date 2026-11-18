@@ -2,6 +2,11 @@
 // PUT onto this canvas's board, this browser's copy of it dropped, then the page reloads on it. The pipeline is untouched: the fixture is only how a layout, walk or contents change
 // is looked at, in seconds and with no model call. -> null, or the words of what went wrong.
 import { api } from './api.js';
+import { reviewTools } from './flags.js';
+
+// Where the row shows: a dev build (reviewTools), or any build served from this machine (the owner stack on 8878 builds as production does, without reviewTools). Never on a
+// deployed host.
+export const sampleSectionOn = () => reviewTools || ['127.0.0.1', 'localhost', '[::1]'].includes(globalThis.location?.hostname);
 
 export async function loadSampleSection({ canvas, board = 'main' }) {
   const { default: fixture } = await import('../../../docs/features/learn-sections/run/fixture-nanogpt-1.1.json');
