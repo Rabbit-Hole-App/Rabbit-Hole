@@ -98,7 +98,8 @@ export const LOCAL_OWNER = 'owner@rabbithole.test';
 const noSignin = (env) => echoesLogin(env) && env.LOCAL_NO_SIGNIN === 'true';
 async function localSession(env) {
   try {
-    const user = await userFor(env, 'email', LOCAL_OWNER, { email: LOCAL_OWNER });
+    const email = env.LOCAL_NO_SIGNIN_EMAIL || LOCAL_OWNER; // the owner's stack may name an existing local user, so the canvases made under it open without signing in
+    const user = await userFor(env, 'email', email, { email });
     return { t: 'sess', uid: user.id, email: user.email, ep: user.session_epoch, prov: 'email' };
   } catch {
     return null;
