@@ -11,7 +11,7 @@ import { LEARN_TASKS, MODEL_NOT_CONFIGURED, loggedModel } from './learn-models.j
 import { anthropic } from './ask.js';
 import { sectionTurn } from './learn-section-research.js';
 import { learnPlanOf, readSection, saveProgress, updateSection, withStatus } from './learn-section-store.js';
-import { CODE_TOKEN } from './learn-section-brief.js';
+import { codeNameError } from './learn-section-brief.js';
 
 export const COMPOSE_CAP_USD = 0.10, MAX_ITEMS = 8;
 // shortcut: B gives no words for a failed composition; this follows A §5's sentence. Replace when the copy table has one.
@@ -60,7 +60,10 @@ export function validateComposition(input, { sectionId, brief, commands, check }
     const problem = check({ command, request, requirements });
     if (problem) errors.push(`item ${id}: ${problem}`);
     if (!why) errors.push(`item ${id}: why is one sentence`);
-    if (!CODE_REQUESTS.has(command) && CODE_TOKEN.test(request)) errors.push(`item ${id}: the request for ${command} must be plain words, with no path, file name, flag or code name`);
+    // Reviewer 19:55: the brief's rule against the covering beat (its idea and shows, already checked against the cited lines): a code name the beat spells may appear in backticks,
+    // exactly as the beat spells it; paths, files and flags never; any other code name is refused by name. Code and notebook requests are code and keep no such rule.
+    if (!CODE_REQUESTS.has(command)) { const beat = beats.get(str(it.beatId)), wrong = codeNameError(request, beat ? `${str(beat.idea)}
+${str(beat.shows)}` : ''); if (wrong) errors.push(`item ${id}: the request for ${command} ${wrong}`); }
     if (command === 'code' && !SOURCES.includes(it.source)) errors.push(`item ${id}: a code item has source repository or example`);
     if (command === 'notebook' && !CONTENTS.includes(it.content)) errors.push(`item ${id}: a notebook item has content source, authored or buildup`);
     if (FOUND.has(command) && !lookFor) errors.push(`item ${id}: found material carries lookFor: which part and what to notice`);
@@ -102,7 +105,7 @@ export async function runCompose(env, { actor, email }, body, { callModel = logg
     `Return the composition by calling submit_section_composition once; each item's command is one of: ${commands.join(', ')}.`,
   ].join('\n\n');
   const check = ({ command, request, requirements }) => checkToolCall(env, email, { name: toolNameOf(command), input: { request, ...(requirements ? { requirements } : {}) } }, { sectionFlow: true }).error || null;
-  const out = await sectionTurn(env, { composed, user, submit: submitCompositionTool(commands), research: [], ctx: { env }, capUsd, callModel,
+  const out = await sectionTurn(env, { composed, user, submit: submitCompositionTool(commands), research: [], ctx: { env }, capUsd, callModel, maxRepairs: 2, // two repairs, as the brief (Reviewer 19:55)
     validate: input => validateComposition(input, { sectionId: section.id, brief: stored.brief, commands, check }) });
   const line = { event: 'learn_section_compose', section: section.id, calls: out.usage.calls, repairs: out.repairs ?? 0, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8), ...(out.submitted ? { submitted: out.submitted } : {}) }) }; // submitted: the refused composition as returned, as the brief logs it
   try { console.log(JSON.stringify(line)); } catch { /* a log line is never worth a failed answer */ }
