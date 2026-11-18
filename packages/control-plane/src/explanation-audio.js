@@ -84,7 +84,7 @@ export const voiceCredits = script => { const price = priceUsage({ provider: 'el
 
 // -> { script, transcript, seconds_estimate, scriptBy, removed, check } or { script: null, outcome, check }. input: { depth, question, title, prose, labels, allowed, cardData } already checked.
 // The kept script must pass the floor and speak one of the card's numbers (verdict). One call to a step that fails them is followed by ONE bounded re-ask to the same model with the first
-// answer and a user turn naming the failed rule(s) (owner 2026-11-17, superseding "no model retry in v1"); still failing after it, the script is an error, never short audio.
+// answer and a user turn naming the failed rule(s) (owner 2026-11-17, superseding "no model retry in v1"); still under the floor after it, the script is an error, never short audio; still without a card number it ships (exampleMissing).
 export async function writeScript(env, input, org, identity = {}) {
   const steps = chainSteps(resolveExplanationProfile(SCRIPT_PROFILE).roles.author).filter(step => env[step.credentialRef]);
   let outcome = 'no_credential', reasked = false;
@@ -105,8 +105,9 @@ export async function writeScript(env, input, org, identity = {}) {
       if (!read) { outcome = 'empty'; continue; }
       check = verdict(read.kept.script, input.depth, input.cardData);
     }
-    const info = { reasked, ...before, ...(reasked ? { firstFailed } : {}), rawWords: read.rawWords, strippedWords: check.words, failed: check.failed };
-    if (check.failed.length) return { script: null, outcome: check.failed.includes('floor') ? 'too_short' : 'no_card_number', removed: read.kept.removed, scriptBy: by, check: info };
+    // Only the floor is an error. The card-number rule only triggers the (shared, single) re-ask; still missing after it, the script ships and says so (owner 2026-11-17, iteration 3).
+    const info = { reasked, ...before, ...(reasked ? { firstFailed } : {}), rawWords: read.rawWords, strippedWords: check.words, failed: check.failed, ...(check.failed.includes('example') ? { exampleMissing: true } : {}) };
+    if (check.failed.includes('floor')) return { script: null, outcome: 'too_short', removed: read.kept.removed, scriptBy: by, check: info };
     // The window shows the script's own words when the model sent no transcript, or one the check emptied.
     return { script: read.kept.script, transcript: read.kept.transcript || read.kept.script, seconds_estimate: secondsEstimate(read.kept.script), scriptBy: by, removed: read.kept.removed, check: info };
   }
@@ -207,7 +208,7 @@ async function scriptRoute(env, body, access) {
   if (!card.prose) return bad();
   // The check and the set are one synchronous step, so two requests for one card share one call (and one cap count).
   if (!pending.has(key)) {
-    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, card.visualText, body.title, body.question) };
+    const input = { depth: validDepth(body.depth) || DEFAULT_DEPTH, question: body.question || '', title: body.title, prose: card.prose, labels: card.labels, allowed: cardNumbers(card.prose, card.visualText, body.title, body.question), cardData: cardDataNumbers(card.prose, body.question) }; // the example rule reads the numbers the card's prose and the learner's question state, not a diagram's structure, an axis bound or a heading (measured: the only number of six cards was a JSON version field)
     pending.set(key, (async () => (await limited(env, 'explanation_script', 'EXPLANATION_SCRIPT', access)) || writeScript(env, input, access.org, { userId: access.user_id || access.email }))().finally(() => pending.delete(key)));
   }
   const done = await pending.get(key);
