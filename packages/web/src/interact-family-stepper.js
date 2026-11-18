@@ -346,8 +346,8 @@ export const fixtureGroups = catalogueHash => ({ stepperPlans: Object.fromEntrie
   return [name, plan];
 })) });
 export const pins = Object.freeze({
-  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }), 'tree-trace': Object.freeze({ brief: 'stepper-tree-trace-brief' }), motion: Object.freeze({ brief: 'stepper-tree-motion-brief', balanced: 'stepper-vote-motion-balanced' }), pendulum: Object.freeze({ brief: 'stepper-pendulum-brief' }) }),
-  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']), 'stepper-tree-trace-brief': Object.freeze(['stepper-tree-trace-brief', 'brief', 'stepperPlans']), 'stepper-tree-motion-brief': Object.freeze(['stepper-tree-motion-brief', 'brief', 'stepperPlans']), 'stepper-vote-motion-balanced': Object.freeze(['stepper-vote-motion-balanced', 'balanced', 'stepperPlans']), 'stepper-pendulum-brief': Object.freeze(['stepper-pendulum-brief', 'brief', 'stepperPlans']) }),
+  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }), 'tree-trace': Object.freeze({ brief: 'stepper-tree-trace-brief' }), motion: Object.freeze({ brief: 'stepper-tree-motion-brief', balanced: 'stepper-vote-motion-balanced', detailed: 'stepper-pendulum-detailed' }) }),
+  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']), 'stepper-tree-trace-brief': Object.freeze(['stepper-tree-trace-brief', 'brief', 'stepperPlans']), 'stepper-tree-motion-brief': Object.freeze(['stepper-tree-motion-brief', 'brief', 'stepperPlans']), 'stepper-vote-motion-balanced': Object.freeze(['stepper-vote-motion-balanced', 'balanced', 'stepperPlans']), 'stepper-pendulum-detailed': Object.freeze(['stepper-pendulum-detailed', 'detailed', 'stepperPlans']) }),
 });
 export const checkMap = Object.freeze({
   'packages/web/src/interact-family-stepper.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],

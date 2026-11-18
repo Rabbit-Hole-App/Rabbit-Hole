@@ -44,4 +44,5 @@ Object.assign(plan.scene, {
 });
 plan.scene.runtime.requiredCapabilities = ['time_playback', 'number_inputs', 'figures'];
 
-export const PENDULUM_PLANS = Object.freeze({ 'stepper-pendulum-brief': plan });
+plan.depth = 'detailed';
+export const PENDULUM_PLANS = Object.freeze({ 'stepper-pendulum-detailed': plan });
