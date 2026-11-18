@@ -18,7 +18,7 @@ const patterns = {
   'class-weighted-loss': d => { const u = vals(d, 0), w = vals(d, 1); return u[0] === 1 && u[1] === 1 && w[0] === 1 && w[1] >= 2 && Number.isInteger(w[1]); }, // equal raw losses, common weight 1, the rare class weighted larger
   'permutation-feature-importance': d => [0, 1].every(s => { const v = vals(d, s); return v[0] > v[1] && v[1] > v[2] && Math.abs(v[2]) <= 0.02 + 1e-9; }), // A > B > C in each shuffle, C near zero
   'feature-selection-stability': d => [0, 1].every(s => { const v = vals(d, s); return v.every(x => x >= 0 && x <= 1) && v[0] > v[1] && v[1] > v[2]; }), // fractions in [0, 1], A > B > C under both selectors
-  'ensemble-votes': d => { const h = vals(d, 0), w = vals(d, 1); return h.every(Number.isInteger) && h[0] > h[1] && h[1] > h[2] && w[0] > w[1] && w[1] > w[2] && w[0] <= h[0] + 1e-9 && w[2] <= h[2] + 1e-9; }, // whole hard votes A > B > C; weighted A > B > C; weighted <= hard for A and C
+  'ensemble-votes': d => { const h = vals(d, 0), w = vals(d, 1); return h.every(Number.isInteger) && h[0] > h[1] && h[1] > h[2] && w[0] > w[1] && w[1] > w[2] && w[0] <= h[0] + 1e-9 && w[1] <= h[1] + 1e-9 && w[2] <= h[2] + 1e-9; }, // whole hard votes A > B > C; weighted A > B > C; weighted <= hard for all three classes
 };
 
 for (const ref of varied) {

@@ -37,9 +37,9 @@ export const referenceVary = Object.freeze({
     ...at('series.0.points', 'y', [[2.9, 3.3, 0.1], [1.5, 1.9, 0.1], [0.8, 1.1, 0.1], [0.62, 0.75, 0.01], [0.57, 0.61, 0.01], [0.50, 0.56, 0.01]]),
     ...at('series.1.points', 'y', [[3.4, 3.8, 0.1], [2.0, 2.4, 0.1], [1.25, 1.5, 0.05], [1.05, 1.2, 0.05], [1.05, 1.12, 0.01], [1.05, 1.12, 0.01]]),
   },
-  'ensemble-votes': { // whole hard votes (class C stays 1); the winner stays class A in both series; weighted <= hard for classes A and C; class B weighted stays 2.4 as written (it is above its 2 hard votes; the reference's written value is Codex's call, REF-1, the band comes after)
+  'ensemble-votes': { // whole hard votes (class C stays 1); the winner stays class A in both series; weighted <= hard for all three classes (class B weighted 1.2 to 1.8 against 2 or 3 hard votes; the reference's written 1.5 is REF-1, 510ad71a4)
     ...bars(0, [[4, 5, 1], [2, 3, 1]]),
-    ...bars(1, [[3.0, 3.6, 0.1]]),
+    ...bars(1, [[3.0, 3.6, 0.1], [1.2, 1.8, 0.1]]),
     ...bars(1, [[0.6, 1.0, 0.1]], 2),
   },
   'bias-variance-decomposition': { // noise stays constant; bias falls and variance rises by disjoint bands, so the total stays U-shaped (low >= 10, medium <= 8, high >= 9)
