@@ -1,7 +1,7 @@
 // learn_section_brief (spec A): the validator's planted failures (A §6.3 and A §8 Validator) and one route turn with a scripted model.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CODE_TOKEN, SECTION_BRIEF_FAILED, SUBMIT_BRIEF_TOOL, jaccard, repositoryAnchorText, repositoryAnchors, validateBrief } from '../src/learn-section-brief.js';
+import { SECTION_BRIEF_FAILED, SUBMIT_BRIEF_TOOL, codeNameError, jaccard, repositoryAnchors, validateBrief } from '../src/learn-section-brief.js';
 import { readSection } from '../src/learn-section-store.js';
 import { TUTOR_PROMPT_FILES } from '../src/tutor-prompts.generated.js';
 import { ACTOR, captureLogs, scripted, sectionSetup, textReply, toolUse } from './learn-section-fixture.js';
@@ -44,38 +44,9 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   const m = { kind: 'video', query: 'how a share is computed', lookFor: 'the division' };
   assert.deepEqual(validateBrief(good({ beats: [beat('b1', { material: m }), beat('b2', { idea: 'Dividing finished by all gives a share.', material: { ...m, kind: 'paper', reason: 'recency' } }), good().beats[2]] }), opts()).errors, ['at most 1 beat with material; this section has 2']);
   assert.equal(validateBrief(good({ beats: [beat('b1', { material: { ...m, kind: 'article', reason: 'recency' } }), ...good().beats.slice(1)] }), opts()).value.beats[0].material.reason, 'recency', 'DECISIONS E');
-  // Reviewer 10:50: a backticked identifier from the beat's anchored lines passes; one from elsewhere, a backticked path, or a bare code name is refused.
-  const p = { files: { ...files, 'src/p.js': 'a\nconst share_of = done / all;\nc\n' } };
-  const idea = idea => validateBrief(good({ beats: [beat('b1', { idea, anchors: ['src/p.js:2'] }), ...good().beats.slice(1)] }), { ...opts(), anchorsExist: repositoryAnchors(p), anchorText: repositoryAnchorText(p) });
-  assert.equal(idea('The share comes from `share_of` before it is shown.').errors, undefined);
-  assert.deepEqual(idea('The share comes from `get_batch` before it is shown.').errors, ['beat b1: idea names `get_batch`, which the anchored lines do not']);
-  assert.deepEqual(idea('The share comes from share_of before it is shown.').errors, ['beat b1: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "share_of")']);
-  assert.deepEqual(idea('The share comes from `src/p.js` before it is shown.').errors, ['beat b1: idea must have no path, file name or flag (found "src/p.js")']);
-  // Reviewer 11:15: shows may name what the anchored lines spell, bare or in backticks (settings, flags, functions); other names and paths stay refused.
-  const q = { files: { ...files, 'src/q.py': 'a\nparser.add("--max-iters"); default_page_size = 100\ndef get_batch(split):\n' } };
-  const shows = shows => validateBrief(good({ beats: [beat('b1', { shows, anchors: ['src/q.py:2-3'] }), ...good().beats.slice(1)] }), { ...opts(), anchorsExist: repositoryAnchors(q), anchorText: repositoryAnchorText(q) }).errors;
-  assert.equal(shows('Set default_page_size to 50, pass --max-iters, call get_batch() and `default_page_size` again.'), undefined);
-  assert.deepEqual(shows('Set page_limit to 50.'), ['beat b1: shows must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "page_limit")']);
-  assert.deepEqual(shows('Pass --dry-run.'), ['beat b1: shows must have no path, file name or flag (found "--d")']);
-  assert.deepEqual(shows('Open src/q.py and read it.'), ['beat b1: shows must have no path, file name or flag (found "src/q.py")']);
-  assert.deepEqual(validateBrief(good({ beats: [beat('b1', { idea: 'It reads default_page_size first.', anchors: ['src/q.py:2-3'] }), ...good().beats.slice(1)] }), { ...opts(), anchorsExist: repositoryAnchors(q), anchorText: repositoryAnchorText(q) }).errors, ['beat b1: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "default_page_size")'], 'idea keeps the backtick rule');
-  for (const token of ['train.py', 'data/x/y', '--max-iters', 'block_size', 'get_batch()', 'maxIters', '`x`']) assert.ok(CODE_TOKEN.test(`a ${token} b`), token);
-  for (const plain of ['input/output pairs', 'e.g. three tasks', 'one-to-one', 'version 3.5']) assert.ok(!CODE_TOKEN.test(plain), plain);
+  // The one rule (Reviewer 2026-11-17 20:35): only a path, a file name or a flag is refused; names and code in any form pass (codeNameError below).
 });
 
-// Reviewer 19:40: code names a learner can see on the card. The card shows the cited lines only: a dotted name's last part is in them, its earlier parts in the cited file;
-// a name in the file but outside the cited lines is refused with the line it is on (no auto-widening); a made-up name stays refused.
-const MODEL = ['from dataclasses import dataclass', '', '@dataclass', 'class GPTConfig:', '    block_size: int = 1024', '', 'class GPT:', '    def forward(self, idx, targets=None):', '        b, t = idx.size()', '        assert t <= self.config.block_size', ''].join('\n');
-const modelOpts = () => { const snapshot = { files: { 'model.py': MODEL } }; return opts({ sectionId: '1.1', first: true, anchorsExist: repositoryAnchors(snapshot), anchorText: repositoryAnchorText(snapshot) }); };
-const showsError = shows => { const out = validateBrief(good({ from: '', beats: [beat('b1', { shows, anchors: ['model.py:8-10'] }), beat('b2', { idea: 'Dividing finished by all gives a share between zero and one.', anchors: ['model.py:5'] }), beat('b3', { idea: 'Rounding happens before the share is scaled to a percentage.', anchors: ['model.py:5'] })] }), modelOpts()); return (out.errors || []).filter(e => e.startsWith('beat b1:')); };
-test('brief code names: `GPT.forward` passes (forward in the cited lines, GPT in the file); `Foo.forward` is refused', () => {
-  assert.deepEqual(showsError('`GPT.forward` takes `idx` in.'), []);
-  assert.match(showsError('`Foo.forward` takes `idx` in.').join(), /names `Foo\.forward`, which the anchored lines do not/);
-});
-test('brief code names: a name outside the cited lines names its line; a made-up name stays refused', () => {
-  assert.deepEqual(showsError('The assert against `block_size`, set in `GPTConfig`.'), ['beat b1: shows `GPTConfig` is on model.py:4, outside the cited 8-10; cite that line or drop the name']);
-  assert.match(showsError('`made_up_thing` holds the window.').join(), /names `made_up_thing`, which the anchored lines do not/);
-});
 
 test('learn_section_brief: one research call then the submit; the brief is stored, 1.1 becomes current, the call is metered learn_section; a second call returns the stored brief', async t => {
   const f = await sectionSetup(t);
@@ -117,4 +88,13 @@ test('learn_section_brief: a refused brief is re-asked twice with the errors (Re
   assert.equal(logs.find(l => l.event === 'learn_section_brief')?.repairs, 2);
   assert.equal(await readSection(f.env, ACTOR, '1.1'), null);
   assert.deepEqual([(await f.post({ action: 'learn_section_brief', sectionId: '9.9' })).status], [404]);
+});
+
+test('the one code-name rule (Reviewer 20:35): a path, a file name or a flag is refused; `n_embd`, bare n_embd, `GPT.forward` and `logits[:, -1, :]` pass', () => {
+  assert.equal(codeNameError('Open src/model/gpt.py first.'), 'must have no path, file name or flag (found "src/model/gpt.py")');
+  assert.equal(codeNameError('The class sits in model.py.'), 'must have no path, file name or flag (found "model.py")');
+  assert.equal(codeNameError('Run it with --max-iters set.'), 'must have no path, file name or flag (found "--m")');
+  for (const ok of ['Shapes stay (b, t, `n_embd`).', 'Shapes stay (b, t, n_embd).', '`GPT.forward` takes `idx` in.', '`logits[:, -1, :]` keeps the last position.']) assert.equal(codeNameError(ok), null, ok);
+  const beats = validateBrief(good({ beats: [beat('b1', { shows: 'Shapes stay (b, t, n_embd); `GPT.forward` runs them.' }), ...good().beats.slice(1)] }), opts());
+  assert.equal(beats.errors, undefined, 'a beat naming code passes');
 });

@@ -11,7 +11,7 @@ import { LEARN_TASKS, MODEL_NOT_CONFIGURED, loggedModel } from './learn-models.j
 import { anthropic } from './ask.js';
 import { sectionTurn } from './learn-section-research.js';
 import { learnPlanOf, readSection, saveProgress, updateSection, withStatus } from './learn-section-store.js';
-import { codeNameError, inLines } from './learn-section-brief.js';
+import { codeNameError } from './learn-section-brief.js';
 
 export const COMPOSE_CAP_USD = 0.10, MAX_ITEMS = 8;
 // shortcut: B gives no words for a failed composition; this follows A §5's sentence. Replace when the copy table has one.
@@ -60,17 +60,8 @@ export function validateComposition(input, { sectionId, brief, commands, check }
     const problem = check({ command, request, requirements });
     if (problem) errors.push(`item ${id}: ${problem}`);
     if (!why) errors.push(`item ${id}: why is one sentence`);
-    // Reviewer 19:55: the brief's rule against the covering beat (its idea and shows, already checked against the cited lines): a code name the beat spells may appear in backticks,
-    // exactly as the beat spells it; paths, files and flags never; any other code name is refused by name. Code and notebook requests are code and keep no such rule.
-    if (!CODE_REQUESTS.has(command)) {
-      // Reviewer 20:30 (§6): code the beat itself shows in backticks (a name or an expression, verbatim, the same inLines test the brief's shows passed) may appear in backticks.
-      const beat = beats.get(str(it.beatId)), beatText = beat ? `${str(beat.idea)}\n${str(beat.shows)}` : '';
-      const rest = request.replace(/`([^`\n]{1,80})`/g, (match, code) => (inLines(code.trim(), beatText) ? ' ' : match));
-      // The beat's code written bare (outside backticks) is refused by name: CODE_TOKEN does not see an expression such as logits[:, -1, :].
-      const bare = [...beatText.matchAll(/`([^`\n]{1,80})`/g)].map(m => m[1].trim()).filter(code => !/^[A-Za-z]+$/.test(code)).find(code => rest.includes(code));
-      const wrong = codeNameError(rest, beatText) || (bare ? `must put code in backticks, exactly as the beat spells it (found "${bare}" bare)` : null);
-      if (wrong) errors.push(`item ${id}: the request for ${command} ${wrong}`);
-    }
+    // The one rule (Reviewer 2026-11-17 20:35): a request names code as it likes; only a path, a file name or a flag is refused. Code and notebook requests are code.
+    if (!CODE_REQUESTS.has(command)) { const wrong = codeNameError(request); if (wrong) errors.push(`item ${id}: the request for ${command} ${wrong}`); }
     if (command === 'code' && !SOURCES.includes(it.source)) errors.push(`item ${id}: a code item has source repository or example`);
     if (command === 'notebook' && !CONTENTS.includes(it.content)) errors.push(`item ${id}: a notebook item has content source, authored or buildup`);
     if (FOUND.has(command) && !lookFor) errors.push(`item ${id}: found material carries lookFor: which part and what to notice`);
