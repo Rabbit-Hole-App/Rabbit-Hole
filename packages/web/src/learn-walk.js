@@ -47,11 +47,12 @@ export const walkPrev = state => (state && state.at > 0 ? { ...state, at: state.
 // The box a stop shows: its card and the text items of its item (its lead and follow).
 export const walkBox = (cardBox, textBoxes = []) => union([cardBox, ...textBoxes]);
 
-// The camera for a stop (§1): zoom 1, the box centred in the view (area: { left, right, top, bottom } in screen pixels); a box taller than the view is top-aligned,
-// its top `margin` below the view's top. -> { x, y, z } for the canvas view (screen = world * z + view).
+// The camera for a stop (owner 2026-11-18 14:15): the stop's box (its card with its lead and follow) whole and centred in the view (area: { left, right, top, bottom } in
+// screen pixels, `margin` clear on every side): zoom 1 when it fits, else zoomed out until it does, never in past 1, never below MIN_ZOOM. -> { x, y, z } (screen = world * z + view).
+export const MIN_ZOOM = 0.2;
 export function walkCamera(box, area, margin) {
-  const x = (area.left + area.right) / 2 - (box.x + box.w / 2);
-  const tall = box.h + 2 * margin > area.bottom - area.top;
-  const y = tall ? area.top + margin - box.y : (area.top + area.bottom) / 2 - (box.y + box.h / 2);
-  return { x: Math.round(x), y: Math.round(y), z: 1 };
+  const room = { w: area.right - area.left - 2 * margin, h: area.bottom - area.top - 2 * margin };
+  const z = Math.max(MIN_ZOOM, Math.min(1, room.w / box.w, room.h / box.h));
+  const x = (area.left + area.right) / 2 - (box.x + box.w / 2) * z, y = (area.top + area.bottom) / 2 - (box.y + box.h / 2) * z;
+  return { x: Math.round(x), y: Math.round(y), z: Math.round(z * 1000) / 1000 };
 }
