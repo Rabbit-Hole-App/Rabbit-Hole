@@ -4,12 +4,14 @@
 // The file is read like the card's figures (IllustrationFigure.jsx followSource: file-source-client loadSource, so the same scope, headers and retries) but only on the first press, so a board of
 // cards downloads no audio until one is played. One audio element per card; one card plays at a time (`playing`); never autoplay.
 import { useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2, Pause, Play, RotateCcw } from 'lucide-react';
 import { followSource } from './IllustrationFigure.jsx';
 import { clearPlayingCard, closeTranscript, openTranscript, restartTranscript, setPlayingCard, updateTranscript } from './audio-playing.js';
 import { ExplanationHost } from './explanation-host.js';
 import { wantPlay } from './explanation-audio.js';
-import { toast } from './ui.jsx';
+import { ConfirmDialog, toast } from './ui.jsx';
+import { UNKNOWN_PRICE, usageLine } from './GenerationProposalCard.jsx';
 
 let playing = null; // the audio element that is playing now; starting another pauses it
 
@@ -80,28 +82,40 @@ function AudioPill({ narration, cardId }) {
   );
 }
 
-// The Play button of a card whose voice is not made yet ('script') or whose last step failed ('error'): its press makes what is missing (host.narrate: the script if it is missing, then the voice) and the
+// The Play button of a card whose voice is not made yet ('script') or whose last step failed ('error'): its press makes what is missing (host.narrate, a paid step the press confirms), then the
 // ready pill takes its place and starts. A failure says why in a notice and leaves the button to press again.
 function GeneratePill({ narration, cardId, narrate }) {
-  const [busy, setBusy] = useState(false), alive = useRef(true);
+  const [busy, setBusy] = useState(false), [confirming, setConfirming] = useState(false), alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   const failed = narration.status === 'error';
   const label = busy ? 'Preparing audio' : failed ? 'Audio could not play. Try again.' : 'Play explanation';
   const done = made => { if (alive.current) setBusy(false); return made; };
-  // The press is the paid step, with no confirmation (owner 2026-11-18). The server still gets `confirmed: true` and returns estimate_credits; the cost is shown nowhere for now.
+  // The voice is paid: the press asks first and shows its cost in AI units (the server's figure, as the other paid features show theirs: GenerationProposalCard usageLine). A card with no script yet
+  // (its free step failed) makes the script first, then asks.
   const press = async () => {
     if (busy) return;
-    setBusy(true); wantPlay.add(cardId);
+    if (narration.script) { setConfirming(true); return; }
+    setBusy(true);
+    let made = null;
+    try { made = await narrate(cardId, { voice: false }); } catch { /* the notice below says it */ }
+    done(made);
+    if (made?.status === 'script') setConfirming(true); else toast(made?.reason || 'The audio could not be made. Try again.');
+  };
+  const generate = async () => {
+    setConfirming(false); setBusy(true); wantPlay.add(cardId);
     let made = null;
     try { made = await narrate(cardId); } catch { /* the notice below says it */ }
     if (made?.status !== 'ready') { wantPlay.delete(cardId); toast(made?.reason || 'The audio could not be made. Try again.'); }
     done(made);
   };
+  const cost = usageLine(narration);
   return (
     <span data-explanation-audio data-audio-state={busy ? 'preparing' : failed ? 'failed' : 'script'} onPointerDown={stop} className={PILL}>
       <button type="button" data-audio-play title={label} aria-label={label} aria-busy={busy || undefined} disabled={busy} onClick={press} className={BUTTON}>
         {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
       </button>
+      {confirming && createPortal(
+        <ConfirmDialog title="Make the audio" body={<span data-audio-confirm>{`This uses paid generation. ${cost || UNKNOWN_PRICE}`}</span>} confirmLabel="Generate" confirmVariant="inverse" confirmDisabled={!cost} onConfirm={generate} onCancel={() => setConfirming(false)} />, document.body)}
     </span>
   );
 }
