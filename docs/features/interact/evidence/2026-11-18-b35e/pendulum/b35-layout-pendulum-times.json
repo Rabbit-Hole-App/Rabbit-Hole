@@ -1,0 +1,114 @@
+[
+  {
+    "settings": "B mass=1,B length=2",
+    "text": ": 2.01 s T=2π L/g ​ Slower: a longer string takes longer. Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it. Play 3.00s B mass: 1.0 kg B length: 2.0 m",
+    "time": 3,
+    "scrub": "3",
+    "box": {
+      "x": 441,
+      "y": 187,
+      "width": 642,
+      "height": 574
+    },
+    "fit": {
+      "scrollHeight": 574,
+      "clientHeight": 574,
+      "scrollWidth": 642,
+      "clientWidth": 642
+    },
+    "nodes": [],
+    "svg": {
+      "x": 766.322265625,
+      "y": 277.997314453125,
+      "w": 262.35546875,
+      "h": 289.751220703125,
+      "texts": [
+        "Angle against time",
+        "Angle (°)",
+        "-25",
+        "0",
+        "25",
+        "0",
+        "2",
+        "4",
+        "6",
+        "8",
+        "Time (s)",
+        "Pendulum A, the reference: 1 kg and 1 m",
+        "Pendulum B, set with the two sliders"
+      ],
+      "rects": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 407,
+          "h": 449.5
+        },
+        {
+          "x": 104,
+          "y": 40,
+          "w": 280,
+          "h": 240
+        },
+        {
+          "x": 73.5,
+          "y": 343.5,
+          "w": 261,
+          "h": 22
+        },
+        {
+          "x": 87,
+          "y": 373.5,
+          "w": 234,
+          "h": 22
+        },
+        {
+          "x": 97.45,
+          "y": 380.45,
+          "w": 8.1,
+          "h": 8.1
+        },
+        {
+          "x": 97.7,
+          "y": 57.7,
+          "w": 12.6,
+          "h": 12.6
+        },
+        {
+          "x": 377.7,
+          "y": 112.8952,
+          "w": 12.6,
+          "h": 12.6
+        }
+      ]
+    },
+    "dot": [
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.A",
+          "opacity": "1",
+          "transform": "rotate(0 458.72375 204.91861770094903)",
+          "class": "cursor-pointer"
+        },
+        "cx": 900.7237548828125,
+        "cy": 467.79364013671875,
+        "w": 12,
+        "h": 12
+      },
+      {
+        "tag": "g",
+        "attrs": {
+          "data-animation-object": "dot.B",
+          "opacity": "1",
+          "transform": "rotate(0 458.72375 85.62808745942105)",
+          "class": "cursor-pointer"
+        },
+        "cx": 900.7237548828125,
+        "cy": 348.5030822753906,
+        "w": 12,
+        "h": 12
+      }
+    ]
+  }
+]
