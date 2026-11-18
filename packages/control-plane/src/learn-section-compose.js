@@ -104,7 +104,7 @@ export async function runCompose(env, { actor, email }, body, { callModel = logg
   const check = ({ command, request, requirements }) => checkToolCall(env, email, { name: toolNameOf(command), input: { request, ...(requirements ? { requirements } : {}) } }, { sectionFlow: true }).error || null;
   const out = await sectionTurn(env, { composed, user, submit: submitCompositionTool(commands), research: [], ctx: { env }, capUsd, callModel,
     validate: input => validateComposition(input, { sectionId: section.id, brief: stored.brief, commands, check }) });
-  const line = { event: 'learn_section_compose', section: section.id, calls: out.usage.calls, repairs: out.repairs ?? 0, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8) }) };
+  const line = { event: 'learn_section_compose', section: section.id, calls: out.usage.calls, repairs: out.repairs ?? 0, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8), ...(out.submitted ? { submitted: out.submitted } : {}) }) }; // submitted: the refused composition as returned, as the brief logs it
   try { console.log(JSON.stringify(line)); } catch { /* a log line is never worth a failed answer */ }
   if (out.failed === 'unavailable') return json({ error: 'learn_section_unavailable' }, 502);
   if (out.failed === 'over_cap' && out.usage.calls === 0) return json({ error: 'learn_section_over_cap' }, 422);
