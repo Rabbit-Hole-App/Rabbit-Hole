@@ -1,0 +1,202 @@
+{
+  "canvas": "canvas-75f11611",
+  "url": "http://127.0.0.1:8878/apps/canvas-75f11611",
+  "failure": null,
+  "events": [
+    {
+      "t": 0,
+      "what": "signed in (no sign-in)",
+      "email": "user@b1a6c0b052cb7c76c391f125cb4be19b.rabbithole.invalid"
+    },
+    {
+      "t": 0.1,
+      "what": "canvas",
+      "canvas": "canvas-75f11611",
+      "url": "http://127.0.0.1:8878/apps/canvas-75f11611"
+    },
+    {
+      "t": 0.2,
+      "what": "indexed"
+    },
+    {
+      "t": 0.3,
+      "what": "catalogue ready"
+    },
+    {
+      "t": 4.5,
+      "what": "learn option",
+      "option": "GPT transformer architecture and attention"
+    },
+    {
+      "t": 4.6,
+      "what": "depth Standard (balanced)"
+    },
+    {
+      "t": 26.4,
+      "what": "plan drafted"
+    },
+    {
+      "t": 26.6,
+      "what": "accept"
+    },
+    {
+      "t": 47.2,
+      "what": "1.1 ready (brief + compose)"
+    },
+    {
+      "t": 47.2,
+      "what": "BUILD pressed"
+    },
+    {
+      "t": 55.1,
+      "what": "console error",
+      "text": "Error: Minified React error #185; visit https://react.dev/errors/185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.\n    at _i (http://127.0.0.1:8878/static/client-DiqMvz_R.js:8:27497)\n    at mi (http://127.0.0.1:8878/static/client-DiqMvz"
+    },
+    {
+      "t": 148.8,
+      "what": "STALL",
+      "dump": {
+        "hidden": false,
+        "frames": 61,
+        "messages": []
+      },
+      "cards": [
+        {
+          "id": "861c405d-d0a8-4f51-aedb-d033bbbbe271",
+          "type": "doc",
+          "sectionId": "1",
+          "itemId": null,
+          "role": "chapter",
+          "slot": true,
+          "order": null,
+          "since": 1794977989797,
+          "fit": true,
+          "placed": true,
+          "seen": 48,
+          "placedAt": 48
+        },
+        {
+          "id": "33b1f37c-9c07-4ec0-aef2-e000ba16d536",
+          "type": "doc",
+          "sectionId": "1.1",
+          "itemId": "i1",
+          "role": "lead",
+          "slot": true,
+          "order": 0,
+          "since": 1794977997146,
+          "fit": true,
+          "placed": true,
+          "seen": 55.1,
+          "placedAt": 55.1
+        }
+      ]
+    },
+    {
+      "t": 149.3,
+      "what": "making stalled"
+    },
+    {
+      "t": 149.3,
+      "what": "position settled",
+      "last_placed": 55.1
+    },
+    {
+      "t": 155.4,
+      "what": "canvas blocks",
+      "total": 2,
+      "section": 2,
+      "other": []
+    },
+    {
+      "t": 155.4,
+      "what": "page errors",
+      "errors": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "861c405d-d0a8-4f51-aedb-d033bbbbe271",
+      "type": "doc",
+      "sectionId": "1",
+      "itemId": null,
+      "role": "chapter",
+      "slot": true,
+      "order": null,
+      "since": 1794977989797,
+      "fit": true,
+      "placed": true,
+      "seen": 48,
+      "placedAt": 48
+    },
+    {
+      "id": "33b1f37c-9c07-4ec0-aef2-e000ba16d536",
+      "type": "doc",
+      "sectionId": "1.1",
+      "itemId": "i1",
+      "role": "lead",
+      "slot": true,
+      "order": 0,
+      "since": 1794977997146,
+      "fit": true,
+      "placed": true,
+      "seen": 55.1,
+      "placedAt": 55.1
+    }
+  ],
+  "log": [
+    {
+      "t": 5.5,
+      "event": "learn_model",
+      "task": "home_ask",
+      "provider": "anthropic",
+      "requested": "claude-sonnet-5-5",
+      "source": "task",
+      "fallback": "none",
+      "prompt": "4g2MgfQtF5YK",
+      "served": null,
+      "fellBack": false,
+      "status": 400,
+      "stopReason": null,
+      "outcome": "failed",
+      "error": "http_error",
+      "durationMs": 378
+    },
+    {
+      "t": 26.2,
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 2,
+      "estimate_usd": [
+        0.069912,
+        0.069788
+      ],
+      "cap_usd": 0.1,
+      "ms": 21255,
+      "outcome": "ok",
+      "ops": 26
+    },
+    {
+      "t": 38.9,
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.054965,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    },
+    {
+      "t": 54.7,
+      "event": "learn_section_make",
+      "section": "1.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 2,
+      "repairs": 1,
+      "usd": 0.022231,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}
