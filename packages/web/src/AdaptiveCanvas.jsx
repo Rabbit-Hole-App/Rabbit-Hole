@@ -1071,8 +1071,8 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent} fitCeiling={!!BLOCK_TYPES[block.type]?.fitCeiling}
-      autoMax={tile ? null : block.learn?.fit ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
+      autoMax={block.learn?.fit ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
+      width={cardWidth} wide={cardWidth > COLUMN}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={expandHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
@@ -6503,7 +6503,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, learnHidden: id => { const block = !readOnly && !localCopy && blocksRef.current.find(entry => entry.id === id); return !!block?.learn?.slot && !block.learn.placed && !block.at; }, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null} promptOf={id => blocksRef.current.find(block => block.id === id)?.promptUsed}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} promptOf={id => blocksRef.current.find(block => block.id === id)?.promptUsed} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
