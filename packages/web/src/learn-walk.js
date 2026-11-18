@@ -47,12 +47,15 @@ export const walkPrev = state => (state && state.at > 0 ? { ...state, at: state.
 // The box a stop shows: its card and the text items of its item (its lead and follow).
 export const walkBox = (cardBox, textBoxes = []) => union([cardBox, ...textBoxes]);
 
-// The camera for a stop (owner 2026-11-18 14:15): the stop's box (its card with its lead and follow) whole and centred in the view (area: { left, right, top, bottom } in
-// screen pixels, `margin` clear on every side): zoom 1 when it fits, else zoomed out until it does, never in past 1, never below MIN_ZOOM. -> { x, y, z } (screen = world * z + view).
-export const MIN_ZOOM = 0.2;
-export function walkCamera(box, area, margin) {
+// The camera for a stop (owner 2026-11-18 14:15, 14:40): the stop's box (its card with its lead and follow) centred on `centreX` (the chat composer's middle; else the view's)
+// in the view (area: { left, right, top, bottom } in screen pixels, `margin` clear on every side). Zoom 1 when it fits; else zoomed out until it does, but never below READ_ZOOM,
+// the smallest size its words still read at: a box taller than that is top-aligned (its lead and the top of its card in view, the rest a scroll away). Never in past 1; a box
+// wider than the view at READ_ZOOM is fitted to the width. -> { x, y, z } (screen = world * z + view).
+export const MIN_ZOOM = 0.2, READ_ZOOM = 0.85;
+export function walkCamera(box, area, margin, centreX = null) {
   const room = { w: area.right - area.left - 2 * margin, h: area.bottom - area.top - 2 * margin };
-  const z = Math.max(MIN_ZOOM, Math.min(1, room.w / box.w, room.h / box.h));
-  const x = (area.left + area.right) / 2 - (box.x + box.w / 2) * z, y = (area.top + area.bottom) / 2 - (box.y + box.h / 2) * z;
+  const z = Math.max(MIN_ZOOM, Math.min(1, room.w / box.w, Math.max(READ_ZOOM, room.h / box.h)));
+  const x = (centreX ?? (area.left + area.right) / 2) - (box.x + box.w / 2) * z;
+  const y = box.h * z <= room.h ? (area.top + area.bottom) / 2 - (box.y + box.h / 2) * z : area.top + margin - box.y * z;
   return { x: Math.round(x), y: Math.round(y), z: Math.round(z * 1000) / 1000 };
 }
