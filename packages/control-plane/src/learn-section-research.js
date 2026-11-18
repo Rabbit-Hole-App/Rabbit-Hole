@@ -95,23 +95,23 @@ export async function sourcePapers(snapshot, { papers = null, search = searchArx
 
 const cutOff = result => String(result?.stop_reason || '').startsWith('max_'); // the output limit was reached
 const usageOf = (model, total, u) => ({ calls: total.calls + 1, usd: total.usd + (costUsd({ model, ...(u || {}) }) ?? 0) });
-export async function sectionTurn(env, { composed, user, submit, research = [], ctx, validate, capUsd, callModel, maxResearchSteps = 6, route = null }) {
+export async function sectionTurn(env, { composed, user, submit, research = [], ctx, validate, capUsd, callModel, maxResearchSteps = 6, maxRepairs = 1, route = null }) {
   const task = LEARN_TASKS.learn_section, model = task.model, record = tutorRecord(composed, { route, model });
   const system = env.SUBSCRIPTION_ONLY === 'true' ? composed.text : [{ type: 'text', text: composed.text, cache_control: { type: 'ephemeral' } }];
   const messages = [{ role: 'user', content: user }];
-  let usage = { calls: 0, usd: 0 }, asked = false, steps = 0, errors = [], submitted = null; // submitted: the last refused submit input, for the failure log
+  let usage = { calls: 0, usd: 0 }, repairs = 0, steps = 0, errors = [], submitted = null; // submitted: the last refused submit input, for the failure log
   for (;;) {
     const tools = [...researchToolDefs(research), submit]; // kept after the step limit: earlier tool_use blocks name them; a call past the limit is answered 'not run'
     const body = modelRequest(system, messages, task.maxTokens, { output_config: { effort: task.effort }, tools, tool_choice: { type: 'auto' } });
     const bound = estimatedSpendBound(body, model); // input at 3 request bytes a unit, still above the real rate (BLOCKERS.md)
-    if (bound == null || usage.usd + bound > capUsd) return { failed: 'over_cap', errors: errors.length ? errors : ['the cost limit for this item did not allow another call'], usage };
+    if (bound == null || usage.usd + bound > capUsd) return { failed: 'over_cap', errors: errors.length ? errors : ['the cost limit for this item did not allow another call'], usage, repairs };
     logTutorCall({ ...record, call: usage.calls + 1 });
     let result;
     try {
       const response = await callModel(env, body, model, null);
-      if (!response.ok) return { failed: 'unavailable', errors: [`provider status ${response.status}`], usage };
+      if (!response.ok) return { failed: 'unavailable', errors: [`provider status ${response.status}`], usage, repairs };
       result = await response.json();
-    } catch { return { failed: 'unavailable', errors: ['the provider call failed'], usage }; }
+    } catch { return { failed: 'unavailable', errors: ['the provider call failed'], usage, repairs }; }
     usage = usageOf(model, usage, result?.usage);
     const blocks = Array.isArray(result?.content) ? result.content : [], calls = blocks.filter(b => b?.type === 'tool_use');
     const submits = calls.filter(c => c.name === submit.name);
@@ -131,11 +131,12 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
     else {
       submitted = submits[0].input ?? {};
       const checked = await validate(submitted);
-      if (!checked.errors?.length) return { ok: checked.value, usage };
+      if (!checked.errors?.length) return { ok: checked.value, usage, repairs };
       errors = checked.errors;
     }
-    if (asked) return { failed: 'invalid', errors, usage, submitted };
-    asked = true;
+    // maxRepairs (Reviewer 19:40): how many times a refused answer goes back with what was wrong; the brief passes 2, every other turn keeps 1.
+    if (repairs >= maxRepairs) return { failed: 'invalid', errors, usage, submitted, repairs };
+    repairs += 1;
     const note = `Not accepted:\n${errors.slice(0, 12).join('\n')}\nCall ${submit.name} again with a corrected result.`;
     messages.push(calls.length
       ? { role: 'assistant', content: blocks }
