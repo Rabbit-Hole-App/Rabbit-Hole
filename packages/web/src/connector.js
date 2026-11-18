@@ -4,6 +4,7 @@
 //   ask:     a card made by "Ask in a new card" -> the card it was asked from (parentCard { id, revision, actionId }), SOLID, at the source's middle.
 // Pure geometry in world units; AdaptiveCanvas draws it in a layer BELOW every card.
 import { PALETTE } from './tutor-diagrams/primitives.js';
+import { FILLS, ROLE_NAMES, SERIES, SERIES_INK } from './tutor-diagrams/theme/palette.js';
 import { hashOf } from './place-sourced.js';
 import { markdownCardOf } from './source-ref.js';
 
@@ -60,9 +61,24 @@ export const PALETTE_ORDER = Object.keys(PALETTE);
 const INK = [0x32, 0x21, 0x1c];
 const mixHex = (hex, toward, amount) => `#${[1, 3, 5].map((i, c) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - amount) + toward[c] * amount).toString(16).padStart(2, '0')).join('')}`;
 export const LIGHT_MIX = 0.28;
-export function connectorColors(targetId) {
+// saved: the Theme 2 series name a connector was given when its card was made (parentCard.color, pickArrowColor): its fill on the dark canvas, its ink weight (SERIES_INK, 4.6:1 on the ground) on the light one.
+// A card made before that has none and keeps its hashed colour, so no saved arrow changes.
+export function connectorColors(targetId, saved = null) {
+  if (SERIES.includes(saved)) return { name: saved, dark: FILLS[saved], light: SERIES_INK[SERIES.indexOf(saved)] };
   const name = PALETTE_ORDER[hashOf(`connector|${targetId}`) % PALETTE_ORDER.length], base = PALETTE[name];
   return { name, dark: base, light: mixHex(base, INK, LIGHT_MIX) };
+}
+// The Theme 2 fill name a card's connector wears now: its saved one, else the hashed one (as drawn).
+export const arrowFillName = block => (SERIES.includes(block?.parentCard?.color) ? block.parentCard.color : ROLE_NAMES[connectorColors(block?.id).name]);
+// A new connector's colour: one of the eight Theme 2 series fills at random, never the one the previous connector from the same card wears. `previous`: its fill name or null; `random`: 0..1 (a test passes it).
+export function pickArrowColor(previous = null, random = Math.random) {
+  const pool = SERIES.filter(name => name !== previous);
+  return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+}
+// The colour for the next connector from card `parentId`: random, but not the one its latest child wears (blocks are in creation order).
+export function nextArrowColor(blocks, parentId, random = Math.random) {
+  const last = [...blocks].reverse().find(block => block.parentCard?.id === parentId);
+  return pickArrowColor(last ? arrowFillName(last) : null, random);
 }
 export function contrast(a, b) {
   const lum = hex => { const [r, g, bl] = [1, 3, 5].map(i => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * bl; };
@@ -84,12 +100,21 @@ export function connectorsOf(blocks) {
   return out;
 }
 
-// One connector's drawing, or null when either end is missing, minimized (a tile) or not measured. boxes: { id: { x, y, w, h } } (world units); passageY: { [targetId]: world y } measured passage lines.
+// One connector's drawing, or null when either end is missing or not measured. boxes: { id: { x, y, w, h } } (world units); passageY: { [targetId]: world y } measured passage lines.
 export function drawConnector(connector, blocks, boxes, passageY = {}) {
   const source = boxes[connector.from], target = boxes[connector.to];
   const from = blocks.find(block => block.id === connector.from), to = blocks.find(block => block.id === connector.to);
-  if (!source || !target || !from || !to || from.minimized || to.minimized) return null;
+  if (!source || !target || !from || !to) return null;
   const anchorY = Number.isFinite(passageY[connector.to]) ? passageY[connector.to] : connector.kind === 'explain' && Number.isFinite(connector.dy) ? source.y + connector.dy : null;
   const geometry = connectorGeometry({ source, target, anchorY });
-  return { id: connector.id, kind: connector.kind, geometry, head: arrowhead(geometry), colors: connectorColors(connector.to) };
+  return { id: connector.id, kind: connector.kind, geometry, head: arrowhead(geometry), colors: connectorColors(connector.to, to.parentCard?.color) };
+}
+
+// The arrow of a skeleton on its way (a slot made with arrow: { from, color }, AdaptiveCanvas reserve): from the source card to where the card will land, drawn in (drawIn) before the skeleton shows.
+// The card that fills the slot carries the same colour (parentCard.color), so the arrow that stays is this one, not a second.
+export function slotConnector(slot, boxes) {
+  const source = boxes[slot.arrow?.from];
+  if (!slot.at || !source) return null;
+  const geometry = connectorGeometry({ source, target: { x: slot.at.x, y: slot.at.y, w: slot.w, h: slot.h } });
+  return { id: `arrow:${slot.id}`, kind: 'ask', geometry, head: arrowhead(geometry), colors: connectorColors(slot.id, slot.arrow.color), drawIn: true };
 }

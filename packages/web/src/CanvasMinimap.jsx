@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { LocateFixed, Map as MapIcon, Minus } from 'lucide-react';
 import { minimapLayout, minimapToView } from './learn-minimap.js';
+import { usePlayingCard } from './audio-playing.js';
 
 // Exported for the canvas loading skeleton (CanvasLoading.jsx), which reserves this frame before the canvas loads.
 export const MINIMAP_SIZE = { w: 184, h: 124 };
@@ -13,6 +14,7 @@ const SIZE = MINIMAP_SIZE;
 export default function CanvasMinimap({ boxes, view, surface, onView, onFit, onFold = () => {} }) {
   const frame = useRef(null);
   // The fold is the canvas's (owner 2026-11-15): the one pill's map button shows and hides this panel (AdaptiveCanvas minimapFolded); the panel's own Minimize folds it too.
+  const playingId = usePlayingCard(); // the card whose explanation audio is playing: its mark is green (audio-playing.js)
   const layout = minimapLayout(boxes, view, surface, SIZE);
   const minimize = <button type="button" data-minimap-minimize title="Minimize minimap" aria-label="Minimize minimap"
     onPointerDown={event => event.stopPropagation()} onClick={() => onFold(true)}
@@ -43,7 +45,7 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit, onF
         {layout.boxes.map((box, index) => (
           // Hairlines round to nothing at this scale, so every block keeps a
           // minimum mark - an empty minimap would be worse than a rough one.
-          <rect key={index} x={box.x} y={box.y} width={Math.max(2, box.w)} height={Math.max(2, box.h)} rx={1} {...(box.hole ? { 'data-minimap-hole': '', className: 'fill-hole' } : { className: 'fill-ink-3/35' })} />
+          <rect key={index} x={box.x} y={box.y} width={Math.max(2, box.w)} height={Math.max(2, box.h)} rx={1} {...(box.id && box.id === playingId ? { 'data-minimap-playing': '', className: 'fill-[color-mix(in_srgb,var(--viz-playing)_35%,transparent)] stroke-[var(--viz-playing)]', strokeWidth: 1.5 } : box.hole ? { 'data-minimap-hole': '', className: 'fill-hole' } : { className: 'fill-ink-3/35' })} />
         ))}
         <rect x={layout.view.x} y={layout.view.y} width={Math.max(4, layout.view.w)} height={Math.max(4, layout.view.h)}
           rx={2} fill="none" stroke="#2383e2" strokeWidth={1.5} />

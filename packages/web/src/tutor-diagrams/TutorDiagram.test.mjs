@@ -44,6 +44,20 @@ test('the drop-in component renders escaped text and uses the caller fallback fo
   assert.equal(invalid, '<p>Existing explanation</p>');
 });
 
+test('every diagram is hosted with the theme colour variables, so a plain bar chart is cream with ink in the dark app too', () => {
+  const plainBars = { version: 1, diagram: { kind: 'bar-chart', title: 'Softmax with one large logit', unit: 'probability', bars: [{ label: 'Class A', value: 0.99 }, { label: 'Class B', value: 0.005 }, { label: 'Class C', value: 0.005 }] } };
+  const flow = { version: 1, diagram: { kind: 'flow', title: 'Two steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Done', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] } };
+  for (const spec of [plainBars, flow]) {
+    const html = renderToStaticMarkup(createElement(TutorDiagram, { spec }));
+    const host = html.slice(0, html.indexOf('<svg'));
+    assert.match(host, /--viz-surface:#FFFCF0/i, `${spec.diagram.kind}: the host carries the cream ground`);
+    assert.match(host, /--color-ink:#32211C/i, `${spec.diagram.kind}: and the ink`);
+  }
+  // the SVG markup itself is unchanged (the variables are on the host, not in the string every snapshot hashes)
+  const svgTag = renderToStaticMarkup(renderTutorDiagram(plainBars, 408).element).match(/<svg[^>]*>/)[0];
+  assert.ok(!/--viz-surface:/.test(svgTag), 'a non-teaching diagram svg carries no variable overrides of its own (the host does)');
+});
+
 test('a wide matrix retains its native text size in the horizontally scrollable host', () => {
   const columns = ['One', 'Two', 'Three', 'Four', 'Five'];
   const spec = {

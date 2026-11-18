@@ -132,6 +132,7 @@ html {
   --viz-identity-2-text: #867033;
   --viz-surface: #FFFCF0;
   --viz-fill-slate: #A8BBD0;
+  --viz-playing: #3A7E69;
   /* A solid-filled role carries its own readable ink, because the fill is the
      background at that point and which ink reads on it flips with the theme:
      observed is near-black in light and near-white in dark. */
@@ -479,6 +480,7 @@ html {
   --viz-identity-3-text: #9c6aff;
   --viz-surface: #1f1f1f;
   --viz-fill-slate: #A8BBD0;
+  --viz-playing: #3A7E69;
   --viz-on-observed: #1f1f1f;
   --viz-on-success: #1f1f1f;
   /* Heat diverging scale, dark - each clears 3:1 against --viz-surface:
@@ -1002,6 +1004,16 @@ html:is([data-card-size="0"], [data-card-size="1"]) .card-grid > li > [data-card
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line { animation: none; }
 }
+/* A card made from a card (Ask in a new card): the connector draws in from the source to the slot (300 ms; the path has pathLength 1), its head lands at the end, and only then does the
+   skeleton show (SlotCard data-slot-after-arrow, the same 300 ms as a delay). Reduced motion: no drawing, everything shows at once. */
+.arrow-draw { stroke-dasharray: 1; animation: arrow-draw 300ms ease-out both; }
+.arrow-head-in { animation: arrow-head-in 60ms linear 250ms both; }
+.slot-after-arrow { animation: arrow-head-in 120ms ease-out 300ms both; }
+@keyframes arrow-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes arrow-head-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .arrow-draw, .arrow-head-in, .slot-after-arrow { animation: none; }
+}
 
 /* Voice Mode's red mic breathes (VoiceMode.jsx): a ring swells out and fades while the icon softly
    pulses, 2s ease-in-out; a little quicker while listening. Reduced motion keeps a static ring - the
@@ -1100,6 +1112,16 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
   outline-offset: 2px;
 }
 
+/* A card whose explanation audio is playing (audio-playing.js, AdaptiveCanvas CanvasNode data-audio-playing; owner 2026-11-17): a green frame, the palette's success green (--viz-playing, generated from palette.js),
+   as the card's border and a soft outer outline, in addition to the selection ring (a box-shadow, so the two never collide). Outline, not a thicker border: no layout shift.
+   A static frame, no pulse; the border colour fades over the card's 150 ms (Settings' reduced motion zeroes it). */
+[data-block][data-block-id] { transition-property: box-shadow, border-color; }
+[data-block][data-audio-playing] {
+  border-color: var(--viz-playing);
+  outline: 3px solid color-mix(in srgb, var(--viz-playing) 25%, transparent);
+  outline-offset: 0;
+}
+
 /* A written Explanation's Markdown table (Md explain): the TutorDiagram frame - the shared surface, a 12px rounded border, a muted slate
    header, neutral rows and hairline dividers - so a table and a diagram sit together as one set. Cells wrap; the frame scrolls sideways
    only when the columns' minimum widths need more room than the card has. Scoped to [data-explain-table]; every other table is untouched. */
@@ -1129,3 +1151,8 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 
 /* While a card or the canvas is being dragged the card action pill (Enter, Add to chat, Quick Edit, Minimize) is hidden (owner 2026-11-13). */
 body.canvas-dragging [data-card-chrome-row] { display: none; }
+
+/* The transcript window beside a playing Explanation card (TranscriptWindow.jsx, mounted in CanvasNode): while it is open the card (and its footprint slot) rises above the cards painted after it, so the
+   window over a neighbour is not covered by it. A sibling card's own z-[5] (selected) is the same rank and wins by order only when both are open, which one audio never is. */
+[data-block]:has(> [data-card-transcript]),
+[data-card-slot]:has(> [data-block] > [data-card-transcript]) { z-index: 6; }
