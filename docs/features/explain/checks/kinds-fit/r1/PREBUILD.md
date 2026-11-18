@@ -24,3 +24,11 @@ Branch feat/kinds-fit off main 14ca6c840, worktree C:/s/kinds-fit. Spec: explain
 12. **Rule 4 check.** `FrameFigures.jsx` (explain-program/) calls `renderTutorDiagram(spec, box.w)` and `explanation-card-width.js` calls it too: both keep working unchanged (no third argument, byte-identical output; `naturalSize` TutorDiagram.js:60-66 unchanged).
 
 Nothing else in the spec is blocked. Building now.
+
+## Reviewer answers A to F (folded in; the build follows them)
+- A. `parts.legend: 'always'` draws a pill for a single series too; the "no legend for one series" rule (LEG-1) governs `'auto'` only.
+- B. A size role a kind does not use is ignored silently; the report lists which roles each finished kind reads.
+- C. The report gives the true `min` and the picture is drawn at it; nothing is squeezed and nothing overlaps to hit 312 x 312. "Under 312 x 312" in the spec is an estimate, not a target.
+- D. No extra field: `min` is for the width actually drawn (its width is the narrowest this spec can be drawn at; its height is the minimum height at the drawn width). A caller that wants the narrowest case calls again with the box at `min.width`.
+- E. Release order (renderer release and GEN-1 R1 never ship together; the report read first ships first, renderer first if both are ready): noted, not part of this build.
+- F. `geometry` is `null` for a kind not done; an object (lists may be empty) only for a kind that returns positions. Wired in this delivery: **coordinate-plot** (plot area, axis ranges), **token-links** (panels with tokens and links), and **flow** (its existing `geometry` of node boxes and edge points, passed through with the title offset; flow takes no box or sizes yet). **Tensor returns null** (point 1: no per-cell positions exist). Every other kind returns null.
