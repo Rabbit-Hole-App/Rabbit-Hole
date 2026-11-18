@@ -1,0 +1,10 @@
+{
+ "note": "Offline, from the saved section-6 results (303 runs per arm) and section-6b (147 runs, AFTER-2 only). The saved results keep only the error text of attempt 0, not the attempt-0 spec, so the coercion cannot be re-validated offline: these are the runs whose attempt-0 error was the columns error ('diagram.columns.N: Invalid input: expected string, received object'), i.e. the ceiling on what any columns coercion can turn valid.",
+ "section6": {
+  "before": { "runs": 303, "attempt0ColumnsError": 10, "ofWhichSimplifiedFallback": 5, "pureColumnsErrorOnly": 9 },
+  "after": { "runs": 303, "attempt0ColumnsError": 10, "ofWhichSimplifiedFallback": 9, "pureColumnsErrorOnly": 10 }
+ },
+ "section6b_after2": { "runs": 147, "attempt0ColumnsError": 0 },
+ "promptDepthPairs": ["transformer decoder look-ahead / balanced", "transformer decoder look-ahead / detailed", "forward diffusion known noise / balanced", "Gini impurity both sides of a split / balanced (tree-planned, 2 runs, repaired on the first repair)"],
+ "firstAttemptsTurnedValidByThisChange": "not measurable offline (attempt-0 specs are not saved); rerun.mjs measures it"
+}

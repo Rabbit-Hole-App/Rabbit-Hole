@@ -1,0 +1,91 @@
+{
+ "items": [
+  {
+   "idx": 1,
+   "set": "gem-s1",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 2,
+   "set": "gem-s1",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 3,
+   "set": "gem-s1",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 3
+  },
+  {
+   "idx": 4,
+   "set": "gem-s1",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 1
+  },
+  {
+   "idx": 5,
+   "set": "gem-s1",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 2
+  },
+  {
+   "idx": 6,
+   "set": "gem-s1",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 3
+  },
+  {
+   "idx": 7,
+   "set": "gem-s1",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 8,
+   "set": "gem-s1",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 9,
+   "set": "gem-s1",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 3
+  },
+  {
+   "idx": 10,
+   "set": "gem-s1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 1
+  },
+  {
+   "idx": 11,
+   "set": "gem-s1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 2
+  },
+  {
+   "idx": 12,
+   "set": "gem-s1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 3
+  }
+ ],
+ "meta": {
+  "note": "GEM-S1: the (prompt, depth) pairs whose section-6 attempt-0 error was the columns error (both arms), 3 reps each"
+ }
+}
