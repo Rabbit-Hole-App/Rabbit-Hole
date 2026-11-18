@@ -1,0 +1,435 @@
+[
+ {
+  "idx": 18,
+  "arm": "after",
+  "prompt": "what is gini impurity",
+  "depth": "brief",
+  "rep": 1,
+  "plannerKind": "tree",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes.0.label: A circle carries at most two characters; diagram.nodes.1.label: A leaf square carries no label; diagram.nodes.1.label: A circle carries at most two characters)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Imagine sorting a mixed box of toys into separate piles by type. Gini impurity is a score that measures how mixed up a group of items is.\n\nA score of zero means the group is completely pure and contains only one kind of thing.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Tree split and Gini impurity\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"All\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Pure\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Mix\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nWhen items are split into different branches, we want each branch to become less mixed than before. The impurity score helps decision trees decide the best way to divide data into clear groups.\n\nLower scores mean the sorting worked well and the resulting piles are clean."
+ },
+ {
+  "idx": 47,
+  "arm": "after",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "balanced",
+  "rep": 1,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "The transformer decoder prevents tokens from attending to future positions during training by applying an upper-triangular causal mask to the attention matrix.\n\nThis ensures the model learns generation autoregressively without cheating from upcoming context.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal mask on decoder scores\",\"caption\":\"The mask hides later keys. The sat row can score the, cat and sat.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nBefore softmax normalization, future positions receive a score of negative infinity, effectively nullifying their influence. Look for how the upper right triangle contains null values in the heatmap above.\n\nAfter applying the mask and computing row-wise softmax, weights sum to one over allowed keys only. Past tokens retain fractional attention weights"
+ },
+ {
+  "idx": 56,
+  "arm": "after",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "detailed",
+  "rep": 1,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "The transformer decoder prevents illegal attention to future tokens by applying an additive causal mask $M$ to the scaled dot-product attention scores before computing the softmax function.\n\nFor a sequence length $n$, the mask matrix $M_{ij}$ is defined as $0$ when $j \\le i$ and $-\\infty$ when $j > i$, ensuring that query position $i$ cannot attend to key position $j$ beyond the current step.\n\nLook at the heatmap above to see how upper triangular entries are blocked with negative infinity while lower entries remain unmasked.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal masking before softmax\",\"caption\":\"Across six positions, add $M_{ij}=-\\\\infty$ when $j>i$ and $0$ otherwise. Gray cells show the blocked scores.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nIn practice, this autoregressive const"
+ },
+ {
+  "idx": 76,
+  "arm": "after",
+  "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+  "depth": "balanced",
+  "rep": 1,
+  "plannerKind": "transformation",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Forward diffusion corrupts a clean latent vector by mixing it with sampled Gaussian noise according to predefined noise schedules.\n\nEach step scales the original signal down while scaling the noise up to preserve variance.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Forward diffusion with known noise\",\"caption\":\"Each cell combines part of the clean value with part of the known noise. The noise is kept as the target.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Clean\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Sampled noise\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Noisy result\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nExamining individual cells shows how the clean value and noise combine linearly to form the noisy latent. The resulting tensor serves as the training target for the denoising network."
+ },
+ {
+  "idx": 159,
+  "arm": "after",
+  "prompt": "what is gradient descent?",
+  "depth": "brief",
+  "rep": 2,
+  "plannerKind": "flow",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.edges: A flow cannot contain a cycle or unreachable nodes)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Imagine you are blindfolded on a hilly terrain and want to walk down to the lowest valley. You feel the slope with your feet and step in the direction that goes down most steeply.\n\nBy repeating this small step again and again, you eventually reach the bottom.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Steps down a hill to find the lowest spot\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Start at a random place on the hill\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Look around for the steepest downward slope\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Take a step down in that direction\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"Are we at the bottom?\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"Stop at the lowest spot\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"Continue searching\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nGradient descent is a computer algorithm that does the exact same thing to find the best settings for a task. The slope is called the error, and the goal is to reach zero error by tweaking parameters.\n\nEach step size is known as the learning rate, guiding how fast the compu"
+ },
+ {
+  "idx": 194,
+  "arm": "after",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "balanced",
+  "rep": 2,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "The transformer decoder prevents models from reading future context by applying a causal mask to attention scores. When predicting the word sat, the model must not access later words like on or mat.\n\nLook for the masked cells in the upper right triangle of the heatmap below where future positions are blocked.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal mask on decoder scores\",\"caption\":\"The mask hides later keys. The sat row can score the, cat and sat.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nThis matrix sets forbidden positions to negative infinity before the softmax function runs. Because softmax exponentiates these values, the blocked future positions receive exactly zero weight.\n\nAs a result, each query position can only attend to current and preceding tokens in the sequence. This pre"
+ },
+ {
+  "idx": 203,
+  "arm": "after",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "detailed",
+  "rep": 2,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "The decoder prevents attending to future tokens by adding an additive causal mask $M$ to the attention scores before the softmax operation.\n\nFor query position $i$ and key position $j$, the mask value is $M_{ij} = 0$ if $j \\le i$ and $M_{ij} = -\\infty$ if $j > i$.\n\nExamine the heatmap below to see how upper-triangle entries receive negative infinity.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal masking before softmax\",\"caption\":\"Across six positions, add $M_{ij}=-\\\\infty$ when $j>i$ and $0$ otherwise. Gray cells show the blocked scores.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nWhen exponentiated during row-wise $\\operatorname{softmax}$, these $-\\infty$ entries evaluate to zero weight. This ensures that token representations only depend on past and present positions."
+ },
+ {
+  "idx": 222,
+  "arm": "after",
+  "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+  "depth": "balanced",
+  "rep": 2,
+  "plannerKind": "transformation",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Forward diffusion corrupts a clean latent by mixing it with sampled Gaussian noise over discrete steps. This process scales both the original latent and the random noise coefficients depending on the schedule.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Forward diffusion with known noise\",\"caption\":\"Each cell combines part of the clean value with part of the known noise. The noise is kept as the target.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Clean\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Sampled noise\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Noisy result\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nNotice how each cell in the noisy result combines a portion of the clean value and a portion of the noise. The model then learns to predict this exact added noise during training."
+ },
+ {
+  "idx": 235,
+  "arm": "after",
+  "prompt": "what is a learning rate schedule?",
+  "depth": "brief",
+  "rep": 3,
+  "plannerKind": "flow",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes: A flow needs exactly one root)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "When you teach a computer model, it takes steps to find better answers. A learning rate schedule is a pre-planned rule that changes how big those steps are as training goes on.\n\nAt the start, you want large steps so the model learns quickly and covers a lot of ground. Look at the flow to see how training begins with large steps before checking progress.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Changing step sizes during training\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Start training with a larger step size\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Has training progressed through set epochs?\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Reduce the step size by a fixed factor\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"Continue training with refined updates\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"}]}}\n```\n\nLater on, big steps can cause the model to overshoot the best answer and bounce around. Reducing the step size helps the model settle into a precise solution safely."
+ },
+ {
+  "idx": 269,
+  "arm": "after",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "balanced",
+  "rep": 3,
+  "plannerKind": "token-links",
+  "simplifiedCount": 2,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow",
+   "flow"
+  ],
+  "bodyExcerpt": "Decoder models prevent future word leakage by applying a lower-triangular causal mask to their attention scores. Look at the heatmap in to see how future positions are blocked.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal mask on decoder scores\",\"caption\":\"The mask hides later keys. The sat row can score the, cat and sat.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nBefore computing softmax normalization, forbidden entries receive negative infinity so they contribute zero weight. This ensures each token only attends to past context and itself.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Soil temperature in Celsius\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Morning\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Noon\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"}]}}\n```\n\nSoil temperatures sho"
+ },
+ {
+  "idx": 278,
+  "arm": "after",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "detailed",
+  "rep": 3,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "The decoder prevents attending to future tokens by adding a causal mask $M$ to the scaled query-key dot products before applying the softmax function.\n\nNotice in the heatmap how all positions strictly to the right of the diagonal receive $-\\infty$, completely blocking information flow from future sequence steps.\n\n$$\\text{Attention}(Q, K, V) = \\operatorname{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}} + M\\right)V$$\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal masking before softmax\",\"caption\":\"Across six positions, add $M_{ij}=-\\\\infty$ when $j>i$ and $0$ otherwise. Gray cells show the blocked scores.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nThis exact matrix addition guarantees autoregressive property during training, ensuring each prediction relies solely on past context."
+ },
+ {
+  "idx": 297,
+  "arm": "after",
+  "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+  "depth": "balanced",
+  "rep": 3,
+  "plannerKind": "transformation",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": 1,
+    "repairedAt": 1
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Forward diffusion scales a clean latent value and adds sampled Gaussian noise to simulate degradation. Look at the heatmap values to trace how clean inputs mix with noise.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Forward diffusion with known noise\",\"caption\":\"Each cell combines part of the clean value with part of the known noise. The noise is kept as the target.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Clean\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Sampled noise\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Noisy result\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nEach noisy result is computed using coefficients derived from the current timestep schedule. These calculated values form the training target for the denoising network."
+ },
+ {
+  "idx": 47,
+  "arm": "before",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "balanced",
+  "rep": 1,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": "n/a (field absent in BEFORE; top-level repaired=true)",
+    "repairedAt": null
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Transformer decoders prevent looking ahead by applying a causal mask to the attention matrix. This mask sets future token positions to negative infinity before computing the softmax function.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal mask on decoder scores\",\"caption\":\"The mask hides later keys. The sat row can score the, cat and sat.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nLook at the heatmap to see how scores for future keys are blocked. In the sat row, values for later words are null.\n\nBecause the masked cells hold negative infinity, their exponentials become zero. This ensures the model only attends to past and current tokens.\n\nFollowing the softmax operation, the weights over allowed keys sum to one. The hidden future positions receive no weight at all."
+ },
+ {
+  "idx": 76,
+  "arm": "before",
+  "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+  "depth": "balanced",
+  "rep": 1,
+  "plannerKind": "transformation",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": "n/a (field absent in BEFORE; top-level repaired=true)",
+    "repairedAt": null
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Forward diffusion corrupts a clean latent by blending it step by step with sampled Gaussian noise. Each cell combines a scaled version of the clean value with a scaled version of the noise.\n\nLook at the grid values below to see how inputs mix into the noisy result.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Forward diffusion with known noise\",\"caption\":\"Each cell combines part of the clean value with part of the known noise.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Clean\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Sampled noise\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Noisy result\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nCoefficients for the clean part and the noise depend on the variance schedule at the current timestep. As steps advance, the clean signal shrinks while the noise component grows larger."
+ },
+ {
+  "idx": 203,
+  "arm": "before",
+  "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+  "depth": "detailed",
+  "rep": 2,
+  "plannerKind": "token-links",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": "n/a (field absent in BEFORE; top-level repaired=true)",
+    "repairedAt": null
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "The decoder prevents looking ahead by adding a causal mask $M$ to the attention scores before computing the softmax function.\n\nFor queries at position $i$ and keys at position $j$, the mask sets $M_{ij} = -\\infty$ whenever $j > i$ and $0$ otherwise.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Causal masking before softmax\",\"caption\":\"Across six positions, add $M_{ij}=-\\\\infty$ when $j>i$ and $0$ otherwise. Gray cells show the blocked scores.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"the 1\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"cat 2\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"sat 3\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"on 4\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"the 5\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"mat 6\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nLook at the heatmap to see how future positions receive $-\\infty$ scores while past and present positions retain their raw attention values.\n\nApplying row-wise softmax to $S + M$ turns these negative infinities into zero probability weights for all future tokens.\n\nThis ensures that a token can only attend to preceding"
+ },
+ {
+  "idx": 222,
+  "arm": "before",
+  "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+  "depth": "balanced",
+  "rep": 2,
+  "plannerKind": "transformation",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": "n/a (field absent in BEFORE; top-level repaired=true)",
+    "repairedAt": null
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Forward diffusion corrupts a clean latent by blending it with known Gaussian noise over time steps. Each latent cell receives a weighted sum of the original value and the sampled noise according to schedule coefficients.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Forward diffusion with known noise\",\"caption\":\"Each cell combines part of the clean value with part of the known noise.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Clean\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Sampled noise\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Noisy result\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nThe table above shows a two-by-two toy latent undergoing this process step by step. Notice how the clean values combine with the noise to yield the final noisy result."
+ },
+ {
+  "idx": 234,
+  "arm": "before",
+  "prompt": "what is gradient descent?",
+  "depth": "brief",
+  "rep": 3,
+  "plannerKind": "flow",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": "n/a (field absent in BEFORE; top-level repaired=true)",
+    "repairedAt": null
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.edges: A flow cannot contain a cycle or unreachable nodes)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Imagine you are blindfolded on a steep hill and want to reach the lowest valley. You would feel the ground with your feet to find which way slopes downward, and then take a step in that direction.\n\nYou repeat this small step over and over until the ground feels flat beneath you.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Steps to find the lowest point\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Start at a random point\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Calculate slope of the curve\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Take a step downhill\",\"role\":\"process\"},{\"id\":\"n4\",\"label\":\"Are we at the bottom?\",\"role\":\"process\"},{\"id\":\"n5\",\"label\":\"Stop at the minimum\",\"role\":\"process\"},{\"id\":\"n6\",\"label\":\"Adjust parameters\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"},{\"from\":\"n3\",\"to\":\"n4\"},{\"from\":\"n4\",\"to\":\"n5\"},{\"from\":\"n5\",\"to\":\"n6\"}]}}\n```\n\nIn computer science, this hill-climbing process in reverse is called gradient descent. The hill represents an error function, where high points mean many mistakes and the bottom means the best accuracy.\n\nA gradient is simply the mathematical slope telling us which way is up, so we go the opposite way.\n\nCompute"
+ },
+ {
+  "idx": 297,
+  "arm": "before",
+  "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+  "depth": "balanced",
+  "rep": 3,
+  "plannerKind": "transformation",
+  "simplifiedCount": 1,
+  "visualFallback": "simplified",
+  "step": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact",
+    "repairs": "n/a (field absent in BEFORE; top-level repaired=true)",
+    "repairedAt": null
+   }
+  ],
+  "attempt0Issue": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected string, received object)",
+  "finalKinds": [
+   "flow"
+  ],
+  "bodyExcerpt": "Forward diffusion progressively corrupts an image or latent variable by blending it with random Gaussian noise over multiple timesteps.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"title\":\"Forward diffusion with known noise\",\"caption\":\"Each cell combines part of the clean value with part of the known noise. The noise is kept as the target.\",\"kind\":\"flow\",\"nodes\":[{\"id\":\"n1\",\"label\":\"Clean\",\"role\":\"process\"},{\"id\":\"n2\",\"label\":\"Sampled noise\",\"role\":\"process\"},{\"id\":\"n3\",\"label\":\"Noisy result\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"n1\",\"to\":\"n2\"},{\"from\":\"n2\",\"to\":\"n3\"}]}}\n```\n\nAt each step, the model computes a noisy latent by taking a weighted sum of the clean latent and the sampled noise according to a predefined schedule."
+ }
+]
