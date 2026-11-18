@@ -6,7 +6,7 @@ import { textWidth } from '../tutor-diagrams/primitives.js';
 // B follows the mass and length sliders. The angle-against-time plot is an /explain coordinate-plot through sdk.diagram (its smooth line, fixed ranges).
 // Brief 35 amendment A: the panel is the frame's own plot figure (sdk.plot with axes: ticks 13 px, titles 16 px, drawn at full size, no legend with one series). A plot needs a series, so it gets one empty scatter series
 // (it draws nothing); the two curves, the time line and the two dots are frame objects in the figure's plot area (plot.area, read from plotArea in explain-program/FrameFigures.jsx by scripts/interact/bake-pendulum-geometry.mjs).
-// Each curve is a polyline of 161 evenly spaced points plus a point at every quarter period, so every peak is exactly theta0 and the curve reads as smooth at the shortest string (about 28 points a swing).
+// The time line stops 2 px inside the plot area at each end, so the y title keeps the 8 px the overlap rule asks. Each curve is a polyline of 161 evenly spaced points plus a point at every quarter period, so every peak is exactly theta0 and the curve reads as smooth at the shortest string (about 28 points a swing).
 // Brief 35: the card sits on the scene layout its plan declares (docs/features/interact/layout.md, interact-layout.js): the stage and the panel boxes, the values section, the formula and the note, all placed from
 // the layout's boxes when the program is built, every text measured against its box then (a text that does not fit is refused). ponytail: one card, no damping, small-angle start only.
 const text = max => z.string().min(1).max(max);
@@ -72,10 +72,10 @@ export function evaluate({inputs,time}){
   swing('B',Math.round(SX+0.68*SW),length,mass,angleB,'warning');
   objects.push(sdk.plot('angle.plot',{x:PB[0],y:PB[1],w:PB[2],h:PB[3],axes:{x:{label:T.plot.time,min:0,max:T.duration,unit:'s'},y:{label:T.plot.angle,min:-T.plot.yMax,max:T.plot.yMax,unit:'°'}},series:[{label:'Angle',kind:'scatter',points:[]}]}));
   const curve=(id,period,role)=>sdk.polyline(id,sampleTimes(period).map(value=>[round(X(value)),round(Y(T.theta0*Math.cos(2*Math.PI*value/period)))]),{role:role}),nowX=round(X(t));
-  objects.push(curve('curve.A',periodA,'input'),curve('curve.B',periodB,'warning'),sdk.line('now',nowX,PA.top,nowX,PA.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,round(Y(angleA)),12,{role:'input'}),sdk.circle('dot.B',nowX,round(Y(angleB)),12,{role:'warning'}));
+  objects.push(curve('curve.A',periodA,'input'),curve('curve.B',periodB,'warning'),sdk.line('now',nowX,PA.top+2,nowX,PA.bottom-2,{role:'neutral'}),sdk.circle('dot.A',nowX,round(Y(angleA)),12,{role:'input'}),sdk.circle('dot.B',nowX,round(Y(angleB)),12,{role:'warning'}));
   const quantity={angleB:angleB,periodA:periodA,periodB:periodB};
   L.values.forEach((entry,k)=>{const look=LOOK[entry.kind],shown=quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);
-    objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:'neutral'}),sdk.text('value.'+k+'.label',entry.labelX,entry.y,entry.label,look),sdk.text('value.'+k+'.number',entry.numberX,entry.y,shown,{align:'middle',role:look.role,opacity:look.opacity}));});
+    objects.push(sdk.text('value.'+k+'.label',entry.labelX,entry.y,entry.label,look),sdk.text('value.'+k+'.number',entry.numberX,entry.y,shown,{align:'middle',role:look.role,opacity:look.opacity}));});
   objects.push(sdk.text('formula',L.formula.x,L.formula.y,L.formula.text,{role:'neutral'}));
   const sameLength=Math.abs(length-ref.length)<1e-9,sameMass=Math.abs(mass-ref.mass)<1e-9;
   objects.push(sdk.text('note',L.note.x,L.note.y,sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter,{role:'neutral'}));
