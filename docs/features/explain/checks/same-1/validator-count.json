@@ -1,51 +1,14 @@
 {
- "references": 469,
+ "references": 470,
  "transformationListDiagramsFound": 53,
  "tensorExempt": 33,
- "rejected": 4,
+ "rejected": 0,
  "rejectedBy": {
   "reference": 0,
-  "gallery": 1,
-  "gallery-depths": 3
+  "gallery": 0,
+  "gallery-depths": 0
  },
- "list": [
-  {
-   "source": "gallery",
-   "id": "kind-gallery[10] transformation",
-   "path": ".diagram",
-   "before": 1,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "gallery-depths",
-   "id": "kind-gallery-depths[10] undefined",
-   "path": ".overview.diagram",
-   "before": 1,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "gallery-depths",
-   "id": "kind-gallery-depths[10] undefined",
-   "path": ".standard.diagram",
-   "before": 1,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  },
-  {
-   "source": "gallery-depths",
-   "id": "kind-gallery-depths[10] undefined",
-   "path": ".deep.diagram",
-   "before": 1,
-   "after": 1,
-   "tensorExempt": false,
-   "rejected": true
-  }
- ],
+ "list": [],
  "allFound": [
   "reference:ml-transformer-qkv-projections.spec.diagram 1->3 tensor",
   "reference:ml-transformer-qkv-projections.depths.overview.spec.diagram 1->3 tensor",
@@ -96,9 +59,9 @@
   "reference:ml-what-is-machine-learning-program-direction.depths.overview.spec.diagram 2->2",
   "reference:ml-what-is-machine-learning-program-direction.depths.standard.spec.diagram 3->3",
   "reference:ml-what-is-machine-learning-program-direction.depths.deep.spec.diagram 3->3",
-  "gallery:kind-gallery[10] transformation.diagram 1->1",
-  "gallery-depths:kind-gallery-depths[10] undefined.overview.diagram 1->1",
-  "gallery-depths:kind-gallery-depths[10] undefined.standard.diagram 1->1",
-  "gallery-depths:kind-gallery-depths[10] undefined.deep.diagram 1->1"
+  "gallery:kind-gallery[10] transformation.diagram 3->3",
+  "gallery-depths:kind-gallery-depths[10] undefined.overview.diagram 3->3",
+  "gallery-depths:kind-gallery-depths[10] undefined.standard.diagram 3->3",
+  "gallery-depths:kind-gallery-depths[10] undefined.deep.diagram 3->3"
  ]
 }

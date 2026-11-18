@@ -1,0 +1,1 @@
+running total upper bound US$0.4523 after 156 runs; stop line US$0.90; arms before,after,everything
