@@ -311,7 +311,10 @@ test('the window shows narration.transcript (LaTeX) when there is one, else the 
 });
 
 // Card audio generation (explanation-audio.js; the canvas offers `narrate` through ExplanationHost only where the card can be edited).
-const scripted = (over = {}) => ({ status: 'script', script: 'Spoken words here.', transcript: 'Spoken $x$ words.', seconds: 70, ...over });
+const scripted = (over = {}) => ({ status: 'script', script: 'Spoken words here.', transcript: 'Spoken $x$ words.', seconds: 70, estimate_credits: 3, ...over });
+// The paid confirmation (ConfirmDialog, portalled to the body): Play asks first and shows the cost in AI units; this presses its Generate or Cancel.
+const dialog = () => $('[role="dialog"]');
+const pressIn = (label, root = dialog()) => click([...root.querySelectorAll('button')].find(button => button.textContent.trim() === label));
 
 test('a script with no audio yet: the editor sees one Play button (no replay), nothing is read or played until it is pressed; a viewer (no host function) sees nothing', async () => {
   reset();
@@ -336,7 +339,17 @@ test('pressing Play on a script makes the voice (one request, button busy and di
   const host = { narrate: id => { asked.push(id); return new Promise(resolve => { finish = resolve; }); } };
   await mount(card('a', { narration: scripted() }), { host });
   await click($('[data-audio-play]'));
+  assert.deepEqual(asked, [], 'Play asks first: nothing is spent on the press itself');
+  assert.equal(dialog().getAttribute('aria-label'), 'Make the audio');
+  assert.equal($('[data-audio-confirm]').textContent, 'This uses paid generation. Estimated cost: 3 AI units', 'the voice cost in AI units, the servers figure, in the shared wording');
+  assert.ok(!/\$|dollar/i.test(dialog().textContent), 'credits only, never dollars');
+  await pressIn('Cancel');
+  assert.equal(dialog(), null);
+  assert.deepEqual(asked, [], 'Cancel spends nothing');
+  await click($('[data-audio-play]'));
+  await pressIn('Generate');
   assert.deepEqual(asked, ['a']);
+  assert.equal(dialog(), null);
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'preparing');
   assert.ok($('[data-audio-play]').hasAttribute('disabled'));
   assert.equal($('[data-audio-play]').getAttribute('title'), 'Preparing audio');
@@ -361,14 +374,36 @@ test('a failed step: the pill shows the same failure state as a failed playback,
   const host = { narrate: async id => { asked.push(id); return results.shift() ?? null; } };
   await mount(card('a', { narration: scripted() }), { host });
   await click($('[data-audio-play]'));
+  await pressIn('Generate');
   assert.deepEqual(toasts.map(t => t.message), ['Audio is not set up on this server yet.']);
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'script', 'the button is pressable again');
   await mount(card('a', { narration: { ...scripted(), status: 'error', failed: 'audio', code: 'not_configured', reason: 'Audio is not set up on this server yet.' } }), { host });
   assert.equal($('[data-explanation-audio]').getAttribute('data-audio-state'), 'failed');
   assert.equal($('[data-audio-play]').getAttribute('title'), 'Audio could not play. Try again.');
   await click($('[data-audio-play]'));
+  await pressIn('Generate'); // a retry asks again before spending
   assert.deepEqual(asked, ['a', 'a'], 'the retry asks again');
   assert.equal(toasts.at(-1).message, 'The audio could not be made. Try again.', 'a press that got nothing back still says so');
   await mount(card('a', { narration: ready('fs_late') }), { host });
   assert.equal(audios.every(a => a.plays === 0), true, 'a ready narration that arrives without a press is never autoplayed');
+});
+
+test('the confirmation of a card whose script failed: the free script step runs first, then the paid confirmation; without a quoted cost there is no Generate', async () => {
+  reset();
+  const asked = [];
+  const host = { narrate: async (id, options) => { asked.push([id, options]); return scripted({ estimate_credits: 5 }); } };
+  await mount(card('a', { narration: { status: 'error', failed: 'script', code: 'empty', reason: 'x' } }), { host });
+  await click($('[data-audio-play]'));
+  assert.deepEqual(asked, [['a', { voice: false }]], 'the script step only, no voice');
+  await mount(card('a', { narration: scripted({ estimate_credits: 5 }) }), { host });
+  await click($('[data-audio-play]'));
+  assert.equal($('[data-audio-confirm]').textContent, 'This uses paid generation. Estimated cost: 5 AI units');
+  await pressIn('Cancel');
+  await mount(card('a', { narration: scripted({ estimate_credits: undefined }) }), { host });
+  await click($('[data-audio-play]'));
+  assert.match($('[data-audio-confirm]').textContent, /Price not available yet$/, 'a price the server cannot quote is said, never shown as zero');
+  const generate = [...dialog().querySelectorAll('button')].find(b => b.textContent.trim() === 'Generate');
+  assert.ok(generate.hasAttribute('disabled'));
+  await pressIn('Cancel');
+  assert.equal(asked.length, 1);
 });
