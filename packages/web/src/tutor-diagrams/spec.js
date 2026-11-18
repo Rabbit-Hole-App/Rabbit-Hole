@@ -147,7 +147,7 @@ for (const schema of [createTensorShape(helpers), tokenLinks, blockStack]) shape
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
-function childDiagrams(diagram) {
+export function childDiagrams(diagram) {
   if ((diagram.kind === 'comparison' && diagram.variant === 'panels') || diagram.kind === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
   if (diagram.kind === 'transformation' && diagram.variant === 'visual') return ['before', 'after'].filter(side => diagram[side]?.diagram).map(side => ({ diagram: diagram[side].diagram, path: [side, 'diagram'] }));
   return [];

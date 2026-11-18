@@ -87,6 +87,10 @@ A number that is a function of other numbers is derived: the server computes it,
 
 Schema cost: `derive` is one string property on four annotation kinds (point, segment, vector, reference-line) and `op` (+ `t`) are on the list transformation; they are withheld from Gemini's schema bundle (`explanation-fast-chain.js forGemini`), which stays byte-identical to before. `derived.js` holds kinds only: no subject-matter words.
 
+### Varied inputs on references (VAR-1 step 3, `vary.js`)
+
+A reference may carry `vary` (on the reference object, never in `spec.diagram`): `{ path: [min, max, step] }`, optionally a 4th element naming a path the value may not fall below. `varySpec(spec, vary, seed, id)` redraws those numbers on the grid of min and step, sets every derived field from the new inputs, prints `{{d:path}}` tokens in the reference's text, and `explanation-references.js` calls it for the selected reference of a seeded request before `parseTutorDiagram`. `varyProblems(ref)` is the lint: a number that varies, or a number a derived field computes from it, must not be typed in the reference's text (write a token). No reference has `vary` in step 3.
+
 ## Static illustration kinds
 
 | Kind | Schema and layout modules | Supported structure |

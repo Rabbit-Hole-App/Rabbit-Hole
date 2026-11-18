@@ -135,10 +135,11 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
   // Owner 2026-11-08: with a plan, the gallery example comes from the planner's chosen kind (below); the learner-word shape fallback (explanation-references.js) is used
   // only when the planner was asked and gave no plan (it timed out or failed; owner 2026-11-08), never when it is off or a plan exists. A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
+  const requestSeed = typeof input.requestSeed === 'string' && input.requestSeed ? input.requestSeed : null; // the request's own id, made by the route; none = no variation
   const topicalReferences = ready.includes('explanation') ? selectForAuthor({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    asked, planned: input.planned, depth: input.depth, plan: input.plan,
+    asked, planned: input.planned, depth: input.depth, plan: input.plan, seed: requestSeed, // VAR-1 step 3: a reference with `vary` is drawn from this request's seed
   }).references : [];
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
   const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
@@ -148,7 +149,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
   const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
-  return { request, ready, messages, diagramReferences, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
+  return { request, ready, messages, diagramReferences, requestSeed, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
 // The learner's asked visuals (an implied picture is not one: explanation-visuals.js deriveVisualRequirements).
@@ -197,7 +198,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   // Card archive: what this card was made from, on the caller's `trace` option (artifactFetch). A fast-chain step overwrites it with the step that ran last.
-  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape).map(r => r.id), shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null } });
+  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape).map(r => r.id), shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null }, requestSeed: prepared.requestSeed ?? null });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
   if ((!injected || meterStep) && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace, meterStep }, generateArtifact);
@@ -452,7 +453,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? validDepth(body.depth)
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   // Card archive: one record per request that reaches the author, success or failure (learn-storage.js archiveExplanation: logged, never thrown). No email, only the user id.
-  const trace = {}, started = Date.now();
+  const requestSeed = crypto.randomUUID(), trace = { requestSeed }, started = Date.now(); // VAR-1 step 3: the seed of this request's varied inputs, in the archive record (a card is reproduced from it)
   const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.user_id ?? null, app: body.app, board: typeof body.board === 'string' ? body.board : null,
     request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra,
     ...(extra.returned?.figures ? { stylePreamble: FIGURE_STYLE_ID } : {}) }); // ILL-0 v2: a card with pictures records the style they were made with
@@ -470,7 +471,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
       return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(body.madeBy ? { madeBy: body.madeBy } : {}), ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
+    const out = await generate(env, { ...(DEPTH_COMMANDS.includes(body.command) ? { requestSeed } : {}), command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(body.madeBy ? { madeBy: body.madeBy } : {}), ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });

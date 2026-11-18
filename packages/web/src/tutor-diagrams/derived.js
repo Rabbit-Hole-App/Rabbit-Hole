@@ -242,6 +242,11 @@ export function fillDerived(d) {
   for (const inst of instancesOf(d)) if (inst.computed !== undefined && (inst.written === undefined || inst.replace)) setAt(d, inst.at, inst.computed);
   return d;
 }
+// Varied inputs (vary.js): every derived field of this diagram is set to the value its inputs give NOW, written or not, so a reference whose inputs were just resampled carries no stale derived literal.
+export function refreshDerived(d) {
+  for (const inst of instancesOf(d)) if (inst.computed !== undefined) setAt(d, inst.at, inst.computed);
+  return d;
+}
 // The paths (inside the diagram) of every number a derived field holds, for the diagram itself (not its child diagrams): what a prose token may name, listed when one names a path that is not there.
 export function derivedPaths(d) {
   const leaves = (value, path) => (typeof value === 'number' ? [path.join('.')] : value && typeof value === 'object' ? Object.entries(value).flatMap(([key, child]) => leaves(child, [...path, key])) : []);
