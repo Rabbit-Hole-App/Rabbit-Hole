@@ -31,7 +31,7 @@ Object.assign(plan, {
 });
 Object.assign(plan.scene, {
   layout: LAYOUT,
-  description: 'Family stepper-states. Two pendulums drawn with frame primitives, an angle-against-time plot drawn by the plot renderer, two period readouts and a callout.\nA 640 x 320 px scene on the side-by-side layout with an 8 s timeline and two number inputs.',
+  description: 'Family stepper-states. Two pendulums drawn with frame primitives, an angle-against-time plot drawn by the plot renderer, two period readouts and a callout.\nA 640 x 400 px scene on the side-by-side layout with an 8 s timeline and two number inputs.',
   template: 'stepper-pendulum', words: {}, slots: {}, readoutIds: ['periodA', 'periodB'],
   data: { title: "What changes a pendulum's swing?", g: 9.81, theta0: 20, duration: 8, reference: { mass: 1, length: 1 }, plot: { title: 'Angle against time', time: 'Time', angle: 'Angle', yMax: 25, nameA: 'Pendulum A, the reference: 1 kg and 1 m', nameB: 'Pendulum B, set with the two sliders', fit: PENDULUM_GEOMETRY.fit, frame: PENDULUM_GEOMETRY.frame },
     limits: { maxMass: 3, maxLength: 2 }, layout: LAYOUT, formula: 'T = 2\\pi\\sqrt{L/g}',

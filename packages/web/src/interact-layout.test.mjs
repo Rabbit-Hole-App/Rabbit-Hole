@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { LAYOUTS, DOC_TEXT_SIZES, DRAWN_TEXT_SIZES, VALUE_DOT, LayoutError, checkText, fitPanel, fitValues, layoutById, pickLayout, valueBoxes } from './interact-layout.js';
 import { textWidth } from './tutor-diagrams/primitives.js';
 
-// Brief 35: docs/features/interact/layout.md is the spec. DOC_BOXES is section 5's JSON boxes typed out of it; the grid test derives each again from section 1's column and row edges.
+// Brief 35 (amendment E: 640 x 400, ten rows): docs/features/interact/layout.md is the spec. DOC_BOXES is section 5's JSON boxes typed out of it; the grid test derives each again from section 1's column and row edges.
 const DOC_BOXES = {
-  wide: { stage: [4, 4, 632, 232], values: [4, 244, 632, 32], formula: [4, 284, 259, 32], note: [271, 284, 365, 32], reset: [608, 8, 24, 24] },
-  'side-by-side': { stage: [4, 4, 365, 232], panel: [377, 4, 259, 232], values: [4, 244, 632, 32], formula: [4, 284, 259, 32], note: [271, 284, 365, 32], reset: [608, 8, 24, 24] },
-  'equal-split': { stage: [4, 4, 312, 232], panel: [324, 4, 312, 232], values: [4, 244, 632, 32], formula: [4, 284, 259, 32], note: [271, 284, 365, 32], reset: [608, 8, 24, 24] },
-  stacked: { stage: [4, 4, 632, 112], panel: [4, 124, 632, 112], values: [4, 244, 632, 32], formula: [4, 284, 259, 32], note: [271, 284, 365, 32], reset: [608, 8, 24, 24] },
-  tall: { stage: [4, 4, 365, 312], values: [377, 4, 259, 152], formula: [377, 164, 259, 72], note: [377, 244, 259, 72], reset: [608, 8, 24, 24] },
-  'tall-with-panel': { stage: [4, 4, 312, 312], panel: [324, 4, 312, 152], values: [324, 164, 312, 72], formula: [324, 244, 312, 32], note: [324, 284, 312, 32], reset: [608, 8, 24, 24] },
+  wide: { stage: [4, 4, 632, 312], values: [4, 324, 632, 32], formula: [4, 364, 259, 32], note: [271, 364, 365, 32], reset: [608, 8, 24, 24] },
+  'side-by-side': { stage: [4, 4, 312, 312], panel: [324, 4, 312, 312], values: [4, 324, 632, 32], formula: [4, 364, 259, 32], note: [271, 364, 365, 32], reset: [608, 8, 24, 24] },
+  'equal-split': { stage: [4, 4, 312, 312], panel: [324, 4, 312, 312], values: [4, 324, 632, 32], formula: [4, 364, 259, 32], note: [271, 364, 365, 32], reset: [608, 8, 24, 24] },
+  stacked: { stage: [4, 4, 632, 152], panel: [4, 164, 632, 152], values: [4, 324, 632, 32], formula: [4, 364, 259, 32], note: [271, 364, 365, 32], reset: [608, 8, 24, 24] },
+  tall: { stage: [4, 4, 365, 392], values: [377, 4, 259, 152], formula: [377, 164, 259, 112], note: [377, 284, 259, 112], reset: [608, 8, 24, 24] },
+  'tall-with-panel': { stage: [4, 4, 312, 392], panel: [324, 4, 312, 232], values: [324, 244, 312, 72], formula: [324, 324, 312, 32], note: [324, 364, 312, 32], reset: [608, 8, 24, 24] },
 };
 const COLUMN_EDGES = [0, 53, 107, 160, 213, 267, 320, 373, 427, 480, 533, 587, 640];
 
@@ -56,7 +56,7 @@ test('the size table of section 2', () => {
   assert.deepEqual(sizes('tall', 3), Array(3).fill([259, 45])); assert.deepEqual(sizes('tall', 4), Array(4).fill([259, 32]));
   assert.deepEqual(sizes('tall-with-panel', 1), [[312, 72]]); assert.deepEqual(sizes('tall-with-panel', 2), [[152, 72], [152, 72]]); assert.deepEqual(sizes('tall-with-panel', 3), Array(3).fill([99, 72]));
   // four in layout 6 is a 2 x 2 grid of 152 x 32
-  assert.deepEqual(valueBoxes('tall-with-panel', 4).map(value => value.box), [[324, 164, 152, 32], [484, 164, 152, 32], [324, 204, 152, 32], [484, 204, 152, 32]]);
+  assert.deepEqual(valueBoxes('tall-with-panel', 4).map(value => value.box), [[324, 244, 152, 32], [484, 244, 152, 32], [324, 284, 152, 32], [484, 284, 152, 32]]);
   assert.throws(() => valueBoxes('wide', 5), error => error.code === 'values_count');
 });
 
@@ -91,16 +91,16 @@ test('formula and note: refused when they do not fit, never shrunk or cut', () =
 });
 
 test('the panel picture is drawn at the width where its height fits the box, left of the reset cell', () => {
-  const fit = fitPanel({ width: 408, height: 450.5 }, [377, 4, 259, 232], { clearRight: 587 });
-  assert.ok(fit.drawn.h <= 232 && fit.drawn.w <= 210); assert.equal(fit.x, 377); assert.ok(Math.abs(fit.drawn.h - 232) < 1);
+  const fit = fitPanel({ width: 408, height: 450.5 }, [324, 4, 312, 312], { clearRight: 587 });
+  assert.ok(fit.drawn.h <= 312 && fit.drawn.w <= 263); assert.equal(fit.x, 324); assert.equal(fit.drawn.w, 263);
   assert.deepEqual(fitPanel({ width: 100, height: 50 }, [0, 0, 400, 400]), { x: 150, y: 175, w: 100, drawn: { w: 100, h: 50 } });
 });
 
 test('a panel figure box lies inside the panel and keeps the reset cell clear', async () => {
   const { panelBoxOk } = await import('./interact-layout.js');
-  assert.equal(panelBoxOk('side-by-side', [377, 40, 259, 196]), true);
-  assert.equal(panelBoxOk('side-by-side', [377, 4, 210, 232]), true);
-  assert.equal(panelBoxOk('side-by-side', [377, 4, 259, 196]), false); // covers the reset cell
+  assert.equal(panelBoxOk('side-by-side', [324, 40, 312, 272]), true);
+  assert.equal(panelBoxOk('side-by-side', [324, 4, 263, 312]), true);
+  assert.equal(panelBoxOk('side-by-side', [324, 4, 312, 312]), false); // covers the reset cell
   assert.equal(panelBoxOk('side-by-side', [300, 40, 259, 196]), false); // leaves the panel
   assert.equal(panelBoxOk('wide', [4, 40, 100, 100]), false); // a layout with no panel
 });

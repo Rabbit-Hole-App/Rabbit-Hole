@@ -5,686 +5,686 @@ import { TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
 // change (tutor-diagrams/ is read, never edited; textWidth is its width model, imported only). A card that declares no layout never reaches this module.
 // The six layouts, each box [x, y, w, h] in scene px exactly as the doc's section 5 JSON (the test derives every one again from the grid of section 1).
 export const LAYOUTS = Object.freeze([
-{
-  "id": "wide",
-  "pictureCount": "one",
-  "runs": "left-to-right",
-  "panelRole": "none",
-  "useWhen": "The subject is a sequence or a single curve that reads from left to right: the stages of a pipeline, a row of tokens, a window sliding along a sequence, one curve reshaped by a slider. The learner follows one thing across the picture. There is nothing to chart alongside. Also the default for a single picture that has no direction.",
-  "notWhen": "The subject has levels or depth (use tall). A second picture should record or compare (use side-by-side, equal-split or stacked).",
-  "examples": [
-    "a pipeline: retrieve, then generate",
-    "text turning into tokens",
-    "a single curve with a slider",
-    "a convolution sliding along a sequence"
-  ],
-  "slots": {
-    "stage": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        1,
-        6
-      ],
-      "box": [
-        4,
-        4,
-        632,
-        232
-      ],
-      "keepClear": "reset cell"
-    },
-    "values": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        7,
-        7
-      ],
-      "box": [
-        4,
-        244,
-        632,
-        32
-      ],
-      "count": [
-        1,
-        4
-      ],
-      "split": "columns"
-    },
-    "formula": {
-      "cols": [
-        1,
-        5
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        4,
-        284,
-        259,
-        32
-      ]
-    },
-    "note": {
-      "cols": [
-        6,
-        12
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        271,
-        284,
-        365,
-        32
-      ]
-    },
-    "reset": {
-      "cols": [
-        12,
-        12
-      ],
-      "rows": [
-        1,
-        1
-      ],
-      "box": [
-        608,
-        8,
-        24,
-        24
-      ]
+  {
+    "id": "wide",
+    "pictureCount": "one",
+    "runs": "left-to-right",
+    "panelRole": "none",
+    "useWhen": "The subject is a sequence or a single curve that reads from left to right: the stages of a pipeline, a row of tokens, a window sliding along a sequence, one curve reshaped by a slider. The learner follows one thing across the picture. There is nothing to chart alongside. Also the default for a single picture that has no direction.",
+    "notWhen": "The subject has levels or depth (use tall). A second picture should record or compare (use side-by-side, equal-split or stacked).",
+    "examples": [
+      "a pipeline: retrieve, then generate",
+      "text turning into tokens",
+      "a single curve with a slider",
+      "a convolution sliding along a sequence"
+    ],
+    "slots": {
+      "stage": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          1,
+          8
+        ],
+        "box": [
+          4,
+          4,
+          632,
+          312
+        ],
+        "keepClear": "reset cell"
+      },
+      "values": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          9,
+          9
+        ],
+        "box": [
+          4,
+          324,
+          632,
+          32
+        ],
+        "count": [
+          1,
+          4
+        ],
+        "split": "columns"
+      },
+      "formula": {
+        "cols": [
+          1,
+          5
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          4,
+          364,
+          259,
+          32
+        ]
+      },
+      "note": {
+        "cols": [
+          6,
+          12
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          271,
+          364,
+          365,
+          32
+        ]
+      },
+      "reset": {
+        "cols": [
+          12,
+          12
+        ],
+        "rows": [
+          1,
+          1
+        ],
+        "box": [
+          608,
+          8,
+          24,
+          24
+        ]
+      }
+    }
+  },
+  {
+    "id": "side-by-side",
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main",
+    "useWhen": "One main thing moves or changes, and a smaller chart records a measurement of it as it goes: an angle over time, loss per step, error per round. The learner watches the main picture and reads the chart as its record.",
+    "notWhen": "The two pictures matter equally (use equal-split). The main picture runs top to bottom (use tall-with-panel). The second picture lines up position by position with the first (use stacked).",
+    "examples": [
+      "a pendulum with its angle against time",
+      "gradient descent on a curve with loss per step",
+      "k-means points with error per round"
+    ],
+    "slots": {
+      "stage": {
+        "cols": [
+          1,
+          6
+        ],
+        "rows": [
+          1,
+          8
+        ],
+        "box": [
+          4,
+          4,
+          312,
+          312
+        ]
+      },
+      "panel": {
+        "cols": [
+          7,
+          12
+        ],
+        "rows": [
+          1,
+          8
+        ],
+        "box": [
+          324,
+          4,
+          312,
+          312
+        ],
+        "keepClear": "reset cell"
+      },
+      "values": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          9,
+          9
+        ],
+        "box": [
+          4,
+          324,
+          632,
+          32
+        ],
+        "count": [
+          1,
+          4
+        ],
+        "split": "columns"
+      },
+      "formula": {
+        "cols": [
+          1,
+          5
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          4,
+          364,
+          259,
+          32
+        ]
+      },
+      "note": {
+        "cols": [
+          6,
+          12
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          271,
+          364,
+          365,
+          32
+        ]
+      },
+      "reset": {
+        "cols": [
+          12,
+          12
+        ],
+        "rows": [
+          1,
+          1
+        ],
+        "box": [
+          608,
+          8,
+          24,
+          24
+        ]
+      }
+    }
+  },
+  {
+    "id": "equal-split",
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal",
+    "useWhen": "Two versions of the same thing are compared and neither is the main one: with and without a technique, a low and a high setting, before and after, model A and model B. The learner looks back and forth between them as a control changes one or both.",
+    "notWhen": "One picture only records what the other does (use side-by-side). The two share the same left-to-right positions (use stacked).",
+    "examples": [
+      "with and without dropout",
+      "low and high temperature",
+      "two models' decision boundaries",
+      "before and after normalisation"
+    ],
+    "slots": {
+      "stage": {
+        "cols": [
+          1,
+          6
+        ],
+        "rows": [
+          1,
+          8
+        ],
+        "box": [
+          4,
+          4,
+          312,
+          312
+        ]
+      },
+      "panel": {
+        "cols": [
+          7,
+          12
+        ],
+        "rows": [
+          1,
+          8
+        ],
+        "box": [
+          324,
+          4,
+          312,
+          312
+        ],
+        "keepClear": "reset cell"
+      },
+      "values": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          9,
+          9
+        ],
+        "box": [
+          4,
+          324,
+          632,
+          32
+        ],
+        "count": [
+          1,
+          4
+        ],
+        "split": "columns"
+      },
+      "formula": {
+        "cols": [
+          1,
+          5
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          4,
+          364,
+          259,
+          32
+        ]
+      },
+      "note": {
+        "cols": [
+          6,
+          12
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          271,
+          364,
+          365,
+          32
+        ]
+      },
+      "reset": {
+        "cols": [
+          12,
+          12
+        ],
+        "rows": [
+          1,
+          1
+        ],
+        "box": [
+          608,
+          8,
+          24,
+          24
+        ]
+      }
+    }
+  },
+  {
+    "id": "stacked",
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "aligned",
+    "useWhen": "Two rows describe the same items in the same left-to-right order, so each item in the top row sits directly above its counterpart: tokens above their weights, scores above their probabilities, a signal above its smoothed version. The learner reads straight down from an item to its result.",
+    "notWhen": "The two pictures do not share positions (use side-by-side or equal-split). Either picture needs height, such as a tree or a full chart (each picture is only 152 px tall here).",
+    "examples": [
+      "a token row above its attention weights",
+      "scores above their softmax probabilities",
+      "a signal above its moving average"
+    ],
+    "slots": {
+      "stage": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          1,
+          4
+        ],
+        "box": [
+          4,
+          4,
+          632,
+          152
+        ],
+        "keepClear": "reset cell"
+      },
+      "panel": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          5,
+          8
+        ],
+        "box": [
+          4,
+          164,
+          632,
+          152
+        ]
+      },
+      "values": {
+        "cols": [
+          1,
+          12
+        ],
+        "rows": [
+          9,
+          9
+        ],
+        "box": [
+          4,
+          324,
+          632,
+          32
+        ],
+        "count": [
+          1,
+          4
+        ],
+        "split": "columns"
+      },
+      "formula": {
+        "cols": [
+          1,
+          5
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          4,
+          364,
+          259,
+          32
+        ]
+      },
+      "note": {
+        "cols": [
+          6,
+          12
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          271,
+          364,
+          365,
+          32
+        ]
+      },
+      "reset": {
+        "cols": [
+          12,
+          12
+        ],
+        "rows": [
+          1,
+          1
+        ],
+        "box": [
+          608,
+          8,
+          24,
+          24
+        ]
+      }
+    }
+  },
+  {
+    "id": "tall",
+    "pictureCount": "one",
+    "runs": "top-to-bottom",
+    "panelRole": "none",
+    "useWhen": "The subject has levels or depth, and something moves through them: down a tree, up a stack of layers, through a call stack. The learner follows one thing level by level. There is nothing to chart alongside.",
+    "notWhen": "The steps read as a sequence from left to right (use wide). A chart should record the movement (use tall-with-panel).",
+    "examples": [
+      "a point tracing down a decision tree",
+      "a token passing up a stack of layers",
+      "a call stack growing",
+      "a ball thrown straight up"
+    ],
+    "slots": {
+      "stage": {
+        "cols": [
+          1,
+          7
+        ],
+        "rows": [
+          1,
+          10
+        ],
+        "box": [
+          4,
+          4,
+          365,
+          392
+        ]
+      },
+      "values": {
+        "cols": [
+          8,
+          12
+        ],
+        "rows": [
+          1,
+          4
+        ],
+        "box": [
+          377,
+          4,
+          259,
+          152
+        ],
+        "count": [
+          1,
+          4
+        ],
+        "split": "rows",
+        "keepClear": "reset cell"
+      },
+      "formula": {
+        "cols": [
+          8,
+          12
+        ],
+        "rows": [
+          5,
+          7
+        ],
+        "box": [
+          377,
+          164,
+          259,
+          112
+        ]
+      },
+      "note": {
+        "cols": [
+          8,
+          12
+        ],
+        "rows": [
+          8,
+          10
+        ],
+        "box": [
+          377,
+          284,
+          259,
+          112
+        ]
+      },
+      "reset": {
+        "cols": [
+          12,
+          12
+        ],
+        "rows": [
+          1,
+          1
+        ],
+        "box": [
+          608,
+          8,
+          24,
+          24
+        ]
+      }
+    }
+  },
+  {
+    "id": "tall-with-panel",
+    "pictureCount": "two",
+    "runs": "top-to-bottom",
+    "panelRole": "records-main",
+    "useWhen": "The subject has levels or depth, something moves or grows through them, and a chart records a measurement as it does: error against tree depth, height against time, a value per layer. The learner watches the tall picture and reads the chart as its record.",
+    "notWhen": "There is nothing to chart (use tall). The main picture has no top-to-bottom direction (use side-by-side).",
+    "examples": [
+      "a tree growing deeper with error against depth",
+      "a vertical toss with height against time",
+      "a layer stack with a value per layer"
+    ],
+    "slots": {
+      "stage": {
+        "cols": [
+          1,
+          6
+        ],
+        "rows": [
+          1,
+          10
+        ],
+        "box": [
+          4,
+          4,
+          312,
+          392
+        ]
+      },
+      "panel": {
+        "cols": [
+          7,
+          12
+        ],
+        "rows": [
+          1,
+          6
+        ],
+        "box": [
+          324,
+          4,
+          312,
+          232
+        ],
+        "keepClear": "reset cell"
+      },
+      "values": {
+        "cols": [
+          7,
+          12
+        ],
+        "rows": [
+          7,
+          8
+        ],
+        "box": [
+          324,
+          244,
+          312,
+          72
+        ],
+        "count": [
+          1,
+          4
+        ],
+        "split": "columns",
+        "splitAtFour": "2x2"
+      },
+      "formula": {
+        "cols": [
+          7,
+          12
+        ],
+        "rows": [
+          9,
+          9
+        ],
+        "box": [
+          324,
+          324,
+          312,
+          32
+        ]
+      },
+      "note": {
+        "cols": [
+          7,
+          12
+        ],
+        "rows": [
+          10,
+          10
+        ],
+        "box": [
+          324,
+          364,
+          312,
+          32
+        ]
+      },
+      "reset": {
+        "cols": [
+          12,
+          12
+        ],
+        "rows": [
+          1,
+          1
+        ],
+        "box": [
+          608,
+          8,
+          24,
+          24
+        ]
+      }
     }
   }
-},
-{
-  "id": "side-by-side",
-  "pictureCount": "two",
-  "runs": "compact",
-  "panelRole": "records-main",
-  "useWhen": "One main thing moves or changes, and a smaller chart records a measurement of it as it goes: an angle over time, loss per step, error per round. The learner watches the main picture and reads the chart as its record.",
-  "notWhen": "The two pictures matter equally (use equal-split). The main picture runs top to bottom (use tall-with-panel). The second picture lines up position by position with the first (use stacked).",
-  "examples": [
-    "a pendulum with its angle against time",
-    "gradient descent on a curve with loss per step",
-    "k-means points with error per round"
-  ],
-  "slots": {
-    "stage": {
-      "cols": [
-        1,
-        7
-      ],
-      "rows": [
-        1,
-        6
-      ],
-      "box": [
-        4,
-        4,
-        365,
-        232
-      ]
-    },
-    "panel": {
-      "cols": [
-        8,
-        12
-      ],
-      "rows": [
-        1,
-        6
-      ],
-      "box": [
-        377,
-        4,
-        259,
-        232
-      ],
-      "keepClear": "reset cell"
-    },
-    "values": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        7,
-        7
-      ],
-      "box": [
-        4,
-        244,
-        632,
-        32
-      ],
-      "count": [
-        1,
-        4
-      ],
-      "split": "columns"
-    },
-    "formula": {
-      "cols": [
-        1,
-        5
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        4,
-        284,
-        259,
-        32
-      ]
-    },
-    "note": {
-      "cols": [
-        6,
-        12
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        271,
-        284,
-        365,
-        32
-      ]
-    },
-    "reset": {
-      "cols": [
-        12,
-        12
-      ],
-      "rows": [
-        1,
-        1
-      ],
-      "box": [
-        608,
-        8,
-        24,
-        24
-      ]
-    }
-  }
-},
-{
-  "id": "equal-split",
-  "pictureCount": "two",
-  "runs": "compact",
-  "panelRole": "equal",
-  "useWhen": "Two versions of the same thing are compared and neither is the main one: with and without a technique, a low and a high setting, before and after, model A and model B. The learner looks back and forth between them as a control changes one or both.",
-  "notWhen": "One picture only records what the other does (use side-by-side). The two share the same left-to-right positions (use stacked).",
-  "examples": [
-    "with and without dropout",
-    "low and high temperature",
-    "two models' decision boundaries",
-    "before and after normalisation"
-  ],
-  "slots": {
-    "stage": {
-      "cols": [
-        1,
-        6
-      ],
-      "rows": [
-        1,
-        6
-      ],
-      "box": [
-        4,
-        4,
-        312,
-        232
-      ]
-    },
-    "panel": {
-      "cols": [
-        7,
-        12
-      ],
-      "rows": [
-        1,
-        6
-      ],
-      "box": [
-        324,
-        4,
-        312,
-        232
-      ],
-      "keepClear": "reset cell"
-    },
-    "values": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        7,
-        7
-      ],
-      "box": [
-        4,
-        244,
-        632,
-        32
-      ],
-      "count": [
-        1,
-        4
-      ],
-      "split": "columns"
-    },
-    "formula": {
-      "cols": [
-        1,
-        5
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        4,
-        284,
-        259,
-        32
-      ]
-    },
-    "note": {
-      "cols": [
-        6,
-        12
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        271,
-        284,
-        365,
-        32
-      ]
-    },
-    "reset": {
-      "cols": [
-        12,
-        12
-      ],
-      "rows": [
-        1,
-        1
-      ],
-      "box": [
-        608,
-        8,
-        24,
-        24
-      ]
-    }
-  }
-},
-{
-  "id": "stacked",
-  "pictureCount": "two",
-  "runs": "left-to-right",
-  "panelRole": "aligned",
-  "useWhen": "Two rows describe the same items in the same left-to-right order, so each item in the top row sits directly above its counterpart: tokens above their weights, scores above their probabilities, a signal above its smoothed version. The learner reads straight down from an item to its result.",
-  "notWhen": "The two pictures do not share positions (use side-by-side or equal-split). Either picture needs height, such as a tree or a full chart (each picture is only 112 px tall here).",
-  "examples": [
-    "a token row above its attention weights",
-    "scores above their softmax probabilities",
-    "a signal above its moving average"
-  ],
-  "slots": {
-    "stage": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        1,
-        3
-      ],
-      "box": [
-        4,
-        4,
-        632,
-        112
-      ],
-      "keepClear": "reset cell"
-    },
-    "panel": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        4,
-        6
-      ],
-      "box": [
-        4,
-        124,
-        632,
-        112
-      ]
-    },
-    "values": {
-      "cols": [
-        1,
-        12
-      ],
-      "rows": [
-        7,
-        7
-      ],
-      "box": [
-        4,
-        244,
-        632,
-        32
-      ],
-      "count": [
-        1,
-        4
-      ],
-      "split": "columns"
-    },
-    "formula": {
-      "cols": [
-        1,
-        5
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        4,
-        284,
-        259,
-        32
-      ]
-    },
-    "note": {
-      "cols": [
-        6,
-        12
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        271,
-        284,
-        365,
-        32
-      ]
-    },
-    "reset": {
-      "cols": [
-        12,
-        12
-      ],
-      "rows": [
-        1,
-        1
-      ],
-      "box": [
-        608,
-        8,
-        24,
-        24
-      ]
-    }
-  }
-},
-{
-  "id": "tall",
-  "pictureCount": "one",
-  "runs": "top-to-bottom",
-  "panelRole": "none",
-  "useWhen": "The subject has levels or depth, and something moves through them: down a tree, up a stack of layers, through a call stack. The learner follows one thing level by level. There is nothing to chart alongside.",
-  "notWhen": "The steps read as a sequence from left to right (use wide). A chart should record the movement (use tall-with-panel).",
-  "examples": [
-    "a point tracing down a decision tree",
-    "a token passing up a stack of layers",
-    "a call stack growing",
-    "a ball thrown straight up"
-  ],
-  "slots": {
-    "stage": {
-      "cols": [
-        1,
-        7
-      ],
-      "rows": [
-        1,
-        8
-      ],
-      "box": [
-        4,
-        4,
-        365,
-        312
-      ]
-    },
-    "values": {
-      "cols": [
-        8,
-        12
-      ],
-      "rows": [
-        1,
-        4
-      ],
-      "box": [
-        377,
-        4,
-        259,
-        152
-      ],
-      "count": [
-        1,
-        4
-      ],
-      "split": "rows",
-      "keepClear": "reset cell"
-    },
-    "formula": {
-      "cols": [
-        8,
-        12
-      ],
-      "rows": [
-        5,
-        6
-      ],
-      "box": [
-        377,
-        164,
-        259,
-        72
-      ]
-    },
-    "note": {
-      "cols": [
-        8,
-        12
-      ],
-      "rows": [
-        7,
-        8
-      ],
-      "box": [
-        377,
-        244,
-        259,
-        72
-      ]
-    },
-    "reset": {
-      "cols": [
-        12,
-        12
-      ],
-      "rows": [
-        1,
-        1
-      ],
-      "box": [
-        608,
-        8,
-        24,
-        24
-      ]
-    }
-  }
-},
-{
-  "id": "tall-with-panel",
-  "pictureCount": "two",
-  "runs": "top-to-bottom",
-  "panelRole": "records-main",
-  "useWhen": "The subject has levels or depth, something moves or grows through them, and a chart records a measurement as it does: error against tree depth, height against time, a value per layer. The learner watches the tall picture and reads the chart as its record.",
-  "notWhen": "There is nothing to chart (use tall). The main picture has no top-to-bottom direction (use side-by-side).",
-  "examples": [
-    "a tree growing deeper with error against depth",
-    "a vertical toss with height against time",
-    "a layer stack with a value per layer"
-  ],
-  "slots": {
-    "stage": {
-      "cols": [
-        1,
-        6
-      ],
-      "rows": [
-        1,
-        8
-      ],
-      "box": [
-        4,
-        4,
-        312,
-        312
-      ]
-    },
-    "panel": {
-      "cols": [
-        7,
-        12
-      ],
-      "rows": [
-        1,
-        4
-      ],
-      "box": [
-        324,
-        4,
-        312,
-        152
-      ],
-      "keepClear": "reset cell"
-    },
-    "values": {
-      "cols": [
-        7,
-        12
-      ],
-      "rows": [
-        5,
-        6
-      ],
-      "box": [
-        324,
-        164,
-        312,
-        72
-      ],
-      "count": [
-        1,
-        4
-      ],
-      "split": "columns",
-      "splitAtFour": "2x2"
-    },
-    "formula": {
-      "cols": [
-        7,
-        12
-      ],
-      "rows": [
-        7,
-        7
-      ],
-      "box": [
-        324,
-        244,
-        312,
-        32
-      ]
-    },
-    "note": {
-      "cols": [
-        7,
-        12
-      ],
-      "rows": [
-        8,
-        8
-      ],
-      "box": [
-        324,
-        284,
-        312,
-        32
-      ]
-    },
-    "reset": {
-      "cols": [
-        12,
-        12
-      ],
-      "rows": [
-        1,
-        1
-      ],
-      "box": [
-        608,
-        8,
-        24,
-        24
-      ]
-    }
-  }
-}
 ].map(layout => Object.freeze(layout)));
 
-export const SCENE = Object.freeze({ width: 640, height: 320 });
+export const SCENE = Object.freeze({ width: 640, height: 400 });
 // The reset cell (column 12, row 1): whatever slot covers it keeps it clear.
 export const RESET_CELL = Object.freeze([587, 0, 53, 40]);
-export const GRID = Object.freeze({ columns: 12, rows: 8, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 583 });
+export const GRID = Object.freeze({ columns: 12, rows: 10, inset: 4, valueGap: 8, textClear: 8, resetClearRight: 583 });
 // The sizes a frame text object draws today: the SDK gives a text object no typography, so every text is the theme's body style (TEACHING_TEXT.body). The doc's own sizes (section 2: label 13, number 17,
 // formula 14, note 13) stay available as DOC_TEXT_SIZES for a renderer that can draw them; a card checks its text at the size it is drawn at.
 export const DRAWN_TEXT_SIZES = Object.freeze({ value: TEACHING_TEXT.body.size, formula: TEACHING_TEXT.body.size, note: TEACHING_TEXT.body.size });
