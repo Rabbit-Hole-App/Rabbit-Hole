@@ -153,18 +153,25 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
         {number && <span data-toc-number className={`${topic ? 'min-w-[18px] pt-[3px] text-xs' : `${entry.level === 3 ? 'min-w-12' : 'min-w-9'} pt-px text-[13px]`} -mr-1 shrink-0 leading-5 text-ink-2 tabular-nums`}>{number}</span>}
         {editing === entry.id ? <Editor entry={entry} topic={topic} onSave={(title, description) => save(entry, title, description)} onCancel={() => setEditing(null)} /> : (
           <div className="min-w-0 flex-1">
-            <button type="button" title={readOnly || entry.roadmap ? undefined : 'Double-click to edit'} aria-current={active ? 'location' : undefined}
-              onClick={() => (entry.roadmap ? entry.roadmap.nav && roadmap?.go?.(entry.roadmap.nav) : onShow?.(entry.id))} onDoubleClick={readOnly || entry.roadmap ? undefined : () => setEditing(entry.id)}
-              className={`rounded-sm text-left break-words hover:text-accent ${topic || entry.level === 1 ? 'text-base leading-6 font-semibold' : 'text-sm leading-5 font-medium'} ${active ? 'text-accent' : 'text-ink'}`}>
-              {entry.label}
-            </button>
-            {(() => {
-              // Learn Walk (learn-walk-spec §1): a built section's Start / Continue / Start again, always shown; a chapter or an unbuilt section has none.
-              const label = !entry.roadmap && walkLabelOf(linkedCards(tocLinks, entry.id));
-              return label ? <button type="button" data-toc-walk={label} onClick={() => (onWalk ? onWalk(entry.id) : canvasApi.current?.walk?.start(entry.id))}
-                className="ml-2 inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 align-[1px] text-xs text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink">
-                <Play size={11} strokeWidth={2} aria-hidden />{label}</button> : null;
-            })()}
+            <div className="flex min-w-0 items-start gap-2">
+              <button type="button" title={readOnly || entry.roadmap ? undefined : 'Double-click to edit'} aria-current={active ? 'location' : undefined}
+                onClick={() => (entry.roadmap ? entry.roadmap.nav && roadmap?.go?.(entry.roadmap.nav) : onShow?.(entry.id))} onDoubleClick={readOnly || entry.roadmap ? undefined : () => setEditing(entry.id)}
+                className={`rounded-sm text-left break-words hover:text-accent ${topic || entry.level === 1 ? 'text-base leading-6 font-semibold' : 'text-sm leading-5 font-medium'} ${active ? 'text-accent' : 'text-ink'}`}>
+                {entry.label}
+              </button>
+              {(() => {
+                // Learn Walk (owner 2026-11-18 14:15): a prominent Start / Continue / Start again beside the title of every section and sub-section with built cards. A chapter's
+                // reads its sub-sections' cards, so it shows while the chapter is folded, and starts at its first section not yet done (the walk then goes on section by section).
+                if (entry.roadmap) return null;
+                const ids = (function subtree(n) { return [n.entry.id, ...n.children.flatMap(subtree)]; })(node), labelOf = id => walkLabelOf(linkedCards(tocLinks, id));
+                const label = walkLabelOf(ids.flatMap(id => linkedCards(tocLinks, id)));
+                if (!label) return null;
+                const target = ids.find(id => ['Start', 'Continue'].includes(labelOf(id))) || ids.find(id => labelOf(id));
+                return <button type="button" data-toc-walk={label} data-no-drag onClick={() => (onWalk ? onWalk(target) : canvasApi.current?.walk?.start(target))}
+                  className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs leading-5 font-medium text-white shadow-sm hover:opacity-90">
+                  <Play size={12} strokeWidth={2.25} fill="currentColor" aria-hidden />{label}</button>;
+              })()}
+            </div>
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
             {(() => {
               // The cards linked to this section: derived from the cards' own link lists, so a link made on a card shows here and one made here shows on the card.
