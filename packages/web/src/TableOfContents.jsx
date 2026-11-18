@@ -41,7 +41,7 @@ export function addRowToConversation(canvasApi, id, onAddToChat, notify = () => 
   notify('Could not add this to the conversation');
   return false;
 }
-export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, tocLinks = [], onAddLink = null, flash = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null, walk = null }) {
+export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, tocLinks = [], onAddLink = null, flash = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null, walk = null, onWalk = null }) {
   // A roadmap row's manual done mark is the learner's own, kept per roadmap in this browser; it never means delivered, paid or understood.
   const rid = roadmap?.toc?.roadmapId ?? null;
   const [roadmapDone, setRoadmapDone] = useState(() => new Set());
@@ -161,7 +161,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
             {(() => {
               // Learn Walk (learn-walk-spec §1): a built section's Start / Continue / Start again, always shown; a chapter or an unbuilt section has none.
               const label = !entry.roadmap && walkLabelOf(linkedCards(tocLinks, entry.id));
-              return label ? <button type="button" data-toc-walk={label} onClick={() => canvasApi.current?.walk?.start(entry.id)}
+              return label ? <button type="button" data-toc-walk={label} onClick={() => (onWalk ? onWalk(entry.id) : canvasApi.current?.walk?.start(entry.id))}
                 className="ml-2 inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 align-[1px] text-xs text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink">
                 <Play size={11} strokeWidth={2} aria-hidden />{label}</button> : null;
             })()}

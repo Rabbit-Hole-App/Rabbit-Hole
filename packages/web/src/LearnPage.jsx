@@ -1451,6 +1451,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The owner's own canvas, for its animation3d cards (animation3d/board-context.js): only then do they read and save their scene.
   const animationBoard = useMemo(() => (commentBoard && canEditCanvas ? { kind: 'owner', boardId: commentBoard } : null), [commentBoard, canEditCanvas]);
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
+  // Learn Walk Start / Continue (Reviewer 2026-11-18 13:32 §2): the right panel closes first, then the camera centres the stop in the view it leaves. The panel's width eases over
+  // 320 ms (ResizableSidePanel), so the walk starts once it has. Next and Prev leave a reopened panel as it is.
+  const startWalk = id => { const wasOpen = panelOpen; setPanelOpen(false); setTimeout(() => canvasApi.current?.walk?.start(id), wasOpen ? 360 : 0); };
   const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: (isCanvas || isRepository) && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, editor: true, shown: panelOpen && panelTab === 'comments' });
   // Explain-on-canvas roadmap (R4): server-owned state, rendered in Chat, the ToC and over the canvas. The roadmap's source key is the
@@ -2673,7 +2676,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={planDone ? null : ref => { chat.toc.context.attach(ref); chat.toc.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.walk ? canvasState.activeSection : planDone && planCurrent ? planCurrent : canvasState.activeSection ?? null} walk={canvasState.walk || null} readOnly={!canEditCanvas || planDone} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={planDone ? null : ref => { chat.toc.context.attach(ref); chat.toc.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.walk ? canvasState.activeSection : planDone && planCurrent ? planCurrent : canvasState.activeSection ?? null} walk={canvasState.walk || null} onWalk={startWalk} readOnly={!canEditCanvas || planDone} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>

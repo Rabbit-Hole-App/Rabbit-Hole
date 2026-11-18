@@ -1901,6 +1901,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Learn Walk (learn-walk-spec §1): { sectionId, stops, at } | null; the commands are walkApi, by the Position effect.
   const [walk, setWalkState] = useState(null), walkRef = useRef(null);
   const setWalk = next => { walkRef.current = next; setWalkState(next); };
+  const [walkSpot, setWalkSpot] = useState(null); // the Walk pill's place: centred over the canvas, just below the page's top bar (viewport px)
   const selected = selection.length === 1 ? selection[0] : null; // single-target affordances
   // A view-only board keeps a selection (the card a Rabbit Hole starts from) but no card chrome for it: no pills,
   // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
@@ -5835,6 +5836,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const texts = itemsRef.current.filter(item => item.learn?.slot && item.learn.sectionId === block.learn.sectionId && item.learn.itemId === block.learn.itemId && (item.learn.role === 'lead' || item.learn.role === 'follow')).map(learnTextBox);
     glideTo({ ...viewRef.current, ...walkCamera(walkBox(card, texts), controlArea(), SPACING.card) }, true);
     setSelection([id]);
+    const frame = surface.current?.getBoundingClientRect(), header = pageHeader()?.getBoundingClientRect();
+    if (frame) setWalkSpot({ x: Math.round(frame.left + frame.width / 2), y: Math.round((header ? header.bottom : frame.top) + 8) });
   };
   const walkApi = {
     // id: a contents entry (the section row) or a section id ("1.1").
@@ -6676,11 +6679,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
-        {walk && <div data-learn-walk role="toolbar" aria-label="Walk" className="absolute top-3 right-3 z-40 flex items-center gap-1 rounded-lg border border-line bg-white px-1.5 py-1 text-sm shadow-md">
-          <button type="button" onClick={walkApi.prev} disabled={walk.at === 0} className="rounded px-2 py-1 text-ink hover:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">Prev</button>
-          <button type="button" onClick={walkApi.exit} className="rounded px-2 py-1 text-ink hover:bg-hover">Exit</button>
-          <button type="button" onClick={walkApi.next} className="rounded bg-accent px-2 py-1 font-medium text-white hover:opacity-90">Next</button>
-          <span data-learn-walk-count className="max-w-64 truncate pr-1 pl-2 text-ink-2 tabular-nums">{walk.at + 1} / {walk.stops.length} · {walkTitle}</span>
+        {walk && walkSpot && <div data-learn-walk role="toolbar" aria-label="Walk" style={{ position: 'fixed', left: walkSpot.x, top: walkSpot.y, transform: 'translateX(-50%)' }}
+          className="z-40 flex max-w-[min(90vw,40rem)] items-center gap-1 rounded-md border border-line bg-white px-1 py-0.5 text-[13px] text-ink shadow-sm">
+          {/* One pill (owner 2026-11-18 13:33): ‹ Prev · n / N · section title · Next › · Exit, floating over the canvas; nothing else moves. */}
+          <button type="button" onClick={walkApi.prev} disabled={walk.at === 0} className="rounded px-1.5 py-0.5 hover:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">‹ Prev</button>
+          <span aria-hidden className="text-ink-3">·</span>
+          <span data-learn-walk-count className="min-w-0 truncate px-1 text-ink-2 tabular-nums">{walk.at + 1} / {walk.stops.length} · {walkTitle}</span>
+          <span aria-hidden className="text-ink-3">·</span>
+          <button type="button" onClick={walkApi.next} className="rounded px-1.5 py-0.5 font-medium text-accent hover:bg-hover">Next ›</button>
+          <span aria-hidden className="text-ink-3">·</span>
+          <button type="button" onClick={walkApi.exit} className="rounded px-1.5 py-0.5 hover:bg-hover">Exit</button>
         </div>}
         {focus && !cardOnly && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
