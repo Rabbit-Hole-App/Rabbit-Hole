@@ -734,12 +734,17 @@ export function valueBoxes(layoutId, count) {
   return boxes.map(([bx, by, bw, bh], i) => ({ box: [bx, by, bw, bh], stacked: bh >= 64, maxRight: layoutId === 'tall' && i === 0 ? Math.min(bx + bw - GRID.textClear, GRID.resetClearRight) : bx + bw - GRID.textClear }));
 }
 
-// Section 2, text (amendment C): a value is ONE box with its own text "Label: value unit"; the whole text must fit the box's width minus 16 px (8 px clear of each side; layout 5's top value stays left of the reset
-// cell). When the values do not all fit, the last one is dropped and the box divided again, so the order of the list is the order of importance. values: [{ text }]. Returns { values, boxes, dropped }.
+// A value's role colour is a small dot inside its box (amendment D): 10 px across, its centre 14 px from the box's left edge, vertically centred. The box's own text is centred, so it keeps 6 px clear of the dot on
+// both sides to stay centred: the text may be at most the box width less 2 x (14 + 5 + 6) = 50 px wide.
+export const VALUE_DOT = Object.freeze({ diameter: 10, centreX: 14, textClear: 6 });
+const dotSide = VALUE_DOT.centreX + VALUE_DOT.diameter / 2 + VALUE_DOT.textClear;
+
+// Section 2, text (amendments C and D): a value is ONE box with its own centred text "Label: value unit"; the whole text must fit the box width less the dot's room on each side (and, in layout 5, the top value stays
+// left of the reset cell). When the values do not all fit, the last one is dropped and the box divided again, so the order of the list is the order of importance. values: [{ text }]. Returns { values, boxes, dropped }.
 export function fitValues(layoutId, values, sizes = DRAWN_TEXT_SIZES) {
   for (let count = Math.min(values.length, layoutById(layoutId)?.slots.values.count[1] ?? 0); count >= 1; count--) {
     const boxes = valueBoxes(layoutId, count);
-    const fits = values.slice(0, count).every(({ text }, i) => { const { box: [bx], maxRight } = boxes[i]; return textWidth(text, sizes.value) <= maxRight - (bx + GRID.textClear); });
+    const fits = values.slice(0, count).every(({ text }, i) => { const { box: [bx, , bw], maxRight } = boxes[i]; return textWidth(text, sizes.value) <= Math.min(bw - 2 * dotSide, 2 * (maxRight - (bx + bw / 2))); });
     if (fits) return { values: values.slice(0, count), boxes, dropped: values.length - count };
   }
   throw new LayoutError('values_none', 'not even one value fits its box', ['values']);

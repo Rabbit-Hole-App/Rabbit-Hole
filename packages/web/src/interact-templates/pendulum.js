@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DRAWN_TEXT_SIZES, checkText, fitValues, layoutById, pickLayout } from '../interact-layout.js';
+import { DRAWN_TEXT_SIZES, VALUE_DOT, checkText, fitValues, layoutById, pickLayout } from '../interact-layout.js';
 import { textWidth } from '../tutor-diagrams/primitives.js';
 
 // Brief 33/34/35: the landing page's pendulum card ("What changes a pendulum's swing?"). Physics in the program: T = 2 pi sqrt(L / g), angle = theta0 cos(2 pi t / T); mass does not enter. A (the reference) is fixed,
@@ -35,8 +35,9 @@ function place(data) {
   for (const sentence of Object.values(data.notes)) checkText(id, { formula: `$${data.formula}$`, note: sentence }, size);
   return {
     layout: id, stage: layout.slots.stage.box, panel: layout.slots.panel.box,
-    values: fitted.values.map((entry, i) => ({ ...data.values[i], box: fitted.boxes[i].box })),
-    formulaBox: layout.slots.formula.box, noteBox: layout.slots.note.box,
+    // Amendment D: a value box and the note box are 28 px tall, centred in their 32 px slots; the value's role colour is a dot in its box; the formula has no box, its math run is centred in its slot.
+    values: fitted.values.map((entry, i) => { const [x, y, w, h] = fitted.boxes[i].box; return { ...data.values[i], box: [x, y + (h - 28) / 2, w, 28], dot: [x + VALUE_DOT.centreX, y + h / 2, VALUE_DOT.diameter] }; }),
+    formulaAt: ((x, y, w, h) => [x + w / 2, y + h / 2])(...layout.slots.formula.box), noteBox: ((x, y, w, h) => [x, y + (h - 28) / 2, w, 28])(...layout.slots.note.box),
   };
 }
 
@@ -58,8 +59,6 @@ for(let i=1;i<n-1;i++){const l=s[i-1],r=s[i],sign=Math.sign(l);m.push(sign!==Mat
 m.unshift((3*s[0]-m[0])/2);m.push((3*s[n-2]-m[m.length-1])/2);
 let i=0;while(i<n-2&&t>xs[i+1])i++;const h=dx[i],u=(t-xs[i])/h,u2=u*u,u3=u2*u;
 return (2*u3-3*u2+1)*ys[i]+(u3-2*u2+u)*h*m[i]+(3*u2-2*u3)*ys[i+1]+(u3-u2)*h*m[i+1];};
-// A value's box takes its entry's role (B's warning, A's input); a fixed value (never changes) is drawn quiet at 60%.
-const QUIET={live:1,set:1,fixed:0.6};
 export function evaluate({inputs,time}){
   const t=Math.min(Math.max(time||0,0),T.duration),mass=inputs.mass,length=inputs.length,ref=T.reference,periodA=PERIOD(ref.length),periodB=PERIOD(length);
   const angleA=T.theta0*Math.cos(2*Math.PI*t/periodA),angleB=T.theta0*Math.cos(2*Math.PI*t/periodB);
@@ -79,8 +78,9 @@ export function evaluate({inputs,time}){
   objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:'input'}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:'warning'}));
   const quantity={angleB:angleB,periodA:periodA,periodB:periodB};
   L.values.forEach((entry,k)=>{const shown=entry.label+': '+quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);
-    objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:entry.role,opacity:QUIET[entry.kind],text:shown}));});
-  objects.push(sdk.box('formula',L.formulaBox[0],L.formulaBox[1],L.formulaBox[2],L.formulaBox[3],{role:'neutral',runs:[{kind:'math',tex:T.formula}]}));
+    objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:'neutral',text:shown}),sdk.circle('chip.'+k,entry.dot[0],entry.dot[1],entry.dot[2],{role:entry.role}));});
+  // The formula is a math run with no box: a text object's row sits 0.35 of its font size above the y given, so y is the slot's centre plus 5.25 at 15 px.
+  objects.push(sdk.math('formula',L.formulaAt[0],L.formulaAt[1]+5.25,T.formula,{align:'middle',role:'neutral'}));
   const sameLength=Math.abs(length-ref.length)<1e-9,sameMass=Math.abs(mass-ref.mass)<1e-9;
   objects.push(sdk.box('note',L.noteBox[0],L.noteBox[1],L.noteBox[2],L.noteBox[3],{role:'neutral',text:sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter}));
   return {frame:sdk.frame(objects,{width:640,height:320,readouts:[{id:'periodA',value:periodA},{id:'periodB',value:periodB}]}),quantities:{mass:mass,length:length,periodA:periodA,periodB:periodB}};
