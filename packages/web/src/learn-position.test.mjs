@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SPACING, assumedHeight, columnWidth, docWords, fixedHeight, learnLayout, orderKey, setSpacingScale, spacing, union } from './learn-position.js';
+import * as positionApi from './learn-position.js';
 
 const G = SPACING.card;
 const card = (id, sectionId, itemId, role, { order = 0, part = 0, after = null, h = 100, w = 720, box = null, placed = false, pinned = false } = {}) =>
@@ -79,4 +80,13 @@ test('sizes, widths, order and spacing scale', () => {
   assert.equal(spacing(1.5).section, 120);
   setSpacingScale(0.75); assert.equal(spacing().card, 30); setSpacingScale(1);
   assert.deepEqual(union([{ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 5, w: 10, h: 10 }]), { x: 0, y: 0, w: 30, h: 15 });
+});
+
+test('§7.3 an unmeasured slot card is shown 5 s after it was put down; a measured, placed, pinned or untimed one is left alone; the wait to the next one is given', () => {
+  const { lateSlots, LEARN_SHOW_MS } = positionApi;
+  const card = (id, since, over = {}) => ({ id, at: null, learn: { slot: true, since, ...over } });
+  const now = 100_000;
+  const out = lateSlots([card('old', now - LEARN_SHOW_MS), card('new', now - 1000), card('measured', now - 9000), card('placed', now - 9000, { placed: true }), { ...card('pinned', now - 9000), at: { x: 1 } }, card('untimed', undefined)], { measured: { x: 0, y: 0, w: 1, h: 1 } }, now);
+  assert.deepEqual(out.late, ['old']);
+  assert.equal(out.wait, LEARN_SHOW_MS - 1000);
 });

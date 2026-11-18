@@ -25,7 +25,7 @@ export const PROSE_PATH = new RegExp(PATH_PART);
 // -> null when the text is acceptable, else what is wrong with it.
 const IDENTIFIER = /^[A-Za-z_]\w*(?:\.\w+)*$/;
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const inLines = (name, anchored) => new RegExp(String.raw`(?<![\w-])${escapeRe(name)}(?!\w)`).test(anchored);
+export const inLines = (name, anchored) => new RegExp(String.raw`(?<![\w-])${escapeRe(name)}(?!\w)`).test(anchored);
 const SHOWN_NAME = /`([^`\n]{1,80})`|(?<=^|\s)(--\w[\w-]*)|\b([a-z0-9]+_\w+|\w+\(\)|[a-z]+[A-Z]\w*)\b(?:\(\))?/g;
 const spelled = (name, text) => new RegExp(String.raw`(?<!\w)${escapeRe(name)}(?!\w)`).test(text);
 // Reviewer 19:40: a dotted `A.b` is a name the code card shows when its last part is in the anchored lines (`forward` in `def forward(`) and each earlier part is in the

@@ -118,7 +118,7 @@ import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
-import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, learnLayout, setSpacingScale, union } from './learn-position.js';
+import { SPACING, assumedHeight, cardWidth, columnWidth, fitsContent, fixedHeight, lateSlots, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -5836,7 +5836,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const ddx = Math.round(target.x - box.x), ddy = Math.round(target.y - box.y);
       if (ddx || ddy || !block.learn.placed) moves.set(block.id, { dx: (block.dx || 0) + ddx, dy: (block.dy || 0) + ddy, learn: { ...block.learn, placed: true } });
     }
+    // §7.3: a slot card still unmeasured 5 s after it was put down is shown where it is; the next measure moves it onto its slot. A timer wakes this effect when one is due.
+    const { late, wait } = lateSlots(plan, bounds);
+    for (const id of late) if (!moves.has(id)) { const block = plan.find(entry => entry.id === id); moves.set(id, { learn: { ...block.learn, placed: true } }); }
     if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+    if (wait == null) return undefined;
+    const timer = setTimeout(() => setLearnTick(tick => tick + 1), wait + 50);
+    return () => clearTimeout(timer);
   }, [bounds, blocks, learnTick, readOnly, localCopy]); // eslint-disable-line react-hooks/exhaustive-deps
   // A TOC click on a section with cards (spec 3, 5): the camera to the top of those cards, centred on the column, zoom unchanged unless the view is narrower than the column.
   const showLearnBoxes = boxes => {

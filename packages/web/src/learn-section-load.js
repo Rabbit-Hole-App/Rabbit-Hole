@@ -21,3 +21,22 @@ export async function compositionForMake(post, sectionId, { onBrief = null, onLo
   onLoading?.();
   return briefAndCompose(post, sectionId, { onBrief });
 }
+
+// One item's card: at most SECTION_ITEM_MS (Reviewer 2026-11-17 20:30 §7.2), so a wait that never ends is a failed item the learner can try again, never a silent stop.
+// -> { value } | { timedOut: true }; a rejection passes through.
+export const SECTION_ITEM_MS = 90_000;
+export function withinTime(promise, ms = SECTION_ITEM_MS) {
+  let timer = null;
+  const late = new Promise(resolve => { timer = setTimeout(() => resolve({ timedOut: true }), ms); });
+  return Promise.race([Promise.resolve(promise).then(value => ({ value })), late]).finally(() => clearTimeout(timer));
+}
+// What the page was doing when an item ran late: hidden or not, animation frames in one second, and the cards on the canvas.
+export async function stallDump(canvasApi) {
+  const frames = await new Promise(resolve => {
+    if (!globalThis.requestAnimationFrame) { resolve(null); return; }
+    let n = 0; const start = Date.now();
+    const tick = () => { n += 1; if (Date.now() - start < 1000) requestAnimationFrame(tick); else resolve(n); };
+    requestAnimationFrame(tick); setTimeout(() => resolve(n), 1500);
+  });
+  return { hidden: typeof document === 'undefined' ? null : document.hidden, framesPerSecond: frames, cards: (canvasApi?.blocks?.() || []).length };
+}
