@@ -45,6 +45,15 @@ test('validateComposition: a planted motion item and an unknown command are refu
 });
 
 // Reviewer 19:55 (section-run-fixes-spec.md §4): the brief's rule against the covering beat. A code name the beat spells may appear in backticks, exactly as the beat spells it.
+test('validateComposition code expressions (Reviewer 20:30 §6): code the beat shows in backticks passes verbatim in backticks; one character changed is refused and named; bare is refused', () => {
+  const shown = { ...brief, beats: [{ ...brief.beats[0], shows: 'Line 190: `logits[:, -1, :]` keeps the last position.' }, brief.beats[1]] };
+  const o = { ...opts, brief: shown }, rest = [item('i2', 'b2', 'document')];
+  const errors = request => validateComposition({ items: [item('i1', 'b1', 'explanation', { request }), ...rest] }, o).errors || [];
+  assert.deepEqual(errors('Show why `logits[:, -1, :]` keeps only the last position, with 3 tokens and a vocabulary of 5.'), []);
+  assert.deepEqual(errors('Show why `logits[:, -2, :]` keeps a position.'), ['item i1: the request for explanation names `logits[:, -2, :]`, which the anchored lines do not']);
+  assert.deepEqual(errors('Show why logits[:, -1, :] keeps only the last position.'), ['item i1: the request for explanation must put code in backticks, exactly as the beat spells it (found "logits[:, -1, :]" bare)']);
+});
+
 test('validateComposition code names: `n_embd` spelled by the beat passes in backticks; bare it is refused by name; a name the beat does not spell and a path are refused; a code request is as before', () => {
   const named = { ...brief, beats: [{ ...brief.beats[0], shows: 'Shapes stay (b, t, n_embd) through the blocks.' }, brief.beats[1]] };
   const o = { ...opts, brief: named }, rest = [item('i2', 'b2', 'document')];

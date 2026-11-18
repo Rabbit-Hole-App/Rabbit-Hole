@@ -57,7 +57,7 @@ test('learn_section_make: a tool with no module is skipped with a note (never a 
   f.deps.callModel = scripted();
   assert.deepEqual((await f.post({ action: 'learn_section_make', sectionId: '1.1', itemId: 'i2' })).body, { error: 'not_next', next: 'i1' });
   assert.deepEqual((await f.post({ action: 'learn_section_make', sectionId: '1.1', itemId: 'notes' })).body, { error: 'not_next', next: 'i1' });
-  f.deps.callModel = scripted(toolUse('submit_item', { lead: 'ok', words: 'bad' }), toolUse('submit_item', { lead: 'ok', words: 'bad' }));
+  f.deps.callModel = scripted(toolUse('submit_item', { lead: 'ok', words: 'bad' }), toolUse('submit_item', { lead: 'ok', words: 'bad' }), toolUse('submit_item', { lead: 'ok', words: 'bad' })); // the answer and two repairs (Reviewer 20:30 §8)
   assert.deepEqual((await f.post({ action: 'learn_section_make', sectionId: '1.1', itemId: 'i1' })).body, { skipped: { itemId: 'i1', note: 'I skipped the fake for this part.' }, next: 'i2' });
   f.deps.callModel = scripted();
   assert.deepEqual((await f.post({ action: 'learn_section_make', sectionId: '1.1', itemId: 'i2' })).body, { skipped: { itemId: 'i2', note: 'I skipped the missing for this part.' }, next: 'notes' });

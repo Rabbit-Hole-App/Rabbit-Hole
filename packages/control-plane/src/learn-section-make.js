@@ -151,7 +151,7 @@ export async function runMake(env, { actor, snapshot, repo }, body, { callModel 
   const user = makeMessage({ item, beat, section, brief, taught, notCover, depth, earlier, anchorsText: anchorExcerpt(snapshot, beat?.anchors || []), recorded });
   const cap = capUsd ?? (item.command === 'notebook' ? NOTEBOOK_CAP_USD : MAKE_CAP_USD);
   const out = await sectionTurn(env, {
-    composed, user, submit: submitItemTool(module), research: module.tools || [], ctx, capUsd: cap, callModel, maxResearchSteps: 2, // as the brief: room under the cap for the submit (BLOCKERS.md)
+    composed, user, submit: submitItemTool(module), research: module.tools || [], ctx, capUsd: cap, callModel, maxResearchSteps: 2, maxRepairs: 2, // as the brief: room under the cap for the submit (BLOCKERS.md); two repairs (Reviewer 20:30 §8)
     validate: async input => {
       const flow = checkFlow(input);
       let checked = null;

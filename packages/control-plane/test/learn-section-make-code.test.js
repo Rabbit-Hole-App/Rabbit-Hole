@@ -20,3 +20,9 @@ test('C §2c.3: a planted 120-line example answer is refused for a section item'
   assert.equal(artifactBlock('code_sample', sample(90), { madeBy: 'learn-section' }).type, 'snippet');
   assert.throws(() => artifactBlock('code_sample', sample(90)), /under 60 lines/); // typed /code keeps 60
 });
+
+test('a code card label over 6 words is refused with the label and its word count (Reviewer 20:30 §8), so a repair can shorten it', async () => {
+  const long = await validate({ cards: [{ anchor: 'prep.py:4-5', label: 'how one training batch is cut from the data' }] }, ctx);
+  assert.equal(long.error, 'label "how one training batch is cut from the data" is 9 words; at most 6: the beat\'s idea, shorter');
+  assert.equal((await validate({ cards: [{ anchor: 'prep.py:4-5', label: 'one batch cut from data' }] }, ctx)).error, undefined);
+});

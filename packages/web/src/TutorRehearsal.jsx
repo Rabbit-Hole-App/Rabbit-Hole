@@ -18,7 +18,7 @@ import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
 import { performItem, placeChapter } from './learn-section-perform.js';
-import { briefAndCompose, compositionForMake } from './learn-section-load.js';
+import { briefAndCompose, compositionForMake, stallDump, withinTime } from './learn-section-load.js';
 import { SPACING_SCALES } from './learn-position.js';
 import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 
@@ -326,10 +326,19 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
       if (!out?.perform) { failSection('make', out); return; }
       const composed = (composition?.items || []).find(entry => entry.id === itemId) || {}, cards = st.current.section.cards || {};
       let done;
+      let reached = 'start';
       try {
-        done = await performItem({ canvasApi: chatRef.current.canvasOps?.tutorCanvas?.() || null, slash, perform: out.perform, item: out.item,
+        const itemCanvas = chatRef.current.canvasOps?.tutorCanvas?.() || null;
+        const raced = await withinTime(performItem({ canvasApi: itemCanvas, slash, perform: out.perform, item: out.item,
           ctx: { sectionId, itemId, board, depth: depthOf(chatRef.current.settings?.depth) || null, ops: chatRef.current.canvasOps, after: composed.after ? cards[composed.after] || null : null, previous: st.current.section.last || previous, repository: repoRef.current,
-            order: orderOf(itemId), afterItem: composed.after || null, entry: entries[sectionId] || null, first } });
+            order: orderOf(itemId), afterItem: composed.after || null, entry: entries[sectionId] || null, first, onStage: name => { reached = name; } } }));
+        if (raced.timedOut) { // §7.2: never a silent stop; the console line is what the run reports
+          const dump = await stallDump(itemCanvas);
+          console.warn(JSON.stringify({ event: 'learn_section_perform_timeout', sectionId, itemId, op: out.perform?.op || null, stage: reached, ...dump }));
+          if (alive()) failSection('make', { words: SENTENCES.sectionCardLate });
+          return;
+        }
+        done = raced.value;
         first = false;
       } catch { if (alive()) failSection('make', null); return; }
       if (!alive()) return;
