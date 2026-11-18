@@ -1,0 +1,11 @@
+import { createHash } from 'node:crypto';
+const root = process.argv[2];
+const w = await import('file:///' + root + '/packages/web/src/tutor-diagrams/reference-library.js');
+const imp = p => import('file:///' + root + '/packages/control-plane/' + p);
+const { prepareArtifactAuthorRequest } = await imp('src/learn-artifact.js');
+const { stepRequest } = await imp('src/explanation-fast-chain.js');
+const env = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'google-low', GEMINI_API_KEY: 'x', FIREWORKS_API_KEY: 'x', EXPLANATION_INTERACTIONS: 'true' };
+const log = console.log; console.log = () => {};
+const out = {};
+for (const r of w.diagramReferences) out[r.id] = createHash('sha1').update(JSON.stringify(stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', prepareArtifactAuthorRequest(env, { command: 'explanation', args: r.prompts[0], depth: 'standard' }).body).response_format.json_schema.schema)).digest('hex').slice(0, 10);
+console.log = log; console.log(JSON.stringify(out));

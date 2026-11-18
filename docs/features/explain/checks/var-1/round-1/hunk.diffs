@@ -1,0 +1,1058 @@
+diff --git a/docs/features/explain.md b/docs/features/explain.md
+index 3f3546720..4a2159c7e 100644
+--- a/docs/features/explain.md
++++ b/docs/features/explain.md
+@@ -220,6 +220,7 @@ The author produces content, while the authenticated server supplies identity, s
+ | Generated Explanation — `learn-primitives.js::PRIMITIVES.explanation` | Required `title:string`, `body:string`; optional `more:Array<{label:string,text:string}>`; compatible block `type:'explanation'` | Current raw limits: title 120, body 3,000, label 40, text 1,500, ≤3 sections. These structural limits are separate from inclusive Depth caps. The source's body 2,000 / text 800 are older values, not instructions to shrink current limits. |
+ | Visible text — `explanationText`, `explanationChars`, `explanationProblem` | Final title + body + all section labels/text, including closed sections; Unicode code points after flattening and whitespace normalization | Existing pure Worker-compatible implementation counts table cells, literal displayed code and TutorDiagram title/caption/labels. Do not import a React renderer into the Worker. E2 applies the bounded metadata/image-text decision in section 5 (GAP-03 resolved for implementation). |
+ | Diagram — `tutor-diagrams/spec.js` | Version 1 closed `rh-diagram` JSON fence; `parseTutorDiagram`, `tutorDiagramVisibleText` | Current new-generation format is structured TutorDiagram rendered as SVG. Saved Mermaid remains readable. Do not allow author-supplied raw SVG/HTML/scripts or arbitrary runtime code. Exact kind constraints remain in the shared parser. |
++| Derived numbers — `tutor-diagrams/derived.js` (VAR-1 step 1) | A closed table of derived fields: box-plot fences, softmax list (`op: 'softmax'`, optional `t`), token-links weights, histogram proportions from counts, heatmap range, sample-set set differences, coordinate-plot `derive` (`series.<i>:on / mean / median / min / max / centroid`) | A derived number is never typed by the model: a written one must match its computation within half a unit of the decimals written (issue `code: 'arithmetic'` naming the correct numbers, release 154's repair route), an absent one is computed by `parseTutorDiagram` before layout. Decimals: box-derived values keep their inputs' maximum; statistics one more, capped at 3; proportions 2. `derive` and `op` / `t` are not offered to Gemini (property limit). Spec: `docs/features/explain/checks/sprint-2/var-1/`. Open: fence-less box plots now draw computed fences (decision pending, see the VAR-1 round 1 evidence); prose tokens, `ref.vary` and the guidance line are later steps. |
+ | Illustration — `IllustrationFigure.jsx`, `explanation-lead.js` | Existing optional illustration includes persisted `fileRef`, supported cache/source reference, alt, caption, callouts and aspect; pending attachment binds a proposal | Reuse authorized file resolution and existing image jobs. Insert after the opening paragraph via `splitLead`/`IllustratedBody`; loading/unavailable state is explicit. Preserve source and file access rules through reload/share/fork. |
+ | Canvas delivery | Existing block ID, world position/width, sourceRef, step/result IDs; saved board is the delivery authority | Never acknowledge a generated card before its board save. Reconcile failed/lost acknowledgments against the same result; do not regenerate or duplicate a card. |
+ 
+diff --git a/packages/control-plane/src/explanation-fast-chain.js b/packages/control-plane/src/explanation-fast-chain.js
+index 72483bcb9..bb82ab907 100644
+--- a/packages/control-plane/src/explanation-fast-chain.js
++++ b/packages/control-plane/src/explanation-fast-chain.js
+@@ -76,10 +76,22 @@ const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.cont
+ // learn-artifact.js ARITHMETIC_REPAIRS_SAME_MODEL reads this to decide whether a step whose answer has a wrong number gets a second repair or hands over to the next provider.
+ const geminiWrites = (kind, keep) => !NEW.has(kind) || keep.has(kind);
+ export const canWriteKind = (step, kind, keep = new Set()) => step.provider !== 'google' || geminiWrites(kind, keep);
++// VAR-1 step 1 (2026-11-17): the author's `derive` (four annotation kinds) and `op` / `t` (list transformation) cost 6 properties in the mixed plot, heatmap and block-stack bundle, 360 to 366
++// against the 362 limit, so Gemini's step does not get them, and the fields they make optional (an annotation's y or value, a softmax card's after items) stay required for it. The validator
++// still accepts and computes them from any step, and every Gemini bundle stays byte-identical to before.
++const REQUIRED_AGAIN = { point: ['x', 'y'], 'reference-line': ['value'] };
++const withoutDerived = o => {
++  const { derive, op, t, ...properties } = o.properties, kind = properties.kind?.const, again = (schema, names) => ({ ...schema, required: [...(schema.required ?? []), ...names] });
++  for (const end of ['from', 'to']) if (kind === 'segment' || kind === 'vector') properties[end] = again(properties[end], ['y']);
++  if (kind === 'transformation') properties.after = again(properties.after, ['items']);
++  return { ...o, properties, ...(REQUIRED_AGAIN[kind] && { required: [...o.required, ...REQUIRED_AGAIN[kind]] }) };
++};
+ export const forGemini = (o, keep = new Set()) => {
+   if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep));
+   if (!o || typeof o !== 'object') return o;
+-  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
++  if (o.properties?.kind?.const === 'transformation') return withoutDerived(listForm(o));
++  if (o.properties?.kind?.const === 'comparison') return listForm(o);
++  if (o.properties?.derive && o.properties.kind) o = withoutDerived(o); // an annotation that carries `derive`
+   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
+ };
+ 
+diff --git a/packages/control-plane/test/explanation-gemini-illustration-bundles.test.js b/packages/control-plane/test/explanation-gemini-illustration-bundles.test.js
+index da1f79f5e..d613d5581 100644
+--- a/packages/control-plane/test/explanation-gemini-illustration-bundles.test.js
++++ b/packages/control-plane/test/explanation-gemini-illustration-bundles.test.js
+@@ -48,3 +48,15 @@ test('the planner-steered bundle carries its kind, and the unsteered bundle carr
+ test('the unsteered bundle is unchanged by the three illustration kinds: 136 properties, 9,977 characters (134 and 9,832 before 7fcc07d0d made a tree title optional inside tree panels; 9,833 before the kinds were added)', () => {
+   for (const args of ['how does the water cycle work?', 'how does the TCP handshake work?', 'stack vs queue']) { const s = geminiSchema(args); assert.equal(props(s), 136, args); assert.equal(JSON.stringify(s).length, 9977, args); }
+ });
++
++test('VAR-1: `derive` (annotations) and `op` / `t` (list transformation) reach every other provider but never Gemini, and the fields they make optional stay required for Gemini', () => {
++  const kinds = ['coordinate-plot', 'heatmap', 'block-stack'];
++  const body = prepareArtifactAuthorRequest({ ...env, EXPLANATION_MODEL_PROFILE: 'fireworks-low' }, { command: 'explanation', args: 'Show the numeric summaries and their assembly',
++    visualRequirements: { items: kinds.map((diagramKind, index) => ({ id: `vr-${index + 1}`, kind: 'diagram', diagramKind, purpose: `Show the ${diagramKind}` })) } }).body;
++  const gemini = JSON.stringify(stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', body).response_format.json_schema.schema);
++  const other = JSON.stringify(stepRequest({ provider: 'fireworks', model: 'm' }, 'low', body).response_format.json_schema.schema);
++  assert.ok(other.includes('"derive":{'), 'another provider is offered derive');
++  assert.ok(!gemini.includes('"derive":'), 'Gemini is not');
++  const transformation = JSON.stringify(stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', prepareArtifactAuthorRequest(env, { command: 'explanation', args: 'how does a softmax turn scores into probabilities?', depth: 'standard' }).body).response_format.json_schema.schema);
++  assert.ok(!/"op":\{/.test(transformation), 'no op for Gemini');
++});
+diff --git a/packages/web/src/tutor-diagrams/README.md b/packages/web/src/tutor-diagrams/README.md
+index 79ae82d94..207842a8e 100644
+--- a/packages/web/src/tutor-diagrams/README.md
++++ b/packages/web/src/tutor-diagrams/README.md
+@@ -71,6 +71,22 @@ Plots accept point, segment, vector, reference-line, rectangle, polygon, circle,
+ 
+ A highlighted tree path is root-to-descendant, not an arbitrary traversal order. Inorder traversal uses visit annotations on the actual structure. A family descendant hierarchy has one root and one parent per child; a multiple-parent pedigree needs a relationship graph.
+ 
++## Derived fields (VAR-1, `derived.js`)
++
++A number that is a function of other numbers is derived: the server computes it, the validator checks a written one against it, and the figure prints it. `derived.js` is the closed table (one row per definition: kind, path, inputs, compute, tolerance). A written derived field must equal its computation within half a unit of the decimals written on it, else the issue is tagged `code: 'arithmetic'` and names the correct numbers (the release 154 route); an absent one is filled by `parseTutorDiagram` before any layout reads the diagram, so the renderer prints the computed value wherever it prints the field. Decimals of a computed value: box-derived fences keep the most decimals among q1 and q3; a statistic (mean, median, centroid, y on a series) keeps one more than its inputs, capped at 3; a proportion (softmax output, normalised weight, histogram proportion) keeps 2.
++
++| Kind | Derived field | Computed from | Rule |
++| --- | --- | --- | --- |
++| `box-plot` | `boxes[].fences` (optional) | `q1`, `q3` | Absent: filled with Q1 - 1.5 IQR and Q3 + 1.5 IQR. Written: must equal them and enclose both whiskers (release 154's messages). A box without fences keeps 154's outlier rule (read against the whiskers) |
++| `transformation` (list) | `after.items` (optional with `op`) | `before.items`, `op`, `t` | `op: 'softmax'` recomputes whatever the words say; `t` (optional, positive) divides the before items. The gate words (temperature, `T =`, scaled, masked, causal, log-softmax) switch off only the word trigger kept from 154, never `op` |
++| `token-links` | `queries[].weights` | raw weights | With `normalized`, weights summing to 0.98 to 1.02 (each at most 1) stay as written; any other nonnegative weights are raw scores, replaced by their shares (2 decimals, summing to 1). A zero total is rejected |
++| `histogram` | `series[].values` | counts | `measure: 'proportion'` with whole-number values that are not already proportions: read as counts, replaced by proportions (2 decimals, summing to 1) |
++| `heatmap` | `range` (optional) | `rows[].cells` | Absent: the smallest and largest numeric cell. A written range is kept and still bounds every cell |
++| `sample-set` | out-of-bag `members` (optional), `omitted` | `members`, `outOfBagFor` | Set differences. An out-of-bag set may leave its members out (filled); a written `omitted` or out-of-bag member list must equal the set difference (arithmetic, naming the ids). `omitted` is a display choice and is never filled |
++| `coordinate-plot` | annotation numbers, through `derive` | a series | `derive: 'series.<i>:on'` (point, segment ends, vector ends: x given, y optional, from the series with its own interpolation: monotone curve unless `smooth: false`, held value for a step, own x for a scatter or stem); `:mean`, `:median`, `:min`, `:max` (reference-line, `value` optional, over the series coordinate on the line's axis); `:centroid` (point, x and y optional) |
++
++Schema cost: `derive` is one string property on four annotation kinds (point, segment, vector, reference-line) and `op` (+ `t`) are on the list transformation; they are withheld from Gemini's schema bundle (`explanation-fast-chain.js forGemini`), which stays byte-identical to before. `derived.js` holds kinds only: no subject-matter words.
++
+ ## Static illustration kinds
+ 
+ | Kind | Schema and layout modules | Supported structure |
+diff --git a/packages/web/src/tutor-diagrams/derived-schema.test.mjs b/packages/web/src/tutor-diagrams/derived-schema.test.mjs
+new file mode 100644
+index 000000000..2c00f6b08
+--- /dev/null
++++ b/packages/web/src/tutor-diagrams/derived-schema.test.mjs
+@@ -0,0 +1,126 @@
++// VAR-1 step 1, the two schema property additions (derived.js): `derive` on an annotation (point, segment, vector, reference-line) and `op` (+ `t`) on a list transformation, with the
++// fields they make optional (an annotation's y or value, a softmax card's after items). Acceptance items 2 and 3 of the spec live here; acceptance 1 is in derived.test.mjs.
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { seriesAt } from './derived.js';
++import { parseTutorDiagram, tutorDiagramSchema } from './spec.js';
++
++const wrap = diagram => ({ version: 1, diagram });
++const issues = diagram => { const r = tutorDiagramSchema.safeParse(wrap(diagram)); return r.success ? [] : r.error.issues.map(i => ({ path: i.path.slice(1).join('.'), message: i.message, code: i.params?.code })); };
++const filled = diagram => parseTutorDiagram(wrap(diagram)).diagram;
++const arithmetic = list => list.filter(i => i.code === 'arithmetic');
++const copy = value => structuredClone(value);
++
++// ---- softmax ----
++const logits = (extra = {}, after = ['0.70', '0.26', '0.04']) => ({ kind: 'transformation', title: 'Scores to shares', before: { label: 'Logits', items: ['2.0', '1.0', '0.1'] }, after: { label: 'Shares', items: after }, operation: 'Exponentiate and divide by the total', ...extra });
++
++test('acceptance 3: op softmax recomputes with no softmax word anywhere; the logits card 0.70 / 0.26 / 0.04 fails naming 0.66 / 0.24 / 0.10', () => {
++  assert.deepEqual(issues(logits()), [], 'without op and without the word, nothing is checked (the 154 fallback only fires on the word)');
++  const found = issues(logits({ op: 'softmax' }));
++  assert.equal(found.length, 1);
++  assert.equal(found[0].message, 'After values must be softmax of the before values: softmax(2.0, 1.0, 0.1) = 0.66, 0.24, 0.10, not 0.70, 0.26, 0.04.');
++  assert.equal(found[0].code, 'arithmetic');
++  assert.deepEqual(issues(logits({ op: 'softmax' }, ['0.66', '0.24', '0.10'])), []);
++});
++
++test('op softmax: t divides the before items; the gate words turn off the word trigger only, never op', () => {
++  // softmax(2, 1, 0.1 / 0.5) = softmax(4, 2, 0.2) = 0.8647, 0.1170, 0.0183 (rounded: 0.86, 0.12, 0.02)
++  const found = issues(logits({ op: 'softmax', t: 0.5 }, ['0.66', '0.24', '0.10']));
++  assert.equal(found.length, 1);
++  assert.match(found[0].message, /softmax\(2\.0, 1\.0, 0\.1 \/ 0\.5\) = 0\.86, 0\.12, 0\.02, not 0\.66, 0\.24, 0\.10\./);
++  assert.deepEqual(issues(logits({ op: 'softmax', t: 0.5 }, ['0.86', '0.12', '0.02'])), []);
++  assert.equal(arithmetic(issues(logits({ op: 'softmax', title: 'Scores at temperature 1' }))).length, 1, 'a gate word does not disable op');
++  assert.deepEqual(issues(logits({ title: 'Softmax at temperature 0.5', operation: 'Scale then softmax' }, ['0.66', '0.24', '0.10'])), [], 'the word trigger stays gated');
++  assert.deepEqual(issues({ ...logits({ op: 'softmax' }), before: { label: 'Logits', items: ['h1', 'h2', 'h3'] } }).map(i => i.code), [undefined], 'op on non-numeric items is an ordinary issue, not arithmetic');
++});
++
++test('op softmax: after items left out are computed (2 decimals) and the links read against the computed count', () => {
++  const card = logits({ op: 'softmax', links: [{ from: 0, to: 2 }] }); delete card.after.items;
++  const d = filled(card);
++  assert.deepEqual(d.after.items, ['0.66', '0.24', '0.10']);
++  const bad = copy(card); bad.links = [{ from: 0, to: 3 }];
++  assert.deepEqual(issues(bad).map(i => i.message), ['Mapping indices must refer to existing items']);
++  const noOp = copy(card); delete noOp.op;
++  assert.deepEqual(issues(noOp).map(i => i.message), ['A list transformation needs an item list'], 'without op an item list is still required');
++  assert.deepEqual(filled(logits({ op: 'softmax', t: 0.5 }, ['0.86', '0.12', '0.02'])).after.items, ['0.86', '0.12', '0.02'], 'a present, correct list is kept as written');
++});
++
++
++// ---- coordinate-plot derive ----
++const plot = (annotations, series = [{ label: 'Data', kind: 'line', points: [{ x: 0, y: 1 }, { x: 1, y: 4 }, { x: 2, y: 2 }, { x: 3, y: 5 }, { x: 4, y: 3 }] }]) =>
++  ({ kind: 'coordinate-plot', title: 'Series', x: { label: 'x', min: 0, max: 6 }, y: { label: 'y', min: 0, max: 10 }, series, annotations });
++const refLine = extra => ({ kind: 'reference-line', label: 'Mean', axis: 'y', ...extra });
++
++test('acceptance 2: a reference-line with derive series.0:mean and no value is drawn at the series mean; a wrong value is rejected naming the mean', () => {
++  assert.equal(filled(plot([refLine({ derive: 'series.0:mean' })])).annotations[0].value, 3, 'integer targets 1, 4, 2, 5, 3: mean 3');
++  assert.deepEqual(issues(plot([refLine({ derive: 'series.0:mean', value: 3 })])), []);
++  const wrong = issues(plot([refLine({ derive: 'series.0:mean', value: 4 })]));
++  assert.deepEqual(wrong, [{ path: 'annotations.0.value', message: 'Mean is at the mean of "Data" (y): 3, not 4.', code: 'arithmetic' }]);
++});
++
++test('derive statistics: median, min, max, the axis of the line, decimals (inputs + 1, capped at 3) and the tolerance of the written decimals', () => {
++  const at = (stat, extra = {}) => filled(plot([refLine({ derive: `series.0:${stat}`, ...extra })])).annotations[0].value;
++  assert.deepEqual(['median', 'min', 'max'].map(stat => at(stat)), [3, 1, 5]);
++  const halves = [{ label: 'Data', kind: 'scatter', points: [{ x: 1, y: 1.5 }, { x: 2, y: 2.5 }] }];
++  assert.equal(filled(plot([refLine({ derive: 'series.0:mean' })], halves)).annotations[0].value, 2, 'one decimal in, two decimals kept: 2');
++  const thirds = [{ label: 'Data', kind: 'scatter', points: [{ x: 1, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 2 }] }];
++  assert.equal(filled(plot([refLine({ derive: 'series.0:mean' })], thirds)).annotations[0].value, 1.7, 'integers in, one decimal out: 5/3 is 1.7');
++  const long = [{ label: 'Data', kind: 'scatter', points: [{ x: 1, y: 0.1234 }, { x: 2, y: 0.2 }, { x: 3, y: 0.3 }] }];
++  assert.equal(filled(plot([refLine({ derive: 'series.0:mean' })], long)).annotations[0].value, 0.208, 'capped at three decimals');
++  assert.equal(filled(plot([refLine({ axis: 'x', derive: 'series.0:max' })])).annotations[0].value, 4, 'the axis x reads the x values');
++  assert.deepEqual(issues(plot([refLine({ derive: 'series.0:mean', value: 3.02 })], thirds)), [{ path: 'annotations.0.value', message: 'Mean is at the mean of "Data" (y): 1.7, not 3.02.', code: 'arithmetic' }]);
++  assert.deepEqual(issues(plot([refLine({ derive: 'series.0:mean', value: 1.7 })], thirds)), [], 'written to one decimal: within a half unit of 1.6667');
++  assert.deepEqual(issues(plot([refLine({ derive: 'series.0:mean', value: 1.67 })], thirds)), [], 'written to two decimals: 1.67 is within 0.005 of 1.6667');
++  assert.equal(arithmetic(issues(plot([refLine({ derive: 'series.0:mean', value: 1.66 })], thirds))).length, 1, '1.66 is 0.0067 away');
++});
++
++test('derive on: a point, segment end or vector end on a series takes its y from the series with the series\' own interpolation', () => {
++  const line = [{ label: 'Fit', kind: 'line', points: [{ x: 0, y: 0 }, { x: 2, y: 4 }, { x: 4, y: 8 }] }];
++  const point = extra => ({ kind: 'point', label: 'Probe', derive: 'series.0:on', ...extra });
++  assert.equal(filled(plot([point({ x: 1 })], line)).annotations[0].y, 2, 'collinear samples: the monotone curve is the line');
++  assert.deepEqual(issues(plot([point({ x: 1, y: 2 })], line)), []);
++  assert.deepEqual(issues(plot([point({ x: 1, y: 3 })], line)), [{ path: 'annotations.0.y', message: 'Probe must sit on the series "Fit": at x = 1 its y is 2, not 3.', code: 'arithmetic' }]);
++  const seg = filled(plot([{ kind: 'segment', label: 'Rise', derive: 'series.0:on', from: { x: 1 }, to: { x: 3 } }], line)).annotations[0];
++  assert.deepEqual([seg.from, seg.to], [{ x: 1, y: 2 }, { x: 3, y: 6 }]);
++  const vec = filled(plot([{ kind: 'vector', label: 'Step', derive: 'series.0:on', from: { x: 0, y: 0 }, to: { x: 4 } }], line)).annotations[0];
++  assert.deepEqual([vec.from, vec.to], [{ x: 0, y: 0 }, { x: 4, y: 8 }], 'a written end is checked, an omitted y is filled');
++  // The series' own interpolation: straight segments when smooth is false, a held value for a step, own x only for a scatter.
++  const bent = points => [{ label: 'Fit', kind: 'line', points, smooth: false }];
++  assert.equal(seriesAt(bent([{ x: 0, y: 0 }, { x: 2, y: 4 }, { x: 4, y: 4 }])[0], 1).y, 2);
++  assert.equal(seriesAt({ label: 'S', kind: 'step', points: [{ x: 0, y: 1 }, { x: 2, y: 3 }, { x: 4, y: 2 }] }, 3).y, 3, 'a step holds the previous value');
++  assert.match(seriesAt({ label: 'S', kind: 'scatter', points: [{ x: 0, y: 1 }, { x: 2, y: 3 }] }, 1).error, /own x values/);
++  assert.match(seriesAt({ label: 'S', kind: 'line', points: [{ x: 0, y: 1 }, { x: 2, y: 3 }] }, 5).error, /outside the x range/);
++  // The monotone curve between uneven samples matches the renderer: it stays between its neighbours and passes through the samples.
++  const curved = { label: 'S', kind: 'line', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 8 }, { x: 3, y: 9 }] };
++  // At x = 1.25 the Hermite form with Steffen's tangents (2 and 2 here) gives 2.28125 by hand; the straight line would give 2.75.
++  assert.ok(Math.abs(seriesAt(curved, 1.25).y - 2.28125) < 1e-9, `monotone cubic, not linear: ${seriesAt(curved, 1.25).y}`);
++  assert.equal(seriesAt(curved, 2).y, 8);
++});
++
++test('derive centroid: a point at the means of the series; a wrong written coordinate is rejected naming the centroid', () => {
++  const scatter = [{ label: 'Cloud', kind: 'scatter', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }] }];
++  const centroid = extra => ({ kind: 'point', label: 'Centre', derive: 'series.0:centroid', ...extra });
++  const d = filled(plot([centroid()], scatter)).annotations[0];
++  assert.deepEqual([d.x, d.y], [3, 4]);
++  assert.deepEqual(issues(plot([centroid({ x: 3, y: 4 })], scatter)), []);
++  const wrong = issues(plot([centroid({ x: 3, y: 5 })], scatter));
++  assert.deepEqual(wrong, [{ path: 'annotations.0.y', message: 'The centroid of "Cloud" is (3, 4); Centre must be there, not y = 5.', code: 'arithmetic' }]);
++});
++
++test('derive: unknown series, a rule the kind does not carry, a missing x and a missing value are ordinary issues', () => {
++  const msg = annotation => issues(plot([annotation])).map(i => [i.path, i.message, i.code]);
++  assert.deepEqual(msg(refLine({ derive: 'series.2:mean' })), [['annotations.0.derive', 'derive refers to series 2, which does not exist (there are 1)', undefined]]);
++  assert.deepEqual(msg(refLine({ derive: 'series.0:on' })), [['annotations.0.derive', 'A reference-line derives series.0:mean or series.0:median or series.0:min or series.0:max, not series.0:on', undefined]]);
++  assert.deepEqual(msg({ kind: 'point', label: 'P', derive: 'series.0:on' }), [['annotations.0.x', 'A point needs x.', undefined]]);
++  assert.deepEqual(msg(refLine()), [['annotations.0.value', 'A reference-line needs a value (or a derive that computes it).', undefined]]);
++  assert.deepEqual(msg({ kind: 'point', label: 'P', x: 2 }).map(i => i[1]), ['A point needs y (or a derive that computes it).']);
++  assert.deepEqual([...new Set(msg({ kind: 'point', label: 'P', x: 2, y: 3, derive: 'series.zero:on' }).map(i => i[0]))], ['annotations.0.derive'], 'a malformed derive fails the schema pattern');
++});
++
++
++test('a filled op softmax card and a filled derive card are valid input again (idempotent)', () => {
++  for (const card of [logits({ op: 'softmax' }, ['0.66', '0.24', '0.10']), plot([refLine({ derive: 'series.0:mean' }), { kind: 'point', label: 'P', derive: 'series.0:on', x: 1 }])]) {
++    const once = filled(card);
++    assert.deepEqual(filled(once), once, card.kind);
++  }
++});
+diff --git a/packages/web/src/tutor-diagrams/derived.js b/packages/web/src/tutor-diagrams/derived.js
+new file mode 100644
+index 000000000..43d4b1652
+--- /dev/null
++++ b/packages/web/src/tutor-diagrams/derived.js
+@@ -0,0 +1,248 @@
++// VAR-1 (spec v1.1, step 1): the closed table of derived fields. A spec has two sorts of number: inputs (the author's choice) and derived numbers (a function of
++// inputs). One row per DEFINITION: { kind, path, inputs, tolerance, compute }. `compute(diagram)` returns the row's instances; each instance is one derived field:
++//   { at: path of the field, written: what the author wrote (undefined = absent), computed: the value the code computes, replace: true = the written value is raw input
++//     to be replaced, problems: [{ message, plain }] }.
++// checkDerived (the validator): a derived field PRESENT must equal its computed value within the tolerance, else an issue tagged { code: 'arithmetic' } that names the
++// correct numbers (release 154's route); a `plain` problem is an ordinary issue (the rule cannot run). fillDerived (before layout): a derived field ABSENT is filled with
++// its computed value, a `replace` field is replaced; the renderer then prints the value wherever it prints the field today. The table is closed: a row is added only when a
++// field has a formula, and this module holds no subject-matter vocabulary, only kinds.
++// Decimals (reviewer 2026-11-17): a value derived from box inputs keeps the most decimals among them (min 0); a statistic (mean, median, centroid, on-series y) keeps one
++// more than its inputs, capped at 3; a proportion (softmax output, normalised weight, histogram proportion) keeps 2. The tolerance for a WRITTEN value is half a unit of the
++// decimals written on it (the allowance release 154 already uses), plus 1e-9 of float slack.
++import { plotSeriesPoints } from './ml-plot-spec.js';
++import { limitedTangent } from './plot-lines.js';
++
++export const decimalsOf = value => (String(value).split('.')[1] ?? '').length;
++const maxPlaces = values => Math.max(0, ...values.map(decimalsOf));
++const statPlaces = values => Math.min(3, maxPlaces(values) + 1);
++const half = places => 0.5 * 10 ** -places + 1e-9;
++const roundTo = (value, places) => Number(value.toFixed(places));
++const sum = values => values.reduce((total, value) => total + value, 0);
++const list = values => values.join(', ');
++
++// n shares of a total at `places` decimals that add up to exactly 1 (largest remainder, ties by position).
++export function normalise(values, places = 2) {
++  const unit = 10 ** places, total = sum(values), raw = values.map(value => value / total * unit), floor = raw.map(Math.floor);
++  let left = unit - sum(floor);
++  for (const [, i] of raw.map((value, i) => [value - floor[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1])) {
++    if (left <= 0) break;
++    floor[i] += 1; left -= 1;
++  }
++  return floor.map(value => value / unit);
++}
++
++// ---- box-plot: fences from Q1 and Q3 ----
++// The fences the box's own quartiles give, at the most decimals among q1 and q3.
++export function boxFences(box) {
++  const places = maxPlaces([box.q1, box.q3]), spread = 1.5 * (box.q3 - box.q1);
++  return { lower: roundTo(box.q1 - spread, places), upper: roundTo(box.q3 + spread, places), places };
++}
++function boxFenceInstance(box, i) {
++  const at = ['boxes', i, 'fences'], spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, problems = [];
++  const written = box.fences, computed = boxFences(box);
++  const { lower, upper } = written ?? computed;
++  const places = written ? maxPlaces([box.q1, box.q3, lower, upper]) : computed.places;
++  // A whisker beyond a STATED fence names both numbers; same half-unit allowance (item 5, Reviewer 2026-11-17). Fences left out are only filled: release 154's rule for a box without
++  // fences (its outliers are read against its whiskers) stands. shortcut: a computed fence is not checked against the whiskers or outliers; upgrade on the Reviewer's word.
++  if (written && (lower - box.whiskerLow > half(places) || box.whiskerHigh - upper > half(places))) {
++    problems.push({ message: `Fences must enclose both whiskers: the whiskers run from ${box.whiskerLow} to ${box.whiskerHigh}, outside the fences ${lower} and ${upper}.` });
++  }
++  if (written && (Math.abs(lower - low) > half(places) || Math.abs(upper - high) > half(places))) {
++    const round = value => Number(value.toFixed(places + 1));
++    problems.push({ message: `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.` });
++  }
++  return { at, written, computed: { lower: computed.lower, upper: computed.upper }, problems };
++}
++
++// ---- transformation (list): softmax of the before items ----
++// `op: 'softmax'` is the declared rule (fires whatever the words say); `t` (optional) divides the before items (SOFT-T). Without `op`, release 154's word trigger stays as a fallback:
++// a title or operation that says softmax, with plain numeric before and after items; it is OFF when a label says temperature, scaled, scaling, masked, causal, log-softmax or
++// "T =" (after = softmax(before / T): the plain recompute would flag a correct card); then the only check is that after sums to 1 when the title or caption calls them probabilities.
++const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
++// "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
++export function listNumber(item) {
++  if (typeof item !== 'string') return null;
++  const m = item.replace(/\$/g, '').split(/[=:]/).pop().trim().replace(/−/g, '-').match(/^(-?\d+(?:\.(\d+))?)\s*(%?)$/);
++  if (!m) return null;
++  const places = (m[2] ?? '').length, scale = m[3] ? 100 : 1;
++  return { value: Number(m[1]) / scale, places, half: 0.5 * 10 ** -places / scale, text: m[1] + m[3] };
++}
++const softmax = (values, t = 1) => {
++  const top = Math.max(...values.map(value => value / t)), e = values.map(value => Math.exp(value / t - top)), z = sum(e);
++  return e.map(value => value / z);
++};
++function softmaxInstance(d) {
++  const declared = d.op === 'softmax', at = ['after', 'items'];
++  if (!declared && !/softmax/i.test(`${d.title} ${d.operation}`)) return null;
++  const before = d.before.items.map(listNumber), written = d.after.items, after = written?.map(listNumber);
++  if (declared && before.some(x => !x)) return { at, written, problems: [{ plain: true, message: 'op softmax needs plain numeric before items (like 2.0 or 1.5)' }] };
++  if (!declared && (before.some(x => !x) || !after || after.length !== before.length || after.some(x => !x))) return null;
++  if (declared && written && (after.length !== before.length || after.some(x => !x))) {
++    return { at, written, problems: [{ plain: true, message: `op softmax needs one plain number per before item (${before.length}) in after items` }] };
++  }
++  const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
++  if (!declared && (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels))) {
++    const total = sum(after.map(x => x.value)), slack = sum(after.map(x => x.half));
++    const wrong = /probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(total - 1) > slack + 1e-9;
++    return { at, written, problems: wrong ? [{ message: `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(total.toFixed(6))}.` }] : [] };
++  }
++  const t = declared ? d.t : undefined, p = softmax(before.map(x => x.value), t);
++  const computed = p.map(value => value.toFixed(2)), problems = [];
++  if (after) {
++    const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;
++    // Rounding clause (Reviewer 2026-11-17, tightened): values written to sum to exactly 1 pass when at most ONE value is past its half-unit and that one is within a full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
++    const roundedToOne = Math.abs(sum(after.map(x => x.value)) - 1) <= 1e-9 && beyond(1) <= 1 && beyond(2) === 0;
++    if (beyond(1) && !roundedToOne) {
++      const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
++      problems.push({ message: `After values must be softmax of the before values: softmax(${list(before.map(x => x.text))}${t ? ` / ${t}` : ''}) = ${list(shown)}, not ${list(after.map(x => x.text))}.` });
++    }
++  }
++  return { at, written, computed, problems };
++}
++
++// ---- token-links: raw weights, normalised ----
++// With `normalized`, a query whose weights already sum to between 0.98 and 1.02 (each at most 1) stays as written; any other nonnegative weights are raw scores and are
++// replaced by their shares of the total (2 decimals, adding up to 1).
++function tokenLinkInstances(d) {
++  if (!d.normalized) return [];
++  return d.queries.flatMap(({ weights }, row) => {
++    if (weights.length !== d.target.length) return [];
++    const at = ['queries', row, 'weights'], total = sum(weights), roundoff = weights.length * Number.EPSILON;
++    if (!(total > 0)) return [{ at, written: weights, problems: [{ plain: true, message: 'Normalized query weights must have a positive total' }] }];
++    if (total >= 0.98 - roundoff && total <= 1.02 + roundoff && weights.every(weight => weight <= 1)) return [];
++    return [{ at, written: weights, computed: normalise(weights), replace: true, problems: [] }];
++  });
++}
++
++// ---- histogram: proportions from counts ----
++// A proportion histogram whose values are not already proportions (each at most 1, adding up to 1) but are nonnegative whole numbers with a positive total is read as counts.
++export const histogramCounts = values => values.every(value => Number.isInteger(value) && value >= 0) && sum(values) > 0
++  && !(values.every(value => value <= 1) && Math.abs(sum(values) - 1) <= 1e-6);
++const histogramInstances = d => d.measure !== 'proportion' ? [] : d.series.flatMap(({ values }, i) => histogramCounts(values)
++  ? [{ at: ['series', i, 'values'], written: values, computed: normalise(values), replace: true, problems: [] }] : []);
++
++// ---- heatmap: range from the cells ----
++// An explicit range stays the author's (the existing check keeps every cell inside it); an absent one is the smallest and largest numeric cell.
++export function heatmapRange(d) {
++  const cells = d.rows.flatMap(row => row.cells).filter(value => value !== null && value !== undefined);
++  return cells.length ? { min: Math.min(...cells), max: Math.max(...cells) } : null;
++}
++function heatmapInstance(d) {
++  if (d.range) return [];
++  const computed = heatmapRange(d), at = ['range'];
++  if (!computed) return [{ at, problems: [{ plain: true, message: 'No range can be computed from masked cells: write a range' }] }];
++  if (!(computed.min < computed.max)) return [{ at, problems: [{ plain: true, message: 'Every cell has the same value, so no range can be computed: write a range' }] }];
++  return [{ at, computed, problems: [] }];
++}
++
++// ---- sample-set: omitted and out-of-bag membership are set differences ----
++export const absentFrom = (samples, members) => samples.map(sample => sample.id).filter(id => !members.includes(id));
++function sampleInstances(d) {
++  const groups = new Map(d.groups.map(group => [group.id, group]));
++  const sameSet = (a, b) => a.length === b.length && b.every(id => a.includes(id));
++  return d.groups.flatMap((group, i) => {
++    const out = [], source = group.outOfBagFor ? groups.get(group.outOfBagFor) : null;
++    if (source && source !== group && !source.outOfBagFor && source.replacement && source.members && !group.replacement) {
++      const expected = absentFrom(d.samples, source.members);
++      out.push({ at: ['groups', i, 'members'], written: group.members, computed: expected,
++        problems: group.members && !sameSet(group.members, expected) ? [{ message: `Out-of-bag members must be exactly the samples absent from the referenced draw: ${expected.join(', ') || 'none'}.` }] : [] });
++    }
++    // `omitted` is a display choice (absent draws nothing), so it is checked when written and never filled.
++    if (group.members && group.omitted) {
++      const expected = absentFrom(d.samples, group.members);
++      out.push({ at: ['groups', i, 'omitted'], written: group.omitted,
++        problems: sameSet(group.omitted, expected) ? [] : [{ message: `Omitted IDs must be exactly the samples absent from this group: ${expected.join(', ') || 'none'}.` }] });
++    }
++    return out;
++  });
++}
++
++// ---- coordinate-plot: `derive` on an annotation ----
++// 'series.<i>:on' (point, segment ends, vector ends): y = the series' own y at the written x, with the series' own interpolation (a line is the monotone curve the renderer
++// draws unless smooth is false, a step holds its previous value, a scatter or stem has y only at its own x). 'series.<i>:mean|median|min|max' (reference-line): `value` is that
++// statistic of the series' coordinate on the line's axis. 'series.<i>:centroid' (point): x and y are the means of the series' coordinates.
++// shortcut: an uncertainty band's clamp of the curve is not modelled, so a line with low/high points is read as its plain monotone curve; upgrade if a derive lands on one.
++const DERIVE = /^series\.(\d+):(on|mean|median|min|max|centroid)$/;
++const ALLOWED = { point: ['on', 'centroid'], segment: ['on'], vector: ['on'], 'reference-line': ['mean', 'median', 'min', 'max'] };
++export function seriesAt(series, x) {
++  if (series.closed) return { error: `"${series.label}" is a closed line, not a function of x` };
++  const points = plotSeriesPoints(series), hit = points.find(point => point.x === x);
++  if (hit) return { y: hit.y };
++  if (!['line', 'step'].includes(series.kind)) return { error: `"${series.label}" is a ${series.kind} series: x must be one of its own x values (${list(points.map(point => point.x))})` };
++  const i = points.findIndex((point, j) => j && Math.min(points[j - 1].x, point.x) <= x && x <= Math.max(points[j - 1].x, point.x));
++  if (i < 0) return { error: `x = ${x} is outside the x range of "${series.label}" (${Math.min(...points.map(point => point.x))} to ${Math.max(...points.map(point => point.x))})` };
++  const [a, b] = [points[i - 1], points[i]];
++  if (series.kind === 'step') return { y: a.y };
++  const widths = points.slice(1).map((point, j) => point.x - points[j].x), direction = Math.sign(widths[0]);
++  if (series.smooth === false || points.length < 3 || !direction || widths.some(width => Math.sign(width) !== direction)) return { y: a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x) };
++  // The renderer's monotone cubic (plot-lines.js monotoneLinePath), evaluated in data coordinates: the same tangents, the cubic Hermite form of its Bezier segment.
++  const slopes = widths.map((width, j) => (points[j + 1].y - points[j].y) / width);
++  const interior = slopes.slice(1).map((right, j) => limitedTangent(slopes[j], right, widths[j], widths[j + 1]));
++  const tangents = [(3 * slopes[0] - interior[0]) / 2, ...interior, (3 * slopes.at(-1) - interior.at(-1)) / 2];
++  const h = b.x - a.x, t = (x - a.x) / h, t2 = t * t, t3 = t2 * t;
++  return { y: (2 * t3 - 3 * t2 + 1) * a.y + (t3 - 2 * t2 + t) * h * tangents[i - 1] + (-2 * t3 + 3 * t2) * b.y + (t3 - t2) * h * tangents[i] };
++}
++const medianOf = values => { const s = [...values].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
++// One number field: written is checked against the exact value within half a unit of its own decimals; absent, the rounded value fills it.
++function numberInstance(at, written, exact, places, describe) {
++  const computed = roundTo(exact, places);
++  const wrong = written !== undefined && Math.abs(written - exact) > half(decimalsOf(written));
++  return { at, written, computed, problems: wrong ? [{ message: describe(computed, written) }] : [] };
++}
++function annotationInstances(d) {
++  return (d.annotations ?? []).flatMap((a, k) => {
++    const at = ['annotations', k], derive = a.derive, label = a.label;
++    const fields = a.kind === 'point' ? [['', 'x', a.x], ['', 'y', a.y]] : a.kind === 'reference-line' ? [['', 'value', a.value]]
++      : a.kind === 'segment' || a.kind === 'vector' ? [['from', 'x', a.from.x], ['from', 'y', a.from.y], ['to', 'x', a.to.x], ['to', 'y', a.to.y]] : [];
++    if (!fields.length) return derive === undefined ? [] : [{ at: [...at, 'derive'], problems: [{ plain: true, message: `derive does not apply to a ${a.kind}` }] }];
++    const need = required => fields.filter(([, field, value]) => required.includes(field) && value === undefined).map(([end, field]) => ({
++      at: [...at, ...(end ? [end] : []), field], problems: [{ plain: true, message: `A ${a.kind} needs ${field === 'value' ? 'a value' : field}${derive ? '' : ' (or a derive that computes it)'}.` }] }));
++    if (derive === undefined) return need(['x', 'y', 'value']);
++    const m = DERIVE.exec(derive), series = m && d.series[Number(m[1])];
++    if (!m || !series) return [{ at: [...at, 'derive'], problems: [{ plain: true, message: m ? `derive refers to series ${m[1]}, which does not exist (there are ${d.series.length})` : 'derive reads series.<index>:on, :mean, :median, :min, :max or :centroid' }] }];
++    if (!ALLOWED[a.kind].includes(m[2])) return [{ at: [...at, 'derive'], problems: [{ plain: true, message: `A ${a.kind} derives ${ALLOWED[a.kind].map(name => `series.${m[1]}:${name}`).join(' or ')}, not ${derive}` }] }];
++    const points = plotSeriesPoints(series), name = `"${series.label}"`;
++    if (m[2] === 'on') {
++      return [...need(['x']), ...fields.filter(([, field]) => field === 'y').flatMap(([end, , written]) => {
++        const x = (end ? a[end] : a).x, found = x === undefined ? null : seriesAt(series, x), yAt = [...at, ...(end ? [end] : []), 'y'];
++        if (!found) return [];
++        if (found.error) return [{ at: yAt, problems: [{ plain: true, message: `${label} cannot sit on ${name}: ${found.error}` }] }];
++        return [numberInstance(yAt, written, found.y, statPlaces(points.map(point => point.y)), (right, wrote) => `${label} must sit on the series ${name}: at x = ${x} its y is ${right}, not ${wrote}.`)];
++      })];
++    }
++    if (m[2] === 'centroid') {
++      const xs = points.map(point => point.x), ys = points.map(point => point.y), cx = sum(xs) / xs.length, cy = sum(ys) / ys.length;
++      const say = right => `The centroid of ${name} is (${roundTo(cx, statPlaces(xs))}, ${roundTo(cy, statPlaces(ys))}); ${label} must be there, not ${right}`;
++      return [numberInstance([...at, 'x'], a.x, cx, statPlaces(xs), (right, wrote) => `${say(`x = ${wrote}`)}.`),
++        numberInstance([...at, 'y'], a.y, cy, statPlaces(ys), (right, wrote) => `${say(`y = ${wrote}`)}.`)];
++    }
++    const values = points.map(point => point[a.axis]), stat = { mean: sum(values) / values.length, median: medianOf(values), min: Math.min(...values), max: Math.max(...values) }[m[2]];
++    return [numberInstance([...at, 'value'], a.value, stat, statPlaces(values), (right, wrote) => `${label} is at the ${m[2]} of ${name} (${a.axis}): ${right}, not ${wrote}.`)];
++  });
++}
++
++export const DERIVED_ROWS = [
++  { kind: 'box-plot', path: 'boxes[].fences', inputs: ['q1', 'q3'], tolerance: 'half a unit of the decimals written', compute: d => d.boxes.map(boxFenceInstance) },
++  { kind: 'transformation', path: 'after.items', inputs: ['before.items', 'op', 't'], tolerance: 'half a unit of the decimals written on each item', compute: d => (d.variant === 'visual' || !d.before?.items ? [] : [softmaxInstance(d)].filter(Boolean)) },
++  { kind: 'token-links', path: 'queries[].weights', inputs: ['weights (raw)'], tolerance: 'sum within 0.98 to 1.02, else normalised', compute: tokenLinkInstances },
++  { kind: 'histogram', path: 'series[].values', inputs: ['counts'], tolerance: 'proportions sum to 1', compute: histogramInstances },
++  { kind: 'heatmap', path: 'range', inputs: ['rows[].cells'], tolerance: 'exact (an explicit range is kept)', compute: heatmapInstance },
++  { kind: 'sample-set', path: 'groups[].omitted, groups[].members (out of bag)', inputs: ['groups[].members', 'groups[].outOfBagFor'], tolerance: 'exact', compute: sampleInstances },
++  { kind: 'coordinate-plot', path: 'annotations[] (derive)', inputs: ['series'], tolerance: 'half a unit of the decimals written', compute: annotationInstances },
++];
++
++const instancesOf = d => DERIVED_ROWS.filter(row => row.kind === d.kind).flatMap(row => row.compute(d));
++// Every problem of every derived field of this diagram (not its children: the caller walks those) through `issue(path, message, params)`.
++export function checkDerived(d, issue) {
++  for (const { at, problems } of instancesOf(d)) for (const { message, plain } of problems) issue(at, message, plain ? undefined : { code: 'arithmetic' });
++}
++const setAt = (root, path, value) => { const last = path.at(-1); path.slice(0, -1).reduce((node, key) => node[key], root)[last] = value; };
++// Fills absent derived fields (and replaces raw ones) in place; the diagram has already passed the validator, so every instance here computed.
++export function fillDerived(d) {
++  for (const inst of instancesOf(d)) if (inst.computed !== undefined && (inst.written === undefined || inst.replace)) setAt(d, inst.at, inst.computed);
++  return d;
++}
++// The after items a softmax transformation computes (null when it has none), for the validator steps that need their number before the fill.
++export function derivedAfterItems(d) {
++  return d.op === 'softmax' && d.before?.items ? softmaxInstance({ ...d, after: { ...d.after, items: undefined } })?.computed ?? null : null;
++}
+diff --git a/packages/web/src/tutor-diagrams/derived.test.mjs b/packages/web/src/tutor-diagrams/derived.test.mjs
+new file mode 100644
+index 000000000..996c1d681
+--- /dev/null
++++ b/packages/web/src/tutor-diagrams/derived.test.mjs
+@@ -0,0 +1,124 @@
++// VAR-1 step 1: one table-driven check per derived-field rule (derived.js): present and correct, present and wrong (an issue tagged arithmetic that names the correct numbers),
++// absent and filled, the rounding edges, and the spec's acceptance items 1 to 3. Everything goes through the real parser (spec.js), so the fill and the validator are the product's.
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import test from 'node:test';
++import { DERIVED_ROWS, normalise } from './derived.js';
++import { describeTutorDiagram, parseTutorDiagram, tutorDiagramSchema } from './spec.js';
++
++const wrap = diagram => ({ version: 1, diagram });
++const issues = diagram => { const r = tutorDiagramSchema.safeParse(wrap(diagram)); return r.success ? [] : r.error.issues.map(i => ({ path: i.path.slice(1).join('.'), message: i.message, code: i.params?.code })); };
++const filled = diagram => parseTutorDiagram(wrap(diagram)).diagram;
++const arithmetic = list => list.filter(i => i.code === 'arithmetic');
++
++// ---- the table ----
++test('the table is closed: one row per definition, each with a kind, a path, inputs, a tolerance and a compute', () => {
++  assert.deepEqual(DERIVED_ROWS.map(row => row.kind), ['box-plot', 'transformation', 'token-links', 'histogram', 'heatmap', 'sample-set', 'coordinate-plot']);
++  for (const row of DERIVED_ROWS) {
++    assert.equal(typeof row.path, 'string'); assert.ok(row.inputs.length); assert.equal(typeof row.tolerance, 'string'); assert.equal(typeof row.compute, 'function');
++  }
++});
++
++test('grep gate: derived.js holds kinds, not subject matter', () => {
++  const source = readFileSync(new URL('./derived.js', import.meta.url), 'utf8');
++  assert.doesNotMatch(source, /gradient|neuron|\bbank|\bloss\b|\bcat\b|\bdog\b|attention head|epoch/i);
++  assert.doesNotMatch(source, /#[0-9a-fA-F]{3,8}\b/, 'no hex literal');
++});
++
++// ---- box-plot fences ----
++const box = (extra = {}, x = { label: 'Reading', min: 0, max: 25 }) => ({ kind: 'box-plot', title: 'IQR rule', x, boxes: [{ label: 'Trial', whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14, ...extra }] });
++const FENCE_154 = 'Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.';
++
++test('acceptance 1: the trial box card with fences 2/16 fails with release 154\'s message; with the fences left out it is filled with -3 and 21 and prints them', () => {
++  const wrong = issues(box({ fences: { lower: 2, upper: 16 } }));
++  assert.deepEqual(wrong, [{ path: 'boxes.0.fences', message: FENCE_154, code: 'arithmetic' }]);
++  const d = filled(box());
++  assert.deepEqual(d.boxes[0].fences, { lower: -3, upper: 21 });
++  assert.match(describeTutorDiagram(wrap(d)), /Lower fence: -3; Upper fence: 21/);
++  assert.deepEqual(issues(box({ fences: { lower: -3, upper: 21 } })), [], 'present and correct');
++});
++
++test('box fence decimals: the most decimals among q1 and q3 (min 0, a tie rounds away from zero); a written fence is allowed half a unit of its own decimals', () => {
++  // [q1, q3, lower, upper]
++  for (const [q1, q3, lower, upper] of [[6, 12, -3, 21], [5, 8, 1, 13], [1.5, 3.5, -1.5, 6.5], [2, 5.5, -3.3, 10.8], [1.25, 2.75, -1, 5]]) {
++    const d = filled(box({ whiskerLow: q1, q1, median: q1, q3, whiskerHigh: q3 }, { label: 'Reading', min: 0, max: 40 }));
++    assert.deepEqual([d.boxes[0].fences.lower, d.boxes[0].fences.upper], [lower, upper], `${q1} ${q3}`);
++  }
++  const rounded = { whiskerLow: 2.04, q1: 2.04, median: 3, q3: 5.65, whiskerHigh: 5.65 };
++  assert.deepEqual(issues(box({ ...rounded, fences: { lower: -3.37, upper: 11.07 } }, { label: 'Reading', min: 0, max: 20 })), [], 'true -3.375 written -3.37 is within half a hundredth');
++  assert.equal(arithmetic(issues(box({ ...rounded, fences: { lower: -3.39, upper: 11.07 } }, { label: 'Reading', min: 0, max: 20 }))).length, 1);
++});
++
++test('box fences: a whisker beyond a written fence still fails; computed fences leave the 154 outlier rule (whiskers) alone', () => {
++  assert.equal(arithmetic(issues(box({ whiskerLow: 0, fences: { lower: -3, upper: 21 } }))).length, 0, 'whisker inside the fence');
++  assert.equal(arithmetic(issues(box({ whiskerHigh: 24, fences: { lower: -3, upper: 21 } }))).length, 1, 'whisker beyond the upper fence');
++  assert.deepEqual(issues(box({ outliers: [{ label: 'High', value: 18 }] })), [], 'no fences written: the outlier is read against the whiskers, as in 154');
++});
++
++// ---- token-links ----
++const links = weights => ({ kind: 'token-links', title: 'Weights by token', normalized: true, source: ['the', 'cat'], target: ['the', 'cat', 'sat'], queries: [{ index: 0, weights }] });
++
++test('token-links: weights that sum to about 1 stay as written; raw scores are normalised to 2 decimals that add up to exactly 1', () => {
++  for (const [written, expected] of [[[0.33, 0.33, 0.34], [0.33, 0.33, 0.34]], [[0.98, 0.01, 0.01], [0.98, 0.01, 0.01]], [[3, 1, 0], [0.75, 0.25, 0]], [[1, 1, 1], [0.34, 0.33, 0.33]],
++    [[0.2, 0.2, 0.2], [0.34, 0.33, 0.33]], [[2, 1, 1], [0.5, 0.25, 0.25]], [[0, 0, 1.01], [0, 0, 1]]]) {
++    const d = filled(links(written));
++    assert.deepEqual(d.queries[0].weights, expected, written.join(' '));
++    assert.ok(Math.abs(d.queries[0].weights.reduce((a, b) => a + b, 0) - 1) < 0.021);
++  }
++  assert.equal(issues(links([0, 0, 0])).length, 1, 'a zero total has no shares');
++  assert.equal(issues({ ...links([0, 0, 1.01]), normalized: false }).length, 1, 'without normalized each weight is still at most 1');
++  assert.deepEqual(normalise([1, 1, 1]), [0.34, 0.33, 0.33]);
++});
++
++// ---- histogram ----
++const histogram = (values, measure = 'proportion') => ({ kind: 'histogram', title: 'Spread', xLabel: 'Reading', binEdges: [0, 1, 2, 3], measure, series: [{ label: 'Group', values }] });
++
++test('histogram: counts under measure proportion are accepted and derived to proportions; proportions and the wrong sums behave as before', () => {
++  assert.deepEqual(filled(histogram([2, 6, 2])).series[0].values, [0.2, 0.6, 0.2]);
++  assert.deepEqual(filled(histogram([1, 1, 1])).series[0].values, [0.34, 0.33, 0.33]);
++  assert.deepEqual(filled(histogram([0.2, 0.5, 0.3])).series[0].values, [0.2, 0.5, 0.3], 'proportions already summing to 1 are kept');
++  assert.deepEqual(filled(histogram([1, 0, 0])).series[0].values, [1, 0, 0], 'a whole-number list that already is a proportion list is kept');
++  assert.deepEqual(issues(histogram([0.2, 0.5, 0.5])).map(i => i.message), ['Bin proportions must be in [0, 1] and sum to 1'], 'fractions that do not sum to 1 are still rejected');
++  assert.ok(issues(histogram([0, 0, 0])).some(i => i.message === 'A distribution must contain positive mass'));
++  assert.deepEqual(filled(histogram([2, 6, 2], 'count')).series[0].values, [2, 6, 2], 'measure count is untouched');
++});
++
++// ---- heatmap ----
++const heatmap = (extra = {}) => ({ kind: 'heatmap', title: 'Grid', columns: ['a', 'b'], rows: [{ label: 'r1', cells: [0.2, null] }, { label: 'r2', cells: [-0.5, 0.9] }], ...extra });
++
++test('heatmap: an absent range is the smallest and largest numeric cell; a written range is kept and still bounds the cells', () => {
++  assert.deepEqual(filled(heatmap()).range, { min: -0.5, max: 0.9 });
++  assert.deepEqual(filled(heatmap({ range: { min: -1, max: 1 } })).range, { min: -1, max: 1 });
++  assert.deepEqual(issues(heatmap({ range: { min: 0, max: 0.5 } })).map(i => i.message), ['Cell value is outside the explicit range', 'Cell value is outside the explicit range']);
++  assert.match(issues(heatmap({ rows: [{ label: 'r1', cells: [0.5, 0.5] }, { label: 'r2', cells: [0.5, 0.5] }] }))[0].message, /no range can be computed/);
++  assert.match(issues(heatmap({ rows: [{ label: 'r1', cells: [null, null] }, { label: 'r2', cells: [null, null] }] }))[0].message, /masked cells/);
++});
++
++// ---- sample-set ----
++const samples = groups => ({ kind: 'sample-set', title: 'Bootstrap draw', samples: ['a', 'b', 'c', 'd'].map(id => ({ id })), groups });
++
++test('sample-set: omitted must be the set difference (arithmetic, naming the correct ids); out-of-bag members left out are filled from the referenced draw', () => {
++  const draw = { id: 'd1', label: 'Draw', members: ['a', 'a', 'b', 'd'], replacement: true };
++  assert.deepEqual(issues(samples([{ ...draw, omitted: ['c'] }])), []);
++  const wrong = issues(samples([{ ...draw, omitted: ['b'] }]));
++  assert.deepEqual(wrong, [{ path: 'groups.0.omitted', message: 'Omitted IDs must be exactly the samples absent from this group: c.', code: 'arithmetic' }]);
++  const bag = { id: 'o1', label: 'Out of bag', outOfBagFor: 'd1' };
++  assert.deepEqual(filled(samples([draw, bag])).groups[1].members, ['c']);
++  assert.deepEqual(issues(samples([draw, { ...bag, members: ['c'] }])), []);
++  const bad = issues(samples([draw, { ...bag, members: ['a'] }]));
++  assert.deepEqual([bad[0].message, bad[0].code], ['Out-of-bag members must be exactly the samples absent from the referenced draw: c.', 'arithmetic']);
++  assert.deepEqual(issues(samples([{ id: 'x', label: 'No members' }])).map(i => i.message), ['A group needs members (only an out-of-bag set may leave them out)']);
++  assert.equal(filled(samples([draw])).groups[0].omitted, undefined, 'omitted is a display choice: absent stays absent');
++});
++
++// ---- the fill reaches child diagrams, and a filled card parses again unchanged ----
++test('a filled card is valid input again (idempotent), and the fill reaches a child diagram inside panels', () => {
++  const cards = [box(), links([3, 1, 0]), histogram([2, 6, 2]), heatmap()];
++  for (const card of cards) {
++    const once = filled(card);
++    assert.deepEqual(filled(once), once, card.kind);
++  }
++  const panels = { kind: 'comparison', variant: 'panels', title: 'Two boxes', panels: [{ heading: 'A', diagram: box() }, { heading: 'B', diagram: box({ q1: 5, q3: 9, whiskerLow: 5, whiskerHigh: 9, median: 7 }) }] };
++  const d = filled(panels);
++  assert.deepEqual([d.panels[0].diagram.boxes[0].fences, d.panels[1].diagram.boxes[0].fences], [{ lower: -3, upper: 21 }, { lower: -1, upper: 15 }]);
++});
+diff --git a/packages/web/src/tutor-diagrams/ml-composition-spec.js b/packages/web/src/tutor-diagrams/ml-composition-spec.js
+index 38f2f797b..f04a4f4cb 100644
+--- a/packages/web/src/tutor-diagrams/ml-composition-spec.js
++++ b/packages/web/src/tutor-diagrams/ml-composition-spec.js
+@@ -2,7 +2,7 @@ import { plotSeriesPoints } from './ml-plot-spec.js';
+ 
+ // Composition is deliberately one level deep. The integration owner supplies a
+ // union containing every supported leaf kind, excluding both composition kinds.
+-export function createShapes({ z, titled, text, id, itemList, leafDiagram, panelDiagram = leafDiagram }) {
++export function createShapes({ z, titled, text, id, numeric, itemList, leafDiagram, panelDiagram = leafDiagram }) {
+   const visualState = z.strictObject({ label: text(40), diagram: leafDiagram });
+   return [
+     z.strictObject({
+@@ -22,7 +22,9 @@ export function createShapes({ z, titled, text, id, itemList, leafDiagram, panel
+     }),
+     z.strictObject({
+       ...titled, kind: z.literal('transformation'), variant: z.literal('visual').optional(),
+-      before: z.union([itemList, visualState]), after: z.union([itemList, visualState]), operation: text(72),
++      // op 'softmax' (derived.js): after = softmax(before / t); after.items may then be left out and are computed. `t` is an optional positive temperature.
++      before: z.union([itemList, visualState]), after: z.union([itemList.extend({ items: itemList.shape.items.optional() }), visualState]), operation: text(72),
++      op: z.enum(['softmax']).optional(), t: numeric.positive().optional(),
+       links: z.array(z.strictObject({ from: z.int().min(0).max(4), to: z.int().min(0).max(4), label: text(42).optional() })).min(1).max(8).optional(),
+       identity: z.strictObject({
+         mode: z.enum(['preserved', 'mapped']), note: text(140),
+@@ -68,7 +70,8 @@ function identities(diagram) {
+ 
+ function validateTransformation(diagram, issue) {
+   if (diagram.variant !== 'visual') {
+-    for (const side of ['before', 'after']) if (!diagram[side].items) issue([side], 'A list transformation needs an item list');
++    for (const side of ['before', 'after']) if (!diagram[side].items && !(side === 'after' && diagram.op === 'softmax')) issue([side], 'A list transformation needs an item list');
++    if (diagram.op && !diagram.before.items) issue(['op'], 'op needs a list of before items');
+     if (diagram.identity) issue(['identity'], 'Identity notes require the visual variant');
+     return;
+   }
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-spec.js b/packages/web/src/tutor-diagrams/ml-plot-spec.js
+index c757785be..be10f548f 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-spec.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-spec.js
+@@ -1,14 +1,20 @@
+ // The author supplies data coordinates and semantic marks; styles and placement
+ // remain renderer-owned. No extension field changes a saved basic plot's layout.
++import { checkDerived, fillDerived } from './derived.js';
++
+ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
+   const coordinate = z.strictObject({ x: numeric, y: numeric });
+   const named = { label: text(60) };
+-  const ends = { from: coordinate, to: coordinate };
++  // VAR-1: `derive` ('series.<i>:on' | ':mean' | ':median' | ':min' | ':max' | ':centroid', derived.js) says a number is computed from a series: the author gives x only for a point,
++  // segment end or vector end that sits on a series (y optional), and no value for a reference line at a statistic. It is the one new property, on the four kinds that carry it.
++  const derive = z.string().regex(/^series\.\d:(on|mean|median|min|max|centroid)$/).optional();
++  const onCurve = z.strictObject({ x: numeric, y: numeric.optional() });
++  const ends = { from: onCurve, to: onCurve };
+   const annotation = z.discriminatedUnion('kind', [
+-    z.strictObject({ kind: z.literal('point'), ...named, x: numeric, y: numeric }),
+-    z.strictObject({ kind: z.literal('segment'), ...named, ...ends }),
+-    z.strictObject({ kind: z.literal('vector'), ...named, ...ends }),
+-    z.strictObject({ kind: z.literal('reference-line'), ...named, axis: z.enum(['x', 'y']), value: numeric }),
++    z.strictObject({ kind: z.literal('point'), ...named, x: numeric.optional(), y: numeric.optional(), derive }),
++    z.strictObject({ kind: z.literal('segment'), ...named, ...ends, derive }),
++    z.strictObject({ kind: z.literal('vector'), ...named, ...ends, derive }),
++    z.strictObject({ kind: z.literal('reference-line'), ...named, axis: z.enum(['x', 'y']), value: numeric.optional(), derive }),
+     z.strictObject({ kind: z.literal('rectangle'), ...named, xMin: numeric, xMax: numeric, yMin: numeric, yMax: numeric }),
+     z.strictObject({ kind: z.literal('polygon'), ...named, points: z.array(coordinate).min(3).max(16) }),
+     z.strictObject({ kind: z.literal('circle'), ...named, center: coordinate, radius: numeric.positive() }),
+@@ -158,14 +164,18 @@ function checkPlot(d, issue) {
+       }
+     });
+   });
+-  (d.annotations ?? []).forEach((a, i) => {
++  // Annotation numbers a derive computes are read as the renderer will see them; one that cannot be computed was named by derived.js and is skipped here.
++  const resolved = fillDerived({ ...d, annotations: structuredClone(d.annotations ?? []) }).annotations;
++  const known = point => point.x !== undefined && point.y !== undefined;
++  resolved.forEach((a, i) => {
+     const path = ['annotations', i];
+-    if (a.kind === 'point') checkPoint(a, path);
++    if (a.kind === 'point' && known(a)) checkPoint(a, path);
+     if (a.kind === 'segment' || a.kind === 'vector') {
+-      checkPoint(a.from, [...path, 'from']); checkPoint(a.to, [...path, 'to']);
+-      if (a.from.x === a.to.x && a.from.y === a.to.y) issue(path, 'A segment or vector needs distinct endpoints');
++      if (known(a.from)) checkPoint(a.from, [...path, 'from']);
++      if (known(a.to)) checkPoint(a.to, [...path, 'to']);
++      if (known(a.from) && known(a.to) && a.from.x === a.to.x && a.from.y === a.to.y) issue(path, 'A segment or vector needs distinct endpoints');
+     }
+-    if (a.kind === 'reference-line' && !inAxis(a.value, d[a.axis])) issue([...path, 'value'], 'Reference line must be within the axis bounds');
++    if (a.kind === 'reference-line' && a.value !== undefined && !inAxis(a.value, d[a.axis])) issue([...path, 'value'], 'Reference line must be within the axis bounds');
+     if (a.kind === 'band') {
+       if (a.from >= a.to) issue(path, 'A band requires an increasing interval');
+       if (!inAxis(a.from, d[a.axis]) || !inAxis(a.to, d[a.axis])) issue(path, 'Band must be within the axis bounds');
+@@ -221,7 +231,7 @@ function checkBars(d, issue) {
+ }
+ 
+ export function validate(diagram, issue) {
+-  if (diagram.kind === 'coordinate-plot') checkPlot(diagram, issue);
++  if (diagram.kind === 'coordinate-plot') { checkDerived(diagram, issue); checkPlot(diagram, issue); } // VAR-1: `derive` annotations (derived.js)
+   else if (diagram.kind === 'bar-chart') checkBars(diagram, issue);
+ }
+ 
+diff --git a/packages/web/src/tutor-diagrams/ml-statistical-spec.js b/packages/web/src/tutor-diagrams/ml-statistical-spec.js
+index a1fe3b565..eefed41ac 100644
+--- a/packages/web/src/tutor-diagrams/ml-statistical-spec.js
++++ b/packages/web/src/tutor-diagrams/ml-statistical-spec.js
+@@ -1,5 +1,7 @@
+ // Four bounded teaching schemas. Positions, colors and derived density heights
+ // remain renderer-owned; all values here are the author's literal data.
++import { checkDerived, absentFrom, histogramCounts, heatmapRange } from './derived.js';
++
+ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
+   const cell = z.strictObject({ row: z.int().min(0).max(5), column: z.int().min(0).max(5) });
+   return [
+@@ -8,14 +10,16 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
+       rowLabel: text(36).optional(), columnLabel: text(36).optional(),
+       columns: z.array(text(28)).min(1).max(6),
+       rows: z.array(z.strictObject({ label: text(28), cells: z.array(z.union([numeric, z.null()])).min(1).max(6) })).min(1).max(6),
+-      range: z.strictObject({ min: numeric, max: numeric }),
++      // range: left out, it is the smallest and largest numeric cell (derived.js); written, it is the scale every cell must sit inside.
++      range: z.strictObject({ min: numeric, max: numeric }).optional(),
+       highlights: z.array(cell).min(1).max(12).optional(),
+     }),
+     z.strictObject({
+       ...titled, kind: z.literal('sample-set'),
+       samples: z.array(z.strictObject({ id, label: text(30).optional(), class: text(24).optional(), weight: numeric.positive().optional() })).min(1).max(18),
+       groups: z.array(z.strictObject({
+-        id, label: text(42), members: z.array(id).max(36), replacement: z.boolean().optional(),
++        // members: left out only for an out-of-bag set (outOfBagFor), whose members are the samples absent from that draw (derived.js).
++        id, label: text(42), members: z.array(id).max(36).optional(), replacement: z.boolean().optional(),
+         omitted: z.array(id).max(18).optional(), outOfBagFor: id.optional(),
+       })).min(1).max(4),
+     }),
+@@ -44,13 +48,15 @@ function within(value, min, max) { return value >= min && value <= max; }
+ function sameMembers(a, b) { return a.length === b.length && a.every(value => b.includes(value)); }
+ 
+ function checkHeatmap(d, issue) {
+-  if (!(d.range.min < d.range.max)) issue(['range', 'max'], 'The range maximum must exceed its minimum');
++  // An absent range is the cells' own extent (derived.js reports a range that cannot be computed); the explicit-range checks run on a written one.
++  const range = d.range ?? heatmapRange(d) ?? { min: 0, max: 1 };
++  if (d.range && !(d.range.min < d.range.max)) issue(['range', 'max'], 'The range maximum must exceed its minimum');
+   unique(d.columns, ['columns'], issue, 'Column labels');
+   unique(d.rows.map(row => row.label), ['rows'], issue, 'Row labels');
+   d.rows.forEach((row, i) => {
+     if (row.cells.length !== d.columns.length) issue(['rows', i, 'cells'], 'Every row needs one cell per column');
+     row.cells.forEach((value, j) => {
+-      if (value !== null && !within(value, d.range.min, d.range.max)) issue(['rows', i, 'cells', j], 'Cell value is outside the explicit range');
++      if (value !== null && !within(value, range.min, range.max)) issue(['rows', i, 'cells', j], 'Cell value is outside the explicit range');
+     });
+   });
+   unique((d.highlights ?? []).map(({ row, column }) => `${row}:${column}`), ['highlights'], issue, 'Highlighted cells');
+@@ -71,29 +77,26 @@ function checkSamples(d, issue) {
+   const words = [d.title, d.caption, ...d.groups.map(group => group.label), ...d.samples.flatMap(sample => [sample.label, sample.class])].filter(Boolean).join(' ');
+   const bootstrap = /bootstrap/i.test(words) && !/m[- ]out[- ]of[- ]n|subsample/i.test(words);
+   d.groups.forEach((group, i) => {
+-    if (bootstrap && group.replacement && group.members.length !== d.samples.length) {
+-      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${group.members.length}.`, { code: 'arithmetic' });
++    // An out-of-bag set may leave its members out: they are the samples absent from the referenced draw (derived.js fills them).
++    const source = group.outOfBagFor ? groups.get(group.outOfBagFor) : null;
++    const members = group.members ?? (group.outOfBagFor && source?.members ? absentFrom(d.samples, source.members) : null);
++    if (!members) return issue(['groups', i, 'members'], 'A group needs members (only an out-of-bag set may leave them out)');
++    if (bootstrap && group.replacement && members.length !== d.samples.length) {
++      issue(['groups', i, 'members'], `A bootstrap sample draws n = ${d.samples.length} rows, with replacement; this draws ${members.length}.`, { code: 'arithmetic' });
+     }
+-    for (const field of ['members', 'omitted']) {
+-      (group[field] ?? []).forEach((sampleId, j) => {
++    for (const [field, list] of [['members', group.members], ['omitted', group.omitted]]) {
++      (list ?? []).forEach((sampleId, j) => {
+         if (!ids.includes(sampleId)) issue(['groups', i, field, j], 'Membership refers to an unknown sample ID');
+       });
+     }
+-    if (!group.replacement) unique(group.members, ['groups', i, 'members'], issue, 'Members without replacement');
+-    const omitted = ids.filter(id => !group.members.includes(id));
+-    if (group.omitted) {
+-      unique(group.omitted, ['groups', i, 'omitted'], issue, 'Omitted sample IDs');
+-      if (!sameMembers(group.omitted, omitted)) issue(['groups', i, 'omitted'], 'Omitted IDs must be exactly the samples absent from this group');
+-    }
++    if (!group.replacement) unique(members, ['groups', i, 'members'], issue, 'Members without replacement');
++    if (group.omitted) unique(group.omitted, ['groups', i, 'omitted'], issue, 'Omitted sample IDs');
+     if (group.outOfBagFor) {
+-      const source = groups.get(group.outOfBagFor);
+       if (!source || source === group || source.outOfBagFor || !source.replacement) {
+         issue(['groups', i, 'outOfBagFor'], 'Out-of-bag membership must reference a different replacement draw');
+       } else {
+-        unique(group.members, ['groups', i, 'members'], issue, 'Out-of-bag sample IDs');
++        unique(members, ['groups', i, 'members'], issue, 'Out-of-bag sample IDs');
+         if (group.replacement) issue(['groups', i, 'replacement'], 'An out-of-bag set cannot use replacement');
+-        const expected = ids.filter(id => !source.members.includes(id));
+-        if (!sameMembers(group.members, expected)) issue(['groups', i, 'members'], 'Out-of-bag members must be exactly the samples absent from the referenced draw');
+       }
+     }
+   });
+@@ -121,7 +124,7 @@ function checkHistogram(d, issue) {
+     const sum = series.values.reduce((a, b) => a + b, 0);
+     if (!(sum > 0)) issue(['series', i, 'values'], 'A distribution must contain positive mass');
+     if (d.measure === 'count' && series.values.some(value => !Number.isInteger(value))) issue(['series', i, 'values'], 'Counts must be nonnegative integers');
+-    if (d.measure === 'proportion' && (series.values.some(value => value > 1) || Math.abs(sum - 1) > 1e-6)) issue(['series', i, 'values'], 'Bin proportions must be in [0, 1] and sum to 1');
++    if (d.measure === 'proportion' && !histogramCounts(series.values) && (series.values.some(value => value > 1) || Math.abs(sum - 1) > 1e-6)) issue(['series', i, 'values'], 'Bin proportions must be in [0, 1] and sum to 1');
+     if (histogramHeights(d, series).some(value => !Number.isFinite(value))) issue(['series', i, 'values'], 'Bin density must remain finite');
+   });
+   (d.markers ?? []).forEach((marker, i) => {
+@@ -138,20 +141,7 @@ function checkBoxes(d, issue) {
+       if (!within(box[field], d.x.min, d.x.max)) issue(['boxes', i, field], 'Summary is outside the shared axis domain');
+       if (j && box[field] < box[fields[j - 1]]) issue(['boxes', i, field], 'Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh');
+     });
+-    if (box.fences) {
+-      const { lower, upper } = box.fences;
+-      // Fences may fall outside the author's x range (the renderer widens the axis to hold them); summary values and outliers may not.
+-      const places = Math.max(0, ...[box.q1, box.q3, lower, upper].map(value => (String(value).split('.')[1] ?? '').length));
+-      // A whisker beyond a stated fence (the fences are checked against Q1 and Q3 just below, so these are the validated fences) names both numbers; same half-unit allowance (item 5, Reviewer 2026-11-17).
+-      if (lower - box.whiskerLow > 0.5 * 10 ** -places + 1e-9 || box.whiskerHigh - upper > 0.5 * 10 ** -places + 1e-9) {
+-        issue(['boxes', i, 'fences'], `Fences must enclose both whiskers: the whiskers run from ${box.whiskerLow} to ${box.whiskerHigh}, outside the fences ${lower} and ${upper}.`, { code: 'arithmetic' });
+-      }
+-      const spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, round = value => Number(value.toFixed(places + 1));
+-      // Same rounding allowance as the waterfall total: half a unit of the last decimal written.
+-      if (Math.abs(lower - low) > 0.5 * 10 ** -places + 1e-9 || Math.abs(upper - high) > 0.5 * 10 ** -places + 1e-9) {
+-        issue(['boxes', i, 'fences'], `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.`, { code: 'arithmetic' });
+-      }
+-    }
++    // The fences (written, or computed from q1 and q3 when left out) are checked against the whiskers and their own arithmetic by derived.js; fences may fall outside the author's x range (the renderer widens the axis to hold them).
+     (box.outliers ?? []).forEach(({ value }, j) => {
+       if (!within(value, d.x.min, d.x.max)) issue(['boxes', i, 'outliers', j, 'value'], 'Outlier is outside the shared axis domain');
+       const lower = box.fences?.lower ?? box.whiskerLow, upper = box.fences?.upper ?? box.whiskerHigh;
+@@ -162,10 +152,10 @@ function checkBoxes(d, issue) {
+ 
+ export function validate(diagram, issue) {
+   switch (diagram.kind) {
+-    case 'heatmap': return checkHeatmap(diagram, issue);
+-    case 'sample-set': return checkSamples(diagram, issue);
+-    case 'histogram': return checkHistogram(diagram, issue);
+-    case 'box-plot': return checkBoxes(diagram, issue);
++    case 'heatmap': checkDerived(diagram, issue); return checkHeatmap(diagram, issue); // VAR-1: derived fields (derived.js)
++    case 'sample-set': checkDerived(diagram, issue); return checkSamples(diagram, issue);
++    case 'histogram': checkDerived(diagram, issue); return checkHistogram(diagram, issue);
++    case 'box-plot': checkDerived(diagram, issue); return checkBoxes(diagram, issue);
+   }
+ }
+ 
+diff --git a/packages/web/src/tutor-diagrams/plot-lines.js b/packages/web/src/tutor-diagrams/plot-lines.js
+index 439831d14..d00a1cd5e 100644
+--- a/packages/web/src/tutor-diagrams/plot-lines.js
++++ b/packages/web/src/tutor-diagrams/plot-lines.js
+@@ -1,5 +1,5 @@
+ // Steffen's limiter bounds a tangent using the two neighbouring secants.
+-function limitedTangent(left, right, before, after) {
++export function limitedTangent(left, right, before, after) {
+   const sign = Math.sign(left);
+   if (sign !== Math.sign(right)) return 0;
+   const centered = (left * after + right * before) / (before + after);
+diff --git a/packages/web/src/tutor-diagrams/spec.js b/packages/web/src/tutor-diagrams/spec.js
+index a1ba8d6e2..6d7aba335 100644
+--- a/packages/web/src/tutor-diagrams/spec.js
++++ b/packages/web/src/tutor-diagrams/spec.js
+@@ -10,6 +10,7 @@ import { flowPathShape, flowPaths, validateFlowPaths } from './flow-paths.js';
+ import { z } from 'zod';
+ import { formatMinor, sumMinor, toMinor } from './balance-values.js';
+ import { tokenizeMath } from '../math-tokens.js';
++import { checkDerived, derivedAfterItems, fillDerived } from './derived.js';
+ 
+ const MAX_JSON_LENGTH = 16_384;
+ // Text is rendered literally. The SVG renderer must escape XML punctuation.
+@@ -302,43 +303,6 @@ function checkAmount(value, path, issue, nonnegative = false) {
+ 
+ const atPath = (issue, prefix) => (path, message) => issue([...prefix, ...path], message);
+ 
+-// List-transformation softmax rule (item 3, Reviewer 2026-11-17). A card whose title or operation says softmax and whose before and after items are ALL plain numbers must have
+-// after_i = softmax(before)_i within half a unit of the decimals the author wrote for THAT item (0.7 against the true 0.659 passes at one decimal; 0.04 against 0.099 fails at two), plus 1e-9
+-// float slack: the same allowance as the box-plot fences. The issue names the correct value of every item and is tagged arithmetic. It is OFF when the title, caption or any label says
+-// temperature, scaled, scaling, masked, causal, log-softmax or "T =" (after = softmax(before / T), a scaled or masked score: the plain recompute would flag a correct card); then the only check
+-// is that the after values sum to 1 (within the sum of their half-units) when the title or caption calls them probabilities. Items that are not plain numbers ("h1", tensors, "2.0 (cat)") skip the rule.
+-// Why here: this is where the schema already reads a list transformation's items and links (the composition validator only checks its structure).
+-const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
+-// "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
+-function listNumber(item) {
+-  if (typeof item !== 'string') return null;
+-  const m = item.replace(/\$/g, '').split(/[=:]/).pop().trim().replace(/−/g, '-').match(/^(-?\d+(?:\.(\d+))?)\s*(%?)$/);
+-  if (!m) return null;
+-  const places = (m[2] ?? '').length, scale = m[3] ? 100 : 1;
+-  return { value: Number(m[1]) / scale, places, half: 0.5 * 10 ** -places / scale, text: m[1] + m[3] };
+-}
+-function checkSoftmaxList(d, issue) {
+-  if (!/softmax/i.test(`${d.title} ${d.operation}`)) return;
+-  const before = d.before.items.map(listNumber), after = d.after.items.map(listNumber);
+-  if (before.length !== after.length || [...before, ...after].some(x => !x)) return;
+-  const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
+-  if (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels)) {
+-    const sum = after.reduce((s, x) => s + x.value, 0), slack = after.reduce((s, x) => s + x.half, 0);
+-    if (/probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(sum - 1) > slack + 1e-9) {
+-      issue(['after', 'items'], `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(sum.toFixed(6))}.`, { code: 'arithmetic' });
+-    }
+-    return;
+-  }
+-  const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
+-  const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;
+-  // Rounding clause (Reviewer 2026-11-17, tightened): values written to sum to exactly 1 pass when at most ONE value is past its half-unit and that one is within a full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
+-  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && beyond(1) <= 1 && beyond(2) === 0;
+-  if (beyond(1) && !roundedToOne) {
+-    const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
+-    issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
+-  }
+-}
+-
+ function checkTensorNodes({ nodes }, issue) {
+   nodes.forEach((node, index) => {
+     if (node.tensor) validateTensor(node.tensor, atPath(issue, ['nodes', index, 'tensor']));
+@@ -364,16 +328,17 @@ function validateDiagram(diagram, issue) {
+     case 'transformation':
+       // The composition validator reports a mixed representation. Do not read
+       // list fields on a visual state before it can return that useful error.
+-      if (diagram.variant === 'visual' || !diagram.before.items || !diagram.after.items) break;
+-      for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
++      // An `op: 'softmax'` card may leave its after items out: they are computed (derived.js), and the links are read against the computed count.
++      checkDerived(diagram, issue); // VAR-1: the softmax rule (derived.js); the other kinds call it from their own validators
++      if (diagram.variant === 'visual' || !diagram.before.items || !(diagram.after.items ?? derivedAfterItems(diagram))) break;
++      for (const side of ['before', 'after']) (diagram[side].items ?? []).forEach((item, index) => {
+         if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
+       });
+       diagram.links?.forEach(({ from, to }, index) => {
+-        if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
++        if (from >= diagram.before.items.length || to >= (diagram.after.items ?? derivedAfterItems(diagram)).length) {
+           issue(['links', index], 'Mapping indices must refer to existing items');
+         }
+       });
+-      checkSoftmaxList(diagram, issue);
+       break;
+     case 'number-line': checkNumberLine(diagram, issue); break;
+     case 'coordinate-plot': checkPlot(diagram, issue); break;
+@@ -429,7 +394,11 @@ export function parseTutorDiagram(value) {
+     catch { throw new Error('Invalid diagram JSON'); }
+   }
+   if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
+-  return tutorDiagramSchema.parse(value);
++  // An absent derived field is computed here, before any layout reads the diagram (derived.js); a child diagram inside panels or a visual transformation too.
++  const fill = diagram => { fillDerived(diagram); for (const child of childDiagrams(diagram)) fill(child.diagram); return diagram; };
++  const parsed = tutorDiagramSchema.parse(value);
++  fill(parsed.diagram);
++  return parsed;
+ }
+ 
+ // BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read
+diff --git a/packages/web/src/tutor-diagrams/token-links-spec.js b/packages/web/src/tutor-diagrams/token-links-spec.js
+index 78b0f3d91..0e276a1ef 100644
+--- a/packages/web/src/tutor-diagrams/token-links-spec.js
++++ b/packages/web/src/tutor-diagrams/token-links-spec.js
+@@ -1,3 +1,5 @@
++import { checkDerived } from './derived.js';
++
+ export function createTokenLinksShape({ z, titled, text, numeric }) {
+   const tokens = z.array(text(24)).min(2).max(8);
+   return z.strictObject({
+@@ -7,13 +9,16 @@ export function createTokenLinksShape({ z, titled, text, numeric }) {
+     target: tokens,
+     queries: z.array(z.strictObject({
+       index: z.int().min(0).max(7),
+-      weights: z.array(numeric.min(0).max(1)).min(2).max(8),
++      // With `normalized`, weights may be raw scores: derived.js replaces any that do not already sum to about 1 by their shares. Without it each weight is at most 1 (validateTokenLinks).
++      weights: z.array(numeric.min(0)).min(2).max(8),
+     })).min(1).max(3),
+     normalized: z.boolean().optional(),
+   });
+ }
+ 
+-export function validateTokenLinks({ source, target, queries, normalized }, issue) {
++export function validateTokenLinks(diagram, issue) {
++  const { source, target, queries, normalized } = diagram;
++  checkDerived(diagram, issue); // VAR-1: raw weights are normalised (derived.js)
+   const seen = new Set();
+   queries.forEach(({ index, weights }, row) => {
+     if (index >= source.length) issue(['queries', row, 'index'], 'Use an existing zero-based source index');
+@@ -21,13 +26,8 @@ export function validateTokenLinks({ source, target, queries, normalized }, issu
+     seen.add(index);
+     if (weights.length !== target.length) {
+       issue(['queries', row, 'weights'], 'Give one weight per target token in order');
+-    } else if (normalized) {
+-      const sum = weights.reduce((total, weight) => total + weight, 0);
+-      // Allow floating-point addition error at the inclusive decimal bounds.
+-      const roundoff = weights.length * Number.EPSILON;
+-      if (sum < 0.98 - roundoff || sum > 1.02 + roundoff) {
+-        issue(['queries', row, 'weights'], 'Normalized query weights must sum to between 0.98 and 1.02');
+-      }
++    } else if (!normalized && weights.some(weight => weight > 1)) {
++      issue(['queries', row, 'weights'], 'Each weight must be at most 1 (or set normalized: true to give raw scores)');
+     }
+   });
+ }
+diff --git a/packages/web/src/tutor-diagrams/token-links.test.mjs b/packages/web/src/tutor-diagrams/token-links.test.mjs
+index adfed8acf..87af6e1e4 100644
+--- a/packages/web/src/tutor-diagrams/token-links.test.mjs
++++ b/packages/web/src/tutor-diagrams/token-links.test.mjs
+@@ -39,7 +39,7 @@ test('token links accept bounded, position-indexed tokens and reject ambiguous o
+     { ...repeated, queries: [repeated.queries[0], repeated.queries[0]] },
+     { ...repeated, queries: [{ index: 0, weights: [0, 0.1, 0.9] }] },
+     { ...repeated, queries: [{ index: 0, weights: [-0.1, 0, 0.6, 0.5] }] },
+-    { ...repeated, queries: [{ index: 0, weights: [0, 0, 0, 1.01] }] },
++    { ...repeated, normalized: false, queries: [{ index: 0, weights: [0, 0, 0, 1.01] }] }, // VAR-1: with normalized true this is raw input and is normalised, not rejected
+     { ...repeated, queries: [{ index: 0, weights: [0, 0, 0, 1], extra: true }] },
+   ]) assert.equal(schema.safeParse(invalid).success, false, JSON.stringify(invalid));
+ });
+@@ -49,8 +49,10 @@ test('normalization includes both tolerance boundaries and permits arbitrary val
+   for (const weights of [[0.49, 0.49, 0, 0], [0.51, 0.51, 0, 0], [0.06, 0.57, 0.35, 0], [0.01, 0.34, 0.56, 0.11]]) {
+     assert.ok(schema.safeParse(spec(weights, true)).success, weights.join(', '));
+   }
++  // VAR-1 (derived.js): weights outside 0.98 to 1.02 under `normalized` are raw scores and are normalised, no longer rejected (derived.test.mjs checks the filled shares); only a zero total has no shares.
++  for (const weights of [[0.49, 0.4899, 0, 0], [0.51, 0.5101, 0, 0]]) assert.ok(schema.safeParse(spec(weights, true)).success, weights.join(', '));
++  assert.equal(schema.safeParse(spec([0, 0, 0, 0], true)).success, false);
+   for (const weights of [[0.49, 0.4899, 0, 0], [0.51, 0.5101, 0, 0], [0, 0, 0, 0]]) {
+-    assert.equal(schema.safeParse(spec(weights, true)).success, false, weights.join(', '));
+     assert.ok(schema.safeParse(spec(weights)).success);
+     assert.ok(schema.safeParse(spec(weights, false)).success);
+   }
+@@ -201,7 +203,7 @@ test('compact head panels wrap long labels at the native font size', () => {
+ test('token link children retain normalization validation inside a comparison', () => {
+   const comparison = sixTokenComparison();
+   assert.ok(tutorDiagramSchema.safeParse({ version: 1, diagram: comparison }).success);
+-  comparison.panels[1].diagram.queries[0].weights[0] = 0;
++  comparison.panels[1].diagram.queries[0].weights.fill(0); // VAR-1: a total of zero cannot be normalised (a wrong sum is now raw input)
+   const invalid = tutorDiagramSchema.safeParse({ version: 1, diagram: comparison });
+   assert.equal(invalid.success, false);
+   assert.ok(invalid.error.issues.some(issue => issue.path.join('.') === 'diagram.panels.1.diagram.queries.0.weights'));
+diff --git a/scripts/topic-pipeline/build-renderer-constraints.mjs b/scripts/topic-pipeline/build-renderer-constraints.mjs
+index a352327f5..b59feccec 100644
+--- a/scripts/topic-pipeline/build-renderer-constraints.mjs
++++ b/scripts/topic-pipeline/build-renderer-constraints.mjs
+@@ -8,7 +8,9 @@ import { parse } from 'acorn';
+ const here = dirname(fileURLToPath(import.meta.url));
+ export const OUTPUT = join(here, 'agents/inputs/renderer-constraints.md');
+ const DIAGRAMS = resolve(here, '../../packages/web/src/tutor-diagrams');
+-const SOURCES = ['spec.js', 'block-stack-spec.js', 'ml-composition-spec.js', 'ml-data-spec.js', 'ml-plot-spec.js', 'ml-statistical-spec.js', 'ml-topology-spec.js', 'tensor-spec.js', 'token-links-spec.js'];
++const SOURCES = ['spec.js', 'block-stack-spec.js', 'ml-composition-spec.js', 'ml-data-spec.js', 'ml-plot-spec.js', 'ml-statistical-spec.js', 'ml-topology-spec.js', 'tensor-spec.js', 'token-links-spec.js', 'derived.js'];
++// derived.js (VAR-1) keeps its messages as `message:` properties of the problems it returns, in functions that serve one diagram kind each.
++const DERIVED_KINDS = { boxFenceInstance: 'box-plot', softmaxInstance: 'transformation', tokenLinkInstances: 'token-links', histogramInstances: 'histogram', heatmapInstance: 'heatmap', sampleInstances: 'sample-set', annotationInstances: 'coordinate-plot' };
+ 
+ const isNode = value => value && typeof value.type === 'string';
+ function children(node) {
+@@ -24,7 +26,7 @@ const kindOf = node => {
+   return literal && typeof literal.value === 'string' && other.type === 'MemberExpression' && other.property?.name === 'kind' ? literal.value : null;
+ };
+ 
+-function collect(ast) {
++function collect(ast, derived = false) {
+   const messages = [], functionKinds = new Map();
+   const visit = (node, scope) => {
+     let next = scope;
+@@ -32,6 +34,7 @@ function collect(ast) {
+     if (node.type === 'VariableDeclarator' && node.id?.name && /Function/u.test(node.init?.type ?? '')) next = { ...scope, fn: node.id.name };
+     if (node.type === 'SwitchCase' && node.test?.type === 'Literal' && typeof node.test.value === 'string') next = { ...scope, kind: node.test.value };
+     if (node.type === 'IfStatement' && kindOf(node.test)) { visit(node.consequent, { ...scope, kind: kindOf(node.test) }); if (node.alternate) visit(node.alternate, scope); return; }
++    if (derived && node.type === 'Property' && node.key?.name === 'message' && text(node.value)) messages.push({ message: text(node.value), kind: DERIVED_KINDS[scope.fn], fn: scope.fn });
+     if (node.type === 'CallExpression') {
+       const callee = node.callee, name = callee.type === 'Identifier' ? callee.name : callee.property?.name;
+       if (scope.kind && callee.type === 'Identifier' && /^check[A-Z]/u.test(name)) functionKinds.set(name, scope.kind);
+@@ -90,7 +93,7 @@ export async function buildConstraints(directory = DIAGRAMS) {
+   const present = new Set(await readdir(directory)), groups = new Map();
+   const found = [];
+   for (const name of SOURCES.filter(name => present.has(name))) {
+-    const { messages, functionKinds } = collect(parse(await readFile(join(directory, name), 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' }));
++    const { messages, functionKinds } = collect(parse(await readFile(join(directory, name), 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' }), name === 'derived.js');
+     for (const item of messages) found.push({ ...item, kind: item.kind ?? functionKinds.get(item.fn), file: name });
+   }
+   // A check function called from several kinds takes the first kind found; unresolved functions group under their file's general rules.
