@@ -90,3 +90,57 @@ test('§7.3 an unmeasured slot card is shown 5 s after it was put down; a measur
   assert.deepEqual(out.late, ['old']);
   assert.equal(out.wait, LEARN_SHOW_MS - 1000);
 });
+
+// Reviewer 2026-11-18 10:55 §1: React #185 on Build was the Position effect and another writer taking turns. Each measure below is one turn of that effect.
+test('a card another writer keeps moving back is moved once more at most, then left where it is (a fight)', () => {
+  const { guardLearnMoves, learnGuardMemory } = positionApi;
+  const memory = learnGuardMemory(), block = { id: 'c', type: 'doc', dx: 0, dy: 0, learn: { slot: true } };
+  let issued = 0, fights = 0;
+  for (let turn = 0; turn < 50; turn += 1) {
+    const out = guardLearnMoves(new Map([['c', { dx: 40, dy: 300, learn: { placed: true } }]]), [block], memory, 1000 + turn);
+    issued += out.moves.size; fights += out.fights.length;
+    if (out.moves.size) Object.assign(block, out.moves.get('c'));
+    block.dx = 0; block.dy = 0; // the other writer puts it back
+  }
+  assert.equal(issued, 1);
+  assert.equal(fights, 1);
+});
+
+test('a card written 10 times within a second is never written again (a loop), and another card still moves', () => {
+  const { guardLearnMoves, learnGuardMemory, LEARN_LOOP } = positionApi;
+  const memory = learnGuardMemory(), block = { id: 'c', dx: 0, dy: 0, learn: { slot: true } };
+  let issued = 0, loops = 0;
+  for (let turn = 0; turn < 50; turn += 1) { // a flow that shifts back every time: our offsets stay, so it is not a fight, only a loop
+    const out = guardLearnMoves(new Map([['c', { dx: block.dx + 5, dy: block.dy }]]), [block], memory, 1000 + turn);
+    issued += out.moves.size; if (out.loop) loops += 1;
+    if (out.moves.size) Object.assign(block, out.moves.get('c'));
+  }
+  assert.equal(issued, LEARN_LOOP.count);
+  assert.equal(loops, 1);
+  assert.equal(guardLearnMoves(new Map([['c', { dx: 1, dy: 0 }]]), [block], memory, 5000).moves.size, 0);
+  const other = guardLearnMoves(new Map([['d', { dx: 1, dy: 1 }]]), [{ id: 'd' }], memory, 2100);
+  assert.equal(other.moves.size, 1);
+});
+
+test('the brake: at most 10 writes within a second, whatever the cards; the next waits for the window', () => {
+  const { guardLearnMoves, learnGuardMemory, LEARN_LOOP } = positionApi;
+  const memory = learnGuardMemory();
+  let issued = 0, wait = null;
+  for (let k = 0; k < 30; k += 1) { // a new card every turn: no card repeats, so only the brake can end the chain
+    const out = guardLearnMoves(new Map([[`card${k}`, { dx: k, dy: 0 }]]), [{ id: `card${k}` }], memory, 1000 + k);
+    issued += out.moves.size; if (out.wait != null) wait = out.wait;
+  }
+  assert.equal(issued, LEARN_LOOP.count);
+  assert.equal(wait, LEARN_LOOP.ms - 29);
+  assert.equal(guardLearnMoves(new Map([['late', { dx: 1, dy: 0 }]]), [{ id: 'late' }], memory, 2100).moves.size, 1);
+});
+
+test('moves spread over time are never a loop', () => {
+  const { guardLearnMoves, learnGuardMemory } = positionApi;
+  const memory = learnGuardMemory(), block = { id: 'c', dx: 0, dy: 0 };
+  for (let turn = 0; turn < 30; turn += 1) {
+    const out = guardLearnMoves(new Map([['c', { dx: block.dx + 5, dy: 0 }]]), [block], memory, turn * 200);
+    assert.equal(out.moves.size, 1);
+    Object.assign(block, out.moves.get('c'));
+  }
+});

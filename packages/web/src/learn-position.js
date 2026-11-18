@@ -120,6 +120,36 @@ export function learnLayout({ cards, others = [], W = W_MAX, space = spacing() }
   return { targets: lay(origin).targets, origin };
 }
 
+// Position never fights and never loops (Reviewer 2026-11-18 10:55 §1). wanted: Map id -> the patch the layout effect would write (sizes, or offsets with learn.placed).
+// memory (one per canvas, kept across measures): { moved: id -> the offsets we last wrote, fought: ids we stopped moving, runs: key -> recent issue times, stopped: keys }.
+// A card whose offsets are no longer the ones we wrote, and which we would move again, was moved by another writer: it is not moved again (a fight). A flow shift (a card above
+// it grew) leaves our offsets in place and is moved as usual. A card written more than LEARN_LOOP.count times within LEARN_LOOP.ms is in a loop: it is never written again and
+// stays where it is. And whatever the cards, the effect writes at most LEARN_LOOP.count times within LEARN_LOOP.ms (a brake): a write past that waits (`wait`, ms) for the next
+// tick, so a chain of layout-effect updates always ends well inside React's 50 nested updates.
+// -> { moves: the patches to write, fights: [{ id, ours, block }], loop: ids newly stopped | null, wait: ms until the brake lifts | null }
+export const LEARN_LOOP = { count: 10, ms: 1000 };
+export function guardLearnMoves(wanted, blocks, memory, now = Date.now()) {
+  const moves = new Map(), fights = [], loop = [], recent = list => (list || []).filter(t => now - t < LEARN_LOOP.ms);
+  for (const [id, patch] of wanted) {
+    if (memory.fought.has(id) || memory.stopped.has(id)) continue;
+    const block = blocks.find(entry => entry.id === id), ours = memory.moved.get(id);
+    if (block && ours && 'dx' in patch && ((block.dx || 0) !== ours.dx || (block.dy || 0) !== ours.dy)) { memory.fought.add(id); fights.push({ id, ours, block }); continue; }
+    const times = recent(memory.runs.get(id));
+    if (times.length >= LEARN_LOOP.count) { memory.stopped.add(id); memory.runs.delete(id); loop.push(id); continue; }
+    moves.set(id, patch);
+  }
+  if (!moves.size) return { moves, fights, loop: loop.length ? loop : null, wait: null };
+  memory.issued = recent(memory.issued);
+  if (memory.issued.length >= LEARN_LOOP.count) return { moves: new Map(), fights, loop: loop.length ? loop : null, wait: LEARN_LOOP.ms - (now - memory.issued[0]) };
+  memory.issued.push(now);
+  for (const [id, patch] of moves) {
+    memory.runs.set(id, [...recent(memory.runs.get(id)), now]);
+    if ('dx' in patch) memory.moved.set(id, { dx: patch.dx, dy: patch.dy });
+  }
+  return { moves, fights, loop: loop.length ? loop : null, wait: null };
+}
+export const learnGuardMemory = () => ({ moved: new Map(), fought: new Set(), runs: new Map(), stopped: new Set(), issued: [], trace: [] });
+
 // A slot card the canvas has not measured 5 s after it was put down (learn.since, learnTag) is shown anyway at its assumed height, and settles when it is measured
 // (Reviewer 2026-11-17 20:30 §7.3): a card that cannot be measured is one the learner can at least see, never one that stays invisible. bounds: id -> box.
 // -> { late: ids to mark placed now, wait: ms until the next card is due, or null }
