@@ -5,6 +5,9 @@
 // why is checks/var-1/step-4-prep/LIST.md on film/evidence.
 const at = (prefix, key, bands, first = 0) => Object.fromEntries(bands.map((band, i) => [`${prefix}.${i + first}.${key}`, band]));
 
+// A bar series: `values.<i>` for each band, starting at value `first`.
+const bars = (series, bands, first = 0) => Object.fromEntries(bands.map((band, i) => [`series.${series}.values.${i + first}`, band]));
+
 export const referenceVary = Object.freeze({
   // Round 1 (references 1 to 6 of the step-4 list)
   'log-feature-scale': at('series.0.points', 'y', [[0.3, 0.9, 0.1], [1.0, 2.0, 0.1], [2.1, 3.0, 0.1], [3.1, 3.9, 0.1]]),
@@ -20,5 +23,30 @@ export const referenceVary = Object.freeze({
       [0, [[0.25, 0.32], [0.42, 0.50], [0.52, 0.60], [0.60, 0.68]], [[0.45, 0.52], [0.28, 0.34], [0.27, 0.33], [0.31, 0.37]]],
       [1, [[0.33, 0.40], [0.52, 0.58], [0.63, 0.69], [0.71, 0.77]], [[0.40, 0.46], [0.21, 0.27], [0.17, 0.23], [0.23, 0.29]]],
     ].flatMap(([s, xs, ys]) => xs.flatMap(([min, max], i) => [[`series.${s}.points.${i}.x`, [min, max, 0.01]], [`series.${s}.points.${i}.y`, [ys[i][0], ys[i][1], 0.01]]]))),
+  },
+  // Round 2 (references 8, 10, 11, 18, 19, 20 of the step-4 list). The depth variants of the three d2l plots share these paths; each level draws its own values.
+  'd2l-dropout-validation-metrics': { // loss falls by disjoint bands; accuracy rises to the two equal last values, which stay as written (an equality vary cannot hold)
+    ...at('series.0.points', 'y', [[0.90, 1.00, 0.01], [0.66, 0.74, 0.01], [0.52, 0.60, 0.01], [0.45, 0.49, 0.01], [0.40, 0.44, 0.01]]),
+    ...at('series.1.points', 'y', [[0.38, 0.46, 0.01], [0.60, 0.67, 0.01], [0.69, 0.75, 0.01]]),
+  },
+  'd2l-cnn-loss-and-accuracy': { // epochs 1 and 2 are the early plateau and stay; epochs 3 to 6 fall by disjoint bands and held-out stays above training at each epoch
+    ...at('series.0.points', 'y', [[2.0, 2.3, 0.1], [1.3, 1.6, 0.1], [0.8, 1.0, 0.1], [0.5, 0.7, 0.1]], 2),
+    ...at('series.1.points', 'y', [[2.4, 2.6, 0.1], [1.7, 1.9, 0.1], [1.1, 1.3, 0.1], [0.8, 1.0, 0.1]], 2),
+  },
+  'd2l-lag-regression-training-loss': { // training falls then levels; validation stays above training; the last two validation epochs overlap on purpose (leveling off)
+    ...at('series.0.points', 'y', [[2.9, 3.3, 0.1], [1.5, 1.9, 0.1], [0.8, 1.1, 0.1], [0.62, 0.75, 0.01], [0.57, 0.61, 0.01], [0.50, 0.56, 0.01]]),
+    ...at('series.1.points', 'y', [[3.4, 3.8, 0.1], [2.0, 2.4, 0.1], [1.25, 1.5, 0.05], [1.05, 1.2, 0.05], [1.05, 1.12, 0.01], [1.05, 1.12, 0.01]]),
+  },
+  'ensemble-votes': { // whole hard votes (class C stays 1); the winner stays class A in both series; no relation is held between the two series
+    ...bars(0, [[4, 5, 1], [2, 3, 1]]),
+    ...bars(1, [[3.0, 3.6, 0.1], [2.0, 2.8, 0.1], [0.6, 1.0, 0.1]]),
+  },
+  'bias-variance-decomposition': { // noise stays constant; bias falls and variance rises by disjoint bands, so the total stays U-shaped (low >= 10, medium <= 8, high >= 9)
+    ...bars(0, [[7, 9, 1], [2, 3, 1]]),
+    ...bars(1, [[2, 3, 1], [6, 8, 1]], 1),
+  },
+  'boosting-signed-corrections': { // the initial prediction stays; each correction keeps its sign (the lesson is positive and negative stacks starting independently)
+    ...bars(1, [[1, 3, 0.5], [-2, -0.5, 0.5], [0.25, 1, 0.25]]),
+    ...bars(2, [[-1, -0.25, 0.25], [-1, -0.25, 0.25], [0.25, 0.5, 0.25]]),
   },
 });
