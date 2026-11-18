@@ -2,7 +2,7 @@
 // (AdaptiveCanvas canvasApi.walk) holds the state, moves the camera and saves learn.done, the contents show the Start / Continue / Start again button.
 //   stops: the section's cards in chip order (cards and its notes card; a lead or follow text item travels with its card and is never a stop).
 //   state: { sectionId, stops: [cardId], at } | null.
-import { byKey, numbers, union } from './learn-position.js';
+import { byKey, numbers } from './learn-position.js';
 
 const isStop = block => block?.learn?.slot && block.learn.role === 'card';
 // -> the card ids of one section, in reading order.
@@ -44,24 +44,14 @@ export function walkNext(state, blocks) {
 }
 export const walkPrev = state => (state && state.at > 0 ? { ...state, at: state.at - 1 } : state);
 
-// The box a stop shows: its card and the text items of its item (its lead and follow).
-export const walkBox = (cardBox, textBoxes = []) => union([cardBox, ...textBoxes]);
-
-// The camera for a stop (owner 2026-11-18 14:15, 14:40): the stop's box (its card with its lead and follow) centred on `centreX` (the chat composer's middle; else the view's)
-// in the view (area: { left, right, top, bottom } in screen pixels, `margin` clear on every side). Zoom 1 when it fits; else zoomed out until it does, but never below READ_ZOOM,
-// the smallest size its words still read at. A box taller than that has two views (owner 2026-11-18 14:50, option A): part 0 top-aligned (its lead and the top of its card),
-// part 1 bottom-aligned (the end of its card and its follow); Next shows part 1 before the next card. Never in past 1; a box wider than the view at READ_ZOOM is fitted to the
-// width. -> { x, y, z } (screen = world * z + view).
-export const MIN_ZOOM = 0.2, READ_ZOOM = 0.85;
-const zoomFor = (box, room) => Math.max(MIN_ZOOM, Math.min(1, room.w / box.w, Math.max(READ_ZOOM, room.h / box.h)));
-const roomOf = (area, margin) => ({ w: area.right - area.left - 2 * margin, h: area.bottom - area.top - 2 * margin });
-// How many views a stop takes: 1, or 2 when its box is taller than the view at the reading size.
-export const walkParts = (box, area, margin) => { const room = roomOf(area, margin); return box.h * zoomFor(box, room) > room.h + 1 ? 2 : 1; };
-export function walkCamera(box, area, margin, centreX = null, part = 0) {
-  const room = roomOf(area, margin), z = zoomFor(box, room);
-  const x = (centreX ?? (area.left + area.right) / 2) - (box.x + box.w / 2) * z;
-  const y = box.h * z <= room.h + 1 ? (area.top + area.bottom) / 2 - (box.y + box.h / 2) * z : part ? area.bottom - margin - (box.y + box.h) * z : area.top + margin - box.y * z;
+// The camera for a stop (owner 2026-11-18 15:05, decision B): the pill carries the stop's lead and follow, so the camera shows the card alone: fitted to the view's width with
+// the zoom held in [READ_ZOOM, 1], centred on `centreX` (the chat composer's middle; else the view's), its top `margin` below the area's top (the pill's bottom). A card taller
+// than the view runs on below it, scrolled as any canvas is. area: { left, right, top, bottom } in screen pixels. -> { x, y, z } (screen = world * z + view).
+export const READ_ZOOM = 0.85;
+export function walkCamera(card, area, margin, centreX = null) {
+  const z = Math.min(1, Math.max(READ_ZOOM, (area.right - area.left - 2 * margin) / card.w));
+  const x = (centreX ?? (area.left + area.right) / 2) - (card.x + card.w / 2) * z, y = area.top + margin - card.y * z;
   return { x: Math.round(x), y: Math.round(y), z: Math.round(z * 1000) / 1000 };
 }
-// The green bar (0..1): the cards before this one, and this card's views seen so far.
-export const walkProgress = state => (state ? Math.min(1, (state.at + ((state.part || 0) + 1) / (state.parts || 1)) / state.stops.length) : 0);
+// The green bar (0..1): this card and the ones before it.
+export const walkProgress = state => (state ? Math.min(1, (state.at + 1) / state.stops.length) : 0);

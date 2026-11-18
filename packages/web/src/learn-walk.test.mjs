@@ -1,7 +1,7 @@
 // Learn Walk (learn-walk-spec.md §1): stops, the contents button, start / continue / again, the last-stop rollover, the camera rule.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { walkBox, walkButton, walkCamera, walkNext, walkParts, walkPrev, walkProgress, walkSections, walkStart, walkStops } from './learn-walk.js';
+import { walkButton, walkCamera, walkNext, walkPrev, walkProgress, walkSections, walkStart, walkStops } from './learn-walk.js';
 
 const card = (id, sectionId, order, extra = {}) => ({ id, type: 'doc', learn: { sectionId, itemId: `i${order}`, role: 'card', slot: true, order, ...extra } });
 const blocks = [
@@ -39,20 +39,11 @@ test('walkNext: marks the card done and advances; past the last stop the section
   assert.equal(walkPrev(last).at, 2);
 });
 
-test('walkCamera: centred at zoom 1 when it fits; zoomed out to fit, but never below the reading size, where a taller box is top-aligned; centred on the composer when given', () => {
-  const area = { left: 0, right: 1000, top: 100, bottom: 700 };
-  assert.deepEqual(walkCamera({ x: 200, y: 300, w: 600, h: 200 }, area, 40), { x: 0, y: 0, z: 1 });
-  assert.deepEqual(walkCamera({ x: 200, y: 300, w: 600, h: 200 }, area, 40, 600), { x: 100, y: 0, z: 1 }, 'its middle on the composer middle');
-  const fits = walkCamera({ x: 200, y: 300, w: 600, h: 580 }, area, 40); // room 520 high: z 520 / 580 = 0.897, above the reading size
-  assert.ok(fits.z > 0.85 && fits.z < 1 && 300 * fits.z + fits.y >= 139 && 880 * fits.z + fits.y <= 661, 'the whole box in view');
-  const tall = walkCamera({ x: 200, y: 300, w: 600, h: 1040 }, area, 40); // would need 0.5: held at 0.85 and top-aligned
-  assert.deepEqual([tall.z, 300 * tall.z + tall.y], [0.85, 140]);
-  assert.equal(walkCamera({ x: 0, y: 0, w: 4000, h: 100 }, area, 40).z, 0.23, 'a box wider than the view is fitted to the width');
-  // Option A (owner 14:50): a tall box has two views, its top then its end with the follow, both at the reading size.
-  assert.equal(walkParts({ x: 200, y: 300, w: 600, h: 200 }, area, 40), 1);
-  assert.equal(walkParts({ x: 200, y: 300, w: 600, h: 1040 }, area, 40), 2);
-  const end = walkCamera({ x: 200, y: 300, w: 600, h: 1040 }, area, 40, null, 1);
-  assert.deepEqual([end.z, Math.round((300 + 1040) * end.z + end.y)], [0.85, 660], 'part 1: the box bottom a margin above the view bottom');
-  assert.deepEqual([walkProgress({ at: 0, part: 0, parts: 2, stops: [1, 2] }), walkProgress({ at: 0, part: 1, parts: 2, stops: [1, 2] }), walkProgress({ at: 1, stops: [1, 2] })], [0.25, 0.5, 1]);
-  assert.deepEqual(walkBox({ x: 0, y: 100, w: 640, h: 300 }, [{ x: 0, y: 40, w: 640, h: 40 }, { x: 0, y: 420, w: 640, h: 30 }]), { x: 0, y: 40, w: 640, h: 410 });
+test('walkCamera: the card alone, fitted to the width with the zoom in [0.85, 1], centred on the composer, its top a margin under the pill; walkProgress per card', () => {
+  const area = { left: 0, right: 1000, top: 150, bottom: 700 };
+  assert.deepEqual(walkCamera({ x: 200, y: 300, w: 600, h: 1200 }, area, 40), { x: 0, y: -110, z: 1 }, 'fits at 1: top-aligned, never zoomed out for its height');
+  assert.deepEqual(walkCamera({ x: 200, y: 300, w: 600, h: 200 }, area, 40, 600), { x: 100, y: -110, z: 1 }, 'its middle on the composer middle');
+  assert.equal(walkCamera({ x: 0, y: 0, w: 1000, h: 100 }, area, 40).z, 0.92, 'a wide card is fitted to the width');
+  assert.equal(walkCamera({ x: 0, y: 0, w: 3000, h: 100 }, area, 40).z, 0.85, 'never below the reading size');
+  assert.deepEqual([walkProgress({ at: 0, stops: [1, 2, 3, 4] }), walkProgress({ at: 3, stops: [1, 2, 3, 4] }), walkProgress(null)], [0.25, 1, 0]);
 });
