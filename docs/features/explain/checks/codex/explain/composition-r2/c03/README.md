@@ -1,24 +1,36 @@
-# C03 · Reviewed labels
+# C03 · Contextual states and arrow labels
 
-Source commit `83727c378cc48644d5186952051b11453121fedc` on `explain/composition-c03-r2` follows the accepted `5e5381dff`.
+Branch `explain/composition-c03-r2` at `4dd3fe85f27231134b5fe28fb2c2315f13a156ac`, including arrow-label commit `06e5b4c5057e9557e20cab1dd65d03b38450a362`.
 
-The layer blocks and Detailed caption show W₁ and W₂. The weighted source context chart for “nous” labels its unchanged values 1.436 and 0.564 as Feature 1 and Feature 2.
+The contextual-state reference uses a teaching matrix. [CLS], we, read, and [SEP] keep their rows across the lookup and both computed layers. The changed-state colour follows “read” from (2, 0) to (2, 3) to (5, 8). With the toy causal mask, it goes from (2, 0) to (2, 1) to (3, 2).
+
+## Relationship diagrams
+
+| Reference | Brief labels | Balanced labels | Detailed labels |
+| --- | ---: | ---: | ---: |
+| `ml-transformer-encoder-decoder-memory` | 5 | 5 | 5 |
+| `ml-transformer-positionwise-feedforward` | 6 | 6 | 6 |
+
+The two relationship diagrams still show unfilled boxes and more than three lines below the picture because the current renderer lists the arrow labels there. Claude Code is handling the rendering change.
 
 ## Compact token counts
 
-Counts use compact `{id, spec}` and `cl100k_base`. Where the parser changes the count, the cell shows authored / completed.
+Counts use compact `{id, spec}` with `cl100k_base`. A slash separates authored and parser-completed counts.
 
-| Reference | Overview | Standard | Detailed | Detailed companion | Author single |
+| Reference | Brief | Balanced | Detailed | Detailed companion | Author single |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `ml-transformer-cross-attention-alignment` | 114 | 149 | 111 / 110 | 145 | — |
 | `ml-transformer-context-rules` | 104 | 236 | 245 | 127 | 105 |
-| `ml-transformer-encoder-decoder-memory` | 194 | 194 | 197 | — | — |
-| `ml-transformer-contextual-layer-states` | 132 | 187 | 195 | 138 | — |
-| `ml-transformer-positionwise-feedforward` | 231 | 230 | 237 | — | — |
+| `ml-transformer-encoder-decoder-memory` | 191 | 191 | 194 | — | — |
+| `ml-transformer-contextual-layer-states` | 234 | 238 | 242 | 245 | — |
+| `ml-transformer-positionwise-feedforward` | 229 | 228 | 235 | — | — |
 | `ml-transformer-original-decoder-sublayers` | 213 | 224 | 230 | — | — |
 
-The three affected views changed and the other 19 SVG view hashes match the accepted sheet. The contextual-layer-states snapshots were refreshed at 320, 408, and 720 px. The weighted chart appears at Detailed, while the snapshot catalogue captures the registered Standard view.
+## Verification
 
-All 27 affected tests passed, including arithmetic, author reference selection, the lazy library accessor, and snapshots. All 22 specs passed with zero schema or content errors. The maximum compact count is 245 and the reference linter found zero issues. [Spec verification](tokens.json) · [Linter](lint.json) · [View changes](render-changes.json) · [Snapshot changes](snapshot-changes.json)
+- The replay against the C01/C02 carryover moved zero existing first picks or planner kinds across 3,057 catalogue and 474 saved cases. All 105 tranche prompt-depth cases reached their intended reference. [Replay](planner-replay.json) · [New prompts](new-prompts.md)
+- All 17 affected tests passed, including independent layer recomputation, the production author request, the lazy library accessor, and the full SVG fingerprint check. All 22 visual payloads passed the content contract and token limit. The scoped linter reported zero findings. [Token checks](tokens.json) · [Relationship label inventory](relationships.json)
+- The arrow-label commit changed 18 scoped snapshots. The matrix changed its three registered snapshots. [Snapshot changes](snapshot-changes.json)
+- The aged renderer still draws a repeat bracket through the ×6 marker on the reused decoder-sublayers card. [Preview layout](preview-layout.json) · [Typeset sheet](contact-sheet.html)
 
 ![C03 contact sheet at 408 px per diagram](contact-sheet.png)

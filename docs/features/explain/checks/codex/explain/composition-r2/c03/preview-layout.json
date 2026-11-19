@@ -1,11 +1,11 @@
 {
-  "ref": "14e755dfe8491d84207230a1da53ded8bb22ce2d",
+  "ref": "148d17602f9d6d1ecb9f776b1cb6550694126f83",
   "requestedWidth": 408,
   "sheetWidth": 1296,
-  "sheetHeight": 6795,
+  "sheetHeight": 6104,
   "views": 22,
   "scaled": 5,
-  "foreignObjects": 12,
+  "foreignObjects": 8,
   "referenceRecords": [
     {
       "id": "ml-transformer-cross-attention-alignment",
@@ -181,13 +181,13 @@
           "x": 18,
           "y": 2495,
           "nativeWidth": 408,
-          "nativeHeight": 915,
+          "nativeHeight": 898,
           "scale": 1,
           "displayWidth": 408,
-          "displayHeight": 915,
+          "displayHeight": 898,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "ce58c2ee69553578514ca570af0d29a091815a7945f30adaf6e2238beb7b4f01",
+          "rawSvgSha256": "6683cee81b737c5ab31ffc7406351763af32b1f353c2e84db4ea2de74c6650c1",
           "derivedTextResolved": false
         },
         {
@@ -204,7 +204,7 @@
           "displayHeight": 937,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "5489b87b6a4739b937f203d88d23786082050b38fd0da2bfbc6e821c5e469d9f",
+          "rawSvgSha256": "a462a08f159f53cd0a7fae7fc6f11fe11d71dd1043e911b4bb275b42b47632d5",
           "derivedTextResolved": false
         },
         {
@@ -221,7 +221,7 @@
           "displayHeight": 954,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "cb0997a2e78e277adfbd82d5257ee3e0f229eae6725a8180dfd011255470cb45",
+          "rawSvgSha256": "f416f362dbba20776e9c2e53f469d3faa9be876a1ebfadb7c012b40065c355e3",
           "derivedTextResolved": false
         }
       ]
@@ -233,68 +233,68 @@
           "depth": "overview",
           "role": "main",
           "source": "depths.overview.spec",
-          "kind": "block-stack",
+          "kind": "matrix",
           "x": 18,
           "y": 3516,
           "nativeWidth": 408,
-          "nativeHeight": 590,
+          "nativeHeight": 338,
           "scale": 1,
           "displayWidth": 408,
-          "displayHeight": 590,
+          "displayHeight": 338,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "23be19adcbd6433689f92913e7e7b6ef28ab442ec7bbadbb4b5eae54753b7b25",
+          "rawSvgSha256": "5a2928a2892f47129d7075fd1cc3b33d3b0eb36b32ac7479eed67291bd5b1d46",
           "derivedTextResolved": false
         },
         {
           "depth": "standard",
           "role": "main",
           "source": "depths.standard.spec",
-          "kind": "block-stack",
+          "kind": "matrix",
           "x": 444,
           "y": 3516,
           "nativeWidth": 408,
-          "nativeHeight": 866,
+          "nativeHeight": 355,
           "scale": 1,
           "displayWidth": 408,
-          "displayHeight": 866,
-          "foreignObjects": 2,
+          "displayHeight": 355,
+          "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "e1fea6ae0e0212ebfa52f5d6b52d7e21c27017b960867c06895248509b528cf4",
+          "rawSvgSha256": "55a7e9c57184f5cbe57a2c7def43566b60b6dde079d4307cf7c2e5978fdc9dfe",
           "derivedTextResolved": false
         },
         {
           "depth": "deep",
           "role": "main",
           "source": "depths.deep.spec",
-          "kind": "block-stack",
+          "kind": "matrix",
           "x": 870,
           "y": 3516,
           "nativeWidth": 408,
-          "nativeHeight": 866,
+          "nativeHeight": 338,
           "scale": 1,
           "displayWidth": 408,
-          "displayHeight": 866,
-          "foreignObjects": 3,
+          "displayHeight": 338,
+          "foreignObjects": 1,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "d4db35c7da88f7c55c88e6cda56bedbc521d286b7f474267e96b3e682a6995f4",
+          "rawSvgSha256": "d75732679cc8fec77c8fe1dfa1d83504323e5bc370fde3b2c3b515f55964636a",
           "derivedTextResolved": false
         },
         {
           "depth": "deep",
           "role": "detail",
           "source": "depths.deep.detailSpec",
-          "kind": "block-stack",
+          "kind": "matrix",
           "x": 870,
-          "y": 4414,
+          "y": 3903,
           "nativeWidth": 408,
-          "nativeHeight": 518,
+          "nativeHeight": 338,
           "scale": 1,
           "displayWidth": 408,
-          "displayHeight": 518,
+          "displayHeight": 338,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "5839991d60acb0f06249dcde2a9a2a06fb50954f6b23b24f953152524c757fee",
+          "rawSvgSha256": "779f595e1ac585ad368fd1c65878c9a703ea471b281053ee421534abefaddb30",
           "derivedTextResolved": false
         }
       ]
@@ -308,7 +308,7 @@
           "source": "depths.overview.spec",
           "kind": "relationship",
           "x": 18,
-          "y": 4999,
+          "y": 4308,
           "nativeWidth": 408,
           "nativeHeight": 996,
           "scale": 1,
@@ -316,7 +316,7 @@
           "displayHeight": 996,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "403c7ce7e024e2dd770950bd5a047bcea326fe5a980e8954f319588ac5a1e9bb",
+          "rawSvgSha256": "71bc9631ef8285159e8964da948d5ebf07827011ec8c1294d902e0dcaf4fa87a",
           "derivedTextResolved": false
         },
         {
@@ -325,7 +325,7 @@
           "source": "spec",
           "kind": "relationship",
           "x": 444,
-          "y": 4999,
+          "y": 4308,
           "nativeWidth": 408,
           "nativeHeight": 996,
           "scale": 1,
@@ -333,7 +333,7 @@
           "displayHeight": 996,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "59d3ed875735f00dd47580b3df01a3b0ab3bce6246e8d9a712949e0e63b9af9e",
+          "rawSvgSha256": "8e5bc984f3fef76da55402db7a5e003028dd67b43fe41aa0b1aa0f88b6f0c85b",
           "derivedTextResolved": false
         },
         {
@@ -342,7 +342,7 @@
           "source": "depths.deep.spec",
           "kind": "relationship",
           "x": 870,
-          "y": 4999,
+          "y": 4308,
           "nativeWidth": 408,
           "nativeHeight": 996,
           "scale": 1,
@@ -350,7 +350,7 @@
           "displayHeight": 996,
           "foreignObjects": 2,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "a9c9a8b90d014476ceb37727196f2cabcfae7a9b9271ee35744019f9f50a65d6",
+          "rawSvgSha256": "93e89bd0463350648784e023ca651d5e818064dcfe63abd8976adf03e189da73",
           "derivedTextResolved": false
         }
       ]
@@ -364,7 +364,7 @@
           "source": "depths.overview.spec",
           "kind": "block-stack",
           "x": 18,
-          "y": 6062,
+          "y": 5371,
           "nativeWidth": 408,
           "nativeHeight": 653,
           "scale": 1,
@@ -381,7 +381,7 @@
           "source": "spec",
           "kind": "block-stack",
           "x": 444,
-          "y": 6062,
+          "y": 5371,
           "nativeWidth": 408,
           "nativeHeight": 701,
           "scale": 1,
@@ -398,7 +398,7 @@
           "source": "depths.deep.spec",
           "kind": "block-stack",
           "x": 870,
-          "y": 6062,
+          "y": 5371,
           "nativeWidth": 408,
           "nativeHeight": 701,
           "scale": 1,
@@ -412,6 +412,6 @@
       ]
     }
   ],
-  "publishedCommit": "83727c378cc48644d5186952051b11453121fedc",
-  "publishedTree": "91a45e6a1495dd49afc2370f1544c1410a89112f"
+  "publishedCommit": "4dd3fe85f27231134b5fe28fb2c2315f13a156ac",
+  "publishedTree": "322c8cff1bb9a740f4a999378245f2f408b0fff7"
 }

@@ -1,0 +1,336 @@
+{
+  "commit": "148d17602f9d6d1ecb9f776b1cb6550694126f83",
+  "tree": "322c8cff1bb9a740f4a999378245f2f408b0fff7",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-transformer-cross-attention-alignment",
+    "ml-transformer-context-rules",
+    "ml-transformer-encoder-decoder-memory",
+    "ml-transformer-contextual-layer-states",
+    "ml-transformer-positionwise-feedforward",
+    "ml-transformer-original-decoder-sublayers"
+  ],
+  "additionalReusedIds": [],
+  "references": [
+    {
+      "id": "ml-transformer-encoder-decoder-memory",
+      "inventory": "reused",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "How the two halves work together",
+            "edgeCount": 5,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "source",
+                "to": "encoder",
+                "label": "Exposes all positions",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "encoder",
+                "to": "memory",
+                "label": "Computed once",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "memory",
+                "to": "decoder",
+                "label": "Reused each step",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "prefix",
+                "to": "decoder",
+                "label": "Conditions word choice",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "decoder",
+                "to": "next",
+                "label": "Scores possible continuations",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Encoder memory feeds the decoder stack",
+            "edgeCount": 5,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "source",
+                "to": "encoder",
+                "label": "Exposes all positions",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "encoder",
+                "to": "memory",
+                "label": "Computed once",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "memory",
+                "to": "decoder",
+                "label": "Reused each step",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "prefix",
+                "to": "decoder",
+                "label": "Conditions word choice",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "decoder",
+                "to": "next",
+                "label": "Scores possible continuations",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Encoder memory feeds the decoder stack",
+            "edgeCount": 5,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "source",
+                "to": "encoder",
+                "label": "Exposes all positions",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "encoder",
+                "to": "memory",
+                "label": "Computed once",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "memory",
+                "to": "decoder",
+                "label": "Reused each step",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "prefix",
+                "to": "decoder",
+                "label": "Conditions word choice",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "decoder",
+                "to": "next",
+                "label": "Scores possible continuations",
+                "words": 3
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-transformer-positionwise-feedforward",
+      "inventory": "reused",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Words share context, then update separately",
+            "edgeCount": 6,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "cat",
+                "to": "catMix",
+                "label": "Weighted own value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "sat",
+                "to": "satMix",
+                "label": "Weighted own value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "cat",
+                "to": "satMix",
+                "label": "Weighted other value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "sat",
+                "to": "catMix",
+                "label": "Weighted other value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "catMix",
+                "to": "catNext",
+                "label": "Applies shared rule",
+                "words": 3
+              },
+              {
+                "edgeIndex": 5,
+                "from": "satMix",
+                "to": "satNext",
+                "label": "Applies shared rule",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Context mixing versus position-wise updates",
+            "edgeCount": 6,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "cat",
+                "to": "catMix",
+                "label": "Weighted own value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "sat",
+                "to": "satMix",
+                "label": "Weighted own value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "cat",
+                "to": "satMix",
+                "label": "Weighted other value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "sat",
+                "to": "catMix",
+                "label": "Weighted other value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "catMix",
+                "to": "catNext",
+                "label": "Applies shared rule",
+                "words": 3
+              },
+              {
+                "edgeIndex": 5,
+                "from": "satMix",
+                "to": "satNext",
+                "label": "Applies shared rule",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Context mixing versus position-wise updates",
+            "edgeCount": 6,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "cat",
+                "to": "catMix",
+                "label": "Weighted own value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "sat",
+                "to": "satMix",
+                "label": "Weighted own value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "cat",
+                "to": "satMix",
+                "label": "Weighted other value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "sat",
+                "to": "catMix",
+                "label": "Weighted other value",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "catMix",
+                "to": "catNext",
+                "label": "Applies shared rule",
+                "words": 3
+              },
+              {
+                "edgeIndex": 5,
+                "from": "satMix",
+                "to": "satNext",
+                "label": "Applies shared rule",
+                "words": 3
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    }
+  ],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "publishedCommit": "4dd3fe85f27231134b5fe28fb2c2315f13a156ac",
+  "publishedTree": "322c8cff1bb9a740f4a999378245f2f408b0fff7"
+}

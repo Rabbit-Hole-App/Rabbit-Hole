@@ -1,11 +1,37 @@
 {
-  "added": [],
-  "changed": [
-    "ml-transformer-contextual-layer-states/320",
-    "ml-transformer-contextual-layer-states/408",
-    "ml-transformer-contextual-layer-states/720"
-  ],
-  "removed": [],
-  "publishedCommit": "83727c378cc48644d5186952051b11453121fedc",
-  "publishedTree": "91a45e6a1495dd49afc2370f1544c1410a89112f"
+  "arrowLabels": {
+    "added": [],
+    "changed": [
+      "ml-transformer-encoder-decoder-memory/408",
+      "ml-transformer-encoder-decoder-memory/960",
+      "ml-transformer-encoder-decoder-memory/natural",
+      "ml-transformer-encoder-decoder-memory-brief/408",
+      "ml-transformer-encoder-decoder-memory-brief/960",
+      "ml-transformer-encoder-decoder-memory-brief/natural",
+      "ml-transformer-encoder-decoder-memory-detailed/408",
+      "ml-transformer-encoder-decoder-memory-detailed/960",
+      "ml-transformer-encoder-decoder-memory-detailed/natural",
+      "ml-transformer-positionwise-feedforward/408",
+      "ml-transformer-positionwise-feedforward/960",
+      "ml-transformer-positionwise-feedforward/natural",
+      "ml-transformer-positionwise-feedforward-brief/408",
+      "ml-transformer-positionwise-feedforward-brief/960",
+      "ml-transformer-positionwise-feedforward-brief/natural",
+      "ml-transformer-positionwise-feedforward-detailed/408",
+      "ml-transformer-positionwise-feedforward-detailed/960",
+      "ml-transformer-positionwise-feedforward-detailed/natural"
+    ],
+    "removed": []
+  },
+  "contextualStates": {
+    "added": [],
+    "changed": [
+      "ml-transformer-contextual-layer-states/320",
+      "ml-transformer-contextual-layer-states/408",
+      "ml-transformer-contextual-layer-states/720"
+    ],
+    "removed": []
+  },
+  "publishedCommit": "4dd3fe85f27231134b5fe28fb2c2315f13a156ac",
+  "publishedTree": "322c8cff1bb9a740f4a999378245f2f408b0fff7"
 }

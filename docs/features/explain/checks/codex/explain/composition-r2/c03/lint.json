@@ -1,5 +1,37 @@
 {
-  "references": [],
-  "overlays": [],
-  "authoredFiles": []
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-transformer-references.js",
+    "packages/web/src/tutor-diagrams/topic-transformer-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-transformer-data.js",
+    "packages/web/src/tutor-diagrams/topic-transformer-overlays.js",
+    "packages/web/src/tutor-diagrams/topic-transformer-sources.json"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-transformer-references.js",
+      "ids": [
+        "ml-transformer-cross-attention-alignment",
+        "ml-transformer-context-rules",
+        "ml-transformer-contextual-layer-states"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/topic-transformer-overlays.js",
+      "ids": [
+        "ml-transformer-encoder-decoder-memory",
+        "ml-transformer-positionwise-feedforward",
+        "ml-transformer-original-decoder-sublayers"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "4dd3fe85f27231134b5fe28fb2c2315f13a156ac",
+  "publishedTree": "322c8cff1bb9a740f4a999378245f2f408b0fff7"
 }

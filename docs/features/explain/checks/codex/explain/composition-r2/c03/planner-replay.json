@@ -2,10 +2,12 @@
   "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
   "base": {
     "commit": "b1cc1eeb3347bedc914983ed0a55dc12af33ef83",
+    "tree": "43236c46963cc270c609928e0081b71f81931587",
     "trackedEdits": false
   },
   "candidate": {
-    "commit": "5b112b3de6c80b1db7d53f6db12d80fb9924d9b5",
+    "commit": "148d17602f9d6d1ecb9f776b1cb6550694126f83",
+    "tree": "322c8cff1bb9a740f4a999378245f2f408b0fff7",
     "trackedEdits": false
   },
   "summary": {
@@ -1812,21 +1814,21 @@
       "promptType": "exact",
       "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -1843,21 +1845,21 @@
       "promptType": "exact",
       "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -1874,21 +1876,21 @@
       "promptType": "exact",
       "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -1905,21 +1907,21 @@
       "promptType": "exact",
       "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -1936,21 +1938,21 @@
       "promptType": "exact",
       "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -1967,21 +1969,21 @@
       "promptType": "exact",
       "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -1998,21 +2000,21 @@
       "promptType": "exact",
       "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2029,21 +2031,21 @@
       "promptType": "exact",
       "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2060,21 +2062,21 @@
       "promptType": "exact",
       "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2091,21 +2093,23 @@
       "promptType": "exact",
       "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "firstId": "ml-transformer-attention",
+        "firstReferenceId": "ml-transformer-attention",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
-        "offered": []
+        "offered": [
+          "ml-transformer-attention"
+        ]
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2122,21 +2126,23 @@
       "promptType": "exact",
       "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "firstId": "ml-transformer-attention",
+        "firstReferenceId": "ml-transformer-attention",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
-        "offered": []
+        "offered": [
+          "ml-transformer-attention"
+        ]
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2153,21 +2159,23 @@
       "promptType": "exact",
       "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "firstId": "ml-transformer-attention",
+        "firstReferenceId": "ml-transformer-attention",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
-        "offered": []
+        "offered": [
+          "ml-transformer-attention"
+        ]
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2184,21 +2192,21 @@
       "promptType": "exact",
       "prompt": "Trace successive contextual states at the same token positions.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2215,21 +2223,21 @@
       "promptType": "exact",
       "prompt": "Trace successive contextual states at the same token positions.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2246,21 +2254,21 @@
       "promptType": "exact",
       "prompt": "Trace successive contextual states at the same token positions.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2277,21 +2285,21 @@
       "promptType": "exact",
       "prompt": "How do position aligned states retain special-token slots?",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2308,21 +2316,21 @@
       "promptType": "exact",
       "prompt": "How do position aligned states retain special-token slots?",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2339,21 +2347,21 @@
       "promptType": "exact",
       "prompt": "How do position aligned states retain special-token slots?",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2370,21 +2378,21 @@
       "promptType": "exact",
       "prompt": "Show successive contextual states without confusing them with embedding lookups.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2401,21 +2409,21 @@
       "promptType": "exact",
       "prompt": "Show successive contextual states without confusing them with embedding lookups.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2432,21 +2440,21 @@
       "promptType": "exact",
       "prompt": "Show successive contextual states without confusing them with embedding lookups.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2463,21 +2471,21 @@
       "promptType": "exact",
       "prompt": "Do position aligned states keep the same feature width across layers?",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2494,21 +2502,21 @@
       "promptType": "exact",
       "prompt": "Do position aligned states keep the same feature width across layers?",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2525,21 +2533,21 @@
       "promptType": "exact",
       "prompt": "Do position aligned states keep the same feature width across layers?",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2556,21 +2564,21 @@
       "promptType": "exact",
       "prompt": "Compare successive contextual states with causal and bidirectional context.",
       "depth": "brief",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2587,21 +2595,21 @@
       "promptType": "exact",
       "prompt": "Compare successive contextual states with causal and bidirectional context.",
       "depth": "balanced",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -2618,21 +2626,21 @@
       "promptType": "exact",
       "prompt": "Compare successive contextual states with causal and bidirectional context.",
       "depth": "detailed",
-      "plannerKind": "block-stack",
+      "plannerKind": "matrix",
       "visualCount": 1,
       "before": {
         "firstId": null,
         "firstReferenceId": null,
         "firstKind": null,
-        "resolvedPlannerKind": "block-stack",
+        "resolvedPlannerKind": "matrix",
         "steer": null,
         "offered": []
       },
       "after": {
         "firstId": "ml-transformer-contextual-layer-states",
         "firstReferenceId": "ml-transformer-contextual-layer-states",
-        "firstKind": "block-stack",
-        "resolvedPlannerKind": "block-stack",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
         "steer": "ml-transformer-contextual-layer-states",
         "offered": [
           "ml-transformer-contextual-layer-states"
@@ -3320,7 +3328,13 @@
   ],
   "newOwnPromptMisses": [],
   "errors": [],
-  "publishedCommit": "5e5381dff2bb03193cb205f994049dbaa711137b",
-  "publishedTree": "3bd966cfebcbf2351e00b5a28548047740f2a058",
-  "publishedBaseline": "4da7d85dc3356700923dc9a6cab676a132f2009a"
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3253,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3253,
+    "computedCandidateCaseInputs": 3253
+  },
+  "publishedCommit": "4dd3fe85f27231134b5fe28fb2c2315f13a156ac",
+  "publishedTree": "322c8cff1bb9a740f4a999378245f2f408b0fff7"
 }
