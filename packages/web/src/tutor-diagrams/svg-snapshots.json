@@ -1462,12 +1462,12 @@
       "height": 559
     },
     "ml-label-prior-drift-comparison/320": {
-      "sha256": "3527e9b39ec9a13f78bb5361144c318ee4e4b9e721ecca5c06f399f8c693ed15",
+      "sha256": "948f85c7cb161a07dd49c2d2148dd4d096e024623bb619af89b9caae99ecf7a1",
       "width": 408,
       "height": 453
     },
     "ml-label-prior-drift-comparison/408": {
-      "sha256": "3527e9b39ec9a13f78bb5361144c318ee4e4b9e721ecca5c06f399f8c693ed15",
+      "sha256": "948f85c7cb161a07dd49c2d2148dd4d096e024623bb619af89b9caae99ecf7a1",
       "width": 408,
       "height": 453
     },
@@ -2242,12 +2242,12 @@
       "height": 319
     },
     "ml-sampling-top-k/320": {
-      "sha256": "c4a0f90838e95ab99f19d06b1bdad0c38b2fecb52b8e13307700ffb83b390831",
+      "sha256": "d4b54630e8bfbad9c33229b65b64f33dd27adefe7fae6377dc695bfd57d8ff98",
       "width": 408,
       "height": 431
     },
     "ml-sampling-top-k/408": {
-      "sha256": "c4a0f90838e95ab99f19d06b1bdad0c38b2fecb52b8e13307700ffb83b390831",
+      "sha256": "d4b54630e8bfbad9c33229b65b64f33dd27adefe7fae6377dc695bfd57d8ff98",
       "width": 408,
       "height": 431
     },

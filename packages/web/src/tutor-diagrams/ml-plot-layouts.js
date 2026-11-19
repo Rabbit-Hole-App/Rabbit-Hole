@@ -629,7 +629,7 @@ function verticalBars(d, requested, options) {
     };
     // A negative bar's value stands 12 px under its end; when that reaches the category names (a bar down to the axis end) the names move down by what it takes, so the two never overlap.
     const nameDrop = Math.ceil(Math.max(0, ...values.filter(value => value < 0 && valueText(value) !== null).map(value => y(clamp(value)) + 12 + tickSize / 2 - (bottom + 10))));
-    const bars = [], labels = [], geometryBars = [];
+    const bars = [], labels = [], geometryBars = [], pending = [];
     categories.forEach((category, i) => {
       const start = left + slot * i + (slot - cluster) / 2;
       const name = wrap(category, slot - 4, nameSize);
@@ -641,11 +641,18 @@ function verticalBars(d, requested, options) {
           : { 'data-tutor-bar': value };
         if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
         else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
-        geometryBars.push({ label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) });
+        const bar = { label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) };
+        geometryBars.push(bar);
         const text = valueText(value);
-        if (text !== null) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: tickSize, weight: 600 }));
+        if (text !== null) pending.push({ bar, value, text, cx, at: value < 0 ? end + 12 : end - 12, slot: labels.push(null) - 1 }); // the label keeps its place in the drawing order
       });
     });
+    // With no box a value may be wider than its bar and spill over the neighbouring ones: when it would sit on a taller neighbour the unit goes (the value alone is narrower); a value that touches no other bar is drawn as always.
+    const hitsBar = (text, cx, at, own) => geometryBars.some(bar => bar !== own && bar.height > 0 && cx - textWidth(text, tickSize) / 2 < bar.x + bar.width && bar.x < cx + textWidth(text, tickSize) / 2 && at - tickSize / 2 < bar.y + bar.height && bar.y < at + tickSize / 2);
+    for (const { bar, value, text, cx, at, slot } of pending) {
+      const shown = !boxed && d.unit && hitsBar(text, cx, at, bar) ? amount(value) : text;
+      labels[slot] = label(shown, cx, at, { size: tickSize, weight: 600 });
+    }
     elements.push(...bars);
     // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
     elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
