@@ -176,7 +176,7 @@ export const SEEDED_EXAMPLES_HEADING = '\n# Examples\nDiagram examples on other 
 export function diagramReferenceContext(references) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
