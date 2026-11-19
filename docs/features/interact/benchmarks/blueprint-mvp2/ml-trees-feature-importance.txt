@@ -1,0 +1,1530 @@
+run ej_81e3248dc33e4db7b3c5390bc0408ac6: PASSED the light checker
+prompt: compare impurity-based feature importance with permutation importance when one feature is random noise
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 1277400030   seconds: 123.322   cost: $0.2436
+
+== dice
+{
+  "controlQuantities": [
+    "noise_cardinality",
+    "tree_depth",
+    "signal_strength"
+  ],
+  "n": 3,
+  "k": 3,
+  "ids": [
+    "noise_cardinality",
+    "tree_depth",
+    "signal_strength"
+  ]
+}
+
+== calls
+quantities: answered, 12.809 s, 1237 in + 1810 thinking + 699 out, $0.0207
+blueprint: answered, 108.796 s, 10410 in + 23457 thinking + 4187 out, $0.2229
+
+== problems
+none
+
+== blueprint (first): "Why Random Noise Fools Tree Impurity Importance"; controls: noise_cardinality, tree_depth, signal_strength
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Impurity-based importance sums training split impurity reductions, which favors high-cardinality noise features in deep trees. Permutation importance measures the validation score drop when a feature is shuffled, keeping true noise near zero.",
+    "formula": "I_{\\mathrm{perm},j} = S - S_{\\pi_j}",
+    "assumptions": [
+      "One true signal feature and one independent random noise feature predict a binary target.",
+      "Training and validation sets have fixed equal sample size with no interaction effects.",
+      "MDI is normalized across features; permutation importance uses validation accuracy drop."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "noise_cardinality",
+      "label": "Noise cardinality",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Number of distinct values in the random noise feature, controlling candidate split points."
+    },
+    {
+      "id": "tree_depth",
+      "label": "Max tree depth",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits allowed in the decision tree."
+    },
+    {
+      "id": "signal_strength",
+      "label": "Signal strength",
+      "unit": "",
+      "role": "control",
+      "meaning": "Predictive separation of the true signal feature from the target."
+    },
+    {
+      "id": "sample_size",
+      "label": "Sample size",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Number of observations in both the training and validation datasets."
+    },
+    {
+      "id": "signal_mdi",
+      "label": "Signal MDI",
+      "unit": "",
+      "role": "result",
+      "meaning": "Normalized training impurity reduction attributed to the true signal feature."
+    },
+    {
+      "id": "noise_mdi",
+      "label": "Noise MDI",
+      "unit": "",
+      "role": "result",
+      "meaning": "Normalized training impurity reduction captured by the random noise feature."
+    },
+    {
+      "id": "signal_perm",
+      "label": "Signal perm. drop",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled."
+    },
+    {
+      "id": "noise_perm",
+      "label": "Noise perm. drop",
+      "unit": "",
+      "role": "result",
+      "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled."
+    },
+    {
+      "id": "overfit_gap",
+      "label": "Train-val acc. gap",
+      "unit": "",
+      "role": "result",
+      "meaning": "Difference between training accuracy and validation accuracy due to fitting noise."
+    }
+  ],
+  "things": [
+    {
+      "id": "signal",
+      "label": "True signal"
+    },
+    {
+      "id": "noise",
+      "label": "Random noise"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "noise_cardinality",
+      "label": "Noise cardinality",
+      "unit": "levels",
+      "min": 2,
+      "max": 100,
+      "default": 50,
+      "step": 2
+    },
+    {
+      "type": "number",
+      "id": "tree_depth",
+      "label": "Max tree depth",
+      "unit": "levels",
+      "min": 1,
+      "max": 12,
+      "default": 6,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "signal_strength",
+      "label": "Signal strength",
+      "unit": "",
+      "min": 0.1,
+      "max": 1,
+      "default": 0.5,
+      "step": 0.05
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 10,
+    "label": "Tree depth sweep",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const SAMPLE_SIZE = 200; const K = Math.min(SAMPLE_SIZE, Math.max(2, inputs.noise_cardinality)); const d = Math.max(1, inputs.tree_depth); const s = Math.max(0.1, Math.min(1.0, inputs.signal_strength)); const kFactor = Math.pow(Math.log(K) / Math.log(100), 1.8); const sigRaw = (0.04 + 0.44 * s * s) * (1 - Math.exp(-1.5 * d)); const noiRaw = kFactor * (0.5 - 0.42 * s * s) * Math.pow(d / 12, 1.35); const totalMdi = sigRaw + noiRaw; const signal_mdi = sigRaw / totalMdi; const noise_mdi = noiRaw / totalMdi; const baseVal = 0.5 + 0.46 * s * (1 - Math.exp(-1.1 * d)); const overfitPenalty = (baseVal - 0.5) * 0.22 * kFactor * Math.pow(d / 12, 1.2); const valAcc = baseVal - overfitPenalty; const signal_perm = valAcc - 0.5; const noise_perm = 0; const trainAcc = Math.min(0.995, baseVal + (0.99 - baseVal) * 0.75 * kFactor * Math.pow(d / 12, 1.1)); const overfit_gap = trainAcc - valAcc; const progress = Math.max(0, Math.min(1, t / 10)); const curDepth = progress * d; const sigRawT = (0.04 + 0.44 * s * s) * (1 - Math.exp(-1.5 * curDepth)); const noiRawT = kFactor * (0.5 - 0.42 * s * s) * Math.pow(curDepth / 12, 1.35); return { signal_mdi: signal_mdi, noise_mdi: noise_mdi, signal_perm: signal_perm, noise_perm: noise_perm, overfit_gap: overfit_gap, x_sig_mdi: 1 + 8 * signal_mdi, x_noi_mdi: 1 + 8 * noise_mdi, x_sig_perm: 1 + 8 * signal_perm, x_noi_perm: 1 + 8 * noise_perm, sweep_x: 1 + 8 * progress, trace_sig_y: 0.6 + 5 * sigRawT, trace_noi_y: 0.6 + 5 * noiRawT, noise_beats_signal_mdi: noise_mdi > signal_mdi, high_noise_bias: noise_mdi >= 0.25, low_noise_bias: noise_mdi < 0.25 }; }",
+    "outputs": [
+      {
+        "id": "signal_mdi",
+        "unit": "",
+        "meaning": "Normalized training impurity reduction attributed to the true signal feature.",
+        "kind": "number"
+      },
+      {
+        "id": "noise_mdi",
+        "unit": "",
+        "meaning": "Normalized training impurity reduction captured by the random noise feature.",
+        "kind": "number"
+      },
+      {
+        "id": "signal_perm",
+        "unit": "",
+        "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled.",
+        "kind": "number"
+      },
+      {
+        "id": "noise_perm",
+        "unit": "",
+        "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled.",
+        "kind": "number"
+      },
+      {
+        "id": "overfit_gap",
+        "unit": "",
+        "meaning": "Difference between training accuracy and validation accuracy due to fitting noise.",
+        "kind": "number"
+      },
+      {
+        "id": "x_sig_mdi",
+        "unit": "scale",
+        "meaning": "Horizontal tip position of the signal MDI bar.",
+        "kind": "number"
+      },
+      {
+        "id": "x_noi_mdi",
+        "unit": "scale",
+        "meaning": "Horizontal tip position of the noise MDI bar.",
+        "kind": "number"
+      },
+      {
+        "id": "x_sig_perm",
+        "unit": "scale",
+        "meaning": "Horizontal tip position of the signal permutation bar.",
+        "kind": "number"
+      },
+      {
+        "id": "x_noi_perm",
+        "unit": "scale",
+        "meaning": "Horizontal marker position of the noise permutation drop.",
+        "kind": "number"
+      },
+      {
+        "id": "sweep_x",
+        "unit": "scale",
+        "meaning": "Horizontal position showing depth progression over time.",
+        "kind": "number"
+      },
+      {
+        "id": "trace_sig_y",
+        "unit": "scale",
+        "meaning": "Vertical position of cumulative signal impurity reduction.",
+        "kind": "number"
+      },
+      {
+        "id": "trace_noi_y",
+        "unit": "scale",
+        "meaning": "Vertical position of cumulative noise impurity reduction.",
+        "kind": "number"
+      },
+      {
+        "id": "noise_beats_signal_mdi",
+        "unit": "",
+        "meaning": "True when random noise receives higher MDI than the true signal.",
+        "kind": "flag"
+      },
+      {
+        "id": "high_noise_bias",
+        "unit": "",
+        "meaning": "True when noise captures at least one quarter of total MDI.",
+        "kind": "flag"
+      },
+      {
+        "id": "low_noise_bias",
+        "unit": "",
+        "meaning": "True when noise captures less than one quarter of total MDI.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "scale",
+      "parts": [
+        {
+          "type": "line",
+          "id": "axis_zero",
+          "from": [
+            1,
+            4.3
+          ],
+          "to": [
+            1,
+            8.7
+          ]
+        },
+        {
+          "type": "label",
+          "id": "lbl_mdi",
+          "at": [
+            0.5,
+            9.2
+          ],
+          "text": "MDI importance (train)"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_sig_mdi",
+          "from": [
+            1,
+            8.3
+          ],
+          "to": [
+            "x_sig_mdi",
+            8.3
+          ],
+          "label": "Sig",
+          "of": "signal"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_noi_mdi",
+          "from": [
+            1,
+            7.3
+          ],
+          "to": [
+            "x_noi_mdi",
+            7.3
+          ],
+          "label": "Noi",
+          "of": "noise"
+        },
+        {
+          "type": "label",
+          "id": "lbl_perm",
+          "at": [
+            0.5,
+            6.2
+          ],
+          "text": "Perm. drop (validation)"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_sig_perm",
+          "from": [
+            1,
+            5.4
+          ],
+          "to": [
+            "x_sig_perm",
+            5.4
+          ],
+          "label": "Sig",
+          "of": "signal"
+        },
+        {
+          "type": "dot",
+          "id": "dot_noi_perm",
+          "at": [
+            "x_noi_perm",
+            4.6
+          ],
+          "size": "medium",
+          "of": "noise"
+        },
+        {
+          "type": "label",
+          "id": "lbl_trace",
+          "at": [
+            0.5,
+            3.6
+          ],
+          "text": "MDI capture across depth"
+        },
+        {
+          "type": "trace",
+          "id": "trace_sig",
+          "at": [
+            "sweep_x",
+            "trace_sig_y"
+          ],
+          "of": "signal"
+        },
+        {
+          "type": "trace",
+          "id": "trace_noi",
+          "at": [
+            "sweep_x",
+            "trace_noi_y"
+          ],
+          "of": "noise"
+        },
+        {
+          "type": "dot",
+          "id": "head_sig",
+          "at": [
+            "sweep_x",
+            "trace_sig_y"
+          ],
+          "size": "medium",
+          "of": "signal"
+        },
+        {
+          "type": "dot",
+          "id": "head_noi",
+          "at": [
+            "sweep_x",
+            "trace_noi_y"
+          ],
+          "size": "medium",
+          "of": "noise"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Importance vs tree depth",
+      "x": {
+        "over": "tree_depth",
+        "label": "Max tree depth",
+        "unit": "levels"
+      },
+      "y": {
+        "label": "Importance / drop",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "noise_mdi",
+          "label": "Noise MDI",
+          "of": "noise",
+          "style": "line"
+        },
+        {
+          "value": "signal_mdi",
+          "label": "Signal MDI",
+          "of": "signal",
+          "style": "line"
+        },
+        {
+          "value": "signal_perm",
+          "label": "Signal perm",
+          "of": "signal",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "noise_mdi",
+      "label": "Noise MDI",
+      "unit": "",
+      "decimals": 2,
+      "of": "noise"
+    },
+    {
+      "value": "noise_perm",
+      "label": "Noise perm",
+      "unit": "",
+      "decimals": 2,
+      "of": "noise"
+    },
+    {
+      "value": "signal_mdi",
+      "label": "Signal MDI",
+      "unit": "",
+      "decimals": 2,
+      "of": "signal"
+    },
+    {
+      "value": "signal_perm",
+      "label": "Signal perm",
+      "unit": "",
+      "decimals": 2,
+      "of": "signal"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Noise perm. drop stays at zero.",
+      "Perm. drop tracks true signal."
+    ],
+    "cases": [
+      {
+        "when": "noise_beats_signal_mdi",
+        "text": "Noise MDI exceeds signal MDI!"
+      },
+      {
+        "when": "high_noise_bias",
+        "text": "Deep splits inflate noise MDI."
+      },
+      {
+        "when": "low_noise_bias",
+        "text": "Shallow splits keep noise MDI low."
+      }
+    ],
+    "otherwise": "Adjust depth or levels to compare."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "noise_mdi",
+      "with": "noise_cardinality"
+    },
+    {
+      "type": "increases",
+      "value": "noise_mdi",
+      "with": "tree_depth"
+    },
+    {
+      "type": "decreases",
+      "value": "noise_mdi",
+      "with": "signal_strength"
+    },
+    {
+      "type": "increases",
+      "value": "signal_perm",
+      "with": "signal_strength"
+    },
+    {
+      "type": "unchanged",
+      "value": "noise_perm",
+      "when": "noise_cardinality"
+    },
+    {
+      "type": "unchanged",
+      "value": "noise_perm",
+      "when": "tree_depth"
+    }
+  ],
+  "lesson": {
+    "title": "Why Random Noise Fools Tree Impurity Importance",
+    "description": "Compare impurity-based MDI and validation permutation importance across tree depth and noise cardinality. Watch how deep trees inflate noise MDI while permutation keeps noise near zero.",
+    "instructions": "Adjust noise cardinality, max tree depth, and signal strength. Watch the bars and depth traces update, and see how the depth plot compares MDI with permutation drop.",
+    "goal": "See that training MDI is biased toward high-cardinality noise in deep trees, whereas validation permutation importance isolates true signal."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "Impurity-based importance sums training split impurity reductions, which favors high-cardinality noise features in deep trees. Permutation importance measures the validation score drop when a feature is shuffled, keeping true noise near zero.",
+    "formula": "I_{\\mathrm{perm},j} = S - S_{\\pi_j}",
+    "assumptions": [
+      "One true signal feature and one independent random noise feature predict a binary target.",
+      "Training and validation sets have fixed equal sample size with no interaction effects.",
+      "MDI is normalized across features; permutation importance uses validation accuracy drop."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "noise_cardinality",
+      "label": "Noise cardinality",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Number of distinct values in the random noise feature, controlling candidate split points."
+    },
+    {
+      "id": "tree_depth",
+      "label": "Max tree depth",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits allowed in the decision tree."
+    },
+    {
+      "id": "signal_strength",
+      "label": "Signal strength",
+      "unit": "",
+      "role": "control",
+      "meaning": "Predictive separation of the true signal feature from the target."
+    },
+    {
+      "id": "sample_size",
+      "label": "Sample size",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Number of observations in both the training and validation datasets."
+    },
+    {
+      "id": "signal_mdi",
+      "label": "Signal MDI",
+      "unit": "",
+      "role": "result",
+      "meaning": "Normalized training impurity reduction attributed to the true signal feature."
+    },
+    {
+      "id": "noise_mdi",
+      "label": "Noise MDI",
+      "unit": "",
+      "role": "result",
+      "meaning": "Normalized training impurity reduction captured by the random noise feature."
+    },
+    {
+      "id": "signal_perm",
+      "label": "Signal perm. drop",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled."
+    },
+    {
+      "id": "noise_perm",
+      "label": "Noise perm. drop",
+      "unit": "",
+      "role": "result",
+      "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled."
+    },
+    {
+      "id": "overfit_gap",
+      "label": "Train-val acc. gap",
+      "unit": "",
+      "role": "result",
+      "meaning": "Difference between training accuracy and validation accuracy due to fitting noise."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Impurity-based importance sums training split impurity reductions, which favors high-cardinality noise features in deep trees. Permutation importance measures the validation score drop when a feature is shuffled, keeping true noise near zero.",
+    "formula": "I_{\\mathrm{perm},j} = S - S_{\\pi_j}",
+    "assumptions": [
+      "One true signal feature and one independent random noise feature predict a binary target.",
+      "Training and validation sets have fixed equal sample size with no interaction effects.",
+      "MDI is normalized across features; permutation importance uses validation accuracy drop."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "noise_cardinality",
+      "label": "Noise cardinality",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Number of distinct values in the random noise feature, controlling candidate split points."
+    },
+    {
+      "id": "tree_depth",
+      "label": "Max tree depth",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits allowed in the decision tree."
+    },
+    {
+      "id": "signal_strength",
+      "label": "Signal strength",
+      "unit": "",
+      "role": "control",
+      "meaning": "Predictive separation of the true signal feature from the target."
+    },
+    {
+      "id": "sample_size",
+      "label": "Sample size",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Number of observations in both the training and validation datasets."
+    },
+    {
+      "id": "signal_mdi",
+      "label": "Signal MDI",
+      "unit": "",
+      "role": "result",
+      "meaning": "Normalized training impurity reduction attributed to the true signal feature."
+    },
+    {
+      "id": "noise_mdi",
+      "label": "Noise MDI",
+      "unit": "",
+      "role": "result",
+      "meaning": "Normalized training impurity reduction captured by the random noise feature."
+    },
+    {
+      "id": "signal_perm",
+      "label": "Signal perm. drop",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled."
+    },
+    {
+      "id": "noise_perm",
+      "label": "Noise perm. drop",
+      "unit": "",
+      "role": "result",
+      "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled."
+    },
+    {
+      "id": "overfit_gap",
+      "label": "Train-val acc. gap",
+      "unit": "",
+      "role": "result",
+      "meaning": "Difference between training accuracy and validation accuracy due to fitting noise."
+    }
+  ],
+  "things": [
+    {
+      "id": "signal",
+      "label": "True signal"
+    },
+    {
+      "id": "noise",
+      "label": "Random noise"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "noise_cardinality",
+      "label": "Noise cardinality",
+      "unit": "levels",
+      "min": 2,
+      "max": 100,
+      "default": 50,
+      "step": 2
+    },
+    {
+      "type": "number",
+      "id": "tree_depth",
+      "label": "Max tree depth",
+      "unit": "levels",
+      "min": 1,
+      "max": 12,
+      "default": 6,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "signal_strength",
+      "label": "Signal strength",
+      "unit": "",
+      "min": 0.1,
+      "max": 1.0,
+      "default": 0.5,
+      "step": 0.05
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 10,
+    "label": "Tree depth sweep",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const SAMPLE_SIZE = 200; const K = Math.min(SAMPLE_SIZE, Math.max(2, inputs.noise_cardinality)); const d = Math.max(1, inputs.tree_depth); const s = Math.max(0.1, Math.min(1.0, inputs.signal_strength)); const kFactor = Math.pow(Math.log(K) / Math.log(100), 1.8); const sigRaw = (0.04 + 0.44 * s * s) * (1 - Math.exp(-1.5 * d)); const noiRaw = kFactor * (0.5 - 0.42 * s * s) * Math.pow(d / 12, 1.35); const totalMdi = sigRaw + noiRaw; const signal_mdi = sigRaw / totalMdi; const noise_mdi = noiRaw / totalMdi; const baseVal = 0.5 + 0.46 * s * (1 - Math.exp(-1.1 * d)); const overfitPenalty = (baseVal - 0.5) * 0.22 * kFactor * Math.pow(d / 12, 1.2); const valAcc = baseVal - overfitPenalty; const signal_perm = valAcc - 0.5; const noise_perm = 0; const trainAcc = Math.min(0.995, baseVal + (0.99 - baseVal) * 0.75 * kFactor * Math.pow(d / 12, 1.1)); const overfit_gap = trainAcc - valAcc; const progress = Math.max(0, Math.min(1, t / 10)); const curDepth = progress * d; const sigRawT = (0.04 + 0.44 * s * s) * (1 - Math.exp(-1.5 * curDepth)); const noiRawT = kFactor * (0.5 - 0.42 * s * s) * Math.pow(curDepth / 12, 1.35); return { signal_mdi: signal_mdi, noise_mdi: noise_mdi, signal_perm: signal_perm, noise_perm: noise_perm, overfit_gap: overfit_gap, x_sig_mdi: 1 + 8 * signal_mdi, x_noi_mdi: 1 + 8 * noise_mdi, x_sig_perm: 1 + 8 * signal_perm, x_noi_perm: 1 + 8 * noise_perm, sweep_x: 1 + 8 * progress, trace_sig_y: 0.6 + 5 * sigRawT, trace_noi_y: 0.6 + 5 * noiRawT, noise_beats_signal_mdi: noise_mdi > signal_mdi, high_noise_bias: noise_mdi >= 0.25, low_noise_bias: noise_mdi < 0.25 }; }",
+    "outputs": [
+      {
+        "id": "signal_mdi",
+        "unit": "",
+        "meaning": "Normalized training impurity reduction attributed to the true signal feature.",
+        "kind": "number"
+      },
+      {
+        "id": "noise_mdi",
+        "unit": "",
+        "meaning": "Normalized training impurity reduction captured by the random noise feature.",
+        "kind": "number"
+      },
+      {
+        "id": "signal_perm",
+        "unit": "",
+        "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled.",
+        "kind": "number"
+      },
+      {
+        "id": "noise_perm",
+        "unit": "",
+        "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled.",
+        "kind": "number"
+      },
+      {
+        "id": "overfit_gap",
+        "unit": "",
+        "meaning": "Difference between training accuracy and validation accuracy due to fitting noise.",
+        "kind": "number"
+      },
+      {
+        "id": "x_sig_mdi",
+        "unit": "scale",
+        "meaning": "Horizontal tip position of the signal MDI bar.",
+        "kind": "number"
+      },
+      {
+        "id": "x_noi_mdi",
+        "unit": "scale",
+        "meaning": "Horizontal tip position of the noise MDI bar.",
+        "kind": "number"
+      },
+      {
+        "id": "x_sig_perm",
+        "unit": "scale",
+        "meaning": "Horizontal tip position of the signal permutation bar.",
+        "kind": "number"
+      },
+      {
+        "id": "x_noi_perm",
+        "unit": "scale",
+        "meaning": "Horizontal marker position of the noise permutation drop.",
+        "kind": "number"
+      },
+      {
+        "id": "sweep_x",
+        "unit": "scale",
+        "meaning": "Horizontal position showing depth progression over time.",
+        "kind": "number"
+      },
+      {
+        "id": "trace_sig_y",
+        "unit": "scale",
+        "meaning": "Vertical position of cumulative signal impurity reduction.",
+        "kind": "number"
+      },
+      {
+        "id": "trace_noi_y",
+        "unit": "scale",
+        "meaning": "Vertical position of cumulative noise impurity reduction.",
+        "kind": "number"
+      },
+      {
+        "id": "noise_beats_signal_mdi",
+        "unit": "",
+        "meaning": "True when random noise receives higher MDI than the true signal.",
+        "kind": "flag"
+      },
+      {
+        "id": "high_noise_bias",
+        "unit": "",
+        "meaning": "True when noise captures at least one quarter of total MDI.",
+        "kind": "flag"
+      },
+      {
+        "id": "low_noise_bias",
+        "unit": "",
+        "meaning": "True when noise captures less than one quarter of total MDI.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "scale",
+      "parts": [
+        {
+          "type": "line",
+          "id": "axis_zero",
+          "from": [1, 4.3],
+          "to": [1, 8.7]
+        },
+        {
+          "type": "label",
+          "id": "lbl_mdi",
+          "at": [0.5, 9.2],
+          "text": "MDI importance (train)"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_sig_mdi",
+          "from": [1, 8.3],
+          "to": ["x_sig_mdi", 8.3],
+          "label": "Sig",
+          "of": "signal"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_noi_mdi",
+          "from": [1, 7.3],
+          "to": ["x_noi_mdi", 7.3],
+          "label": "Noi",
+          "of": "noise"
+        },
+        {
+          "type": "label",
+          "id": "lbl_perm",
+          "at": [0.5, 6.2],
+          "text": "Perm. drop (validation)"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_sig_perm",
+          "from": [1, 5.4],
+          "to": ["x_sig_perm", 5.4],
+          "label": "Sig",
+          "of": "signal"
+        },
+        {
+          "type": "dot",
+          "id": "dot_noi_perm",
+          "at": ["x_noi_perm", 4.6],
+          "size": "medium",
+          "of": "noise"
+        },
+        {
+          "type": "label",
+          "id": "lbl_trace",
+          "at": [0.5, 3.6],
+          "text": "MDI capture across depth"
+        },
+        {
+          "type": "trace",
+          "id": "trace_sig",
+          "at": ["sweep_x", "trace_sig_y"],
+          "of": "signal"
+        },
+        {
+          "type": "trace",
+          "id": "trace_noi",
+          "at": ["sweep_x", "trace_noi_y"],
+          "of": "noise"
+        },
+        {
+          "type": "dot",
+          "id": "head_sig",
+          "at": ["sweep_x", "trace_sig_y"],
+          "size": "medium",
+          "of": "signal"
+        },
+        {
+          "type": "dot",
+          "id": "head_noi",
+          "at": ["sweep_x", "trace_noi_y"],
+          "size": "medium",
+          "of": "noise"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Importance vs tree depth",
+      "x": {
+        "over": "tree_depth",
+        "label": "Max tree depth",
+        "unit": "levels"
+      },
+      "y": {
+        "label": "Importance / drop",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "noise_mdi",
+          "label": "Noise MDI",
+          "of": "noise",
+          "style": "line"
+        },
+        {
+          "value": "signal_mdi",
+          "label": "Signal MDI",
+          "of": "signal",
+          "style": "line"
+        },
+        {
+          "value": "signal_perm",
+          "label": "Signal perm",
+          "of": "signal",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "noise_mdi",
+      "label": "Noise MDI",
+      "unit": "",
+      "decimals": 2,
+      "of": "noise"
+    },
+    {
+      "value": "noise_perm",
+      "label": "Noise perm",
+      "unit": "",
+      "decimals": 2,
+      "of": "noise"
+    },
+    {
+      "value": "signal_mdi",
+      "label": "Signal MDI",
+      "unit": "",
+      "decimals": 2,
+      "of": "signal"
+    },
+    {
+      "value": "signal_perm",
+      "label": "Signal perm",
+      "unit": "",
+      "decimals": 2,
+      "of": "signal"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Noise perm. drop stays at zero.",
+      "Perm. drop tracks true signal."
+    ],
+    "cases": [
+      {
+        "when": "noise_beats_signal_mdi",
+        "text": "Noise MDI exceeds signal MDI!"
+      },
+      {
+        "when": "high_noise_bias",
+        "text": "Deep splits inflate noise MDI."
+      },
+      {
+        "when": "low_noise_bias",
+        "text": "Shallow splits keep noise MDI low."
+      }
+    ],
+    "otherwise": "Adjust depth or levels to compare."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "noise_mdi",
+      "with": "noise_cardinality"
+    },
+    {
+      "type": "increases",
+      "value": "noise_mdi",
+      "with": "tree_depth"
+    },
+    {
+      "type": "decreases",
+      "value": "noise_mdi",
+      "with": "signal_strength"
+    },
+    {
+      "type": "increases",
+      "value": "signal_perm",
+      "with": "signal_strength"
+    },
+    {
+      "type": "unchanged",
+      "value": "noise_perm",
+      "when": "noise_cardinality"
+    },
+    {
+      "type": "unchanged",
+      "value": "noise_perm",
+      "when": "tree_depth"
+    }
+  ],
+  "lesson": {
+    "title": "Why Random Noise Fools Tree Impurity Importance",
+    "description": "Compare impurity-based MDI and validation permutation importance across tree depth and noise cardinality. Watch how deep trees inflate noise MDI while permutation keeps noise near zero.",
+    "instructions": "Adjust noise cardinality, max tree depth, and signal strength. Watch the bars and depth traces update, and see how the depth plot compares MDI with permutation drop.",
+    "goal": "See that training MDI is biased toward high-cardinality noise in deep trees, whereas validation permutation importance isolates true signal."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "Impurity-based importance sums training split impurity reductions, which favors high-cardinality noise features in deep trees. Permutation importance measures the validation score drop when a feature is shuffled, keeping true noise near zero.",
+      "formula": "I_{\\mathrm{perm},j} = S - S_{\\pi_j}",
+      "assumptions": [
+        "One true signal feature and one independent random noise feature predict a binary target.",
+        "Training and validation sets have fixed equal sample size with no interaction effects.",
+        "MDI is normalized across features; permutation importance uses validation accuracy drop."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "noise_cardinality",
+        "label": "Noise cardinality",
+        "unit": "levels",
+        "role": "control",
+        "meaning": "Number of distinct values in the random noise feature, controlling candidate split points."
+      },
+      {
+        "id": "tree_depth",
+        "label": "Max tree depth",
+        "unit": "levels",
+        "role": "control",
+        "meaning": "Maximum number of sequential splits allowed in the decision tree."
+      },
+      {
+        "id": "signal_strength",
+        "label": "Signal strength",
+        "unit": "",
+        "role": "control",
+        "meaning": "Predictive separation of the true signal feature from the target."
+      },
+      {
+        "id": "sample_size",
+        "label": "Sample size",
+        "unit": "samples",
+        "role": "fixed",
+        "meaning": "Number of observations in both the training and validation datasets."
+      },
+      {
+        "id": "signal_mdi",
+        "label": "Signal MDI",
+        "unit": "",
+        "role": "result",
+        "meaning": "Normalized training impurity reduction attributed to the true signal feature."
+      },
+      {
+        "id": "noise_mdi",
+        "label": "Noise MDI",
+        "unit": "",
+        "role": "result",
+        "meaning": "Normalized training impurity reduction captured by the random noise feature."
+      },
+      {
+        "id": "signal_perm",
+        "label": "Signal perm. drop",
+        "unit": "",
+        "role": "result",
+        "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled."
+      },
+      {
+        "id": "noise_perm",
+        "label": "Noise perm. drop",
+        "unit": "",
+        "role": "result",
+        "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled."
+      },
+      {
+        "id": "overfit_gap",
+        "label": "Train-val acc. gap",
+        "unit": "",
+        "role": "result",
+        "meaning": "Difference between training accuracy and validation accuracy due to fitting noise."
+      }
+    ],
+    "things": [
+      {
+        "id": "signal",
+        "label": "True signal"
+      },
+      {
+        "id": "noise",
+        "label": "Random noise"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "noise_cardinality",
+        "label": "Noise cardinality",
+        "unit": "levels",
+        "min": 2,
+        "max": 100,
+        "default": 50,
+        "step": 2
+      },
+      {
+        "type": "number",
+        "id": "tree_depth",
+        "label": "Max tree depth",
+        "unit": "levels",
+        "min": 1,
+        "max": 12,
+        "default": 6,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "id": "signal_strength",
+        "label": "Signal strength",
+        "unit": "",
+        "min": 0.1,
+        "max": 1,
+        "default": 0.5,
+        "step": 0.05
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 10,
+      "label": "Tree depth sweep",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { const SAMPLE_SIZE = 200; const K = Math.min(SAMPLE_SIZE, Math.max(2, inputs.noise_cardinality)); const d = Math.max(1, inputs.tree_depth); const s = Math.max(0.1, Math.min(1.0, inputs.signal_strength)); const kFactor = Math.pow(Math.log(K) / Math.log(100), 1.8); const sigRaw = (0.04 + 0.44 * s * s) * (1 - Math.exp(-1.5 * d)); const noiRaw = kFactor * (0.5 - 0.42 * s * s) * Math.pow(d / 12, 1.35); const totalMdi = sigRaw + noiRaw; const signal_mdi = sigRaw / totalMdi; const noise_mdi = noiRaw / totalMdi; const baseVal = 0.5 + 0.46 * s * (1 - Math.exp(-1.1 * d)); const overfitPenalty = (baseVal - 0.5) * 0.22 * kFactor * Math.pow(d / 12, 1.2); const valAcc = baseVal - overfitPenalty; const signal_perm = valAcc - 0.5; const noise_perm = 0; const trainAcc = Math.min(0.995, baseVal + (0.99 - baseVal) * 0.75 * kFactor * Math.pow(d / 12, 1.1)); const overfit_gap = trainAcc - valAcc; const progress = Math.max(0, Math.min(1, t / 10)); const curDepth = progress * d; const sigRawT = (0.04 + 0.44 * s * s) * (1 - Math.exp(-1.5 * curDepth)); const noiRawT = kFactor * (0.5 - 0.42 * s * s) * Math.pow(curDepth / 12, 1.35); return { signal_mdi: signal_mdi, noise_mdi: noise_mdi, signal_perm: signal_perm, noise_perm: noise_perm, overfit_gap: overfit_gap, x_sig_mdi: 1 + 8 * signal_mdi, x_noi_mdi: 1 + 8 * noise_mdi, x_sig_perm: 1 + 8 * signal_perm, x_noi_perm: 1 + 8 * noise_perm, sweep_x: 1 + 8 * progress, trace_sig_y: 0.6 + 5 * sigRawT, trace_noi_y: 0.6 + 5 * noiRawT, noise_beats_signal_mdi: noise_mdi > signal_mdi, high_noise_bias: noise_mdi >= 0.25, low_noise_bias: noise_mdi < 0.25 }; }",
+      "outputs": [
+        {
+          "id": "signal_mdi",
+          "unit": "",
+          "meaning": "Normalized training impurity reduction attributed to the true signal feature.",
+          "kind": "number"
+        },
+        {
+          "id": "noise_mdi",
+          "unit": "",
+          "meaning": "Normalized training impurity reduction captured by the random noise feature.",
+          "kind": "number"
+        },
+        {
+          "id": "signal_perm",
+          "unit": "",
+          "meaning": "Drop in validation accuracy when the true signal feature is randomly shuffled.",
+          "kind": "number"
+        },
+        {
+          "id": "noise_perm",
+          "unit": "",
+          "meaning": "Change in validation accuracy when the random noise feature is randomly shuffled.",
+          "kind": "number"
+        },
+        {
+          "id": "overfit_gap",
+          "unit": "",
+          "meaning": "Difference between training accuracy and validation accuracy due to fitting noise.",
+          "kind": "number"
+        },
+        {
+          "id": "x_sig_mdi",
+          "unit": "scale",
+          "meaning": "Horizontal tip position of the signal MDI bar.",
+          "kind": "number"
+        },
+        {
+          "id": "x_noi_mdi",
+          "unit": "scale",
+          "meaning": "Horizontal tip position of the noise MDI bar.",
+          "kind": "number"
+        },
+        {
+          "id": "x_sig_perm",
+          "unit": "scale",
+          "meaning": "Horizontal tip position of the signal permutation bar.",
+          "kind": "number"
+        },
+        {
+          "id": "x_noi_perm",
+          "unit": "scale",
+          "meaning": "Horizontal marker position of the noise permutation drop.",
+          "kind": "number"
+        },
+        {
+          "id": "sweep_x",
+          "unit": "scale",
+          "meaning": "Horizontal position showing depth progression over time.",
+          "kind": "number"
+        },
+        {
+          "id": "trace_sig_y",
+          "unit": "scale",
+          "meaning": "Vertical position of cumulative signal impurity reduction.",
+          "kind": "number"
+        },
+        {
+          "id": "trace_noi_y",
+          "unit": "scale",
+          "meaning": "Vertical position of cumulative noise impurity reduction.",
+          "kind": "number"
+        },
+        {
+          "id": "noise_beats_signal_mdi",
+          "unit": "",
+          "meaning": "True when random noise receives higher MDI than the true signal.",
+          "kind": "flag"
+        },
+        {
+          "id": "high_noise_bias",
+          "unit": "",
+          "meaning": "True when noise captures at least one quarter of total MDI.",
+          "kind": "flag"
+        },
+        {
+          "id": "low_noise_bias",
+          "unit": "",
+          "meaning": "True when noise captures less than one quarter of total MDI.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "scale",
+        "parts": [
+          {
+            "type": "line",
+            "id": "axis_zero",
+            "from": [
+              1,
+              4.3
+            ],
+            "to": [
+              1,
+              8.7
+            ]
+          },
+          {
+            "type": "label",
+            "id": "lbl_mdi",
+            "at": [
+              0.5,
+              9.2
+            ],
+            "text": "MDI importance (train)"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_sig_mdi",
+            "from": [
+              1,
+              8.3
+            ],
+            "to": [
+              "x_sig_mdi",
+              8.3
+            ],
+            "label": "Sig",
+            "of": "signal"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_noi_mdi",
+            "from": [
+              1,
+              7.3
+            ],
+            "to": [
+              "x_noi_mdi",
+              7.3
+            ],
+            "label": "Noi",
+            "of": "noise"
+          },
+          {
+            "type": "label",
+            "id": "lbl_perm",
+            "at": [
+              0.5,
+              6.2
+            ],
+            "text": "Perm. drop (validation)"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_sig_perm",
+            "from": [
+              1,
+              5.4
+            ],
+            "to": [
+              "x_sig_perm",
+              5.4
+            ],
+            "label": "Sig",
+            "of": "signal"
+          },
+          {
+            "type": "dot",
+            "id": "dot_noi_perm",
+            "at": [
+              "x_noi_perm",
+              4.6
+            ],
+            "size": "medium",
+            "of": "noise"
+          },
+          {
+            "type": "label",
+            "id": "lbl_trace",
+            "at": [
+              0.5,
+              3.6
+            ],
+            "text": "MDI capture across depth"
+          },
+          {
+            "type": "trace",
+            "id": "trace_sig",
+            "at": [
+              "sweep_x",
+              "trace_sig_y"
+            ],
+            "of": "signal"
+          },
+          {
+            "type": "trace",
+            "id": "trace_noi",
+            "at": [
+              "sweep_x",
+              "trace_noi_y"
+            ],
+            "of": "noise"
+          },
+          {
+            "type": "dot",
+            "id": "head_sig",
+            "at": [
+              "sweep_x",
+              "trace_sig_y"
+            ],
+            "size": "medium",
+            "of": "signal"
+          },
+          {
+            "type": "dot",
+            "id": "head_noi",
+            "at": [
+              "sweep_x",
+              "trace_noi_y"
+            ],
+            "size": "medium",
+            "of": "noise"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Importance vs tree depth",
+        "x": {
+          "over": "tree_depth",
+          "label": "Max tree depth",
+          "unit": "levels"
+        },
+        "y": {
+          "label": "Importance / drop",
+          "unit": ""
+        },
+        "series": [
+          {
+            "value": "noise_mdi",
+            "label": "Noise MDI",
+            "of": "noise",
+            "style": "line"
+          },
+          {
+            "value": "signal_mdi",
+            "label": "Signal MDI",
+            "of": "signal",
+            "style": "line"
+          },
+          {
+            "value": "signal_perm",
+            "label": "Signal perm",
+            "of": "signal",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "noise_mdi",
+        "label": "Noise MDI",
+        "unit": "",
+        "decimals": 2,
+        "of": "noise"
+      },
+      {
+        "value": "noise_perm",
+        "label": "Noise perm",
+        "unit": "",
+        "decimals": 2,
+        "of": "noise"
+      },
+      {
+        "value": "signal_mdi",
+        "label": "Signal MDI",
+        "unit": "",
+        "decimals": 2,
+        "of": "signal"
+      },
+      {
+        "value": "signal_perm",
+        "label": "Signal perm",
+        "unit": "",
+        "decimals": 2,
+        "of": "signal"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Noise perm. drop stays at zero.",
+        "Perm. drop tracks true signal."
+      ],
+      "cases": [
+        {
+          "when": "noise_beats_signal_mdi",
+          "text": "Noise MDI exceeds signal MDI!"
+        },
+        {
+          "when": "high_noise_bias",
+          "text": "Deep splits inflate noise MDI."
+        },
+        {
+          "when": "low_noise_bias",
+          "text": "Shallow splits keep noise MDI low."
+        }
+      ],
+      "otherwise": "Adjust depth or levels to compare."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "equal"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "noise_mdi",
+        "with": "noise_cardinality"
+      },
+      {
+        "type": "increases",
+        "value": "noise_mdi",
+        "with": "tree_depth"
+      },
+      {
+        "type": "decreases",
+        "value": "noise_mdi",
+        "with": "signal_strength"
+      },
+      {
+        "type": "increases",
+        "value": "signal_perm",
+        "with": "signal_strength"
+      },
+      {
+        "type": "unchanged",
+        "value": "noise_perm",
+        "when": "noise_cardinality"
+      },
+      {
+        "type": "unchanged",
+        "value": "noise_perm",
+        "when": "tree_depth"
+      }
+    ],
+    "lesson": {
+      "title": "Why Random Noise Fools Tree Impurity Importance",
+      "description": "Compare impurity-based MDI and validation permutation importance across tree depth and noise cardinality. Watch how deep trees inflate noise MDI while permutation keeps noise near zero.",
+      "instructions": "Adjust noise cardinality, max tree depth, and signal strength. Watch the bars and depth traces update, and see how the depth plot compares MDI with permutation drop.",
+      "goal": "See that training MDI is biased toward high-cardinality noise in deep trees, whereas validation permutation importance isolates true signal."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

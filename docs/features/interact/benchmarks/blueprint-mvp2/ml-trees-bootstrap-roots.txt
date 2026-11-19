@@ -1,0 +1,685 @@
+run ej_930ee1efea3243e689520050bc043d96: did NOT pass the light checker
+prompt: what does a bootstrap sample of the training rows look like, and which rows repeat?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 2445731405   seconds: 170.571   cost: $0.3400
+
+== dice
+{
+  "controlQuantities": [
+    "N",
+    "seed",
+    "with_replacement"
+  ],
+  "n": 3,
+  "k": 2,
+  "ids": [
+    "N",
+    "seed"
+  ]
+}
+
+== calls
+quantities: answered, 17.512 s, 1239 in + 2964 thinking + 530 out, $0.0281
+blueprint: FAILED schema_mismatch: The structured result does not match its schema: $.math.code: longer than 3000, 132.592 s, 10529 in + 26469 thinking + 3873 out, $0.2434
+blueprint: answered, 20.456 s, 14450 in + 2641 thinking + 3617 out, $0.0686
+
+== problems
+1. `math.outputs` has 34 entries; at most 24.
+
+== blueprint (corrected, not passed): "How a Bootstrap Sample Repeats and Omits Rows"; controls: N, seed
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A bootstrap sample draws N rows uniformly with replacement from N original training rows, so some rows repeat, some appear once, and roughly 36.8% are omitted.",
+    "formula": "P(\\text{OOB}) = (1 - 1/N)^N \\to e^{-1} ",
+    "assumptions": [
+      "The bootstrap sample size equals the original training set size N.",
+      "Each draw picks independently from all N rows with equal probability 1/N when replacement is on.",
+      "Original rows are labeled 1 to N so repeated draws of the same row can be counted."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "N",
+      "label": "Training rows (N) ",
+      "unit": "rows",
+      "role": "control",
+      "meaning": "Number of original rows in the training set and drawn into the sample."
+    },
+    {
+      "id": "seed",
+      "label": "Sample draw #",
+      "unit": "",
+      "role": "control",
+      "meaning": "Selects which random draw of N rows is generated and inspected."
+    },
+    {
+      "id": "with_replacement",
+      "label": "With replacement",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "1 samples with replacement (bootstrap); 0 samples without replacement (shuffle)."
+    },
+    {
+      "id": "unique_rows",
+      "label": "Unique rows picked",
+      "unit": "rows",
+      "role": "result",
+      "meaning": "Count of distinct original rows appearing at least once in the sample."
+    },
+    {
+      "id": "repeated_rows",
+      "label": "Repeated rows",
+      "unit": "rows",
+      "role": "result",
+      "meaning": "Count of original rows that appear two or more times in the sample."
+    },
+    {
+      "id": "oob_rows",
+      "label": "Omitted (OOB) rows",
+      "unit": "rows",
+      "role": "result",
+      "meaning": "Count of original rows never drawn (out-of-bag), appearing zero times."
+    },
+    {
+      "id": "max_repeats",
+      "label": "Max copies of a row",
+      "unit": "copies",
+      "role": "result",
+      "meaning": "Highest number of times any single original row repeats in the sample."
+    },
+    {
+      "id": "oob_pct",
+      "label": "Observed OOB share",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of the N original rows omitted from this specific sample."
+    },
+    {
+      "id": "expected_oob_pct",
+      "label": "Expected OOB share",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Theoretical omission percentage (1 - 1/N)^N with replacement (0% without)."
+    },
+    {
+      "id": "asymp_oob_pct",
+      "label": "Large-N OOB limit",
+      "unit": "%",
+      "role": "fixed",
+      "meaning": "Limiting out-of-bag percentage e^(-1) (36.8%) as N grows large."
+    }
+  ],
+  "things": [
+    {
+      "id": "draws",
+      "label": "Bootstrap draws"
+    },
+    {
+      "id": "unique",
+      "label": "Unique rows"
+    },
+    {
+      "id": "repeated",
+      "label": "Repeated rows"
+    },
+    {
+      "id": "oob",
+      "label": "Omitted (OOB)"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "N",
+      "label": "Training rows (N) ",
+      "unit": "rows",
+      "min": 5,
+      "max": 9,
+      "default": 8,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "seed",
+      "label": "Sample draw #",
+      "unit": "",
+      "min": 1,
+      "max": 10,
+      "default": 1,
+      "step": 1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 10,
+    "label": "Sampling time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var N = Math.round(inputs.N), seed = Math.round(inputs.seed), dur = 10, picks = [], cnt = [], live = [], i; for (i = 0; i < N; i++) { cnt.push(0); live.push(0); } var st = (seed * 29 + N * 17 + 7) % 101; for (i = 0; i < N; i++) { var r = i === 0 ? ((seed - 1) % N) + 1 : ((st = (st * 37 + 13) % 101) % N) + 1; picks.push(r); cnt[r - 1] += 1; } var uf = 0; for (i = 0; i < N; i++) if (cnt[i] > 0) uf += 1; if (uf === N) picks[N - 1] = picks[0]; var M = N - 1, ct = Math.max(0, Math.min(dur, t)), pos = M > 0 ? (ct / dur) * M : 0, k = M > 0 ? Math.min(M - 1, Math.floor(pos)) : 0, u = ct >= dur ? 1 : pos - k; live[picks[0] - 1] += 1; var aIdx = 0, done = 1; if (ct > 0 && M > 0) { for (i = 0; i < k; i++) { live[picks[i + 1] - 1] += 1; done += 1; } aIdx = k + 1; if (u >= 0.5) { live[picks[aIdx] - 1] += 1; done += 1; } } var uq = 0, rp = 0, ob = 0, mx = 0, sm = 0; for (i = 0; i < N; i++) { var c = live[i]; sm += c; if (c === 0) ob += 1; else uq += 1; if (c >= 2) rp += 1; if (c > mx) mx = c; } var obp = (ob / N) * 100, eob = 100 * Math.pow(1 - 1 / N, N), h = [], x = []; for (i = 0; i < 9; i++) { h.push(i < N ? live[i] : 0); x.push(i < N ? i + 1 : N); } if (ct > 0 && ct < dur && M > 0) { var ar = picks[aIdx] - 1, gr = u < 0.4 ? 0 : (u - 0.4) / 0.6; h[ar] = u >= 0.5 ? live[ar] - 1 + gr : live[ar] + gr; } var ax = picks[0], ay = h[picks[0] - 1] + 0.35; if (ct > 0 && M > 0) { var pr = picks[aIdx - 1], cr = picks[aIdx], mt = Math.min(1, u / 0.4); ax = pr + (cr - pr) * mt * mt * (3 - 2 * mt); ay = h[cr - 1] + 0.35; } return { unique_rows: uq, repeated_rows: rp, oob_rows: ob, max_repeats: mx, oob_pct: obp, expected_oob_pct: eob, total_accounted: uq + ob, N_val: N, sum_counts: sm, draws_done: done, bar_x1: x[0], bar_h1: h[0], bar_x2: x[1], bar_h2: h[1], bar_x3: x[2], bar_h3: h[2], bar_x4: x[3], bar_h4: h[3], bar_x5: x[4], bar_h5: h[4], bar_x6: x[5], bar_h6: h[5], bar_x7: x[6], bar_h7: h[6], bar_x8: x[7], bar_h8: h[7], bar_x9: x[8], bar_h9: h[8], line_end_x: N + 0.5, arrow_from_x: (N + 1) / 2, arrow_to_x: ax, arrow_to_y: ay, is_drawing: ct < dur, high_oob: obp > eob }; }",
+    "outputs": [
+      {
+        "id": "unique_rows",
+        "unit": "rows",
+        "meaning": "Count of distinct original rows appearing at least once in the sample.",
+        "kind": "number"
+      },
+      {
+        "id": "repeated_rows",
+        "unit": "rows",
+        "meaning": "Count of original rows that appear two or more times in the sample.",
+        "kind": "number"
+      },
+      {
+        "id": "oob_rows",
+        "unit": "rows",
+        "meaning": "Count of original rows never drawn (out-of-bag), appearing zero times.",
+        "kind": "number"
+      },
+      {
+        "id": "max_repeats",
+        "unit": "copies",
+        "meaning": "Highest number of times any single original row repeats in the sample.",
+        "kind": "number"
+      },
+      {
+        "id": "oob_pct",
+        "unit": "%",
+        "meaning": "Percentage of the N original rows omitted from this specific sample.",
+        "kind": "number"
+      },
+      {
+        "id": "expected_oob_pct",
+        "unit": "%",
+        "meaning": "Theoretical omission percentage (1 - 1/N)^N with replacement.",
+        "kind": "number"
+      },
+      {
+        "id": "total_accounted",
+        "unit": "rows",
+        "meaning": "Sum of unique picked rows and omitted rows.",
+        "kind": "number"
+      },
+      {
+        "id": "N_val",
+        "unit": "rows",
+        "meaning": "Total number of original training rows N.",
+        "kind": "number"
+      },
+      {
+        "id": "sum_counts",
+        "unit": "draws",
+        "meaning": "Sum of copy counts across all original rows.",
+        "kind": "number"
+      },
+      {
+        "id": "draws_done",
+        "unit": "draws",
+        "meaning": "Number of bootstrap draws completed so far.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x1",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 1.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h1",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 1.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x2",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 2.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h2",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 2.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x3",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 3.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h3",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 3.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x4",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 4.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h4",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 4.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x5",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 5.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h5",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 5.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x6",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 6.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h6",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 6.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x7",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 7.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h7",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 7.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x8",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 8.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h8",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 8.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_x9",
+        "unit": "rows",
+        "meaning": "Horizontal position of original row 9.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_h9",
+        "unit": "copies",
+        "meaning": "Copy count height for original row 9.",
+        "kind": "number"
+      },
+      {
+        "id": "line_end_x",
+        "unit": "rows",
+        "meaning": "Right edge of horizontal reference lines.",
+        "kind": "number"
+      },
+      {
+        "id": "arrow_from_x",
+        "unit": "rows",
+        "meaning": "Horizontal origin of the sampler arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "arrow_to_x",
+        "unit": "rows",
+        "meaning": "Horizontal target of the sampler arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "arrow_to_y",
+        "unit": "copies",
+        "meaning": "Vertical target of the sampler arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "is_drawing",
+        "unit": "",
+        "meaning": "True while bootstrap draws are still in progress.",
+        "kind": "flag"
+      },
+      {
+        "id": "high_oob",
+        "unit": "",
+        "meaning": "True when observed OOB percentage exceeds expected OOB percentage.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "rows",
+      "parts": [
+        {
+          "type": "line",
+          "id": "oob_baseline",
+          "from": [
+            0.5,
+            0
+          ],
+          "to": [
+            "line_end_x",
+            0
+          ],
+          "of": "oob"
+        },
+        {
+          "type": "line",
+          "id": "repeat_line",
+          "from": [
+            0.5,
+            1
+          ],
+          "to": [
+            "line_end_x",
+            1
+          ],
+          "of": "repeated"
+        },
+        {
+          "type": "line",
+          "id": "bar1",
+          "from": [
+            "bar_x1",
+            0
+          ],
+          "to": [
+            "bar_x1",
+            "bar_h1"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar2",
+          "from": [
+            "bar_x2",
+            0
+          ],
+          "to": [
+            "bar_x2",
+            "bar_h2"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar3",
+          "from": [
+            "bar_x3",
+            0
+          ],
+          "to": [
+            "bar_x3",
+            "bar_h3"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar4",
+          "from": [
+            "bar_x4",
+            0
+          ],
+          "to": [
+            "bar_x4",
+            "bar_h4"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar5",
+          "from": [
+            "bar_x5",
+            0
+          ],
+          "to": [
+            "bar_x5",
+            "bar_h5"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar6",
+          "from": [
+            "bar_x6",
+            0
+          ],
+          "to": [
+            "bar_x6",
+            "bar_h6"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar7",
+          "from": [
+            "bar_x7",
+            0
+          ],
+          "to": [
+            "bar_x7",
+            "bar_h7"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar8",
+          "from": [
+            "bar_x8",
+            0
+          ],
+          "to": [
+            "bar_x8",
+            "bar_h8"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "line",
+          "id": "bar9",
+          "from": [
+            "bar_x9",
+            0
+          ],
+          "to": [
+            "bar_x9",
+            "bar_h9"
+          ],
+          "of": "draws"
+        },
+        {
+          "type": "arrow",
+          "id": "draw_arrow",
+          "from": [
+            "arrow_from_x",
+            5.5
+          ],
+          "to": [
+            "arrow_to_x",
+            "arrow_to_y"
+          ],
+          "label": "draw",
+          "of": "draws"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Sample counts over draw time",
+      "x": {
+        "over": "time",
+        "label": "Time (draws 1 to N) ",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Row count",
+        "unit": "rows"
+      },
+      "series": [
+        {
+          "value": "unique_rows",
+          "label": "Unique rows",
+          "of": "unique",
+          "style": "line"
+        },
+        {
+          "value": "repeated_rows",
+          "label": "Repeated",
+          "of": "repeated",
+          "style": "line"
+        },
+        {
+          "value": "oob_rows",
+          "label": "Omitted OOB",
+          "of": "oob",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "repeated_rows",
+      "label": "Repeated",
+      "unit": "rows",
+      "decimals": 0,
+      "of": "repeated"
+    },
+    {
+      "value": "max_repeats",
+      "label": "Max copies",
+      "unit": "copies",
+      "decimals": 0,
+      "of": "draws"
+    },
+    {
+      "value": "oob_pct",
+      "label": "OOB share",
+      "unit": "%",
+      "decimals": 1,
+      "of": "oob"
+    },
+    {
+      "value": "expected_oob_pct",
+      "label": "Expected OOB",
+      "unit": "%",
+      "decimals": 1,
+      "of": "oob"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Bar height is copy count for row i.",
+      "Height 0 is OOB; height 2+ repeats."
+    ],
+    "cases": [
+      {
+        "when": "is_drawing",
+        "text": "Sampling rows 1 to N sequentially."
+      },
+      {
+        "when": "high_oob",
+        "text": "Done: OOB share is above expected."
+      }
+    ],
+    "otherwise": "Done: OOB share is at/below theory."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "expected_oob_pct",
+      "when": "seed"
+    },
+    {
+      "type": "increases",
+      "value": "expected_oob_pct",
+      "with": "N"
+    },
+    {
+      "type": "equal",
+      "value": "total_accounted",
+      "to": "N_val"
+    },
+    {
+      "type": "equal",
+      "value": "sum_counts",
+      "to": "draws_done"
+    }
+  ],
+  "lesson": {
+    "title": "How a Bootstrap Sample Repeats and Omits Rows",
+    "description": "Watch N training rows get drawn one by one with replacement into a bootstrap sample. Change the sample size or draw number to see which rows repeat and which are omitted.",
+    "instructions": "Adjust Training rows (N) to set how many rows are in the original set and drawn into the sample. Change Sample draw # to inspect different random draws. Play or scrub time to watch each draw land, and compare the bars to the repeat threshold line and OOB percentages.",
+    "goal": "Sampling N rows with replacement creates repeated copies of some rows and leaves roughly 36.8% of the original rows out-of-bag."
+  }
+}
+
+== quantities answer (exactly as returned)
+{"relationship":{"statement":"A bootstrap sample draws N rows uniformly with replacement from N original training rows, so some rows repeat, some appear once, and roughly 36.8% are omitted.","formula":"P(\\text{OOB}) = (1 - 1/N)^N \\to e^{-1} ","assumptions":["The bootstrap sample size equals the original training set size N.","Each draw picks independently from all N rows with equal probability 1/N when replacement is on.","Original rows are labeled 1 to N so repeated draws of the same row can be counted."]},"quantities":[{"id":"N","label":"Training rows (N) ","unit":"rows","role":"control","meaning":"Number of original rows in the training set and drawn into the sample."},{"id":"seed","label":"Sample draw #","unit":"","role":"control","meaning":"Selects which random draw of N rows is generated and inspected."},{"id":"with_replacement","label":"With replacement","unit":"","role":"control","meaning":"1 samples with replacement (bootstrap); 0 samples without replacement (shuffle)."},{"id":"unique_rows","label":"Unique rows picked","unit":"rows","role":"result","meaning":"Count of distinct original rows appearing at least once in the sample."},{"id":"repeated_rows","label":"Repeated rows","unit":"rows","role":"result","meaning":"Count of original rows that appear two or more times in the sample."},{"id":"oob_rows","label":"Omitted (OOB) rows","unit":"rows","role":"result","meaning":"Count of original rows never drawn (out-of-bag), appearing zero times."},{"id":"max_repeats","label":"Max copies of a row","unit":"copies","role":"result","meaning":"Highest number of times any single original row repeats in the sample."},{"id":"oob_pct","label":"Observed OOB share","unit":"%","role":"result","meaning":"Percentage of the N original rows omitted from this specific sample."},{"id":"expected_oob_pct","label":"Expected OOB share","unit":"%","role":"result","meaning":"Theoretical omission percentage (1 - 1/N)^N with replacement (0% without)."},{"id":"asymp_oob_pct","label":"Large-N OOB limit","unit":"%","role":"fixed","meaning":"Limiting out-of-bag percentage e^(-1) (36.8%) as N grows large."}]}
+
+== first blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"A bootstrap sample draws N rows uniformly with replacement from N original training rows, so some rows repeat, some appear once, and roughly 36.8% are omitted.","formula":"P(\\text{OOB}) = (1 - 1/N)^N \\to e^{-1} ","assumptions":["The bootstrap sample size equals the original training set size N.","Each draw picks independently from all N rows with equal probability 1/N when replacement is on.","Original rows are labeled 1 to N so repeated draws of the same row can be counted."]},"quantities":[{"id":"N","label":"Training rows (N) ","unit":"rows","role":"control","meaning":"Number of original rows in the training set and drawn into the sample."},{"id":"seed","label":"Sample draw #","unit":"","role":"control","meaning":"Selects which random draw of N rows is generated and inspected."},{"id":"with_replacement","label":"With replacement","unit":"","role":"fixed","meaning":"1 samples with replacement (bootstrap); 0 samples without replacement (shuffle)."},{"id":"unique_rows","label":"Unique rows picked","unit":"rows","role":"result","meaning":"Count of distinct original rows appearing at least once in the sample."},{"id":"repeated_rows","label":"Repeated rows","unit":"rows","role":"result","meaning":"Count of original rows that appear two or more times in the sample."},{"id":"oob_rows","label":"Omitted (OOB) rows","unit":"rows","role":"result","meaning":"Count of original rows never drawn (out-of-bag), appearing zero times."},{"id":"max_repeats","label":"Max copies of a row","unit":"copies","role":"result","meaning":"Highest number of times any single original row repeats in the sample."},{"id":"oob_pct","label":"Observed OOB share","unit":"%","role":"result","meaning":"Percentage of the N original rows omitted from this specific sample."},{"id":"expected_oob_pct","label":"Expected OOB share","unit":"%","role":"result","meaning":"Theoretical omission percentage (1 - 1/N)^N with replacement (0% without)."},{"id":"asymp_oob_pct","label":"Large-N OOB limit","unit":"%","role":"fixed","meaning":"Limiting out-of-bag percentage e^(-1) (36.8%) as N grows large."}],"things":[{"id":"draws","label":"Bootstrap draws"},{"id":"unique","label":"Unique rows"},{"id":"repeated","label":"Repeated rows"},{"id":"oob","label":"Omitted (OOB)"}],"inputs":[{"type":"number","id":"N","label":"Training rows (N) ","unit":"rows","min":5,"max":9,"default":8,"step":1},{"type":"number","id":"seed","label":"Sample draw #","unit":"","min":1,"max":10,"default":1,"step":1}],"time":{"mode":"continuous","duration":10,"label":"Sampling time","unit":"s"},"math":{"code":"function compute(inputs, t) { var N = Math.round(inputs.N); var seed = Math.round(inputs.seed); var with_replacement = 1; var duration = 10; var picks = []; var counts = []; var i; for (i = 0; i < N; i++) counts.push(0); var state = (seed * 29 + N * 17 + 7) % 101; for (i = 0; i < N; i++) { var r; if (i === 0) { r = ((seed - 1) % N) + 1; } else { state = (state * 37 + 13) % 101; r = (state % N) + 1; } picks.push(r); counts[r - 1] += 1; } var uniqFinal = 0; for (i = 0; i < N; i++) { if (counts[i] > 0) uniqFinal += 1; } if (with_replacement === 1 && uniqFinal === N) { picks[N - 1] = picks[0]; } var M = N - 1; var clampedT = Math.max(0, Math.min(duration, t)); var pos = M > 0 ? (clampedT / duration) * M : 0; var k = M > 0 ? Math.min(M - 1, Math.floor(pos)) : 0; var u = clampedT >= duration ? 1 : pos - k; var liveCounts = []; for (i = 0; i < N; i++) liveCounts.push(0); liveCounts[picks[0] - 1] += 1; var activeIdx = 0; var drawsDone = 1; if (clampedT > 0 && M > 0) { for (i = 0; i < k; i++) { liveCounts[picks[i + 1] - 1] += 1; drawsDone += 1; } activeIdx = k + 1; if (u >= 0.5) { liveCounts[picks[activeIdx] - 1] += 1; drawsDone += 1; } } var unique_rows = 0; var repeated_rows = 0; var oob_rows = 0; var max_repeats = 0; var sum_counts = 0; for (i = 0; i < N; i++) { var c = liveCounts[i]; sum_counts += c; if (c === 0) oob_rows += 1; else unique_rows += 1; if (c >= 2) repeated_rows += 1; if (c > max_repeats) max_repeats = c; } var oob_pct = (oob_rows / N) * 100; var expected_oob_pct = 100 * Math.pow(1 - 1 / N, N); var barH = []; for (i = 0; i < 9; i++) { barH.push(i < N ? liveCounts[i] : 0); } if (clampedT > 0 && clampedT < duration && M > 0) { var activeRow = picks[activeIdx] - 1; var grow = u < 0.4 ? 0 : (u - 0.4) / 0.6; if (u >= 0.5) { barH[activeRow] = liveCounts[activeRow] - 1 + grow; } else { barH[activeRow] = liveCounts[activeRow] + grow; } } var arrow_from_x = (N + 1) / 2; var arrow_to_x = picks[0]; var arrow_to_y = barH[picks[0] - 1] + 0.35; if (clampedT > 0 && M > 0) { var prevRow = picks[activeIdx - 1]; var currRow = picks[activeIdx]; var moveT = Math.min(1, u / 0.4); var smooth = moveT * moveT * (3 - 2 * moveT); arrow_to_x = prevRow + (currRow - prevRow) * smooth; arrow_to_y = barH[currRow - 1] + 0.35; } var barX = []; for (i = 0; i < 9; i++) { barX.push(i < N ? i + 1 : N); } return { unique_rows: unique_rows, repeated_rows: repeated_rows, oob_rows: oob_rows, max_repeats: max_repeats, oob_pct: oob_pct, expected_oob_pct: expected_oob_pct, total_accounted: unique_rows + oob_rows, N_val: N, sum_counts: sum_counts, draws_done: drawsDone, bar_x1: barX[0], bar_h1: barH[0], bar_x2: barX[1], bar_h2: barH[1], bar_x3: barX[2], bar_h3: barH[2], bar_x4: barX[3], bar_h4: barH[3], bar_x5: barX[4], bar_h5: barH[4], bar_x6: barX[5], bar_h6: barH[5], bar_x7: barX[6], bar_h7: barH[6], bar_x8: barX[7], bar_h8: barH[7], bar_x9: barX[8], bar_h9: barH[8], line_end_x: N + 0.5, arrow_from_x: arrow_from_x, arrow_to_x: arrow_to_x, arrow_to_y: arrow_to_y, is_drawing: clampedT < duration, high_oob: oob_pct > expected_oob_pct }; }","outputs":[{"id":"unique_rows","unit":"rows","meaning":"Count of distinct original rows appearing at least once in the sample.","kind":"number"},{"id":"repeated_rows","unit":"rows","meaning":"Count of original rows that appear two or more times in the sample.","kind":"number"},{"id":"oob_rows","unit":"rows","meaning":"Count of original rows never drawn (out-of-bag), appearing zero times.","kind":"number"},{"id":"max_repeats","unit":"copies","meaning":"Highest number of times any single original row repeats in the sample.","kind":"number"},{"id":"oob_pct","unit":"%","meaning":"Percentage of the N original rows omitted from this specific sample.","kind":"number"},{"id":"expected_oob_pct","unit":"%","meaning":"Theoretical omission percentage (1 - 1/N)^N with replacement.","kind":"number"},{"id":"total_accounted","unit":"rows","meaning":"Sum of unique picked rows and omitted rows.","kind":"number"},{"id":"N_val","unit":"rows","meaning":"Total number of original training rows N.","kind":"number"},{"id":"sum_counts","unit":"draws","meaning":"Sum of copy counts across all original rows.","kind":"number"},{"id":"draws_done","unit":"draws","meaning":"Number of bootstrap draws completed so far.","kind":"number"},{"id":"bar_x1","unit":"rows","meaning":"Horizontal position of original row 1.","kind":"number"},{"id":"bar_h1","unit":"copies","meaning":"Copy count height for original row 1.","kind":"number"},{"id":"bar_x2","unit":"rows","meaning":"Horizontal position of original row 2.","kind":"number"},{"id":"bar_h2","unit":"copies","meaning":"Copy count height for original row 2.","kind":"number"},{"id":"bar_x3","unit":"rows","meaning":"Horizontal position of original row 3.","kind":"number"},{"id":"bar_h3","unit":"copies","meaning":"Copy count height for original row 3.","kind":"number"},{"id":"bar_x4","unit":"rows","meaning":"Horizontal position of original row 4.","kind":"number"},{"id":"bar_h4","unit":"copies","meaning":"Copy count height for original row 4.","kind":"number"},{"id":"bar_x5","unit":"rows","meaning":"Horizontal position of original row 5.","kind":"number"},{"id":"bar_h5","unit":"copies","meaning":"Copy count height for original row 5.","kind":"number"},{"id":"bar_x6","unit":"rows","meaning":"Horizontal position of original row 6.","kind":"number"},{"id":"bar_h6","unit":"copies","meaning":"Copy count height for original row 6.","kind":"number"},{"id":"bar_x7","unit":"rows","meaning":"Horizontal position of original row 7.","kind":"number"},{"id":"bar_h7","unit":"copies","meaning":"Copy count height for original row 7.","kind":"number"},{"id":"bar_x8","unit":"rows","meaning":"Horizontal position of original row 8.","kind":"number"},{"id":"bar_h8","unit":"copies","meaning":"Copy count height for original row 8.","kind":"number"},{"id":"bar_x9","unit":"rows","meaning":"Horizontal position of original row 9.","kind":"number"},{"id":"bar_h9","unit":"copies","meaning":"Copy count height for original row 9.","kind":"number"},{"id":"line_end_x","unit":"rows","meaning":"Right edge of horizontal reference lines.","kind":"number"},{"id":"arrow_from_x","unit":"rows","meaning":"Horizontal origin of the sampler arrow.","kind":"number"},{"id":"arrow_to_x","unit":"rows","meaning":"Horizontal target of the sampler arrow.","kind":"number"},{"id":"arrow_to_y","unit":"copies","meaning":"Vertical target of the sampler arrow.","kind":"number"},{"id":"is_drawing","unit":"","meaning":"True while bootstrap draws are still in progress.","kind":"flag"},{"id":"high_oob","unit":"","meaning":"True when observed OOB percentage exceeds expected OOB percentage.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"rows","parts":[{"type":"line","id":"oob_baseline","from":[0.5,0],"to":["line_end_x",0],"of":"oob"},{"type":"line","id":"repeat_line","from":[0.5,1],"to":["line_end_x",1],"of":"repeated"},{"type":"line","id":"bar1","from":["bar_x1",0],"to":["bar_x1","bar_h1"],"of":"draws"},{"type":"line","id":"bar2","from":["bar_x2",0],"to":["bar_x2","bar_h2"],"of":"draws"},{"type":"line","id":"bar3","from":["bar_x3",0],"to":["bar_x3","bar_h3"],"of":"draws"},{"type":"line","id":"bar4","from":["bar_x4",0],"to":["bar_x4","bar_h4"],"of":"draws"},{"type":"line","id":"bar5","from":["bar_x5",0],"to":["bar_x5","bar_h5"],"of":"draws"},{"type":"line","id":"bar6","from":["bar_x6",0],"to":["bar_x6","bar_h6"],"of":"draws"},{"type":"line","id":"bar7","from":["bar_x7",0],"to":["bar_x7","bar_h7"],"of":"draws"},{"type":"line","id":"bar8","from":["bar_x8",0],"to":["bar_x8","bar_h8"],"of":"draws"},{"type":"line","id":"bar9","from":["bar_x9",0],"to":["bar_x9","bar_h9"],"of":"draws"},{"type":"arrow","id":"draw_arrow","from":["arrow_from_x",5.5],"to":["arrow_to_x","arrow_to_y"],"label":"draw","of":"draws"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Sample counts over draw time","x":{"over":"time","label":"Time (draws 1 to N) ","unit":"s"},"y":{"label":"Row count","unit":"rows"},"series":[{"value":"unique_rows","label":"Unique rows","of":"unique","style":"line"},{"value":"repeated_rows","label":"Repeated","of":"repeated","style":"line"},{"value":"oob_rows","label":"Omitted OOB","of":"oob","style":"line"}]}},"values":[{"value":"repeated_rows","label":"Repeated","unit":"rows","decimals":0,"of":"repeated"},{"value":"max_repeats","label":"Max copies","unit":"copies","decimals":0,"of":"draws"},{"value":"oob_pct","label":"OOB share","unit":"%","decimals":1,"of":"oob"},{"value":"expected_oob_pct","label":"Expected OOB","unit":"%","decimals":1,"of":"oob"}],"explanation":{"always":["Bar height is copy count for row i.","Height 0 is OOB; height 2+ repeats."],"cases":[{"when":"is_drawing","text":"Sampling rows 1 to N sequentially."},{"when":"high_oob","text":"Done: OOB share is above expected."}],"otherwise":"Done: OOB share is at/below theory."},"layout":{"pictureCount":"two","runs":"left-to-right","panelRole":"records-main"},"claims":[{"type":"unchanged","value":"expected_oob_pct","when":"seed"},{"type":"increases","value":"expected_oob_pct","with":"N"},{"type":"equal","value":"total_accounted","to":"N_val"},{"type":"equal","value":"sum_counts","to":"draws_done"}],"lesson":{"title":"How a Bootstrap Sample Repeats and Omits Rows","description":"Watch N training rows get drawn one by one with replacement into a bootstrap sample. Change the sample size or draw number to see which rows repeat and which are omitted.","instructions":"Adjust Training rows (N) to set how many rows are in the original set and drawn into the sample. Change Sample draw # to inspect different random draws. Play or scrub time to watch each draw land, and compare the bars to the repeat threshold line and OOB percentages.","goal":"Sampling N rows with replacement creates repeated copies of some rows and leaves roughly 36.8% of the original rows out-of-bag."}}
+
+== corrected blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"A bootstrap sample draws N rows uniformly with replacement from N original training rows, so some rows repeat, some appear once, and roughly 36.8% are omitted.","formula":"P(\\text{OOB}) = (1 - 1/N)^N \\to e^{-1} ","assumptions":["The bootstrap sample size equals the original training set size N.","Each draw picks independently from all N rows with equal probability 1/N when replacement is on.","Original rows are labeled 1 to N so repeated draws of the same row can be counted."]},"quantities":[{"id":"N","label":"Training rows (N) ","unit":"rows","role":"control","meaning":"Number of original rows in the training set and drawn into the sample."},{"id":"seed","label":"Sample draw #","unit":"","role":"control","meaning":"Selects which random draw of N rows is generated and inspected."},{"id":"with_replacement","label":"With replacement","unit":"","role":"fixed","meaning":"1 samples with replacement (bootstrap); 0 samples without replacement (shuffle)."},{"id":"unique_rows","label":"Unique rows picked","unit":"rows","role":"result","meaning":"Count of distinct original rows appearing at least once in the sample."},{"id":"repeated_rows","label":"Repeated rows","unit":"rows","role":"result","meaning":"Count of original rows that appear two or more times in the sample."},{"id":"oob_rows","label":"Omitted (OOB) rows","unit":"rows","role":"result","meaning":"Count of original rows never drawn (out-of-bag), appearing zero times."},{"id":"max_repeats","label":"Max copies of a row","unit":"copies","role":"result","meaning":"Highest number of times any single original row repeats in the sample."},{"id":"oob_pct","label":"Observed OOB share","unit":"%","role":"result","meaning":"Percentage of the N original rows omitted from this specific sample."},{"id":"expected_oob_pct","label":"Expected OOB share","unit":"%","role":"result","meaning":"Theoretical omission percentage (1 - 1/N)^N with replacement (0% without)."},{"id":"asymp_oob_pct","label":"Large-N OOB limit","unit":"%","role":"fixed","meaning":"Limiting out-of-bag percentage e^(-1) (36.8%) as N grows large."}],"things":[{"id":"draws","label":"Bootstrap draws"},{"id":"unique","label":"Unique rows"},{"id":"repeated","label":"Repeated rows"},{"id":"oob","label":"Omitted (OOB)"}],"inputs":[{"type":"number","id":"N","label":"Training rows (N) ","unit":"rows","min":5,"max":9,"default":8,"step":1},{"type":"number","id":"seed","label":"Sample draw #","unit":"","min":1,"max":10,"default":1,"step":1}],"time":{"mode":"continuous","duration":10,"label":"Sampling time","unit":"s"},"math":{"code":"function compute(inputs, t) { var N = Math.round(inputs.N), seed = Math.round(inputs.seed), dur = 10, picks = [], cnt = [], live = [], i; for (i = 0; i < N; i++) { cnt.push(0); live.push(0); } var st = (seed * 29 + N * 17 + 7) % 101; for (i = 0; i < N; i++) { var r = i === 0 ? ((seed - 1) % N) + 1 : ((st = (st * 37 + 13) % 101) % N) + 1; picks.push(r); cnt[r - 1] += 1; } var uf = 0; for (i = 0; i < N; i++) if (cnt[i] > 0) uf += 1; if (uf === N) picks[N - 1] = picks[0]; var M = N - 1, ct = Math.max(0, Math.min(dur, t)), pos = M > 0 ? (ct / dur) * M : 0, k = M > 0 ? Math.min(M - 1, Math.floor(pos)) : 0, u = ct >= dur ? 1 : pos - k; live[picks[0] - 1] += 1; var aIdx = 0, done = 1; if (ct > 0 && M > 0) { for (i = 0; i < k; i++) { live[picks[i + 1] - 1] += 1; done += 1; } aIdx = k + 1; if (u >= 0.5) { live[picks[aIdx] - 1] += 1; done += 1; } } var uq = 0, rp = 0, ob = 0, mx = 0, sm = 0; for (i = 0; i < N; i++) { var c = live[i]; sm += c; if (c === 0) ob += 1; else uq += 1; if (c >= 2) rp += 1; if (c > mx) mx = c; } var obp = (ob / N) * 100, eob = 100 * Math.pow(1 - 1 / N, N), h = [], x = []; for (i = 0; i < 9; i++) { h.push(i < N ? live[i] : 0); x.push(i < N ? i + 1 : N); } if (ct > 0 && ct < dur && M > 0) { var ar = picks[aIdx] - 1, gr = u < 0.4 ? 0 : (u - 0.4) / 0.6; h[ar] = u >= 0.5 ? live[ar] - 1 + gr : live[ar] + gr; } var ax = picks[0], ay = h[picks[0] - 1] + 0.35; if (ct > 0 && M > 0) { var pr = picks[aIdx - 1], cr = picks[aIdx], mt = Math.min(1, u / 0.4); ax = pr + (cr - pr) * mt * mt * (3 - 2 * mt); ay = h[cr - 1] + 0.35; } return { unique_rows: uq, repeated_rows: rp, oob_rows: ob, max_repeats: mx, oob_pct: obp, expected_oob_pct: eob, total_accounted: uq + ob, N_val: N, sum_counts: sm, draws_done: done, bar_x1: x[0], bar_h1: h[0], bar_x2: x[1], bar_h2: h[1], bar_x3: x[2], bar_h3: h[2], bar_x4: x[3], bar_h4: h[3], bar_x5: x[4], bar_h5: h[4], bar_x6: x[5], bar_h6: h[5], bar_x7: x[6], bar_h7: h[6], bar_x8: x[7], bar_h8: h[7], bar_x9: x[8], bar_h9: h[8], line_end_x: N + 0.5, arrow_from_x: (N + 1) / 2, arrow_to_x: ax, arrow_to_y: ay, is_drawing: ct < dur, high_oob: obp > eob }; }","outputs":[{"id":"unique_rows","unit":"rows","meaning":"Count of distinct original rows appearing at least once in the sample.","kind":"number"},{"id":"repeated_rows","unit":"rows","meaning":"Count of original rows that appear two or more times in the sample.","kind":"number"},{"id":"oob_rows","unit":"rows","meaning":"Count of original rows never drawn (out-of-bag), appearing zero times.","kind":"number"},{"id":"max_repeats","unit":"copies","meaning":"Highest number of times any single original row repeats in the sample.","kind":"number"},{"id":"oob_pct","unit":"%","meaning":"Percentage of the N original rows omitted from this specific sample.","kind":"number"},{"id":"expected_oob_pct","unit":"%","meaning":"Theoretical omission percentage (1 - 1/N)^N with replacement.","kind":"number"},{"id":"total_accounted","unit":"rows","meaning":"Sum of unique picked rows and omitted rows.","kind":"number"},{"id":"N_val","unit":"rows","meaning":"Total number of original training rows N.","kind":"number"},{"id":"sum_counts","unit":"draws","meaning":"Sum of copy counts across all original rows.","kind":"number"},{"id":"draws_done","unit":"draws","meaning":"Number of bootstrap draws completed so far.","kind":"number"},{"id":"bar_x1","unit":"rows","meaning":"Horizontal position of original row 1.","kind":"number"},{"id":"bar_h1","unit":"copies","meaning":"Copy count height for original row 1.","kind":"number"},{"id":"bar_x2","unit":"rows","meaning":"Horizontal position of original row 2.","kind":"number"},{"id":"bar_h2","unit":"copies","meaning":"Copy count height for original row 2.","kind":"number"},{"id":"bar_x3","unit":"rows","meaning":"Horizontal position of original row 3.","kind":"number"},{"id":"bar_h3","unit":"copies","meaning":"Copy count height for original row 3.","kind":"number"},{"id":"bar_x4","unit":"rows","meaning":"Horizontal position of original row 4.","kind":"number"},{"id":"bar_h4","unit":"copies","meaning":"Copy count height for original row 4.","kind":"number"},{"id":"bar_x5","unit":"rows","meaning":"Horizontal position of original row 5.","kind":"number"},{"id":"bar_h5","unit":"copies","meaning":"Copy count height for original row 5.","kind":"number"},{"id":"bar_x6","unit":"rows","meaning":"Horizontal position of original row 6.","kind":"number"},{"id":"bar_h6","unit":"copies","meaning":"Copy count height for original row 6.","kind":"number"},{"id":"bar_x7","unit":"rows","meaning":"Horizontal position of original row 7.","kind":"number"},{"id":"bar_h7","unit":"copies","meaning":"Copy count height for original row 7.","kind":"number"},{"id":"bar_x8","unit":"rows","meaning":"Horizontal position of original row 8.","kind":"number"},{"id":"bar_h8","unit":"copies","meaning":"Copy count height for original row 8.","kind":"number"},{"id":"bar_x9","unit":"rows","meaning":"Horizontal position of original row 9.","kind":"number"},{"id":"bar_h9","unit":"copies","meaning":"Copy count height for original row 9.","kind":"number"},{"id":"line_end_x","unit":"rows","meaning":"Right edge of horizontal reference lines.","kind":"number"},{"id":"arrow_from_x","unit":"rows","meaning":"Horizontal origin of the sampler arrow.","kind":"number"},{"id":"arrow_to_x","unit":"rows","meaning":"Horizontal target of the sampler arrow.","kind":"number"},{"id":"arrow_to_y","unit":"copies","meaning":"Vertical target of the sampler arrow.","kind":"number"},{"id":"is_drawing","unit":"","meaning":"True while bootstrap draws are still in progress.","kind":"flag"},{"id":"high_oob","unit":"","meaning":"True when observed OOB percentage exceeds expected OOB percentage.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"rows","parts":[{"type":"line","id":"oob_baseline","from":[0.5,0],"to":["line_end_x",0],"of":"oob"},{"type":"line","id":"repeat_line","from":[0.5,1],"to":["line_end_x",1],"of":"repeated"},{"type":"line","id":"bar1","from":["bar_x1",0],"to":["bar_x1","bar_h1"],"of":"draws"},{"type":"line","id":"bar2","from":["bar_x2",0],"to":["bar_x2","bar_h2"],"of":"draws"},{"type":"line","id":"bar3","from":["bar_x3",0],"to":["bar_x3","bar_h3"],"of":"draws"},{"type":"line","id":"bar4","from":["bar_x4",0],"to":["bar_x4","bar_h4"],"of":"draws"},{"type":"line","id":"bar5","from":["bar_x5",0],"to":["bar_x5","bar_h5"],"of":"draws"},{"type":"line","id":"bar6","from":["bar_x6",0],"to":["bar_x6","bar_h6"],"of":"draws"},{"type":"line","id":"bar7","from":["bar_x7",0],"to":["bar_x7","bar_h7"],"of":"draws"},{"type":"line","id":"bar8","from":["bar_x8",0],"to":["bar_x8","bar_h8"],"of":"draws"},{"type":"line","id":"bar9","from":["bar_x9",0],"to":["bar_x9","bar_h9"],"of":"draws"},{"type":"arrow","id":"draw_arrow","from":["arrow_from_x",5.5],"to":["arrow_to_x","arrow_to_y"],"label":"draw","of":"draws"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Sample counts over draw time","x":{"over":"time","label":"Time (draws 1 to N) ","unit":"s"},"y":{"label":"Row count","unit":"rows"},"series":[{"value":"unique_rows","label":"Unique rows","of":"unique","style":"line"},{"value":"repeated_rows","label":"Repeated","of":"repeated","style":"line"},{"value":"oob_rows","label":"Omitted OOB","of":"oob","style":"line"}]}},"values":[{"value":"repeated_rows","label":"Repeated","unit":"rows","decimals":0,"of":"repeated"},{"value":"max_repeats","label":"Max copies","unit":"copies","decimals":0,"of":"draws"},{"value":"oob_pct","label":"OOB share","unit":"%","decimals":1,"of":"oob"},{"value":"expected_oob_pct","label":"Expected OOB","unit":"%","decimals":1,"of":"oob"}],"explanation":{"always":["Bar height is copy count for row i.","Height 0 is OOB; height 2+ repeats."],"cases":[{"when":"is_drawing","text":"Sampling rows 1 to N sequentially."},{"when":"high_oob","text":"Done: OOB share is above expected."}],"otherwise":"Done: OOB share is at/below theory."},"layout":{"pictureCount":"two","runs":"left-to-right","panelRole":"records-main"},"claims":[{"type":"unchanged","value":"expected_oob_pct","when":"seed"},{"type":"increases","value":"expected_oob_pct","with":"N"},{"type":"equal","value":"total_accounted","to":"N_val"},{"type":"equal","value":"sum_counts","to":"draws_done"}],"lesson":{"title":"How a Bootstrap Sample Repeats and Omits Rows","description":"Watch N training rows get drawn one by one with replacement into a bootstrap sample. Change the sample size or draw number to see which rows repeat and which are omitted.","instructions":"Adjust Training rows (N) to set how many rows are in the original set and drawn into the sample. Change Sample draw # to inspect different random draws. Play or scrub time to watch each draw land, and compare the bars to the repeat threshold line and OOB percentages.","goal":"Sampling N rows with replacement creates repeated copies of some rows and leaves roughly 36.8% of the original rows out-of-bag."}}
+
+== checker output, first answer
+{
+  "ok": false,
+  "failed": 1,
+  "problems": [
+    {
+      "check": 1,
+      "path": "",
+      "message": "The answer was not usable: The structured result does not match its schema: $.math.code: longer than 3000"
+    }
+  ],
+  "measured": null
+}
+
+== checker output, corrected answer
+{
+  "ok": false,
+  "failed": 1,
+  "problems": [
+    {
+      "code": "form",
+      "path": "math.outputs",
+      "message": "`math.outputs` has 34 entries; at most 24.",
+      "check": 1
+    }
+  ],
+  "notes": [],
+  "measured": null
+}

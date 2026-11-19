@@ -1,0 +1,1088 @@
+run ej_401c21c0574344dc87e62439908064fb: PASSED the light checker
+prompt: how does a decision tree search for the best threshold on one feature?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 2243442600   seconds: 153.329   cost: $0.2990
+
+== dice
+{
+  "controlQuantities": [
+    "threshold",
+    "class_shift",
+    "probe_x"
+  ],
+  "n": 3,
+  "k": 2,
+  "ids": [
+    "class_shift",
+    "probe_x"
+  ]
+}
+
+== calls
+quantities: answered, 15.769 s, 1236 in + 2194 thinking + 776 out, $0.0241
+blueprint: answered, 135.906 s, 10486 in + 31727 thinking + 2823 out, $0.2749
+
+== problems
+none
+
+== blueprint (first): "How a Decision Tree Picks a Split"; controls: class_shift, probe_x
+{
+  "version": 1,
+  "relationship": {
+    "statement": "To split one feature, the tree sorts the samples by feature value, evaluates the weighted Gini impurity at each midpoint between adjacent values, and picks the threshold with the lowest impurity (highest gain).",
+    "formula": "G(t) = \\frac{n_L G_L + n_R G_R}{N}",
+    "assumptions": [
+      "Classification uses two classes evaluated by Gini impurity.",
+      "The feature is numeric and sorted in ascending order before testing splits.",
+      "Candidate thresholds are placed at midpoints between adjacent distinct values."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "threshold",
+      "label": "Threshold t",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Candidate split value separating samples with x <= t (left) from x > t (right)."
+    },
+    {
+      "id": "class_shift",
+      "label": "Class separation",
+      "unit": "",
+      "role": "control",
+      "meaning": "Horizontal offset shifting Class B points relative to Class A along the feature."
+    },
+    {
+      "id": "probe_x",
+      "label": "Moved point x",
+      "unit": "",
+      "role": "control",
+      "meaning": "Feature value of one Class A sample that can be shifted across the axis."
+    },
+    {
+      "id": "total_samples",
+      "label": "Total samples N",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Fixed number of labeled samples evaluated on the feature."
+    },
+    {
+      "id": "left_count",
+      "label": "Left count n_L",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Number of samples with feature value less than or equal to threshold t."
+    },
+    {
+      "id": "right_count",
+      "label": "Right count n_R",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Number of samples with feature value greater than threshold t."
+    },
+    {
+      "id": "left_gini",
+      "label": "Left Gini G_L",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the left child node formed by samples with x <= t."
+    },
+    {
+      "id": "right_gini",
+      "label": "Right Gini G_R",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the right child node formed by samples with x > t."
+    },
+    {
+      "id": "weighted_gini",
+      "label": "Weighted Gini G(t)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Sample-weighted average Gini impurity of the split at threshold t."
+    },
+    {
+      "id": "best_threshold",
+      "label": "Best threshold t*",
+      "unit": "",
+      "role": "result",
+      "meaning": "Midpoint threshold that minimizes weighted Gini impurity across all candidates."
+    }
+  ],
+  "things": [
+    {
+      "id": "class_a",
+      "label": "Class A"
+    },
+    {
+      "id": "class_b",
+      "label": "Class B"
+    },
+    {
+      "id": "split",
+      "label": "Candidate split"
+    },
+    {
+      "id": "best",
+      "label": "Best split t*"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "class_shift",
+      "label": "Class separation",
+      "unit": "",
+      "min": 0,
+      "max": 5,
+      "default": 3.5,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "probe_x",
+      "label": "Moved point x",
+      "unit": "",
+      "min": 0.5,
+      "max": 8.5,
+      "default": 2.5,
+      "step": 0.5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 12,
+    "label": "Scan time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var a4 = inputs.probe_x; var s = inputs.class_shift; var b1 = 2.0 + s; var b2 = 2.8 + s; var b3 = 3.6 + s; var pts = [{ x: 1.0, c: 0 }, { x: 1.4, c: 0 }, { x: 1.8, c: 0 }, { x: a4, c: 0 }, { x: b1, c: 1 }, { x: b2, c: 1 }, { x: b3, c: 1 }]; pts.sort(function(u, v) { return u.x - v.x; }); var distinctX = []; for (var i = 0; i < pts.length; i++) { if (distinctX.length === 0 || Math.abs(pts[i].x - distinctX[distinctX.length - 1]) > 1e-9) { distinctX.push(pts[i].x); } } var mids = []; for (var i = 0; i < distinctX.length - 1; i++) { mids.push(0.5 * (distinctX[i] + distinctX[i + 1])); } var N = 7; function evalSplit(thr) { var nL = 0, aL = 0, nR = 0, aR = 0; for (var j = 0; j < N; j++) { if (pts[j].x <= thr) { nL++; if (pts[j].c === 0) aL++; } else { nR++; if (pts[j].c === 0) aR++; } } var gL = nL > 0 ? 2 * (aL / nL) * (1 - aL / nL) : 0; var gR = nR > 0 ? 2 * (aR / nR) * (1 - aR / nR) : 0; var wG = (nL * gL + nR * gR) / N; return { nL: nL, nR: nR, gL: gL, gR: gR, wG: wG }; } var bestT = mids[0]; var bestG = 2; for (var k = 0; k < mids.length; k++) { var res = evalSplit(mids[k]); if (res.wG < bestG - 1e-12) { bestG = res.wG; bestT = mids[k]; } } var frac = Math.max(0, Math.min(1, t / 12)); var idx = Math.min(mids.length - 1, Math.floor(frac * mids.length)); var candT = mids[idx]; var cur = evalSplit(candT); var wSides = (cur.nL * cur.gL + cur.nR * cur.gR) / N; var isBestNow = Math.abs(candT - bestT) < 1e-9; var isPureBest = bestG < 1e-9; return { left_count: cur.nL, right_count: cur.nR, left_gini: cur.gL, right_gini: cur.gR, weighted_gini: cur.wG, best_threshold: bestT, probe_x_pos: a4, b1_x: b1, b2_x: b2, b3_x: b3, cand_t: candT, gini_y: 1.4 + cur.wG * 6.0, weighted_from_sides: wSides, total_check: cur.nL + cur.nR, at_best_and_pure: isBestNow && isPureBest, is_best_now: isBestNow, is_pure_best: isPureBest }; }",
+    "outputs": [
+      {
+        "id": "left_count",
+        "unit": "samples",
+        "meaning": "Samples with feature value at or below candidate threshold.",
+        "kind": "number"
+      },
+      {
+        "id": "right_count",
+        "unit": "samples",
+        "meaning": "Samples with feature value above candidate threshold.",
+        "kind": "number"
+      },
+      {
+        "id": "left_gini",
+        "unit": "",
+        "meaning": "Gini impurity of the left node.",
+        "kind": "number"
+      },
+      {
+        "id": "right_gini",
+        "unit": "",
+        "meaning": "Gini impurity of the right node.",
+        "kind": "number"
+      },
+      {
+        "id": "weighted_gini",
+        "unit": "",
+        "meaning": "Sample-weighted Gini impurity of the candidate split.",
+        "kind": "number"
+      },
+      {
+        "id": "best_threshold",
+        "unit": "",
+        "meaning": "Midpoint threshold minimizing weighted Gini impurity.",
+        "kind": "number"
+      },
+      {
+        "id": "probe_x_pos",
+        "unit": "",
+        "meaning": "Horizontal coordinate of the movable Class A sample.",
+        "kind": "number"
+      },
+      {
+        "id": "b1_x",
+        "unit": "",
+        "meaning": "Horizontal coordinate of the first Class B sample.",
+        "kind": "number"
+      },
+      {
+        "id": "b2_x",
+        "unit": "",
+        "meaning": "Horizontal coordinate of the second Class B sample.",
+        "kind": "number"
+      },
+      {
+        "id": "b3_x",
+        "unit": "",
+        "meaning": "Horizontal coordinate of the third Class B sample.",
+        "kind": "number"
+      },
+      {
+        "id": "cand_t",
+        "unit": "",
+        "meaning": "Current midpoint threshold being evaluated at time t.",
+        "kind": "number"
+      },
+      {
+        "id": "gini_y",
+        "unit": "",
+        "meaning": "Vertical display position representing weighted Gini in the main picture.",
+        "kind": "number"
+      },
+      {
+        "id": "weighted_from_sides",
+        "unit": "",
+        "meaning": "Weighted Gini computed explicitly from left and right node impurities.",
+        "kind": "number"
+      },
+      {
+        "id": "total_check",
+        "unit": "samples",
+        "meaning": "Sum of left and right sample counts across any split.",
+        "kind": "number"
+      },
+      {
+        "id": "at_best_and_pure",
+        "unit": "",
+        "meaning": "True when the scan is at t* and both resulting nodes are pure.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_best_now",
+        "unit": "",
+        "meaning": "True when the current candidate threshold equals t*.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_pure_best",
+        "unit": "",
+        "meaning": "True when the best split achieves zero weighted Gini impurity.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "feature",
+      "parts": [
+        {
+          "type": "line",
+          "id": "feature_axis",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            9,
+            0
+          ]
+        },
+        {
+          "type": "dot",
+          "id": "a_dot_1",
+          "at": [
+            1,
+            0.6
+          ],
+          "size": "medium",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "a_dot_2",
+          "at": [
+            1.4,
+            0.6
+          ],
+          "size": "medium",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "a_dot_3",
+          "at": [
+            1.8,
+            0.6
+          ],
+          "size": "medium",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "a_dot_probe",
+          "at": [
+            "probe_x_pos",
+            0.6
+          ],
+          "size": "large",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "b_dot_1",
+          "at": [
+            "b1_x",
+            -0.6
+          ],
+          "size": "medium",
+          "of": "class_b"
+        },
+        {
+          "type": "dot",
+          "id": "b_dot_2",
+          "at": [
+            "b2_x",
+            -0.6
+          ],
+          "size": "medium",
+          "of": "class_b"
+        },
+        {
+          "type": "dot",
+          "id": "b_dot_3",
+          "at": [
+            "b3_x",
+            -0.6
+          ],
+          "size": "medium",
+          "of": "class_b"
+        },
+        {
+          "type": "line",
+          "id": "split_line",
+          "from": [
+            "cand_t",
+            -1.2
+          ],
+          "to": [
+            "cand_t",
+            4.6
+          ],
+          "of": "split"
+        },
+        {
+          "type": "trace",
+          "id": "gini_trace",
+          "at": [
+            "cand_t",
+            "gini_y"
+          ],
+          "of": "split"
+        },
+        {
+          "type": "dot",
+          "id": "gini_dot",
+          "at": [
+            "cand_t",
+            "gini_y"
+          ],
+          "size": "medium",
+          "of": "split"
+        },
+        {
+          "type": "arrow",
+          "id": "best_marker",
+          "from": [
+            "best_threshold",
+            -2
+          ],
+          "to": [
+            "best_threshold",
+            -1.1
+          ],
+          "label": "t*",
+          "of": "best"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Weighted Gini Across Scan",
+      "x": {
+        "over": "time",
+        "label": "Scan time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Weighted Gini G(t)",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "weighted_gini",
+          "label": "Weighted G",
+          "of": "split",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "weighted_gini",
+      "label": "Weighted G",
+      "unit": "",
+      "decimals": 3,
+      "of": "split"
+    },
+    {
+      "value": "best_threshold",
+      "label": "Best t*",
+      "unit": "",
+      "decimals": 2,
+      "of": "best"
+    },
+    {
+      "value": "left_gini",
+      "label": "Left Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "split"
+    },
+    {
+      "value": "right_gini",
+      "label": "Right Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "split"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Tests every midpoint between points.",
+      "Picks t* where G(t) is lowest."
+    ],
+    "cases": [
+      {
+        "when": "at_best_and_pure",
+        "text": "At t*: both sides are 100% pure!"
+      },
+      {
+        "when": "is_best_now",
+        "text": "At t*: lowest impurity reached."
+      },
+      {
+        "when": "is_pure_best",
+        "text": "Clean split exists at t* (G=0)."
+      }
+    ],
+    "otherwise": "Classes overlap, so best G > 0."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "best_threshold",
+      "with": "class_shift"
+    },
+    {
+      "type": "equal",
+      "value": "weighted_gini",
+      "to": "weighted_from_sides"
+    },
+    {
+      "type": "unchanged",
+      "value": "total_check",
+      "when": "class_shift"
+    },
+    {
+      "type": "unchanged",
+      "value": "total_check",
+      "when": "probe_x"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Picks a Split",
+    "description": "Watch a candidate threshold scan every midpoint between sorted samples to measure weighted Gini impurity. Shift the classes or move a point to see how the best split t* changes.",
+    "instructions": "Press play or scrub time to step the candidate split across every midpoint. Use Class separation to slide Class B relative to Class A, and Moved point x to drag one Class A sample across the feature axis.",
+    "goal": "A decision tree tests every midpoint between sorted feature values and chooses the threshold t* that minimizes sample-weighted Gini impurity."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "To split one feature, the tree sorts the samples by feature value, evaluates the weighted Gini impurity at each midpoint between adjacent values, and picks the threshold with the lowest impurity (highest gain).",
+    "formula": "G(t) = \\frac{n_L G_L + n_R G_R}{N}",
+    "assumptions": [
+      "Classification uses two classes evaluated by Gini impurity.",
+      "The feature is numeric and sorted in ascending order before testing splits.",
+      "Candidate thresholds are placed at midpoints between adjacent distinct values."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "threshold",
+      "label": "Threshold t",
+      "unit": "",
+      "role": "control",
+      "meaning": "Candidate split value separating samples with x <= t (left) from x > t (right)."
+    },
+    {
+      "id": "class_shift",
+      "label": "Class separation",
+      "unit": "",
+      "role": "control",
+      "meaning": "Horizontal offset shifting Class B points relative to Class A along the feature."
+    },
+    {
+      "id": "probe_x",
+      "label": "Moved point x",
+      "unit": "",
+      "role": "control",
+      "meaning": "Feature value of one Class A sample that can be shifted across the axis."
+    },
+    {
+      "id": "total_samples",
+      "label": "Total samples N",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Fixed number of labeled samples evaluated on the feature."
+    },
+    {
+      "id": "left_count",
+      "label": "Left count n_L",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Number of samples with feature value less than or equal to threshold t."
+    },
+    {
+      "id": "right_count",
+      "label": "Right count n_R",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Number of samples with feature value greater than threshold t."
+    },
+    {
+      "id": "left_gini",
+      "label": "Left Gini G_L",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the left child node formed by samples with x <= t."
+    },
+    {
+      "id": "right_gini",
+      "label": "Right Gini G_R",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the right child node formed by samples with x > t."
+    },
+    {
+      "id": "weighted_gini",
+      "label": "Weighted Gini G(t)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Sample-weighted average Gini impurity of the split at threshold t."
+    },
+    {
+      "id": "best_threshold",
+      "label": "Best threshold t*",
+      "unit": "",
+      "role": "result",
+      "meaning": "Midpoint threshold that minimizes weighted Gini impurity across all candidates."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"To split one feature, the tree sorts the samples by feature value, evaluates the weighted Gini impurity at each midpoint between adjacent values, and picks the threshold with the lowest impurity (highest gain).","formula":"G(t) = \\frac{n_L G_L + n_R G_R}{N}", "assumptions":["Classification uses two classes evaluated by Gini impurity.","The feature is numeric and sorted in ascending order before testing splits.","Candidate thresholds are placed at midpoints between adjacent distinct values."]},"quantities":[{"id":"threshold","label":"Threshold t","unit":"","role":"fixed","meaning":"Candidate split value separating samples with x <= t (left) from x > t (right)."},{"id":"class_shift","label":"Class separation","unit":"","role":"control","meaning":"Horizontal offset shifting Class B points relative to Class A along the feature."},{"id":"probe_x","label":"Moved point x","unit":"","role":"control","meaning":"Feature value of one Class A sample that can be shifted across the axis."},{"id":"total_samples","label":"Total samples N","unit":"samples","role":"fixed","meaning":"Fixed number of labeled samples evaluated on the feature."},{"id":"left_count","label":"Left count n_L","unit":"samples","role":"result","meaning":"Number of samples with feature value less than or equal to threshold t."},{"id":"right_count","label":"Right count n_R","unit":"samples","role":"result","meaning":"Number of samples with feature value greater than threshold t."},{"id":"left_gini","label":"Left Gini G_L","unit":"","role":"result","meaning":"Gini impurity of the left child node formed by samples with x <= t."},{"id":"right_gini","label":"Right Gini G_R","unit":"","role":"result","meaning":"Gini impurity of the right child node formed by samples with x > t."},{"id":"weighted_gini","label":"Weighted Gini G(t)", "unit":"","role":"result","meaning":"Sample-weighted average Gini impurity of the split at threshold t."},{"id":"best_threshold","label":"Best threshold t*","unit":"","role":"result","meaning":"Midpoint threshold that minimizes weighted Gini impurity across all candidates."}],"things":[{"id":"class_a","label":"Class A"},{"id":"class_b","label":"Class B"},{"id":"split","label":"Candidate split"},{"id":"best","label":"Best split t*"}],"inputs":[{"type":"number","id":"class_shift","label":"Class separation","unit":"","min":0,"max":5,"default":3.5,"step":0.5},{"type":"number","id":"probe_x","label":"Moved point x","unit":"","min":0.5,"max":8.5,"default":2.5,"step":0.5}],"time":{"mode":"continuous","duration":12,"label":"Scan time","unit":"s"},"math":{"code":"function compute(inputs, t) { var a4 = inputs.probe_x; var s = inputs.class_shift; var b1 = 2.0 + s; var b2 = 2.8 + s; var b3 = 3.6 + s; var pts = [{ x: 1.0, c: 0 }, { x: 1.4, c: 0 }, { x: 1.8, c: 0 }, { x: a4, c: 0 }, { x: b1, c: 1 }, { x: b2, c: 1 }, { x: b3, c: 1 }]; pts.sort(function(u, v) { return u.x - v.x; }); var distinctX = []; for (var i = 0; i < pts.length; i++) { if (distinctX.length === 0 || Math.abs(pts[i].x - distinctX[distinctX.length - 1]) > 1e-9) { distinctX.push(pts[i].x); } } var mids = []; for (var i = 0; i < distinctX.length - 1; i++) { mids.push(0.5 * (distinctX[i] + distinctX[i + 1])); } var N = 7; function evalSplit(thr) { var nL = 0, aL = 0, nR = 0, aR = 0; for (var j = 0; j < N; j++) { if (pts[j].x <= thr) { nL++; if (pts[j].c === 0) aL++; } else { nR++; if (pts[j].c === 0) aR++; } } var gL = nL > 0 ? 2 * (aL / nL) * (1 - aL / nL) : 0; var gR = nR > 0 ? 2 * (aR / nR) * (1 - aR / nR) : 0; var wG = (nL * gL + nR * gR) / N; return { nL: nL, nR: nR, gL: gL, gR: gR, wG: wG }; } var bestT = mids[0]; var bestG = 2; for (var k = 0; k < mids.length; k++) { var res = evalSplit(mids[k]); if (res.wG < bestG - 1e-12) { bestG = res.wG; bestT = mids[k]; } } var frac = Math.max(0, Math.min(1, t / 12)); var idx = Math.min(mids.length - 1, Math.floor(frac * mids.length)); var candT = mids[idx]; var cur = evalSplit(candT); var wSides = (cur.nL * cur.gL + cur.nR * cur.gR) / N; var isBestNow = Math.abs(candT - bestT) < 1e-9; var isPureBest = bestG < 1e-9; return { left_count: cur.nL, right_count: cur.nR, left_gini: cur.gL, right_gini: cur.gR, weighted_gini: cur.wG, best_threshold: bestT, probe_x_pos: a4, b1_x: b1, b2_x: b2, b3_x: b3, cand_t: candT, gini_y: 1.4 + cur.wG * 6.0, weighted_from_sides: wSides, total_check: cur.nL + cur.nR, at_best_and_pure: isBestNow && isPureBest, is_best_now: isBestNow, is_pure_best: isPureBest }; }","outputs":[{"id":"left_count","unit":"samples","meaning":"Samples with feature value at or below candidate threshold.","kind":"number"},{"id":"right_count","unit":"samples","meaning":"Samples with feature value above candidate threshold.","kind":"number"},{"id":"left_gini","unit":"","meaning":"Gini impurity of the left node.","kind":"number"},{"id":"right_gini","unit":"","meaning":"Gini impurity of the right node.","kind":"number"},{"id":"weighted_gini","unit":"","meaning":"Sample-weighted Gini impurity of the candidate split.","kind":"number"},{"id":"best_threshold","unit":"","meaning":"Midpoint threshold minimizing weighted Gini impurity.","kind":"number"},{"id":"probe_x_pos","unit":"","meaning":"Horizontal coordinate of the movable Class A sample.","kind":"number"},{"id":"b1_x","unit":"","meaning":"Horizontal coordinate of the first Class B sample.","kind":"number"},{"id":"b2_x","unit":"","meaning":"Horizontal coordinate of the second Class B sample.","kind":"number"},{"id":"b3_x","unit":"","meaning":"Horizontal coordinate of the third Class B sample.","kind":"number"},{"id":"cand_t","unit":"","meaning":"Current midpoint threshold being evaluated at time t.","kind":"number"},{"id":"gini_y","unit":"","meaning":"Vertical display position representing weighted Gini in the main picture.","kind":"number"},{"id":"weighted_from_sides","unit":"","meaning":"Weighted Gini computed explicitly from left and right node impurities.","kind":"number"},{"id":"total_check","unit":"samples","meaning":"Sum of left and right sample counts across any split.","kind":"number"},{"id":"at_best_and_pure","unit":"","meaning":"True when the scan is at t* and both resulting nodes are pure.","kind":"flag"},{"id":"is_best_now","unit":"","meaning":"True when the current candidate threshold equals t*.","kind":"flag"},{"id":"is_pure_best","unit":"","meaning":"True when the best split achieves zero weighted Gini impurity.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"feature","parts":[{"type":"line","id":"feature_axis","from":[0,0],"to":[9,0]},{"type":"dot","id":"a_dot_1","at":[1,0.6],"size":"medium","of":"class_a"},{"type":"dot","id":"a_dot_2","at":[1.4,0.6],"size":"medium","of":"class_a"},{"type":"dot","id":"a_dot_3","at":[1.8,0.6],"size":"medium","of":"class_a"},{"type":"dot","id":"a_dot_probe","at":["probe_x_pos",0.6],"size":"large","of":"class_a"},{"type":"dot","id":"b_dot_1","at":["b1_x",-0.6],"size":"medium","of":"class_b"},{"type":"dot","id":"b_dot_2","at":["b2_x",-0.6],"size":"medium","of":"class_b"},{"type":"dot","id":"b_dot_3","at":["b3_x",-0.6],"size":"medium","of":"class_b"},{"type":"line","id":"split_line","from":["cand_t",-1.2],"to":["cand_t",4.6],"of":"split"},{"type":"trace","id":"gini_trace","at":["cand_t","gini_y"],"of":"split"},{"type":"dot","id":"gini_dot","at":["cand_t","gini_y"],"size":"medium","of":"split"},{"type":"arrow","id":"best_marker","from":["best_threshold",-2],"to":["best_threshold",-1.1],"label":"t*","of":"best"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Weighted Gini Across Scan","x":{"over":"time","label":"Scan time","unit":"s"},"y":{"label":"Weighted Gini G(t)", "unit":""},"series":[{"value":"weighted_gini","label":"Weighted G","of":"split","style":"line"}]}},"values":[{"value":"weighted_gini","label":"Weighted G","unit":"","decimals":3,"of":"split"},{"value":"best_threshold","label":"Best t*","unit":"","decimals":2,"of":"best"},{"value":"left_gini","label":"Left Gini","unit":"","decimals":3,"of":"split"},{"value":"right_gini","label":"Right Gini","unit":"","decimals":3,"of":"split"}],"explanation":{"always":["Tests every midpoint between points.","Picks t* where G(t) is lowest."],"cases":[{"when":"at_best_and_pure","text":"At t*: both sides are 100% pure!"},{"when":"is_best_now","text":"At t*: lowest impurity reached."},{"when":"is_pure_best","text":"Clean split exists at t* (G=0)."}],"otherwise":"Classes overlap, so best G > 0."},"layout":{"pictureCount":"two","runs":"left-to-right","panelRole":"records-main"},"claims":[{"type":"increases","value":"best_threshold","with":"class_shift"},{"type":"equal","value":"weighted_gini","to":"weighted_from_sides"},{"type":"unchanged","value":"total_check","when":"class_shift"},{"type":"unchanged","value":"total_check","when":"probe_x"}],"lesson":{"title":"How a Decision Tree Picks a Split","description":"Watch a candidate threshold scan every midpoint between sorted samples to measure weighted Gini impurity. Shift the classes or move a point to see how the best split t* changes.","instructions":"Press play or scrub time to step the candidate split across every midpoint. Use Class separation to slide Class B relative to Class A, and Moved point x to drag one Class A sample across the feature axis.","goal":"A decision tree tests every midpoint between sorted feature values and chooses the threshold t* that minimizes sample-weighted Gini impurity."}}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "To split one feature, the tree sorts the samples by feature value, evaluates the weighted Gini impurity at each midpoint between adjacent values, and picks the threshold with the lowest impurity (highest gain).",
+      "formula": "G(t) = \\frac{n_L G_L + n_R G_R}{N}",
+      "assumptions": [
+        "Classification uses two classes evaluated by Gini impurity.",
+        "The feature is numeric and sorted in ascending order before testing splits.",
+        "Candidate thresholds are placed at midpoints between adjacent distinct values."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "threshold",
+        "label": "Threshold t",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Candidate split value separating samples with x <= t (left) from x > t (right)."
+      },
+      {
+        "id": "class_shift",
+        "label": "Class separation",
+        "unit": "",
+        "role": "control",
+        "meaning": "Horizontal offset shifting Class B points relative to Class A along the feature."
+      },
+      {
+        "id": "probe_x",
+        "label": "Moved point x",
+        "unit": "",
+        "role": "control",
+        "meaning": "Feature value of one Class A sample that can be shifted across the axis."
+      },
+      {
+        "id": "total_samples",
+        "label": "Total samples N",
+        "unit": "samples",
+        "role": "fixed",
+        "meaning": "Fixed number of labeled samples evaluated on the feature."
+      },
+      {
+        "id": "left_count",
+        "label": "Left count n_L",
+        "unit": "samples",
+        "role": "result",
+        "meaning": "Number of samples with feature value less than or equal to threshold t."
+      },
+      {
+        "id": "right_count",
+        "label": "Right count n_R",
+        "unit": "samples",
+        "role": "result",
+        "meaning": "Number of samples with feature value greater than threshold t."
+      },
+      {
+        "id": "left_gini",
+        "label": "Left Gini G_L",
+        "unit": "",
+        "role": "result",
+        "meaning": "Gini impurity of the left child node formed by samples with x <= t."
+      },
+      {
+        "id": "right_gini",
+        "label": "Right Gini G_R",
+        "unit": "",
+        "role": "result",
+        "meaning": "Gini impurity of the right child node formed by samples with x > t."
+      },
+      {
+        "id": "weighted_gini",
+        "label": "Weighted Gini G(t)",
+        "unit": "",
+        "role": "result",
+        "meaning": "Sample-weighted average Gini impurity of the split at threshold t."
+      },
+      {
+        "id": "best_threshold",
+        "label": "Best threshold t*",
+        "unit": "",
+        "role": "result",
+        "meaning": "Midpoint threshold that minimizes weighted Gini impurity across all candidates."
+      }
+    ],
+    "things": [
+      {
+        "id": "class_a",
+        "label": "Class A"
+      },
+      {
+        "id": "class_b",
+        "label": "Class B"
+      },
+      {
+        "id": "split",
+        "label": "Candidate split"
+      },
+      {
+        "id": "best",
+        "label": "Best split t*"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "class_shift",
+        "label": "Class separation",
+        "unit": "",
+        "min": 0,
+        "max": 5,
+        "default": 3.5,
+        "step": 0.5
+      },
+      {
+        "type": "number",
+        "id": "probe_x",
+        "label": "Moved point x",
+        "unit": "",
+        "min": 0.5,
+        "max": 8.5,
+        "default": 2.5,
+        "step": 0.5
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 12,
+      "label": "Scan time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var a4 = inputs.probe_x; var s = inputs.class_shift; var b1 = 2.0 + s; var b2 = 2.8 + s; var b3 = 3.6 + s; var pts = [{ x: 1.0, c: 0 }, { x: 1.4, c: 0 }, { x: 1.8, c: 0 }, { x: a4, c: 0 }, { x: b1, c: 1 }, { x: b2, c: 1 }, { x: b3, c: 1 }]; pts.sort(function(u, v) { return u.x - v.x; }); var distinctX = []; for (var i = 0; i < pts.length; i++) { if (distinctX.length === 0 || Math.abs(pts[i].x - distinctX[distinctX.length - 1]) > 1e-9) { distinctX.push(pts[i].x); } } var mids = []; for (var i = 0; i < distinctX.length - 1; i++) { mids.push(0.5 * (distinctX[i] + distinctX[i + 1])); } var N = 7; function evalSplit(thr) { var nL = 0, aL = 0, nR = 0, aR = 0; for (var j = 0; j < N; j++) { if (pts[j].x <= thr) { nL++; if (pts[j].c === 0) aL++; } else { nR++; if (pts[j].c === 0) aR++; } } var gL = nL > 0 ? 2 * (aL / nL) * (1 - aL / nL) : 0; var gR = nR > 0 ? 2 * (aR / nR) * (1 - aR / nR) : 0; var wG = (nL * gL + nR * gR) / N; return { nL: nL, nR: nR, gL: gL, gR: gR, wG: wG }; } var bestT = mids[0]; var bestG = 2; for (var k = 0; k < mids.length; k++) { var res = evalSplit(mids[k]); if (res.wG < bestG - 1e-12) { bestG = res.wG; bestT = mids[k]; } } var frac = Math.max(0, Math.min(1, t / 12)); var idx = Math.min(mids.length - 1, Math.floor(frac * mids.length)); var candT = mids[idx]; var cur = evalSplit(candT); var wSides = (cur.nL * cur.gL + cur.nR * cur.gR) / N; var isBestNow = Math.abs(candT - bestT) < 1e-9; var isPureBest = bestG < 1e-9; return { left_count: cur.nL, right_count: cur.nR, left_gini: cur.gL, right_gini: cur.gR, weighted_gini: cur.wG, best_threshold: bestT, probe_x_pos: a4, b1_x: b1, b2_x: b2, b3_x: b3, cand_t: candT, gini_y: 1.4 + cur.wG * 6.0, weighted_from_sides: wSides, total_check: cur.nL + cur.nR, at_best_and_pure: isBestNow && isPureBest, is_best_now: isBestNow, is_pure_best: isPureBest }; }",
+      "outputs": [
+        {
+          "id": "left_count",
+          "unit": "samples",
+          "meaning": "Samples with feature value at or below candidate threshold.",
+          "kind": "number"
+        },
+        {
+          "id": "right_count",
+          "unit": "samples",
+          "meaning": "Samples with feature value above candidate threshold.",
+          "kind": "number"
+        },
+        {
+          "id": "left_gini",
+          "unit": "",
+          "meaning": "Gini impurity of the left node.",
+          "kind": "number"
+        },
+        {
+          "id": "right_gini",
+          "unit": "",
+          "meaning": "Gini impurity of the right node.",
+          "kind": "number"
+        },
+        {
+          "id": "weighted_gini",
+          "unit": "",
+          "meaning": "Sample-weighted Gini impurity of the candidate split.",
+          "kind": "number"
+        },
+        {
+          "id": "best_threshold",
+          "unit": "",
+          "meaning": "Midpoint threshold minimizing weighted Gini impurity.",
+          "kind": "number"
+        },
+        {
+          "id": "probe_x_pos",
+          "unit": "",
+          "meaning": "Horizontal coordinate of the movable Class A sample.",
+          "kind": "number"
+        },
+        {
+          "id": "b1_x",
+          "unit": "",
+          "meaning": "Horizontal coordinate of the first Class B sample.",
+          "kind": "number"
+        },
+        {
+          "id": "b2_x",
+          "unit": "",
+          "meaning": "Horizontal coordinate of the second Class B sample.",
+          "kind": "number"
+        },
+        {
+          "id": "b3_x",
+          "unit": "",
+          "meaning": "Horizontal coordinate of the third Class B sample.",
+          "kind": "number"
+        },
+        {
+          "id": "cand_t",
+          "unit": "",
+          "meaning": "Current midpoint threshold being evaluated at time t.",
+          "kind": "number"
+        },
+        {
+          "id": "gini_y",
+          "unit": "",
+          "meaning": "Vertical display position representing weighted Gini in the main picture.",
+          "kind": "number"
+        },
+        {
+          "id": "weighted_from_sides",
+          "unit": "",
+          "meaning": "Weighted Gini computed explicitly from left and right node impurities.",
+          "kind": "number"
+        },
+        {
+          "id": "total_check",
+          "unit": "samples",
+          "meaning": "Sum of left and right sample counts across any split.",
+          "kind": "number"
+        },
+        {
+          "id": "at_best_and_pure",
+          "unit": "",
+          "meaning": "True when the scan is at t* and both resulting nodes are pure.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_best_now",
+          "unit": "",
+          "meaning": "True when the current candidate threshold equals t*.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_pure_best",
+          "unit": "",
+          "meaning": "True when the best split achieves zero weighted Gini impurity.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "feature",
+        "parts": [
+          {
+            "type": "line",
+            "id": "feature_axis",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              9,
+              0
+            ]
+          },
+          {
+            "type": "dot",
+            "id": "a_dot_1",
+            "at": [
+              1,
+              0.6
+            ],
+            "size": "medium",
+            "of": "class_a"
+          },
+          {
+            "type": "dot",
+            "id": "a_dot_2",
+            "at": [
+              1.4,
+              0.6
+            ],
+            "size": "medium",
+            "of": "class_a"
+          },
+          {
+            "type": "dot",
+            "id": "a_dot_3",
+            "at": [
+              1.8,
+              0.6
+            ],
+            "size": "medium",
+            "of": "class_a"
+          },
+          {
+            "type": "dot",
+            "id": "a_dot_probe",
+            "at": [
+              "probe_x_pos",
+              0.6
+            ],
+            "size": "large",
+            "of": "class_a"
+          },
+          {
+            "type": "dot",
+            "id": "b_dot_1",
+            "at": [
+              "b1_x",
+              -0.6
+            ],
+            "size": "medium",
+            "of": "class_b"
+          },
+          {
+            "type": "dot",
+            "id": "b_dot_2",
+            "at": [
+              "b2_x",
+              -0.6
+            ],
+            "size": "medium",
+            "of": "class_b"
+          },
+          {
+            "type": "dot",
+            "id": "b_dot_3",
+            "at": [
+              "b3_x",
+              -0.6
+            ],
+            "size": "medium",
+            "of": "class_b"
+          },
+          {
+            "type": "line",
+            "id": "split_line",
+            "from": [
+              "cand_t",
+              -1.2
+            ],
+            "to": [
+              "cand_t",
+              4.6
+            ],
+            "of": "split"
+          },
+          {
+            "type": "trace",
+            "id": "gini_trace",
+            "at": [
+              "cand_t",
+              "gini_y"
+            ],
+            "of": "split"
+          },
+          {
+            "type": "dot",
+            "id": "gini_dot",
+            "at": [
+              "cand_t",
+              "gini_y"
+            ],
+            "size": "medium",
+            "of": "split"
+          },
+          {
+            "type": "arrow",
+            "id": "best_marker",
+            "from": [
+              "best_threshold",
+              -2
+            ],
+            "to": [
+              "best_threshold",
+              -1.1
+            ],
+            "label": "t*",
+            "of": "best"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Weighted Gini Across Scan",
+        "x": {
+          "over": "time",
+          "label": "Scan time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Weighted Gini G(t)",
+          "unit": ""
+        },
+        "series": [
+          {
+            "value": "weighted_gini",
+            "label": "Weighted G",
+            "of": "split",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "weighted_gini",
+        "label": "Weighted G",
+        "unit": "",
+        "decimals": 3,
+        "of": "split"
+      },
+      {
+        "value": "best_threshold",
+        "label": "Best t*",
+        "unit": "",
+        "decimals": 2,
+        "of": "best"
+      },
+      {
+        "value": "left_gini",
+        "label": "Left Gini",
+        "unit": "",
+        "decimals": 3,
+        "of": "split"
+      },
+      {
+        "value": "right_gini",
+        "label": "Right Gini",
+        "unit": "",
+        "decimals": 3,
+        "of": "split"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Tests every midpoint between points.",
+        "Picks t* where G(t) is lowest."
+      ],
+      "cases": [
+        {
+          "when": "at_best_and_pure",
+          "text": "At t*: both sides are 100% pure!"
+        },
+        {
+          "when": "is_best_now",
+          "text": "At t*: lowest impurity reached."
+        },
+        {
+          "when": "is_pure_best",
+          "text": "Clean split exists at t* (G=0)."
+        }
+      ],
+      "otherwise": "Classes overlap, so best G > 0."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "best_threshold",
+        "with": "class_shift"
+      },
+      {
+        "type": "equal",
+        "value": "weighted_gini",
+        "to": "weighted_from_sides"
+      },
+      {
+        "type": "unchanged",
+        "value": "total_check",
+        "when": "class_shift"
+      },
+      {
+        "type": "unchanged",
+        "value": "total_check",
+        "when": "probe_x"
+      }
+    ],
+    "lesson": {
+      "title": "How a Decision Tree Picks a Split",
+      "description": "Watch a candidate threshold scan every midpoint between sorted samples to measure weighted Gini impurity. Shift the classes or move a point to see how the best split t* changes.",
+      "instructions": "Press play or scrub time to step the candidate split across every midpoint. Use Class separation to slide Class B relative to Class A, and Moved point x to drag one Class A sample across the feature axis.",
+      "goal": "A decision tree tests every midpoint between sorted feature values and chooses the threshold t* that minimizes sample-weighted Gini impurity."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

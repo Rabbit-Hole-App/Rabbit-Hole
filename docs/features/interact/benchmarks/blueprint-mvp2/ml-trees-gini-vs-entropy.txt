@@ -1,0 +1,975 @@
+run ej_45e0916ba9db451c89a5463088d1f311: PASSED the light checker
+prompt: how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 3363860157   seconds: 108.517   cost: $0.2027
+
+== dice
+{
+  "controlQuantities": [
+    "p"
+  ],
+  "n": 1,
+  "k": 1,
+  "ids": [
+    "p"
+  ]
+}
+
+== calls
+quantities: answered, 18.913 s, 1245 in + 2876 thinking + 558 out, $0.0276
+blueprint: answered, 88.93 s, 10541 in + 18819 thinking + 2415 out, $0.1751
+
+== problems
+none
+
+== blueprint (first): "Gini Impurity vs. Binary Entropy"; controls: p
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Both Gini impurity and binary entropy are 0 when the node is pure (p = 0 or 1) and peak at p = 0.5, forming symmetric concave-down curves. Entropy rises more steeply near the extremes and peaks at 1 bit, whereas Gini forms a parabola peaking at 0.5.",
+    "formula": "G=2p(1-p),\\ H=-p\\log_2 p-q\\log_2 q",
+    "assumptions": [
+      "Only two classes are present, so the second class has fraction q = 1 - p.",
+      "Entropy uses base-2 logarithms (bits), with 0 log2(0) defined as 0.",
+      "Gini impurity equals the misclassification probability under random proportional labeling."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "p",
+      "label": "Class A fraction",
+      "unit": "",
+      "role": "control",
+      "meaning": "Fraction of items belonging to class A, varied from 0 to 1."
+    },
+    {
+      "id": "q",
+      "label": "Class B fraction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Fraction of items belonging to class B, equal to 1 - p."
+    },
+    {
+      "id": "gini",
+      "label": "Gini impurity",
+      "unit": "",
+      "role": "result",
+      "meaning": "Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5."
+    },
+    {
+      "id": "entropy",
+      "label": "Binary entropy",
+      "unit": "bits",
+      "role": "result",
+      "meaning": "Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5."
+    },
+    {
+      "id": "gini_scaled",
+      "label": "Scaled Gini (2G)`",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini multiplied by 2 so its peak matches 1, isolating curve shape differences."
+    },
+    {
+      "id": "gap",
+      "label": "Entropy minus 2G",
+      "unit": "bits",
+      "role": "result",
+      "meaning": "Difference H - 2G showing how much steeper entropy rises away from p = 0.5."
+    },
+    {
+      "id": "gini_peak",
+      "label": "Peak Gini (p=0.5)`",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Maximum binary Gini impurity of 0.5, attained at an equal 50/50 split."
+    },
+    {
+      "id": "entropy_peak",
+      "label": "Peak entropy (p=0.5)`",
+      "unit": "bits",
+      "role": "fixed",
+      "meaning": "Maximum binary entropy of 1 bit, attained at an equal 50/50 split."
+    },
+    {
+      "id": "num_classes",
+      "label": "Number of classes",
+      "unit": "classes",
+      "role": "fixed",
+      "meaning": "Fixed at 2 classes so impurity depends solely on the single fraction p."
+    }
+  ],
+  "things": [
+    {
+      "id": "entropy_curve",
+      "label": "Binary entropy"
+    },
+    {
+      "id": "scaled_curve",
+      "label": "Scaled Gini 2G"
+    },
+    {
+      "id": "gini_curve",
+      "label": "Gini impurity"
+    },
+    {
+      "id": "gap_diff",
+      "label": "Gap (H - 2G)"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "p",
+      "label": "Class A fraction",
+      "unit": "",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "step": 0.01
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 8,
+    "label": "Sweep time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var p = inputs.p; var q = 1 - p; var gini_peak = 0.5; var entropy_peak = 1; var num_classes = 2; function binH(x) { if (x <= 0 || x >= 1) return 0; return (-x * Math.log(x) - (1 - x) * Math.log(1 - x)) / Math.LN2; } var gini = num_classes * p * q; var entropy = binH(p); var gini_scaled = (entropy_peak / gini_peak) * gini; var gap = entropy - gini_scaled; var probe_p = Math.min(1, Math.max(0, t / 8)); var probe_gini = num_classes * probe_p * (1 - probe_p); var probe_scaled = (entropy_peak / gini_peak) * probe_gini; var probe_entropy = binH(probe_p); var is_pure = p <= 0.001 || p >= 0.999; var is_half = Math.abs(p - 0.5) < 0.015; var is_extreme = (p > 0.001 && p <= 0.2) || (p >= 0.8 && p < 0.999); return { p_pos: p, q: q, gini: gini, entropy: entropy, gini_scaled: gini_scaled, gap: gap, probe_p: probe_p, probe_gini: probe_gini, probe_scaled: probe_scaled, probe_entropy: probe_entropy, is_pure: is_pure, is_half: is_half, is_extreme: is_extreme }; }",
+    "outputs": [
+      {
+        "id": "p_pos",
+        "unit": "",
+        "meaning": "Current class A fraction coordinate along the horizontal axis.",
+        "kind": "number"
+      },
+      {
+        "id": "q",
+        "unit": "",
+        "meaning": "Fraction of items belonging to class B, equal to 1 - p.",
+        "kind": "number"
+      },
+      {
+        "id": "gini",
+        "unit": "",
+        "meaning": "Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5.",
+        "kind": "number"
+      },
+      {
+        "id": "entropy",
+        "unit": "bits",
+        "meaning": "Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5.",
+        "kind": "number"
+      },
+      {
+        "id": "gini_scaled",
+        "unit": "",
+        "meaning": "Gini multiplied by 2 so its peak matches 1, isolating curve shape differences.",
+        "kind": "number"
+      },
+      {
+        "id": "gap",
+        "unit": "bits",
+        "meaning": "Difference H - 2G showing how much steeper entropy rises away from p = 0.5.",
+        "kind": "number"
+      },
+      {
+        "id": "probe_p",
+        "unit": "",
+        "meaning": "Animated sweep fraction moving from 0 to 1 over the playback duration.",
+        "kind": "number"
+      },
+      {
+        "id": "probe_gini",
+        "unit": "",
+        "meaning": "Gini impurity evaluated at the animated sweep fraction.",
+        "kind": "number"
+      },
+      {
+        "id": "probe_scaled",
+        "unit": "",
+        "meaning": "Scaled Gini 2G evaluated at the animated sweep fraction.",
+        "kind": "number"
+      },
+      {
+        "id": "probe_entropy",
+        "unit": "bits",
+        "meaning": "Binary entropy evaluated at the animated sweep fraction.",
+        "kind": "number"
+      },
+      {
+        "id": "is_pure",
+        "unit": "",
+        "meaning": "True when the node is pure at p = 0 or p = 1.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_half",
+        "unit": "",
+        "meaning": "True when classes are evenly split near p = 0.5.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_extreme",
+        "unit": "",
+        "meaning": "True when one class is small and H rises noticeably faster than 2G.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "bits / fraction",
+      "parts": [
+        {
+          "type": "line",
+          "id": "split_line",
+          "from": [
+            0,
+            -0.12
+          ],
+          "to": [
+            1,
+            -0.12
+          ]
+        },
+        {
+          "type": "dot",
+          "id": "split_dot",
+          "at": [
+            "p_pos",
+            -0.12
+          ],
+          "size": "medium"
+        },
+        {
+          "type": "line",
+          "id": "baseline",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "cursor_line",
+          "from": [
+            "p_pos",
+            -0.12
+          ],
+          "to": [
+            "p_pos",
+            "gini_scaled"
+          ]
+        },
+        {
+          "type": "line",
+          "id": "gap_line",
+          "from": [
+            "p_pos",
+            "gini_scaled"
+          ],
+          "to": [
+            "p_pos",
+            "entropy"
+          ],
+          "of": "gap_diff"
+        },
+        {
+          "type": "trace",
+          "id": "entropy_trace",
+          "at": [
+            "probe_p",
+            "probe_entropy"
+          ],
+          "of": "entropy_curve"
+        },
+        {
+          "type": "trace",
+          "id": "scaled_trace",
+          "at": [
+            "probe_p",
+            "probe_scaled"
+          ],
+          "of": "scaled_curve"
+        },
+        {
+          "type": "trace",
+          "id": "gini_trace",
+          "at": [
+            "probe_p",
+            "probe_gini"
+          ],
+          "of": "gini_curve"
+        },
+        {
+          "type": "dot",
+          "id": "entropy_probe",
+          "at": [
+            "probe_p",
+            "probe_entropy"
+          ],
+          "size": "small",
+          "of": "entropy_curve"
+        },
+        {
+          "type": "dot",
+          "id": "entropy_mark",
+          "at": [
+            "p_pos",
+            "entropy"
+          ],
+          "size": "medium",
+          "of": "entropy_curve"
+        },
+        {
+          "type": "dot",
+          "id": "scaled_mark",
+          "at": [
+            "p_pos",
+            "gini_scaled"
+          ],
+          "size": "medium",
+          "of": "scaled_curve"
+        },
+        {
+          "type": "dot",
+          "id": "gini_mark",
+          "at": [
+            "p_pos",
+            "gini"
+          ],
+          "size": "medium",
+          "of": "gini_curve"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Impurity vs. Class A fraction",
+      "x": {
+        "over": "p",
+        "label": "Class A fraction p",
+        "unit": ""
+      },
+      "y": {
+        "label": "Impurity",
+        "unit": "bits"
+      },
+      "series": [
+        {
+          "value": "entropy",
+          "label": "Entropy H",
+          "of": "entropy_curve",
+          "style": "line"
+        },
+        {
+          "value": "gini_scaled",
+          "label": "Scaled 2G",
+          "of": "scaled_curve",
+          "style": "line"
+        },
+        {
+          "value": "gini",
+          "label": "Gini G",
+          "of": "gini_curve",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "entropy",
+      "label": "Entropy H",
+      "unit": "bits",
+      "decimals": 3,
+      "of": "entropy_curve"
+    },
+    {
+      "value": "gini",
+      "label": "Gini G",
+      "unit": "",
+      "decimals": 3,
+      "of": "gini_curve"
+    },
+    {
+      "value": "gini_scaled",
+      "label": "Scaled 2G",
+      "unit": "",
+      "decimals": 3,
+      "of": "scaled_curve"
+    },
+    {
+      "value": "gap",
+      "label": "Gap H - 2G",
+      "unit": "bits",
+      "decimals": 3,
+      "of": "gap_diff"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Both curves peak at p = 0.5.",
+      "Entropy H rises faster near 0 and 1."
+    ],
+    "cases": [
+      {
+        "when": "is_pure",
+        "text": "Pure node: G = 0 and H = 0 bits."
+      },
+      {
+        "when": "is_half",
+        "text": "50/50 peak: G = 0.5, 2G = H = 1 bit."
+      },
+      {
+        "when": "is_extreme",
+        "text": "Near extremes: H rises steeper > 2G."
+      }
+    ],
+    "otherwise": "Mixed node: H exceeds 2G slightly."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "q",
+      "with": "p"
+    },
+    {
+      "type": "equal",
+      "value": "gini_scaled",
+      "to": "entropy",
+      "at": [
+        {
+          "input": "p",
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "type": "equal",
+      "value": "gini",
+      "to": "entropy",
+      "at": [
+        {
+          "input": "p",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "equal",
+      "value": "gini",
+      "to": "entropy",
+      "at": [
+        {
+          "input": "p",
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "Gini Impurity vs. Binary Entropy",
+    "description": "Vary the class A fraction p from 0 to 1 and watch how Gini impurity and binary entropy rise to their peaks at an equal split. Compare raw Gini, scaled 2G, and entropy across the curves.",
+    "instructions": "Drag the Class A fraction slider p from 0 to 1 to move the vertical inspection line and node split dot. Watch the animated sweep trace the curves, and check where entropy H exceeds scaled Gini 2G.",
+    "goal": "Both Gini and entropy are 0 when pure and symmetric around a peak at p = 0.5, but entropy rises more steeply near 0 and 1 even after scaling Gini by 2."
+  }
+}
+
+== quantities answer (exactly as returned)
+{"relationship":{"statement":"Both Gini impurity and binary entropy are 0 when the node is pure (p = 0 or 1) and peak at p = 0.5, forming symmetric concave-down curves. Entropy rises more steeply near the extremes and peaks at 1 bit, whereas Gini forms a parabola peaking at 0.5.","formula":"G=2p(1-p),\\ H=-p\\log_2 p-q\\log_2 q","assumptions":["Only two classes are present, so the second class has fraction q = 1 - p.","Entropy uses base-2 logarithms (bits), with 0 log2(0) defined as 0.","Gini impurity equals the misclassification probability under random proportional labeling."]},"quantities":[{"id":"p","label":"Class A fraction","unit":"","role":"control","meaning":"Fraction of items belonging to class A, varied from 0 to 1."},{"id":"q","label":"Class B fraction","unit":"","role":"result","meaning":"Fraction of items belonging to class B, equal to 1 - p."},{"id":"gini","label":"Gini impurity","unit":"","role":"result","meaning":"Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5."},{"id":"entropy","label":"Binary entropy","unit":"bits","role":"result","meaning":"Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5."},{"id":"gini_scaled","label":"Scaled Gini (2G)`","unit":"","role":"result","meaning":"Gini multiplied by 2 so its peak matches 1, isolating curve shape differences."},{"id":"gap","label":"Entropy minus 2G","unit":"bits","role":"result","meaning":"Difference H - 2G showing how much steeper entropy rises away from p = 0.5."},{"id":"gini_peak","label":"Peak Gini (p=0.5)`","unit":"","role":"fixed","meaning":"Maximum binary Gini impurity of 0.5, attained at an equal 50/50 split."},{"id":"entropy_peak","label":"Peak entropy (p=0.5)`","unit":"bits","role":"fixed","meaning":"Maximum binary entropy of 1 bit, attained at an equal 50/50 split."},{"id":"num_classes","label":"Number of classes","unit":"classes","role":"fixed","meaning":"Fixed at 2 classes so impurity depends solely on the single fraction p."}]}
+
+== first blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"Both Gini impurity and binary entropy are 0 when the node is pure (p = 0 or 1) and peak at p = 0.5, forming symmetric concave-down curves. Entropy rises more steeply near the extremes and peaks at 1 bit, whereas Gini forms a parabola peaking at 0.5.","formula":"G=2p(1-p),\\ H=-p\\log_2 p-q\\log_2 q","assumptions":["Only two classes are present, so the second class has fraction q = 1 - p.","Entropy uses base-2 logarithms (bits), with 0 log2(0) defined as 0.","Gini impurity equals the misclassification probability under random proportional labeling."]},"quantities":[{"id":"p","label":"Class A fraction","unit":"","role":"control","meaning":"Fraction of items belonging to class A, varied from 0 to 1."},{"id":"q","label":"Class B fraction","unit":"","role":"result","meaning":"Fraction of items belonging to class B, equal to 1 - p."},{"id":"gini","label":"Gini impurity","unit":"","role":"result","meaning":"Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5."},{"id":"entropy","label":"Binary entropy","unit":"bits","role":"result","meaning":"Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5."},{"id":"gini_scaled","label":"Scaled Gini (2G)`","unit":"","role":"result","meaning":"Gini multiplied by 2 so its peak matches 1, isolating curve shape differences."},{"id":"gap","label":"Entropy minus 2G","unit":"bits","role":"result","meaning":"Difference H - 2G showing how much steeper entropy rises away from p = 0.5."},{"id":"gini_peak","label":"Peak Gini (p=0.5)`","unit":"","role":"fixed","meaning":"Maximum binary Gini impurity of 0.5, attained at an equal 50/50 split."},{"id":"entropy_peak","label":"Peak entropy (p=0.5)`","unit":"bits","role":"fixed","meaning":"Maximum binary entropy of 1 bit, attained at an equal 50/50 split."},{"id":"num_classes","label":"Number of classes","unit":"classes","role":"fixed","meaning":"Fixed at 2 classes so impurity depends solely on the single fraction p."}],"things":[{"id":"entropy_curve","label":"Binary entropy"},{"id":"scaled_curve","label":"Scaled Gini 2G"},{"id":"gini_curve","label":"Gini impurity"},{"id":"gap_diff","label":"Gap (H - 2G)"}],"inputs":[{"type":"number","id":"p","label":"Class A fraction","unit":"","min":0,"max":1,"default":0.15,"step":0.01}],"time":{"mode":"continuous","duration":8,"label":"Sweep time","unit":"s"},"math":{"code":"function compute(inputs, t) { var p = inputs.p; var q = 1 - p; var gini_peak = 0.5; var entropy_peak = 1; var num_classes = 2; function binH(x) { if (x <= 0 || x >= 1) return 0; return (-x * Math.log(x) - (1 - x) * Math.log(1 - x)) / Math.LN2; } var gini = num_classes * p * q; var entropy = binH(p); var gini_scaled = (entropy_peak / gini_peak) * gini; var gap = entropy - gini_scaled; var probe_p = Math.min(1, Math.max(0, t / 8)); var probe_gini = num_classes * probe_p * (1 - probe_p); var probe_scaled = (entropy_peak / gini_peak) * probe_gini; var probe_entropy = binH(probe_p); var is_pure = p <= 0.001 || p >= 0.999; var is_half = Math.abs(p - 0.5) < 0.015; var is_extreme = (p > 0.001 && p <= 0.2) || (p >= 0.8 && p < 0.999); return { p_pos: p, q: q, gini: gini, entropy: entropy, gini_scaled: gini_scaled, gap: gap, probe_p: probe_p, probe_gini: probe_gini, probe_scaled: probe_scaled, probe_entropy: probe_entropy, is_pure: is_pure, is_half: is_half, is_extreme: is_extreme }; }","outputs":[{"id":"p_pos","unit":"","meaning":"Current class A fraction coordinate along the horizontal axis.","kind":"number"},{"id":"q","unit":"","meaning":"Fraction of items belonging to class B, equal to 1 - p.","kind":"number"},{"id":"gini","unit":"","meaning":"Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5.","kind":"number"},{"id":"entropy","unit":"bits","meaning":"Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5.","kind":"number"},{"id":"gini_scaled","unit":"","meaning":"Gini multiplied by 2 so its peak matches 1, isolating curve shape differences.","kind":"number"},{"id":"gap","unit":"bits","meaning":"Difference H - 2G showing how much steeper entropy rises away from p = 0.5.","kind":"number"},{"id":"probe_p","unit":"","meaning":"Animated sweep fraction moving from 0 to 1 over the playback duration.","kind":"number"},{"id":"probe_gini","unit":"","meaning":"Gini impurity evaluated at the animated sweep fraction.","kind":"number"},{"id":"probe_scaled","unit":"","meaning":"Scaled Gini 2G evaluated at the animated sweep fraction.","kind":"number"},{"id":"probe_entropy","unit":"bits","meaning":"Binary entropy evaluated at the animated sweep fraction.","kind":"number"},{"id":"is_pure","unit":"","meaning":"True when the node is pure at p = 0 or p = 1.","kind":"flag"},{"id":"is_half","unit":"","meaning":"True when classes are evenly split near p = 0.5.","kind":"flag"},{"id":"is_extreme","unit":"","meaning":"True when one class is small and H rises noticeably faster than 2G.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"bits / fraction","parts":[{"type":"line","id":"split_line","from":[0,-0.12],"to":[1,-0.12]},{"type":"dot","id":"split_dot","at":["p_pos",-0.12],"size":"medium"},{"type":"line","id":"baseline","from":[0,0],"to":[1,0]},{"type":"line","id":"cursor_line","from":["p_pos",-0.12],"to":["p_pos","gini_scaled"]},{"type":"line","id":"gap_line","from":["p_pos","gini_scaled"],"to":["p_pos","entropy"],"of":"gap_diff"},{"type":"trace","id":"entropy_trace","at":["probe_p","probe_entropy"],"of":"entropy_curve"},{"type":"trace","id":"scaled_trace","at":["probe_p","probe_scaled"],"of":"scaled_curve"},{"type":"trace","id":"gini_trace","at":["probe_p","probe_gini"],"of":"gini_curve"},{"type":"dot","id":"entropy_probe","at":["probe_p","probe_entropy"],"size":"small","of":"entropy_curve"},{"type":"dot","id":"entropy_mark","at":["p_pos","entropy"],"size":"medium","of":"entropy_curve"},{"type":"dot","id":"scaled_mark","at":["p_pos","gini_scaled"],"size":"medium","of":"scaled_curve"},{"type":"dot","id":"gini_mark","at":["p_pos","gini"],"size":"medium","of":"gini_curve"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Impurity vs. Class A fraction","x":{"over":"p","label":"Class A fraction p","unit":""},"y":{"label":"Impurity","unit":"bits"},"series":[{"value":"entropy","label":"Entropy H","of":"entropy_curve","style":"line"},{"value":"gini_scaled","label":"Scaled 2G","of":"scaled_curve","style":"line"},{"value":"gini","label":"Gini G","of":"gini_curve","style":"line"}]}},"values":[{"value":"entropy","label":"Entropy H","unit":"bits","decimals":3,"of":"entropy_curve"},{"value":"gini","label":"Gini G","unit":"","decimals":3,"of":"gini_curve"},{"value":"gini_scaled","label":"Scaled 2G","unit":"","decimals":3,"of":"scaled_curve"},{"value":"gap","label":"Gap H - 2G","unit":"bits","decimals":3,"of":"gap_diff"}],"explanation":{"always":["Both curves peak at p = 0.5.","Entropy H rises faster near 0 and 1."],"cases":[{"when":"is_pure","text":"Pure node: G = 0 and H = 0 bits."},{"when":"is_half","text":"50/50 peak: G = 0.5, 2G = H = 1 bit."},{"when":"is_extreme","text":"Near extremes: H rises steeper > 2G."}],"otherwise":"Mixed node: H exceeds 2G slightly."},"layout":{"pictureCount":"two","runs":"left-to-right","panelRole":"equal"},"claims":[{"type":"decreases","value":"q","with":"p"},{"type":"equal","value":"gini_scaled","to":"entropy","at":[{"input":"p","value":0.5}]},{"type":"equal","value":"gini","to":"entropy","at":[{"input":"p","value":0}]},{"type":"equal","value":"gini","to":"entropy","at":[{"input":"p","value":1}]}],"lesson":{"title":"Gini Impurity vs. Binary Entropy","description":"Vary the class A fraction p from 0 to 1 and watch how Gini impurity and binary entropy rise to their peaks at an equal split. Compare raw Gini, scaled 2G, and entropy across the curves.","instructions":"Drag the Class A fraction slider p from 0 to 1 to move the vertical inspection line and node split dot. Watch the animated sweep trace the curves, and check where entropy H exceeds scaled Gini 2G.","goal":"Both Gini and entropy are 0 when pure and symmetric around a peak at p = 0.5, but entropy rises more steeply near 0 and 1 even after scaling Gini by 2."}}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "Both Gini impurity and binary entropy are 0 when the node is pure (p = 0 or 1) and peak at p = 0.5, forming symmetric concave-down curves. Entropy rises more steeply near the extremes and peaks at 1 bit, whereas Gini forms a parabola peaking at 0.5.",
+      "formula": "G=2p(1-p),\\ H=-p\\log_2 p-q\\log_2 q",
+      "assumptions": [
+        "Only two classes are present, so the second class has fraction q = 1 - p.",
+        "Entropy uses base-2 logarithms (bits), with 0 log2(0) defined as 0.",
+        "Gini impurity equals the misclassification probability under random proportional labeling."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "p",
+        "label": "Class A fraction",
+        "unit": "",
+        "role": "control",
+        "meaning": "Fraction of items belonging to class A, varied from 0 to 1."
+      },
+      {
+        "id": "q",
+        "label": "Class B fraction",
+        "unit": "",
+        "role": "result",
+        "meaning": "Fraction of items belonging to class B, equal to 1 - p."
+      },
+      {
+        "id": "gini",
+        "label": "Gini impurity",
+        "unit": "",
+        "role": "result",
+        "meaning": "Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5."
+      },
+      {
+        "id": "entropy",
+        "label": "Binary entropy",
+        "unit": "bits",
+        "role": "result",
+        "meaning": "Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5."
+      },
+      {
+        "id": "gini_scaled",
+        "label": "Scaled Gini (2G)`",
+        "unit": "",
+        "role": "result",
+        "meaning": "Gini multiplied by 2 so its peak matches 1, isolating curve shape differences."
+      },
+      {
+        "id": "gap",
+        "label": "Entropy minus 2G",
+        "unit": "bits",
+        "role": "result",
+        "meaning": "Difference H - 2G showing how much steeper entropy rises away from p = 0.5."
+      },
+      {
+        "id": "gini_peak",
+        "label": "Peak Gini (p=0.5)`",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Maximum binary Gini impurity of 0.5, attained at an equal 50/50 split."
+      },
+      {
+        "id": "entropy_peak",
+        "label": "Peak entropy (p=0.5)`",
+        "unit": "bits",
+        "role": "fixed",
+        "meaning": "Maximum binary entropy of 1 bit, attained at an equal 50/50 split."
+      },
+      {
+        "id": "num_classes",
+        "label": "Number of classes",
+        "unit": "classes",
+        "role": "fixed",
+        "meaning": "Fixed at 2 classes so impurity depends solely on the single fraction p."
+      }
+    ],
+    "things": [
+      {
+        "id": "entropy_curve",
+        "label": "Binary entropy"
+      },
+      {
+        "id": "scaled_curve",
+        "label": "Scaled Gini 2G"
+      },
+      {
+        "id": "gini_curve",
+        "label": "Gini impurity"
+      },
+      {
+        "id": "gap_diff",
+        "label": "Gap (H - 2G)"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "p",
+        "label": "Class A fraction",
+        "unit": "",
+        "min": 0,
+        "max": 1,
+        "default": 0.15,
+        "step": 0.01
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 8,
+      "label": "Sweep time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var p = inputs.p; var q = 1 - p; var gini_peak = 0.5; var entropy_peak = 1; var num_classes = 2; function binH(x) { if (x <= 0 || x >= 1) return 0; return (-x * Math.log(x) - (1 - x) * Math.log(1 - x)) / Math.LN2; } var gini = num_classes * p * q; var entropy = binH(p); var gini_scaled = (entropy_peak / gini_peak) * gini; var gap = entropy - gini_scaled; var probe_p = Math.min(1, Math.max(0, t / 8)); var probe_gini = num_classes * probe_p * (1 - probe_p); var probe_scaled = (entropy_peak / gini_peak) * probe_gini; var probe_entropy = binH(probe_p); var is_pure = p <= 0.001 || p >= 0.999; var is_half = Math.abs(p - 0.5) < 0.015; var is_extreme = (p > 0.001 && p <= 0.2) || (p >= 0.8 && p < 0.999); return { p_pos: p, q: q, gini: gini, entropy: entropy, gini_scaled: gini_scaled, gap: gap, probe_p: probe_p, probe_gini: probe_gini, probe_scaled: probe_scaled, probe_entropy: probe_entropy, is_pure: is_pure, is_half: is_half, is_extreme: is_extreme }; }",
+      "outputs": [
+        {
+          "id": "p_pos",
+          "unit": "",
+          "meaning": "Current class A fraction coordinate along the horizontal axis.",
+          "kind": "number"
+        },
+        {
+          "id": "q",
+          "unit": "",
+          "meaning": "Fraction of items belonging to class B, equal to 1 - p.",
+          "kind": "number"
+        },
+        {
+          "id": "gini",
+          "unit": "",
+          "meaning": "Parabolic impurity 2p(1 - p), peaking at 0.5 when p = 0.5.",
+          "kind": "number"
+        },
+        {
+          "id": "entropy",
+          "unit": "bits",
+          "meaning": "Shannon entropy -p log2(p) - q log2(q), peaking at 1 bit when p = 0.5.",
+          "kind": "number"
+        },
+        {
+          "id": "gini_scaled",
+          "unit": "",
+          "meaning": "Gini multiplied by 2 so its peak matches 1, isolating curve shape differences.",
+          "kind": "number"
+        },
+        {
+          "id": "gap",
+          "unit": "bits",
+          "meaning": "Difference H - 2G showing how much steeper entropy rises away from p = 0.5.",
+          "kind": "number"
+        },
+        {
+          "id": "probe_p",
+          "unit": "",
+          "meaning": "Animated sweep fraction moving from 0 to 1 over the playback duration.",
+          "kind": "number"
+        },
+        {
+          "id": "probe_gini",
+          "unit": "",
+          "meaning": "Gini impurity evaluated at the animated sweep fraction.",
+          "kind": "number"
+        },
+        {
+          "id": "probe_scaled",
+          "unit": "",
+          "meaning": "Scaled Gini 2G evaluated at the animated sweep fraction.",
+          "kind": "number"
+        },
+        {
+          "id": "probe_entropy",
+          "unit": "bits",
+          "meaning": "Binary entropy evaluated at the animated sweep fraction.",
+          "kind": "number"
+        },
+        {
+          "id": "is_pure",
+          "unit": "",
+          "meaning": "True when the node is pure at p = 0 or p = 1.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_half",
+          "unit": "",
+          "meaning": "True when classes are evenly split near p = 0.5.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_extreme",
+          "unit": "",
+          "meaning": "True when one class is small and H rises noticeably faster than 2G.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "bits / fraction",
+        "parts": [
+          {
+            "type": "line",
+            "id": "split_line",
+            "from": [
+              0,
+              -0.12
+            ],
+            "to": [
+              1,
+              -0.12
+            ]
+          },
+          {
+            "type": "dot",
+            "id": "split_dot",
+            "at": [
+              "p_pos",
+              -0.12
+            ],
+            "size": "medium"
+          },
+          {
+            "type": "line",
+            "id": "baseline",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              1,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "cursor_line",
+            "from": [
+              "p_pos",
+              -0.12
+            ],
+            "to": [
+              "p_pos",
+              "gini_scaled"
+            ]
+          },
+          {
+            "type": "line",
+            "id": "gap_line",
+            "from": [
+              "p_pos",
+              "gini_scaled"
+            ],
+            "to": [
+              "p_pos",
+              "entropy"
+            ],
+            "of": "gap_diff"
+          },
+          {
+            "type": "trace",
+            "id": "entropy_trace",
+            "at": [
+              "probe_p",
+              "probe_entropy"
+            ],
+            "of": "entropy_curve"
+          },
+          {
+            "type": "trace",
+            "id": "scaled_trace",
+            "at": [
+              "probe_p",
+              "probe_scaled"
+            ],
+            "of": "scaled_curve"
+          },
+          {
+            "type": "trace",
+            "id": "gini_trace",
+            "at": [
+              "probe_p",
+              "probe_gini"
+            ],
+            "of": "gini_curve"
+          },
+          {
+            "type": "dot",
+            "id": "entropy_probe",
+            "at": [
+              "probe_p",
+              "probe_entropy"
+            ],
+            "size": "small",
+            "of": "entropy_curve"
+          },
+          {
+            "type": "dot",
+            "id": "entropy_mark",
+            "at": [
+              "p_pos",
+              "entropy"
+            ],
+            "size": "medium",
+            "of": "entropy_curve"
+          },
+          {
+            "type": "dot",
+            "id": "scaled_mark",
+            "at": [
+              "p_pos",
+              "gini_scaled"
+            ],
+            "size": "medium",
+            "of": "scaled_curve"
+          },
+          {
+            "type": "dot",
+            "id": "gini_mark",
+            "at": [
+              "p_pos",
+              "gini"
+            ],
+            "size": "medium",
+            "of": "gini_curve"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Impurity vs. Class A fraction",
+        "x": {
+          "over": "p",
+          "label": "Class A fraction p",
+          "unit": ""
+        },
+        "y": {
+          "label": "Impurity",
+          "unit": "bits"
+        },
+        "series": [
+          {
+            "value": "entropy",
+            "label": "Entropy H",
+            "of": "entropy_curve",
+            "style": "line"
+          },
+          {
+            "value": "gini_scaled",
+            "label": "Scaled 2G",
+            "of": "scaled_curve",
+            "style": "line"
+          },
+          {
+            "value": "gini",
+            "label": "Gini G",
+            "of": "gini_curve",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "entropy",
+        "label": "Entropy H",
+        "unit": "bits",
+        "decimals": 3,
+        "of": "entropy_curve"
+      },
+      {
+        "value": "gini",
+        "label": "Gini G",
+        "unit": "",
+        "decimals": 3,
+        "of": "gini_curve"
+      },
+      {
+        "value": "gini_scaled",
+        "label": "Scaled 2G",
+        "unit": "",
+        "decimals": 3,
+        "of": "scaled_curve"
+      },
+      {
+        "value": "gap",
+        "label": "Gap H - 2G",
+        "unit": "bits",
+        "decimals": 3,
+        "of": "gap_diff"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Both curves peak at p = 0.5.",
+        "Entropy H rises faster near 0 and 1."
+      ],
+      "cases": [
+        {
+          "when": "is_pure",
+          "text": "Pure node: G = 0 and H = 0 bits."
+        },
+        {
+          "when": "is_half",
+          "text": "50/50 peak: G = 0.5, 2G = H = 1 bit."
+        },
+        {
+          "when": "is_extreme",
+          "text": "Near extremes: H rises steeper > 2G."
+        }
+      ],
+      "otherwise": "Mixed node: H exceeds 2G slightly."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "equal"
+    },
+    "claims": [
+      {
+        "type": "decreases",
+        "value": "q",
+        "with": "p"
+      },
+      {
+        "type": "equal",
+        "value": "gini_scaled",
+        "to": "entropy",
+        "at": [
+          {
+            "input": "p",
+            "value": 0.5
+          }
+        ]
+      },
+      {
+        "type": "equal",
+        "value": "gini",
+        "to": "entropy",
+        "at": [
+          {
+            "input": "p",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "type": "equal",
+        "value": "gini",
+        "to": "entropy",
+        "at": [
+          {
+            "input": "p",
+            "value": 1
+          }
+        ]
+      }
+    ],
+    "lesson": {
+      "title": "Gini Impurity vs. Binary Entropy",
+      "description": "Vary the class A fraction p from 0 to 1 and watch how Gini impurity and binary entropy rise to their peaks at an equal split. Compare raw Gini, scaled 2G, and entropy across the curves.",
+      "instructions": "Drag the Class A fraction slider p from 0 to 1 to move the vertical inspection line and node split dot. Watch the animated sweep trace the curves, and check where entropy H exceeds scaled Gini 2G.",
+      "goal": "Both Gini and entropy are 0 when pure and symmetric around a peak at p = 0.5, but entropy rises more steeply near 0 and 1 even after scaling Gini by 2."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

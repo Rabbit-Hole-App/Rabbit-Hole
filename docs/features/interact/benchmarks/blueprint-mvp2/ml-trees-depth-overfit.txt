@@ -1,0 +1,1662 @@
+run ej_b0d53b22b7154ea29cefc12128a219b5: PASSED the light checker
+prompt: how does held-out error change as a decision tree grows deeper?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 3970085014   seconds: 144.764   cost: $0.2402
+
+== dice
+{
+  "controlQuantities": [
+    "max_depth",
+    "noise_level",
+    "sample_size"
+  ],
+  "n": 3,
+  "k": 2,
+  "ids": [
+    "noise_level",
+    "sample_size"
+  ]
+}
+
+== calls
+quantities: answered, 14.133 s, 1236 in + 1682 thinking + 763 out, $0.0202
+blueprint: answered, 128.662 s, 10473 in + 22704 thinking + 4530 out, $0.2200
+
+== problems
+none
+
+== blueprint (first): "How Decision Tree Depth Drives Held-out Error"; controls: noise_level, sample_size
+{
+  "version": 1,
+  "relationship": {
+    "statement": "As tree depth increases, training error falls monotonically because finer splits fit more points. Held-out error follows a U-curve: it drops while squared bias shrinks, reaches a minimum, then rises as leaves overfit noise and variance grows.",
+    "formula": "E_{out} = B^2(d) + V(d) + \\sigma^2",
+    "assumptions": [
+      "The tree performs binary axis-aligned splits up to the chosen depth.",
+      "Training and held-out sets are drawn independently from the same noisy signal.",
+      "Error is measured as mean squared error on a fixed underlying target curve."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "max_depth",
+      "label": "Tree Depth",
+      "unit": "levels",
+      "role": "fixed",
+      "meaning": "Maximum number of sequential splits from root to leaf"
+    },
+    {
+      "id": "noise_level",
+      "label": "Noise Level",
+      "unit": "std dev",
+      "role": "control",
+      "meaning": "Standard deviation of random irreducible noise in the data"
+    },
+    {
+      "id": "sample_size",
+      "label": "Training Size",
+      "unit": "points",
+      "role": "control",
+      "meaning": "Number of training points available to fit the decision tree"
+    },
+    {
+      "id": "signal_amp",
+      "label": "Signal Amplitude",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Amplitude of the underlying true pattern held constant across runs"
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf Regions",
+      "unit": "leaves",
+      "role": "result",
+      "meaning": "Number of distinct prediction regions formed at the chosen depth"
+    },
+    {
+      "id": "train_error",
+      "label": "Training Error",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Mean squared error measured on the training data"
+    },
+    {
+      "id": "bias_sq",
+      "label": "Squared Bias",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Error from leaves being too coarse to match the true curve"
+    },
+    {
+      "id": "variance",
+      "label": "Variance",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Error from leaf predictions shifting to fit training noise"
+    },
+    {
+      "id": "test_error",
+      "label": "Held-out Error",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Total error on unseen data: squared bias plus variance plus noise"
+    },
+    {
+      "id": "optimal_depth",
+      "label": "Optimal Depth",
+      "unit": "levels",
+      "role": "result",
+      "meaning": "Depth that minimizes held-out error for the current noise and sample size"
+    }
+  ],
+  "things": [
+    {
+      "id": "held_out",
+      "label": "Held-out Error"
+    },
+    {
+      "id": "training",
+      "label": "Training Error"
+    },
+    {
+      "id": "bias",
+      "label": "Squared Bias"
+    },
+    {
+      "id": "variance",
+      "label": "Variance"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "noise_level",
+      "label": "Noise Level",
+      "unit": "std dev",
+      "min": 0.2,
+      "max": 1.2,
+      "default": 0.6,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "sample_size",
+      "label": "Training Size",
+      "unit": "points",
+      "min": 50,
+      "max": 250,
+      "default": 100,
+      "step": 10
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Tree Depth",
+    "unit": "lvl"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var max_depth = 6; var signal_amp = 2.0; var noise = inputs.noise_level; var n = inputs.sample_size; var d = Math.max(0, Math.min(max_depth, t)); var k = Math.pow(2, d); var leaf_count = Math.round(k); var sigma2 = noise * noise; var bias_sq = 0.3 * signal_amp * signal_amp * Math.pow(3.0, -d); var variance = sigma2 * k / n; var train_error = bias_sq + sigma2 * Math.exp(-1.1 * k / n); var test_error = bias_sq + variance + sigma2; var raw_opt = Math.log((0.3 * signal_amp * signal_amp * Math.log(3.0) * n) / (Math.log(2.0) * sigma2)) / Math.log(6.0); var optimal_depth = Math.max(0, Math.min(max_depth, raw_opt)); var half_w = 1.8 * Math.pow(2.0, -d); var x_left = 2.0 - half_w; var x_right = 2.0 + half_w; var y_pred = 3.5 - 0.55 * Math.pow(3.0, -0.5 * d) + 0.35 * noise * Math.sqrt(k / n); var y_s1 = 2.7 + 0.35 * noise; var y_s2 = 3.5 - 0.3 * noise; var y_s3 = 2.7 + 0.25 * noise; var bar_base = 0.1; var bar_scale = 0.5; var y_bar_train = bar_base + bar_scale * train_error; var y_bar_bias = bar_base + bar_scale * bias_sq; var y_bar_var = bar_base + bar_scale * variance; var y_bar_test = bar_base + bar_scale * test_error; var is_underfitting = d < optimal_depth - 0.5; var is_optimal = d >= optimal_depth - 0.5 && d <= optimal_depth + 0.5; var is_overfitting = d > optimal_depth + 0.5; return { leaf_count: leaf_count, train_error: train_error, bias_sq: bias_sq, variance: variance, test_error: test_error, optimal_depth: optimal_depth, x_left: x_left, x_right: x_right, y_pred: y_pred, y_s1: y_s1, y_s2: y_s2, y_s3: y_s3, y_bar_train: y_bar_train, y_bar_bias: y_bar_bias, y_bar_var: y_bar_var, y_bar_test: y_bar_test, is_underfitting: is_underfitting, is_optimal: is_optimal, is_overfitting: is_overfitting }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "leaves",
+        "meaning": "Number of distinct prediction regions formed at the chosen depth",
+        "kind": "number"
+      },
+      {
+        "id": "train_error",
+        "unit": "MSE",
+        "meaning": "Mean squared error measured on the training data",
+        "kind": "number"
+      },
+      {
+        "id": "bias_sq",
+        "unit": "MSE",
+        "meaning": "Error from leaves being too coarse to match the true curve",
+        "kind": "number"
+      },
+      {
+        "id": "variance",
+        "unit": "MSE",
+        "meaning": "Error from leaf predictions shifting to fit training noise",
+        "kind": "number"
+      },
+      {
+        "id": "test_error",
+        "unit": "MSE",
+        "meaning": "Total error on unseen data: squared bias plus variance plus noise",
+        "kind": "number"
+      },
+      {
+        "id": "optimal_depth",
+        "unit": "levels",
+        "meaning": "Depth that minimizes held-out error for the current noise and sample size",
+        "kind": "number"
+      },
+      {
+        "id": "x_left",
+        "unit": "units",
+        "meaning": "Left x-coordinate of the active leaf interval",
+        "kind": "number"
+      },
+      {
+        "id": "x_right",
+        "unit": "units",
+        "meaning": "Right x-coordinate of the active leaf interval",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred",
+        "unit": "units",
+        "meaning": "Predicted y-value inside the active leaf region",
+        "kind": "number"
+      },
+      {
+        "id": "y_s1",
+        "unit": "units",
+        "meaning": "Vertical position of left noisy training sample",
+        "kind": "number"
+      },
+      {
+        "id": "y_s2",
+        "unit": "units",
+        "meaning": "Vertical position of center noisy training sample",
+        "kind": "number"
+      },
+      {
+        "id": "y_s3",
+        "unit": "units",
+        "meaning": "Vertical position of right noisy training sample",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_train",
+        "unit": "units",
+        "meaning": "Top y-coordinate of training error bar",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_bias",
+        "unit": "units",
+        "meaning": "Top y-coordinate of squared bias bar",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_var",
+        "unit": "units",
+        "meaning": "Top y-coordinate of variance error bar",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_test",
+        "unit": "units",
+        "meaning": "Top y-coordinate of held-out error bar",
+        "kind": "number"
+      },
+      {
+        "id": "is_underfitting",
+        "unit": "",
+        "meaning": "True when depth is below the optimal bias-variance balance",
+        "kind": "flag"
+      },
+      {
+        "id": "is_optimal",
+        "unit": "",
+        "meaning": "True when depth is near minimum held-out error",
+        "kind": "flag"
+      },
+      {
+        "id": "is_overfitting",
+        "unit": "",
+        "meaning": "True when depth exceeds the optimal balance and overfits noise",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "line",
+          "id": "true_left",
+          "from": [
+            0.2,
+            2.3
+          ],
+          "to": [
+            2,
+            3.5
+          ]
+        },
+        {
+          "type": "line",
+          "id": "true_right",
+          "from": [
+            2,
+            3.5
+          ],
+          "to": [
+            3.8,
+            2.3
+          ]
+        },
+        {
+          "type": "line",
+          "id": "leaf_left",
+          "from": [
+            "x_left",
+            2.1
+          ],
+          "to": [
+            "x_left",
+            3.95
+          ]
+        },
+        {
+          "type": "line",
+          "id": "leaf_right",
+          "from": [
+            "x_right",
+            2.1
+          ],
+          "to": [
+            "x_right",
+            3.95
+          ]
+        },
+        {
+          "type": "line",
+          "id": "leaf_pred",
+          "from": [
+            "x_left",
+            "y_pred"
+          ],
+          "to": [
+            "x_right",
+            "y_pred"
+          ],
+          "of": "training"
+        },
+        {
+          "type": "dot",
+          "id": "sample_1",
+          "at": [
+            0.8,
+            "y_s1"
+          ],
+          "size": "small",
+          "of": "variance"
+        },
+        {
+          "type": "dot",
+          "id": "sample_2",
+          "at": [
+            2,
+            "y_s2"
+          ],
+          "size": "small",
+          "of": "variance"
+        },
+        {
+          "type": "dot",
+          "id": "sample_3",
+          "at": [
+            3.2,
+            "y_s3"
+          ],
+          "size": "small",
+          "of": "variance"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_train",
+          "from": [
+            0.8,
+            0.1
+          ],
+          "to": [
+            0.8,
+            "y_bar_train"
+          ],
+          "label": "Trn",
+          "of": "training"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_bias",
+          "from": [
+            1.6,
+            0.1
+          ],
+          "to": [
+            1.6,
+            "y_bar_bias"
+          ],
+          "label": "Bias",
+          "of": "bias"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_var",
+          "from": [
+            2.4,
+            0.1
+          ],
+          "to": [
+            2.4,
+            "y_bar_var"
+          ],
+          "label": "Var",
+          "of": "variance"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_test",
+          "from": [
+            3.2,
+            0.1
+          ],
+          "to": [
+            3.2,
+            "y_bar_test"
+          ],
+          "label": "Test",
+          "of": "held_out"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Error Curves vs Tree Depth",
+      "x": {
+        "over": "time",
+        "label": "Tree Depth",
+        "unit": "lvl"
+      },
+      "y": {
+        "label": "Mean Squared Error",
+        "unit": "MSE"
+      },
+      "series": [
+        {
+          "value": "test_error",
+          "label": "Held-out",
+          "of": "held_out",
+          "style": "line"
+        },
+        {
+          "value": "train_error",
+          "label": "Training",
+          "of": "training",
+          "style": "line"
+        },
+        {
+          "value": "variance",
+          "label": "Variance",
+          "of": "variance",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "test_error",
+      "label": "Held-out",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "held_out"
+    },
+    {
+      "value": "train_error",
+      "label": "Training",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "training"
+    },
+    {
+      "value": "bias_sq",
+      "label": "Bias sq",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "bias"
+    },
+    {
+      "value": "variance",
+      "label": "Variance",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "variance"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Held-out = bias^2 + var + noise^2",
+      "Training error falls at every split"
+    ],
+    "cases": [
+      {
+        "when": "is_underfitting",
+        "text": "Shallow tree: high bias underfits"
+      },
+      {
+        "when": "is_optimal",
+        "text": "Sweet spot: bias balances variance"
+      },
+      {
+        "when": "is_overfitting",
+        "text": "Deep tree: high variance overfits"
+      }
+    ],
+    "otherwise": "Adjust noise and size to shift min"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "bias_sq",
+      "when": "noise_level"
+    },
+    {
+      "type": "unchanged",
+      "value": "bias_sq",
+      "when": "sample_size"
+    },
+    {
+      "type": "increases",
+      "value": "variance",
+      "with": "noise_level"
+    },
+    {
+      "type": "decreases",
+      "value": "variance",
+      "with": "sample_size"
+    },
+    {
+      "type": "increases",
+      "value": "test_error",
+      "with": "noise_level"
+    },
+    {
+      "type": "decreases",
+      "value": "test_error",
+      "with": "sample_size"
+    }
+  ],
+  "lesson": {
+    "title": "How Decision Tree Depth Drives Held-out Error",
+    "description": "Watch a decision tree narrow its leaf around a noisy curve as depth grows from zero to six levels. Adjust noise and training size to see how the held-out U-curve shifts.",
+    "instructions": "Scrub Tree Depth from 0 to 6 levels to watch the leaf shrink and the error bars update. Raise Noise Level or lower Training Size to see variance grow and push the optimal depth shallower.",
+    "goal": "Held-out error reaches a minimum where falling squared bias balances rising variance from fitting noise."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "As tree depth increases, training error falls monotonically because finer splits fit more points. Held-out error follows a U-curve: it drops while squared bias shrinks, reaches a minimum, then rises as leaves overfit noise and variance grows.",
+    "formula": "E_{out} = B^2(d) + V(d) + \\sigma^2",
+    "assumptions": [
+      "The tree performs binary axis-aligned splits up to the chosen depth.",
+      "Training and held-out sets are drawn independently from the same noisy signal.",
+      "Error is measured as mean squared error on a fixed underlying target curve."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "max_depth",
+      "label": "Tree Depth",
+      "unit": "levels",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits from root to leaf"
+    },
+    {
+      "id": "noise_level",
+      "label": "Noise Level",
+      "unit": "std dev",
+      "role": "control",
+      "meaning": "Standard deviation of random irreducible noise in the data"
+    },
+    {
+      "id": "sample_size",
+      "label": "Training Size",
+      "unit": "points",
+      "role": "control",
+      "meaning": "Number of training points available to fit the decision tree"
+    },
+    {
+      "id": "signal_amp",
+      "label": "Signal Amplitude",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Amplitude of the underlying true pattern held constant across runs"
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf Regions",
+      "unit": "leaves",
+      "role": "result",
+      "meaning": "Number of distinct prediction regions formed at the chosen depth"
+    },
+    {
+      "id": "train_error",
+      "label": "Training Error",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Mean squared error measured on the training data"
+    },
+    {
+      "id": "bias_sq",
+      "label": "Squared Bias",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Error from leaves being too coarse to match the true curve"
+    },
+    {
+      "id": "variance",
+      "label": "Variance",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Error from leaf predictions shifting to fit training noise"
+    },
+    {
+      "id": "test_error",
+      "label": "Held-out Error",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Total error on unseen data: squared bias plus variance plus noise"
+    },
+    {
+      "id": "optimal_depth",
+      "label": "Optimal Depth",
+      "unit": "levels",
+      "role": "result",
+      "meaning": "Depth that minimizes held-out error for the current noise and sample size"
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "As tree depth increases, training error falls monotonically because finer splits fit more points. Held-out error follows a U-curve: it drops while squared bias shrinks, reaches a minimum, then rises as leaves overfit noise and variance grows.",
+    "formula": "E_{out} = B^2(d) + V(d) + \\sigma^2",
+    "assumptions": [
+      "The tree performs binary axis-aligned splits up to the chosen depth.",
+      "Training and held-out sets are drawn independently from the same noisy signal.",
+      "Error is measured as mean squared error on a fixed underlying target curve."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "max_depth",
+      "label": "Tree Depth",
+      "unit": "levels",
+      "role": "fixed",
+      "meaning": "Maximum number of sequential splits from root to leaf"
+    },
+    {
+      "id": "noise_level",
+      "label": "Noise Level",
+      "unit": "std dev",
+      "role": "control",
+      "meaning": "Standard deviation of random irreducible noise in the data"
+    },
+    {
+      "id": "sample_size",
+      "label": "Training Size",
+      "unit": "points",
+      "role": "control",
+      "meaning": "Number of training points available to fit the decision tree"
+    },
+    {
+      "id": "signal_amp",
+      "label": "Signal Amplitude",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Amplitude of the underlying true pattern held constant across runs"
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf Regions",
+      "unit": "leaves",
+      "role": "result",
+      "meaning": "Number of distinct prediction regions formed at the chosen depth"
+    },
+    {
+      "id": "train_error",
+      "label": "Training Error",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Mean squared error measured on the training data"
+    },
+    {
+      "id": "bias_sq",
+      "label": "Squared Bias",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Error from leaves being too coarse to match the true curve"
+    },
+    {
+      "id": "variance",
+      "label": "Variance",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Error from leaf predictions shifting to fit training noise"
+    },
+    {
+      "id": "test_error",
+      "label": "Held-out Error",
+      "unit": "MSE",
+      "role": "result",
+      "meaning": "Total error on unseen data: squared bias plus variance plus noise"
+    },
+    {
+      "id": "optimal_depth",
+      "label": "Optimal Depth",
+      "unit": "levels",
+      "role": "result",
+      "meaning": "Depth that minimizes held-out error for the current noise and sample size"
+    }
+  ],
+  "things": [
+    {
+      "id": "held_out",
+      "label": "Held-out Error"
+    },
+    {
+      "id": "training",
+      "label": "Training Error"
+    },
+    {
+      "id": "bias",
+      "label": "Squared Bias"
+    },
+    {
+      "id": "variance",
+      "label": "Variance"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "noise_level",
+      "label": "Noise Level",
+      "unit": "std dev",
+      "min": 0.2,
+      "max": 1.2,
+      "default": 0.6,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "sample_size",
+      "label": "Training Size",
+      "unit": "points",
+      "min": 50,
+      "max": 250,
+      "default": 100,
+      "step": 10
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Tree Depth",
+    "unit": "lvl"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var max_depth = 6; var signal_amp = 2.0; var noise = inputs.noise_level; var n = inputs.sample_size; var d = Math.max(0, Math.min(max_depth, t)); var k = Math.pow(2, d); var leaf_count = Math.round(k); var sigma2 = noise * noise; var bias_sq = 0.3 * signal_amp * signal_amp * Math.pow(3.0, -d); var variance = sigma2 * k / n; var train_error = bias_sq + sigma2 * Math.exp(-1.1 * k / n); var test_error = bias_sq + variance + sigma2; var raw_opt = Math.log((0.3 * signal_amp * signal_amp * Math.log(3.0) * n) / (Math.log(2.0) * sigma2)) / Math.log(6.0); var optimal_depth = Math.max(0, Math.min(max_depth, raw_opt)); var half_w = 1.8 * Math.pow(2.0, -d); var x_left = 2.0 - half_w; var x_right = 2.0 + half_w; var y_pred = 3.5 - 0.55 * Math.pow(3.0, -0.5 * d) + 0.35 * noise * Math.sqrt(k / n); var y_s1 = 2.7 + 0.35 * noise; var y_s2 = 3.5 - 0.3 * noise; var y_s3 = 2.7 + 0.25 * noise; var bar_base = 0.1; var bar_scale = 0.5; var y_bar_train = bar_base + bar_scale * train_error; var y_bar_bias = bar_base + bar_scale * bias_sq; var y_bar_var = bar_base + bar_scale * variance; var y_bar_test = bar_base + bar_scale * test_error; var is_underfitting = d < optimal_depth - 0.5; var is_optimal = d >= optimal_depth - 0.5 && d <= optimal_depth + 0.5; var is_overfitting = d > optimal_depth + 0.5; return { leaf_count: leaf_count, train_error: train_error, bias_sq: bias_sq, variance: variance, test_error: test_error, optimal_depth: optimal_depth, x_left: x_left, x_right: x_right, y_pred: y_pred, y_s1: y_s1, y_s2: y_s2, y_s3: y_s3, y_bar_train: y_bar_train, y_bar_bias: y_bar_bias, y_bar_var: y_bar_var, y_bar_test: y_bar_test, is_underfitting: is_underfitting, is_optimal: is_optimal, is_overfitting: is_overfitting }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "leaves",
+        "meaning": "Number of distinct prediction regions formed at the chosen depth",
+        "kind": "number"
+      },
+      {
+        "id": "train_error",
+        "unit": "MSE",
+        "meaning": "Mean squared error measured on the training data",
+        "kind": "number"
+      },
+      {
+        "id": "bias_sq",
+        "unit": "MSE",
+        "meaning": "Error from leaves being too coarse to match the true curve",
+        "kind": "number"
+      },
+      {
+        "id": "variance",
+        "unit": "MSE",
+        "meaning": "Error from leaf predictions shifting to fit training noise",
+        "kind": "number"
+      },
+      {
+        "id": "test_error",
+        "unit": "MSE",
+        "meaning": "Total error on unseen data: squared bias plus variance plus noise",
+        "kind": "number"
+      },
+      {
+        "id": "optimal_depth",
+        "unit": "levels",
+        "meaning": "Depth that minimizes held-out error for the current noise and sample size",
+        "kind": "number"
+      },
+      {
+        "id": "x_left",
+        "unit": "units",
+        "meaning": "Left x-coordinate of the active leaf interval",
+        "kind": "number"
+      },
+      {
+        "id": "x_right",
+        "unit": "units",
+        "meaning": "Right x-coordinate of the active leaf interval",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred",
+        "unit": "units",
+        "meaning": "Predicted y-value inside the active leaf region",
+        "kind": "number"
+      },
+      {
+        "id": "y_s1",
+        "unit": "units",
+        "meaning": "Vertical position of left noisy training sample",
+        "kind": "number"
+      },
+      {
+        "id": "y_s2",
+        "unit": "units",
+        "meaning": "Vertical position of center noisy training sample",
+        "kind": "number"
+      },
+      {
+        "id": "y_s3",
+        "unit": "units",
+        "meaning": "Vertical position of right noisy training sample",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_train",
+        "unit": "units",
+        "meaning": "Top y-coordinate of training error bar",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_bias",
+        "unit": "units",
+        "meaning": "Top y-coordinate of squared bias bar",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_var",
+        "unit": "units",
+        "meaning": "Top y-coordinate of variance error bar",
+        "kind": "number"
+      },
+      {
+        "id": "y_bar_test",
+        "unit": "units",
+        "meaning": "Top y-coordinate of held-out error bar",
+        "kind": "number"
+      },
+      {
+        "id": "is_underfitting",
+        "unit": "",
+        "meaning": "True when depth is below the optimal bias-variance balance",
+        "kind": "flag"
+      },
+      {
+        "id": "is_optimal",
+        "unit": "",
+        "meaning": "True when depth is near minimum held-out error",
+        "kind": "flag"
+      },
+      {
+        "id": "is_overfitting",
+        "unit": "",
+        "meaning": "True when depth exceeds the optimal balance and overfits noise",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "line",
+          "id": "true_left",
+          "from": [0.2, 2.3],
+          "to": [2.0, 3.5]
+        },
+        {
+          "type": "line",
+          "id": "true_right",
+          "from": [2.0, 3.5],
+          "to": [3.8, 2.3]
+        },
+        {
+          "type": "line",
+          "id": "leaf_left",
+          "from": ["x_left", 2.1],
+          "to": ["x_left", 3.95]
+        },
+        {
+          "type": "line",
+          "id": "leaf_right",
+          "from": ["x_right", 2.1],
+          "to": ["x_right", 3.95]
+        },
+        {
+          "type": "line",
+          "id": "leaf_pred",
+          "from": ["x_left", "y_pred"],
+          "to": ["x_right", "y_pred"],
+          "of": "training"
+        },
+        {
+          "type": "dot",
+          "id": "sample_1",
+          "at": [0.8, "y_s1"],
+          "size": "small",
+          "of": "variance"
+        },
+        {
+          "type": "dot",
+          "id": "sample_2",
+          "at": [2.0, "y_s2"],
+          "size": "small",
+          "of": "variance"
+        },
+        {
+          "type": "dot",
+          "id": "sample_3",
+          "at": [3.2, "y_s3"],
+          "size": "small",
+          "of": "variance"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_train",
+          "from": [0.8, 0.1],
+          "to": [0.8, "y_bar_train"],
+          "label": "Trn",
+          "of": "training"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_bias",
+          "from": [1.6, 0.1],
+          "to": [1.6, "y_bar_bias"],
+          "label": "Bias",
+          "of": "bias"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_var",
+          "from": [2.4, 0.1],
+          "to": [2.4, "y_bar_var"],
+          "label": "Var",
+          "of": "variance"
+        },
+        {
+          "type": "arrow",
+          "id": "bar_test",
+          "from": [3.2, 0.1],
+          "to": [3.2, "y_bar_test"],
+          "label": "Test",
+          "of": "held_out"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Error Curves vs Tree Depth",
+      "x": {
+        "over": "time",
+        "label": "Tree Depth",
+        "unit": "lvl"
+      },
+      "y": {
+        "label": "Mean Squared Error",
+        "unit": "MSE"
+      },
+      "series": [
+        {
+          "value": "test_error",
+          "label": "Held-out",
+          "of": "held_out",
+          "style": "line"
+        },
+        {
+          "value": "train_error",
+          "label": "Training",
+          "of": "training",
+          "style": "line"
+        },
+        {
+          "value": "variance",
+          "label": "Variance",
+          "of": "variance",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "test_error",
+      "label": "Held-out",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "held_out"
+    },
+    {
+      "value": "train_error",
+      "label": "Training",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "training"
+    },
+    {
+      "value": "bias_sq",
+      "label": "Bias sq",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "bias"
+    },
+    {
+      "value": "variance",
+      "label": "Variance",
+      "unit": "MSE",
+      "decimals": 2,
+      "of": "variance"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Held-out = bias^2 + var + noise^2",
+      "Training error falls at every split"
+    ],
+    "cases": [
+      {
+        "when": "is_underfitting",
+        "text": "Shallow tree: high bias underfits"
+      },
+      {
+        "when": "is_optimal",
+        "text": "Sweet spot: bias balances variance"
+      },
+      {
+        "when": "is_overfitting",
+        "text": "Deep tree: high variance overfits"
+      }
+    ],
+    "otherwise": "Adjust noise and size to shift min"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "bias_sq",
+      "when": "noise_level"
+    },
+    {
+      "type": "unchanged",
+      "value": "bias_sq",
+      "when": "sample_size"
+    },
+    {
+      "type": "increases",
+      "value": "variance",
+      "with": "noise_level"
+    },
+    {
+      "type": "decreases",
+      "value": "variance",
+      "with": "sample_size"
+    },
+    {
+      "type": "increases",
+      "value": "test_error",
+      "with": "noise_level"
+    },
+    {
+      "type": "decreases",
+      "value": "test_error",
+      "with": "sample_size"
+    }
+  ],
+  "lesson": {
+    "title": "How Decision Tree Depth Drives Held-out Error",
+    "description": "Watch a decision tree narrow its leaf around a noisy curve as depth grows from zero to six levels. Adjust noise and training size to see how the held-out U-curve shifts.",
+    "instructions": "Scrub Tree Depth from 0 to 6 levels to watch the leaf shrink and the error bars update. Raise Noise Level or lower Training Size to see variance grow and push the optimal depth shallower.",
+    "goal": "Held-out error reaches a minimum where falling squared bias balances rising variance from fitting noise."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "As tree depth increases, training error falls monotonically because finer splits fit more points. Held-out error follows a U-curve: it drops while squared bias shrinks, reaches a minimum, then rises as leaves overfit noise and variance grows.",
+      "formula": "E_{out} = B^2(d) + V(d) + \\sigma^2",
+      "assumptions": [
+        "The tree performs binary axis-aligned splits up to the chosen depth.",
+        "Training and held-out sets are drawn independently from the same noisy signal.",
+        "Error is measured as mean squared error on a fixed underlying target curve."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "max_depth",
+        "label": "Tree Depth",
+        "unit": "levels",
+        "role": "fixed",
+        "meaning": "Maximum number of sequential splits from root to leaf"
+      },
+      {
+        "id": "noise_level",
+        "label": "Noise Level",
+        "unit": "std dev",
+        "role": "control",
+        "meaning": "Standard deviation of random irreducible noise in the data"
+      },
+      {
+        "id": "sample_size",
+        "label": "Training Size",
+        "unit": "points",
+        "role": "control",
+        "meaning": "Number of training points available to fit the decision tree"
+      },
+      {
+        "id": "signal_amp",
+        "label": "Signal Amplitude",
+        "unit": "units",
+        "role": "fixed",
+        "meaning": "Amplitude of the underlying true pattern held constant across runs"
+      },
+      {
+        "id": "leaf_count",
+        "label": "Leaf Regions",
+        "unit": "leaves",
+        "role": "result",
+        "meaning": "Number of distinct prediction regions formed at the chosen depth"
+      },
+      {
+        "id": "train_error",
+        "label": "Training Error",
+        "unit": "MSE",
+        "role": "result",
+        "meaning": "Mean squared error measured on the training data"
+      },
+      {
+        "id": "bias_sq",
+        "label": "Squared Bias",
+        "unit": "MSE",
+        "role": "result",
+        "meaning": "Error from leaves being too coarse to match the true curve"
+      },
+      {
+        "id": "variance",
+        "label": "Variance",
+        "unit": "MSE",
+        "role": "result",
+        "meaning": "Error from leaf predictions shifting to fit training noise"
+      },
+      {
+        "id": "test_error",
+        "label": "Held-out Error",
+        "unit": "MSE",
+        "role": "result",
+        "meaning": "Total error on unseen data: squared bias plus variance plus noise"
+      },
+      {
+        "id": "optimal_depth",
+        "label": "Optimal Depth",
+        "unit": "levels",
+        "role": "result",
+        "meaning": "Depth that minimizes held-out error for the current noise and sample size"
+      }
+    ],
+    "things": [
+      {
+        "id": "held_out",
+        "label": "Held-out Error"
+      },
+      {
+        "id": "training",
+        "label": "Training Error"
+      },
+      {
+        "id": "bias",
+        "label": "Squared Bias"
+      },
+      {
+        "id": "variance",
+        "label": "Variance"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "noise_level",
+        "label": "Noise Level",
+        "unit": "std dev",
+        "min": 0.2,
+        "max": 1.2,
+        "default": 0.6,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "sample_size",
+        "label": "Training Size",
+        "unit": "points",
+        "min": 50,
+        "max": 250,
+        "default": 100,
+        "step": 10
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Tree Depth",
+      "unit": "lvl"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var max_depth = 6; var signal_amp = 2.0; var noise = inputs.noise_level; var n = inputs.sample_size; var d = Math.max(0, Math.min(max_depth, t)); var k = Math.pow(2, d); var leaf_count = Math.round(k); var sigma2 = noise * noise; var bias_sq = 0.3 * signal_amp * signal_amp * Math.pow(3.0, -d); var variance = sigma2 * k / n; var train_error = bias_sq + sigma2 * Math.exp(-1.1 * k / n); var test_error = bias_sq + variance + sigma2; var raw_opt = Math.log((0.3 * signal_amp * signal_amp * Math.log(3.0) * n) / (Math.log(2.0) * sigma2)) / Math.log(6.0); var optimal_depth = Math.max(0, Math.min(max_depth, raw_opt)); var half_w = 1.8 * Math.pow(2.0, -d); var x_left = 2.0 - half_w; var x_right = 2.0 + half_w; var y_pred = 3.5 - 0.55 * Math.pow(3.0, -0.5 * d) + 0.35 * noise * Math.sqrt(k / n); var y_s1 = 2.7 + 0.35 * noise; var y_s2 = 3.5 - 0.3 * noise; var y_s3 = 2.7 + 0.25 * noise; var bar_base = 0.1; var bar_scale = 0.5; var y_bar_train = bar_base + bar_scale * train_error; var y_bar_bias = bar_base + bar_scale * bias_sq; var y_bar_var = bar_base + bar_scale * variance; var y_bar_test = bar_base + bar_scale * test_error; var is_underfitting = d < optimal_depth - 0.5; var is_optimal = d >= optimal_depth - 0.5 && d <= optimal_depth + 0.5; var is_overfitting = d > optimal_depth + 0.5; return { leaf_count: leaf_count, train_error: train_error, bias_sq: bias_sq, variance: variance, test_error: test_error, optimal_depth: optimal_depth, x_left: x_left, x_right: x_right, y_pred: y_pred, y_s1: y_s1, y_s2: y_s2, y_s3: y_s3, y_bar_train: y_bar_train, y_bar_bias: y_bar_bias, y_bar_var: y_bar_var, y_bar_test: y_bar_test, is_underfitting: is_underfitting, is_optimal: is_optimal, is_overfitting: is_overfitting }; }",
+      "outputs": [
+        {
+          "id": "leaf_count",
+          "unit": "leaves",
+          "meaning": "Number of distinct prediction regions formed at the chosen depth",
+          "kind": "number"
+        },
+        {
+          "id": "train_error",
+          "unit": "MSE",
+          "meaning": "Mean squared error measured on the training data",
+          "kind": "number"
+        },
+        {
+          "id": "bias_sq",
+          "unit": "MSE",
+          "meaning": "Error from leaves being too coarse to match the true curve",
+          "kind": "number"
+        },
+        {
+          "id": "variance",
+          "unit": "MSE",
+          "meaning": "Error from leaf predictions shifting to fit training noise",
+          "kind": "number"
+        },
+        {
+          "id": "test_error",
+          "unit": "MSE",
+          "meaning": "Total error on unseen data: squared bias plus variance plus noise",
+          "kind": "number"
+        },
+        {
+          "id": "optimal_depth",
+          "unit": "levels",
+          "meaning": "Depth that minimizes held-out error for the current noise and sample size",
+          "kind": "number"
+        },
+        {
+          "id": "x_left",
+          "unit": "units",
+          "meaning": "Left x-coordinate of the active leaf interval",
+          "kind": "number"
+        },
+        {
+          "id": "x_right",
+          "unit": "units",
+          "meaning": "Right x-coordinate of the active leaf interval",
+          "kind": "number"
+        },
+        {
+          "id": "y_pred",
+          "unit": "units",
+          "meaning": "Predicted y-value inside the active leaf region",
+          "kind": "number"
+        },
+        {
+          "id": "y_s1",
+          "unit": "units",
+          "meaning": "Vertical position of left noisy training sample",
+          "kind": "number"
+        },
+        {
+          "id": "y_s2",
+          "unit": "units",
+          "meaning": "Vertical position of center noisy training sample",
+          "kind": "number"
+        },
+        {
+          "id": "y_s3",
+          "unit": "units",
+          "meaning": "Vertical position of right noisy training sample",
+          "kind": "number"
+        },
+        {
+          "id": "y_bar_train",
+          "unit": "units",
+          "meaning": "Top y-coordinate of training error bar",
+          "kind": "number"
+        },
+        {
+          "id": "y_bar_bias",
+          "unit": "units",
+          "meaning": "Top y-coordinate of squared bias bar",
+          "kind": "number"
+        },
+        {
+          "id": "y_bar_var",
+          "unit": "units",
+          "meaning": "Top y-coordinate of variance error bar",
+          "kind": "number"
+        },
+        {
+          "id": "y_bar_test",
+          "unit": "units",
+          "meaning": "Top y-coordinate of held-out error bar",
+          "kind": "number"
+        },
+        {
+          "id": "is_underfitting",
+          "unit": "",
+          "meaning": "True when depth is below the optimal bias-variance balance",
+          "kind": "flag"
+        },
+        {
+          "id": "is_optimal",
+          "unit": "",
+          "meaning": "True when depth is near minimum held-out error",
+          "kind": "flag"
+        },
+        {
+          "id": "is_overfitting",
+          "unit": "",
+          "meaning": "True when depth exceeds the optimal balance and overfits noise",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "units",
+        "parts": [
+          {
+            "type": "line",
+            "id": "true_left",
+            "from": [
+              0.2,
+              2.3
+            ],
+            "to": [
+              2,
+              3.5
+            ]
+          },
+          {
+            "type": "line",
+            "id": "true_right",
+            "from": [
+              2,
+              3.5
+            ],
+            "to": [
+              3.8,
+              2.3
+            ]
+          },
+          {
+            "type": "line",
+            "id": "leaf_left",
+            "from": [
+              "x_left",
+              2.1
+            ],
+            "to": [
+              "x_left",
+              3.95
+            ]
+          },
+          {
+            "type": "line",
+            "id": "leaf_right",
+            "from": [
+              "x_right",
+              2.1
+            ],
+            "to": [
+              "x_right",
+              3.95
+            ]
+          },
+          {
+            "type": "line",
+            "id": "leaf_pred",
+            "from": [
+              "x_left",
+              "y_pred"
+            ],
+            "to": [
+              "x_right",
+              "y_pred"
+            ],
+            "of": "training"
+          },
+          {
+            "type": "dot",
+            "id": "sample_1",
+            "at": [
+              0.8,
+              "y_s1"
+            ],
+            "size": "small",
+            "of": "variance"
+          },
+          {
+            "type": "dot",
+            "id": "sample_2",
+            "at": [
+              2,
+              "y_s2"
+            ],
+            "size": "small",
+            "of": "variance"
+          },
+          {
+            "type": "dot",
+            "id": "sample_3",
+            "at": [
+              3.2,
+              "y_s3"
+            ],
+            "size": "small",
+            "of": "variance"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_train",
+            "from": [
+              0.8,
+              0.1
+            ],
+            "to": [
+              0.8,
+              "y_bar_train"
+            ],
+            "label": "Trn",
+            "of": "training"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_bias",
+            "from": [
+              1.6,
+              0.1
+            ],
+            "to": [
+              1.6,
+              "y_bar_bias"
+            ],
+            "label": "Bias",
+            "of": "bias"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_var",
+            "from": [
+              2.4,
+              0.1
+            ],
+            "to": [
+              2.4,
+              "y_bar_var"
+            ],
+            "label": "Var",
+            "of": "variance"
+          },
+          {
+            "type": "arrow",
+            "id": "bar_test",
+            "from": [
+              3.2,
+              0.1
+            ],
+            "to": [
+              3.2,
+              "y_bar_test"
+            ],
+            "label": "Test",
+            "of": "held_out"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Error Curves vs Tree Depth",
+        "x": {
+          "over": "time",
+          "label": "Tree Depth",
+          "unit": "lvl"
+        },
+        "y": {
+          "label": "Mean Squared Error",
+          "unit": "MSE"
+        },
+        "series": [
+          {
+            "value": "test_error",
+            "label": "Held-out",
+            "of": "held_out",
+            "style": "line"
+          },
+          {
+            "value": "train_error",
+            "label": "Training",
+            "of": "training",
+            "style": "line"
+          },
+          {
+            "value": "variance",
+            "label": "Variance",
+            "of": "variance",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "test_error",
+        "label": "Held-out",
+        "unit": "MSE",
+        "decimals": 2,
+        "of": "held_out"
+      },
+      {
+        "value": "train_error",
+        "label": "Training",
+        "unit": "MSE",
+        "decimals": 2,
+        "of": "training"
+      },
+      {
+        "value": "bias_sq",
+        "label": "Bias sq",
+        "unit": "MSE",
+        "decimals": 2,
+        "of": "bias"
+      },
+      {
+        "value": "variance",
+        "label": "Variance",
+        "unit": "MSE",
+        "decimals": 2,
+        "of": "variance"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Held-out = bias^2 + var + noise^2",
+        "Training error falls at every split"
+      ],
+      "cases": [
+        {
+          "when": "is_underfitting",
+          "text": "Shallow tree: high bias underfits"
+        },
+        {
+          "when": "is_optimal",
+          "text": "Sweet spot: bias balances variance"
+        },
+        {
+          "when": "is_overfitting",
+          "text": "Deep tree: high variance overfits"
+        }
+      ],
+      "otherwise": "Adjust noise and size to shift min"
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "unchanged",
+        "value": "bias_sq",
+        "when": "noise_level"
+      },
+      {
+        "type": "unchanged",
+        "value": "bias_sq",
+        "when": "sample_size"
+      },
+      {
+        "type": "increases",
+        "value": "variance",
+        "with": "noise_level"
+      },
+      {
+        "type": "decreases",
+        "value": "variance",
+        "with": "sample_size"
+      },
+      {
+        "type": "increases",
+        "value": "test_error",
+        "with": "noise_level"
+      },
+      {
+        "type": "decreases",
+        "value": "test_error",
+        "with": "sample_size"
+      }
+    ],
+    "lesson": {
+      "title": "How Decision Tree Depth Drives Held-out Error",
+      "description": "Watch a decision tree narrow its leaf around a noisy curve as depth grows from zero to six levels. Adjust noise and training size to see how the held-out U-curve shifts.",
+      "instructions": "Scrub Tree Depth from 0 to 6 levels to watch the leaf shrink and the error bars update. Raise Noise Level or lower Training Size to see variance grow and push the optimal depth shallower.",
+      "goal": "Held-out error reaches a minimum where falling squared bias balances rising variance from fitting noise."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

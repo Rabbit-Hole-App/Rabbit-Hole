@@ -1,0 +1,1623 @@
+run ej_e539a77cbc364a96a931977749e50d11: PASSED the light checker
+prompt: how does cost-complexity pruning trade tree size against accuracy as alpha increases?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 3006634979   seconds: 208.873   cost: $0.3537
+
+== dice
+{
+  "controlQuantities": [
+    "alpha",
+    "noise_rate"
+  ],
+  "n": 2,
+  "k": 1,
+  "ids": [
+    "noise_rate"
+  ]
+}
+
+== calls
+quantities: answered, 13.702 s, 1237 in + 2164 thinking + 783 out, $0.0240
+blueprint: answered, 194.32 s, 10494 in + 36970 thinking + 4898 out, $0.3298
+
+== problems
+none
+
+== blueprint (first): "Cost-Complexity Pruning: Tree Size vs. Accuracy"; controls: noise_rate
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Cost-complexity pruning selects the subtree T minimizing R_alpha(T) = R(T) + alpha|T|. Increasing alpha prunes the weakest branches first, trading discrete drops in leaf count |T| and training accuracy for higher test accuracy until underfitting sets in.",
+    "formula": "R_\\alpha(T) = R(T) + \\alpha |T|",
+    "assumptions": [
+      "Training error R(T) is measured as misclassification rate on a fixed binary classification dataset.",
+      "Pruning only collapses internal subtrees of the fitted full tree T_0 along the weakest-link sequence.",
+      "Test accuracy is evaluated on a separate held-out sample drawn from the same data distribution."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "alpha",
+      "label": "Complexity penalty alpha",
+      "unit": "err/leaf",
+      "role": "fixed",
+      "meaning": "Penalty cost added to R_alpha(T) for each terminal leaf kept in the pruned tree."
+    },
+    {
+      "id": "noise_rate",
+      "label": "Label noise rate",
+      "unit": "%",
+      "role": "control",
+      "meaning": "Fraction of training and test labels flipped, controlling how severely T_0 overfits."
+    },
+    {
+      "id": "full_leaves",
+      "label": "Unpruned leaves |T_0|",
+      "unit": "leaves",
+      "role": "fixed",
+      "meaning": "Total terminal leaves in the initial unpruned decision tree before pruning."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Pruned leaves |T|",
+      "unit": "leaves",
+      "role": "result",
+      "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha."
+    },
+    {
+      "id": "train_error",
+      "label": "Training error R(T)",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Misclassification rate of the pruned tree T on the training sample."
+    },
+    {
+      "id": "train_acc",
+      "label": "Training accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of training points classified correctly, equal to 100% - R(T)."
+    },
+    {
+      "id": "test_acc",
+      "label": "Test accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha."
+    },
+    {
+      "id": "total_cost",
+      "label": "Total cost R_alpha(T)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|."
+    },
+    {
+      "id": "next_alpha",
+      "label": "Next prune threshold",
+      "unit": "err/leaf",
+      "role": "result",
+      "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse."
+    }
+  ],
+  "things": [
+    {
+      "id": "tree",
+      "label": "Decision tree"
+    },
+    {
+      "id": "train",
+      "label": "Training set"
+    },
+    {
+      "id": "test",
+      "label": "Test set"
+    },
+    {
+      "id": "penalty",
+      "label": "Penalty a|T|"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "noise_rate",
+      "label": "Label noise rate",
+      "unit": "%",
+      "min": 10,
+      "max": 30,
+      "default": 20,
+      "step": 1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 16,
+    "label": "Alpha (0.01t)",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var p = inputs.noise_rate / 100; var cur_alpha = 0.01 * t; var g1 = 0.08 * p; var g2 = 0.12 - 0.24 * p; var g3 = 0.16 - 0.32 * p; var leaf_count, train_err_frac, test_err_frac, next_alpha; if (cur_alpha < g1) { leaf_count = 4; train_err_frac = 0.92 * p; test_err_frac = 1.12 * p - 0.24 * p * p; next_alpha = g1; } else if (cur_alpha < g2) { leaf_count = 3; train_err_frac = 1.00 * p; test_err_frac = 1.00 * p; next_alpha = g2; } else if (cur_alpha < g3) { leaf_count = 2; train_err_frac = 0.12 + 0.76 * p; test_err_frac = 0.12 + 0.76 * p; next_alpha = g3; } else { leaf_count = 1; train_err_frac = 0.28 + 0.44 * p; test_err_frac = 0.28 + 0.44 * p; next_alpha = g3; } var train_error = 100 * train_err_frac; var train_acc = 100 - train_error; var test_acc = 100 * (1 - test_err_frac); var total_cost = train_err_frac + cur_alpha * leaf_count; var n1_x = leaf_count >= 2 ? -1.6 : 0; var n1_y = leaf_count >= 2 ? 3.6 : 5.4; var n2_x = leaf_count >= 2 ? 1.6 : 0; var n2_y = leaf_count >= 2 ? 3.6 : 5.4; var l1_x = leaf_count >= 3 ? -2.5 : n1_x; var l1_y = leaf_count >= 3 ? 1.8 : n1_y; var l2_x = leaf_count >= 3 ? -0.7 : n1_x; var l2_y = leaf_count >= 3 ? 1.8 : n1_y; var l3_x = leaf_count === 4 ? 0.7 : n2_x; var l3_y = leaf_count === 4 ? 1.8 : n2_y; var l4_x = leaf_count === 4 ? 2.5 : n2_x; var l4_y = leaf_count === 4 ? 1.8 : n2_y; var err_end_x = -2.5 + 8.0 * train_err_frac; var tot_end_x = -2.5 + 8.0 * total_cost; return { leaf_count: leaf_count, train_error: train_error, train_acc: train_acc, test_acc: test_acc, total_cost: total_cost, next_alpha: next_alpha, cur_alpha: cur_alpha, n1_x: n1_x, n1_y: n1_y, n2_x: n2_x, n2_y: n2_y, l1_x: l1_x, l1_y: l1_y, l2_x: l2_x, l2_y: l2_y, l3_x: l3_x, l3_y: l3_y, l4_x: l4_x, l4_y: l4_y, err_end_x: err_end_x, tot_end_x: tot_end_x, is_overfit: leaf_count === 4, is_optimal: leaf_count === 3, is_underfit: leaf_count === 2 }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "leaves",
+        "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha.",
+        "kind": "number"
+      },
+      {
+        "id": "train_error",
+        "unit": "%",
+        "meaning": "Misclassification rate of the pruned tree T on the training sample.",
+        "kind": "number"
+      },
+      {
+        "id": "train_acc",
+        "unit": "%",
+        "meaning": "Percentage of training points classified correctly, equal to 100% - R(T).",
+        "kind": "number"
+      },
+      {
+        "id": "test_acc",
+        "unit": "%",
+        "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha.",
+        "kind": "number"
+      },
+      {
+        "id": "total_cost",
+        "unit": "",
+        "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|.",
+        "kind": "number"
+      },
+      {
+        "id": "next_alpha",
+        "unit": "err/leaf",
+        "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse.",
+        "kind": "number"
+      },
+      {
+        "id": "cur_alpha",
+        "unit": "err/leaf",
+        "meaning": "Current complexity penalty alpha equal to 0.01 times elapsed sweep time.",
+        "kind": "number"
+      },
+      {
+        "id": "n1_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of left internal node N1.",
+        "kind": "number"
+      },
+      {
+        "id": "n1_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of left internal node N1.",
+        "kind": "number"
+      },
+      {
+        "id": "n2_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of right internal node N2.",
+        "kind": "number"
+      },
+      {
+        "id": "n2_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of right internal node N2.",
+        "kind": "number"
+      },
+      {
+        "id": "l1_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L1.",
+        "kind": "number"
+      },
+      {
+        "id": "l1_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L1.",
+        "kind": "number"
+      },
+      {
+        "id": "l2_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L2.",
+        "kind": "number"
+      },
+      {
+        "id": "l2_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L2.",
+        "kind": "number"
+      },
+      {
+        "id": "l3_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L3.",
+        "kind": "number"
+      },
+      {
+        "id": "l3_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L3.",
+        "kind": "number"
+      },
+      {
+        "id": "l4_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L4.",
+        "kind": "number"
+      },
+      {
+        "id": "l4_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L4.",
+        "kind": "number"
+      },
+      {
+        "id": "err_end_x",
+        "unit": "units",
+        "meaning": "Right endpoint of the training error segment on the cost bar.",
+        "kind": "number"
+      },
+      {
+        "id": "tot_end_x",
+        "unit": "units",
+        "meaning": "Right endpoint of the total cost R_alpha(T) bar.",
+        "kind": "number"
+      },
+      {
+        "id": "is_overfit",
+        "unit": "",
+        "meaning": "True when the noisy overfitting branch is still unpruned.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_optimal",
+        "unit": "",
+        "meaning": "True when the tree has pruned only the noisy branch for peak test accuracy.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_underfit",
+        "unit": "",
+        "meaning": "True when a real signal branch has also been pruned.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "line",
+          "id": "e_n0_n1",
+          "from": [
+            0,
+            5.4
+          ],
+          "to": [
+            "n1_x",
+            "n1_y"
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n0_n2",
+          "from": [
+            0,
+            5.4
+          ],
+          "to": [
+            "n2_x",
+            "n2_y"
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n1_l1",
+          "from": [
+            "n1_x",
+            "n1_y"
+          ],
+          "to": [
+            "l1_x",
+            "l1_y"
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n1_l2",
+          "from": [
+            "n1_x",
+            "n1_y"
+          ],
+          "to": [
+            "l2_x",
+            "l2_y"
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n2_l3",
+          "from": [
+            "n2_x",
+            "n2_y"
+          ],
+          "to": [
+            "l3_x",
+            "l3_y"
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n2_l4",
+          "from": [
+            "n2_x",
+            "n2_y"
+          ],
+          "to": [
+            "l4_x",
+            "l4_y"
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l1",
+          "at": [
+            "l1_x",
+            "l1_y"
+          ],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l2",
+          "at": [
+            "l2_x",
+            "l2_y"
+          ],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l3",
+          "at": [
+            "l3_x",
+            "l3_y"
+          ],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l4",
+          "at": [
+            "l4_x",
+            "l4_y"
+          ],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "err_bar",
+          "from": [
+            -2.5,
+            0.5
+          ],
+          "to": [
+            "err_end_x",
+            0.5
+          ],
+          "of": "train"
+        },
+        {
+          "type": "line",
+          "id": "pen_bar",
+          "from": [
+            "err_end_x",
+            0.5
+          ],
+          "to": [
+            "tot_end_x",
+            0.5
+          ],
+          "of": "penalty"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Accuracy vs. Alpha Sweep",
+      "x": {
+        "over": "time",
+        "label": "Time (alpha=0.01t)",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Accuracy",
+        "unit": "%"
+      },
+      "series": [
+        {
+          "value": "train_acc",
+          "label": "Train acc",
+          "of": "train",
+          "style": "line"
+        },
+        {
+          "value": "test_acc",
+          "label": "Test acc",
+          "of": "test",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "leaf_count",
+      "label": "Leaves |T|",
+      "unit": "leaves",
+      "decimals": 0,
+      "of": "tree"
+    },
+    {
+      "value": "test_acc",
+      "label": "Test acc",
+      "unit": "%",
+      "decimals": 1,
+      "of": "test"
+    },
+    {
+      "value": "train_acc",
+      "label": "Train acc",
+      "unit": "%",
+      "decimals": 1,
+      "of": "train"
+    },
+    {
+      "value": "next_alpha",
+      "label": "Next g(t)",
+      "unit": "err/lf",
+      "decimals": 3,
+      "of": "penalty"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Top: tree T; bar: R(T) + a|T|.",
+      "Prune when R(t)-R(T_t) <= a(|T|-1)."
+    ],
+    "cases": [
+      {
+        "when": "is_overfit",
+        "text": "4 leaves: noisy branch overfits."
+      },
+      {
+        "when": "is_optimal",
+        "text": "3 leaves: optimal test accuracy."
+      },
+      {
+        "when": "is_underfit",
+        "text": "2 leaves: signal branch pruned."
+      }
+    ],
+    "otherwise": "1 leaf: root-only underfitting."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "top-to-bottom",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "test_acc",
+      "with": "noise_rate"
+    },
+    {
+      "type": "increases",
+      "value": "total_cost",
+      "with": "noise_rate"
+    },
+    {
+      "type": "unchanged",
+      "value": "cur_alpha",
+      "when": "noise_rate"
+    }
+  ],
+  "lesson": {
+    "title": "Cost-Complexity Pruning: Tree Size vs. Accuracy",
+    "description": "Watch branches collapse as the penalty alpha grows over time, and adjust label noise to vary overfitting. Compare the tree and cost bar against train and test accuracy.",
+    "instructions": "Press play or scrub time to increase alpha (0.01 per second) and trigger each weakest-link collapse. Move the label noise slider to shift the pruning thresholds and see when pruning helps test accuracy most.",
+    "goal": "Increasing alpha prunes weakest-link branches first, improving test accuracy by removing overfitting until further pruning removes real signal and causes underfitting."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "Cost-complexity pruning selects the subtree T minimizing R_alpha(T) = R(T) + alpha|T|. Increasing alpha prunes the weakest branches first, trading discrete drops in leaf count |T| and training accuracy for higher test accuracy until underfitting sets in.",
+    "formula": "R_\\alpha(T) = R(T) + \\alpha |T|",
+    "assumptions": [
+      "Training error R(T) is measured as misclassification rate on a fixed binary classification dataset.",
+      "Pruning only collapses internal subtrees of the fitted full tree T_0 along the weakest-link sequence.",
+      "Test accuracy is evaluated on a separate held-out sample drawn from the same data distribution."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "alpha",
+      "label": "Complexity penalty alpha",
+      "unit": "err/leaf",
+      "role": "control",
+      "meaning": "Penalty cost added to R_alpha(T) for each terminal leaf kept in the pruned tree."
+    },
+    {
+      "id": "noise_rate",
+      "label": "Label noise rate",
+      "unit": "%",
+      "role": "control",
+      "meaning": "Fraction of training and test labels flipped, controlling how severely T_0 overfits."
+    },
+    {
+      "id": "full_leaves",
+      "label": "Unpruned leaves |T_0|",
+      "unit": "leaves",
+      "role": "fixed",
+      "meaning": "Total terminal leaves in the initial unpruned decision tree before pruning."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Pruned leaves |T|",
+      "unit": "leaves",
+      "role": "result",
+      "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha."
+    },
+    {
+      "id": "train_error",
+      "label": "Training error R(T)",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Misclassification rate of the pruned tree T on the training sample."
+    },
+    {
+      "id": "train_acc",
+      "label": "Training accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of training points classified correctly, equal to 100% - R(T)."
+    },
+    {
+      "id": "test_acc",
+      "label": "Test accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha."
+    },
+    {
+      "id": "total_cost",
+      "label": "Total cost R_alpha(T)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|."
+    },
+    {
+      "id": "next_alpha",
+      "label": "Next prune threshold",
+      "unit": "err/leaf",
+      "role": "result",
+      "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Cost-complexity pruning selects the subtree T minimizing R_alpha(T) = R(T) + alpha|T|. Increasing alpha prunes the weakest branches first, trading discrete drops in leaf count |T| and training accuracy for higher test accuracy until underfitting sets in.",
+    "formula": "R_\\alpha(T) = R(T) + \\alpha |T|",
+    "assumptions": [
+      "Training error R(T) is measured as misclassification rate on a fixed binary classification dataset.",
+      "Pruning only collapses internal subtrees of the fitted full tree T_0 along the weakest-link sequence.",
+      "Test accuracy is evaluated on a separate held-out sample drawn from the same data distribution."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "alpha",
+      "label": "Complexity penalty alpha",
+      "unit": "err/leaf",
+      "role": "fixed",
+      "meaning": "Penalty cost added to R_alpha(T) for each terminal leaf kept in the pruned tree."
+    },
+    {
+      "id": "noise_rate",
+      "label": "Label noise rate",
+      "unit": "%",
+      "role": "control",
+      "meaning": "Fraction of training and test labels flipped, controlling how severely T_0 overfits."
+    },
+    {
+      "id": "full_leaves",
+      "label": "Unpruned leaves |T_0|",
+      "unit": "leaves",
+      "role": "fixed",
+      "meaning": "Total terminal leaves in the initial unpruned decision tree before pruning."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Pruned leaves |T|",
+      "unit": "leaves",
+      "role": "result",
+      "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha."
+    },
+    {
+      "id": "train_error",
+      "label": "Training error R(T)",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Misclassification rate of the pruned tree T on the training sample."
+    },
+    {
+      "id": "train_acc",
+      "label": "Training accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of training points classified correctly, equal to 100% - R(T)."
+    },
+    {
+      "id": "test_acc",
+      "label": "Test accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha."
+    },
+    {
+      "id": "total_cost",
+      "label": "Total cost R_alpha(T)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|."
+    },
+    {
+      "id": "next_alpha",
+      "label": "Next prune threshold",
+      "unit": "err/leaf",
+      "role": "result",
+      "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse."
+    }
+  ],
+  "things": [
+    {
+      "id": "tree",
+      "label": "Decision tree"
+    },
+    {
+      "id": "train",
+      "label": "Training set"
+    },
+    {
+      "id": "test",
+      "label": "Test set"
+    },
+    {
+      "id": "penalty",
+      "label": "Penalty a|T|"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "noise_rate",
+      "label": "Label noise rate",
+      "unit": "%",
+      "min": 10,
+      "max": 30,
+      "default": 20,
+      "step": 1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 16,
+    "label": "Alpha (0.01t)",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var p = inputs.noise_rate / 100; var cur_alpha = 0.01 * t; var g1 = 0.08 * p; var g2 = 0.12 - 0.24 * p; var g3 = 0.16 - 0.32 * p; var leaf_count, train_err_frac, test_err_frac, next_alpha; if (cur_alpha < g1) { leaf_count = 4; train_err_frac = 0.92 * p; test_err_frac = 1.12 * p - 0.24 * p * p; next_alpha = g1; } else if (cur_alpha < g2) { leaf_count = 3; train_err_frac = 1.00 * p; test_err_frac = 1.00 * p; next_alpha = g2; } else if (cur_alpha < g3) { leaf_count = 2; train_err_frac = 0.12 + 0.76 * p; test_err_frac = 0.12 + 0.76 * p; next_alpha = g3; } else { leaf_count = 1; train_err_frac = 0.28 + 0.44 * p; test_err_frac = 0.28 + 0.44 * p; next_alpha = g3; } var train_error = 100 * train_err_frac; var train_acc = 100 - train_error; var test_acc = 100 * (1 - test_err_frac); var total_cost = train_err_frac + cur_alpha * leaf_count; var n1_x = leaf_count >= 2 ? -1.6 : 0; var n1_y = leaf_count >= 2 ? 3.6 : 5.4; var n2_x = leaf_count >= 2 ? 1.6 : 0; var n2_y = leaf_count >= 2 ? 3.6 : 5.4; var l1_x = leaf_count >= 3 ? -2.5 : n1_x; var l1_y = leaf_count >= 3 ? 1.8 : n1_y; var l2_x = leaf_count >= 3 ? -0.7 : n1_x; var l2_y = leaf_count >= 3 ? 1.8 : n1_y; var l3_x = leaf_count === 4 ? 0.7 : n2_x; var l3_y = leaf_count === 4 ? 1.8 : n2_y; var l4_x = leaf_count === 4 ? 2.5 : n2_x; var l4_y = leaf_count === 4 ? 1.8 : n2_y; var err_end_x = -2.5 + 8.0 * train_err_frac; var tot_end_x = -2.5 + 8.0 * total_cost; return { leaf_count: leaf_count, train_error: train_error, train_acc: train_acc, test_acc: test_acc, total_cost: total_cost, next_alpha: next_alpha, cur_alpha: cur_alpha, n1_x: n1_x, n1_y: n1_y, n2_x: n2_x, n2_y: n2_y, l1_x: l1_x, l1_y: l1_y, l2_x: l2_x, l2_y: l2_y, l3_x: l3_x, l3_y: l3_y, l4_x: l4_x, l4_y: l4_y, err_end_x: err_end_x, tot_end_x: tot_end_x, is_overfit: leaf_count === 4, is_optimal: leaf_count === 3, is_underfit: leaf_count === 2 }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "leaves",
+        "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha.",
+        "kind": "number"
+      },
+      {
+        "id": "train_error",
+        "unit": "%",
+        "meaning": "Misclassification rate of the pruned tree T on the training sample.",
+        "kind": "number"
+      },
+      {
+        "id": "train_acc",
+        "unit": "%",
+        "meaning": "Percentage of training points classified correctly, equal to 100% - R(T).",
+        "kind": "number"
+      },
+      {
+        "id": "test_acc",
+        "unit": "%",
+        "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha.",
+        "kind": "number"
+      },
+      {
+        "id": "total_cost",
+        "unit": "",
+        "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|.",
+        "kind": "number"
+      },
+      {
+        "id": "next_alpha",
+        "unit": "err/leaf",
+        "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse.",
+        "kind": "number"
+      },
+      {
+        "id": "cur_alpha",
+        "unit": "err/leaf",
+        "meaning": "Current complexity penalty alpha equal to 0.01 times elapsed sweep time.",
+        "kind": "number"
+      },
+      {
+        "id": "n1_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of left internal node N1.",
+        "kind": "number"
+      },
+      {
+        "id": "n1_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of left internal node N1.",
+        "kind": "number"
+      },
+      {
+        "id": "n2_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of right internal node N2.",
+        "kind": "number"
+      },
+      {
+        "id": "n2_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of right internal node N2.",
+        "kind": "number"
+      },
+      {
+        "id": "l1_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L1.",
+        "kind": "number"
+      },
+      {
+        "id": "l1_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L1.",
+        "kind": "number"
+      },
+      {
+        "id": "l2_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L2.",
+        "kind": "number"
+      },
+      {
+        "id": "l2_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L2.",
+        "kind": "number"
+      },
+      {
+        "id": "l3_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L3.",
+        "kind": "number"
+      },
+      {
+        "id": "l3_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L3.",
+        "kind": "number"
+      },
+      {
+        "id": "l4_x",
+        "unit": "units",
+        "meaning": "Horizontal coordinate of leaf L4.",
+        "kind": "number"
+      },
+      {
+        "id": "l4_y",
+        "unit": "units",
+        "meaning": "Vertical coordinate of leaf L4.",
+        "kind": "number"
+      },
+      {
+        "id": "err_end_x",
+        "unit": "units",
+        "meaning": "Right endpoint of the training error segment on the cost bar.",
+        "kind": "number"
+      },
+      {
+        "id": "tot_end_x",
+        "unit": "units",
+        "meaning": "Right endpoint of the total cost R_alpha(T) bar.",
+        "kind": "number"
+      },
+      {
+        "id": "is_overfit",
+        "unit": "",
+        "meaning": "True when the noisy overfitting branch is still unpruned.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_optimal",
+        "unit": "",
+        "meaning": "True when the tree has pruned only the noisy branch for peak test accuracy.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_underfit",
+        "unit": "",
+        "meaning": "True when a real signal branch has also been pruned.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "line",
+          "id": "e_n0_n1",
+          "from": [0, 5.4],
+          "to": ["n1_x", "n1_y"],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n0_n2",
+          "from": [0, 5.4],
+          "to": ["n2_x", "n2_y"],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n1_l1",
+          "from": ["n1_x", "n1_y"],
+          "to": ["l1_x", "l1_y"],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n1_l2",
+          "from": ["n1_x", "n1_y"],
+          "to": ["l2_x", "l2_y"],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n2_l3",
+          "from": ["n2_x", "n2_y"],
+          "to": ["l3_x", "l3_y"],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "e_n2_l4",
+          "from": ["n2_x", "n2_y"],
+          "to": ["l4_x", "l4_y"],
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l1",
+          "at": ["l1_x", "l1_y"],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l2",
+          "at": ["l2_x", "l2_y"],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l3",
+          "at": ["l3_x", "l3_y"],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "dot",
+          "id": "d_l4",
+          "at": ["l4_x", "l4_y"],
+          "size": "medium",
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "err_bar",
+          "from": [-2.5, 0.5],
+          "to": ["err_end_x", 0.5],
+          "of": "train"
+        },
+        {
+          "type": "line",
+          "id": "pen_bar",
+          "from": ["err_end_x", 0.5],
+          "to": ["tot_end_x", 0.5],
+          "of": "penalty"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Accuracy vs. Alpha Sweep",
+      "x": {
+        "over": "time",
+        "label": "Time (alpha=0.01t)",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Accuracy",
+        "unit": "%"
+      },
+      "series": [
+        {
+          "value": "train_acc",
+          "label": "Train acc",
+          "of": "train",
+          "style": "line"
+        },
+        {
+          "value": "test_acc",
+          "label": "Test acc",
+          "of": "test",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "leaf_count",
+      "label": "Leaves |T|",
+      "unit": "leaves",
+      "decimals": 0,
+      "of": "tree"
+    },
+    {
+      "value": "test_acc",
+      "label": "Test acc",
+      "unit": "%",
+      "decimals": 1,
+      "of": "test"
+    },
+    {
+      "value": "train_acc",
+      "label": "Train acc",
+      "unit": "%",
+      "decimals": 1,
+      "of": "train"
+    },
+    {
+      "value": "next_alpha",
+      "label": "Next g(t)",
+      "unit": "err/lf",
+      "decimals": 3,
+      "of": "penalty"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Top: tree T; bar: R(T) + a|T|.",
+      "Prune when R(t)-R(T_t) <= a(|T|-1)."
+    ],
+    "cases": [
+      {
+        "when": "is_overfit",
+        "text": "4 leaves: noisy branch overfits."
+      },
+      {
+        "when": "is_optimal",
+        "text": "3 leaves: optimal test accuracy."
+      },
+      {
+        "when": "is_underfit",
+        "text": "2 leaves: signal branch pruned."
+      }
+    ],
+    "otherwise": "1 leaf: root-only underfitting."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "top-to-bottom",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "test_acc",
+      "with": "noise_rate"
+    },
+    {
+      "type": "increases",
+      "value": "total_cost",
+      "with": "noise_rate"
+    },
+    {
+      "type": "unchanged",
+      "value": "cur_alpha",
+      "when": "noise_rate"
+    }
+  ],
+  "lesson": {
+    "title": "Cost-Complexity Pruning: Tree Size vs. Accuracy",
+    "description": "Watch branches collapse as the penalty alpha grows over time, and adjust label noise to vary overfitting. Compare the tree and cost bar against train and test accuracy.",
+    "instructions": "Press play or scrub time to increase alpha (0.01 per second) and trigger each weakest-link collapse. Move the label noise slider to shift the pruning thresholds and see when pruning helps test accuracy most.",
+    "goal": "Increasing alpha prunes weakest-link branches first, improving test accuracy by removing overfitting until further pruning removes real signal and causes underfitting."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "Cost-complexity pruning selects the subtree T minimizing R_alpha(T) = R(T) + alpha|T|. Increasing alpha prunes the weakest branches first, trading discrete drops in leaf count |T| and training accuracy for higher test accuracy until underfitting sets in.",
+      "formula": "R_\\alpha(T) = R(T) + \\alpha |T|",
+      "assumptions": [
+        "Training error R(T) is measured as misclassification rate on a fixed binary classification dataset.",
+        "Pruning only collapses internal subtrees of the fitted full tree T_0 along the weakest-link sequence.",
+        "Test accuracy is evaluated on a separate held-out sample drawn from the same data distribution."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "alpha",
+        "label": "Complexity penalty alpha",
+        "unit": "err/leaf",
+        "role": "fixed",
+        "meaning": "Penalty cost added to R_alpha(T) for each terminal leaf kept in the pruned tree."
+      },
+      {
+        "id": "noise_rate",
+        "label": "Label noise rate",
+        "unit": "%",
+        "role": "control",
+        "meaning": "Fraction of training and test labels flipped, controlling how severely T_0 overfits."
+      },
+      {
+        "id": "full_leaves",
+        "label": "Unpruned leaves |T_0|",
+        "unit": "leaves",
+        "role": "fixed",
+        "meaning": "Total terminal leaves in the initial unpruned decision tree before pruning."
+      },
+      {
+        "id": "leaf_count",
+        "label": "Pruned leaves |T|",
+        "unit": "leaves",
+        "role": "result",
+        "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha."
+      },
+      {
+        "id": "train_error",
+        "label": "Training error R(T)",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Misclassification rate of the pruned tree T on the training sample."
+      },
+      {
+        "id": "train_acc",
+        "label": "Training accuracy",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Percentage of training points classified correctly, equal to 100% - R(T)."
+      },
+      {
+        "id": "test_acc",
+        "label": "Test accuracy",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha."
+      },
+      {
+        "id": "total_cost",
+        "label": "Total cost R_alpha(T)",
+        "unit": "",
+        "role": "result",
+        "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|."
+      },
+      {
+        "id": "next_alpha",
+        "label": "Next prune threshold",
+        "unit": "err/leaf",
+        "role": "result",
+        "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse."
+      }
+    ],
+    "things": [
+      {
+        "id": "tree",
+        "label": "Decision tree"
+      },
+      {
+        "id": "train",
+        "label": "Training set"
+      },
+      {
+        "id": "test",
+        "label": "Test set"
+      },
+      {
+        "id": "penalty",
+        "label": "Penalty a|T|"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "noise_rate",
+        "label": "Label noise rate",
+        "unit": "%",
+        "min": 10,
+        "max": 30,
+        "default": 20,
+        "step": 1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 16,
+      "label": "Alpha (0.01t)",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var p = inputs.noise_rate / 100; var cur_alpha = 0.01 * t; var g1 = 0.08 * p; var g2 = 0.12 - 0.24 * p; var g3 = 0.16 - 0.32 * p; var leaf_count, train_err_frac, test_err_frac, next_alpha; if (cur_alpha < g1) { leaf_count = 4; train_err_frac = 0.92 * p; test_err_frac = 1.12 * p - 0.24 * p * p; next_alpha = g1; } else if (cur_alpha < g2) { leaf_count = 3; train_err_frac = 1.00 * p; test_err_frac = 1.00 * p; next_alpha = g2; } else if (cur_alpha < g3) { leaf_count = 2; train_err_frac = 0.12 + 0.76 * p; test_err_frac = 0.12 + 0.76 * p; next_alpha = g3; } else { leaf_count = 1; train_err_frac = 0.28 + 0.44 * p; test_err_frac = 0.28 + 0.44 * p; next_alpha = g3; } var train_error = 100 * train_err_frac; var train_acc = 100 - train_error; var test_acc = 100 * (1 - test_err_frac); var total_cost = train_err_frac + cur_alpha * leaf_count; var n1_x = leaf_count >= 2 ? -1.6 : 0; var n1_y = leaf_count >= 2 ? 3.6 : 5.4; var n2_x = leaf_count >= 2 ? 1.6 : 0; var n2_y = leaf_count >= 2 ? 3.6 : 5.4; var l1_x = leaf_count >= 3 ? -2.5 : n1_x; var l1_y = leaf_count >= 3 ? 1.8 : n1_y; var l2_x = leaf_count >= 3 ? -0.7 : n1_x; var l2_y = leaf_count >= 3 ? 1.8 : n1_y; var l3_x = leaf_count === 4 ? 0.7 : n2_x; var l3_y = leaf_count === 4 ? 1.8 : n2_y; var l4_x = leaf_count === 4 ? 2.5 : n2_x; var l4_y = leaf_count === 4 ? 1.8 : n2_y; var err_end_x = -2.5 + 8.0 * train_err_frac; var tot_end_x = -2.5 + 8.0 * total_cost; return { leaf_count: leaf_count, train_error: train_error, train_acc: train_acc, test_acc: test_acc, total_cost: total_cost, next_alpha: next_alpha, cur_alpha: cur_alpha, n1_x: n1_x, n1_y: n1_y, n2_x: n2_x, n2_y: n2_y, l1_x: l1_x, l1_y: l1_y, l2_x: l2_x, l2_y: l2_y, l3_x: l3_x, l3_y: l3_y, l4_x: l4_x, l4_y: l4_y, err_end_x: err_end_x, tot_end_x: tot_end_x, is_overfit: leaf_count === 4, is_optimal: leaf_count === 3, is_underfit: leaf_count === 2 }; }",
+      "outputs": [
+        {
+          "id": "leaf_count",
+          "unit": "leaves",
+          "meaning": "Number of terminal leaves remaining in the optimal subtree at the current alpha.",
+          "kind": "number"
+        },
+        {
+          "id": "train_error",
+          "unit": "%",
+          "meaning": "Misclassification rate of the pruned tree T on the training sample.",
+          "kind": "number"
+        },
+        {
+          "id": "train_acc",
+          "unit": "%",
+          "meaning": "Percentage of training points classified correctly, equal to 100% - R(T).",
+          "kind": "number"
+        },
+        {
+          "id": "test_acc",
+          "unit": "%",
+          "meaning": "Classification accuracy on held-out data, peaking at intermediate alpha.",
+          "kind": "number"
+        },
+        {
+          "id": "total_cost",
+          "unit": "",
+          "meaning": "Penalized objective combining training error rate R(T) and alpha * |T|.",
+          "kind": "number"
+        },
+        {
+          "id": "next_alpha",
+          "unit": "err/leaf",
+          "meaning": "Smallest effective alpha g(t) that triggers the next weakest-link collapse.",
+          "kind": "number"
+        },
+        {
+          "id": "cur_alpha",
+          "unit": "err/leaf",
+          "meaning": "Current complexity penalty alpha equal to 0.01 times elapsed sweep time.",
+          "kind": "number"
+        },
+        {
+          "id": "n1_x",
+          "unit": "units",
+          "meaning": "Horizontal coordinate of left internal node N1.",
+          "kind": "number"
+        },
+        {
+          "id": "n1_y",
+          "unit": "units",
+          "meaning": "Vertical coordinate of left internal node N1.",
+          "kind": "number"
+        },
+        {
+          "id": "n2_x",
+          "unit": "units",
+          "meaning": "Horizontal coordinate of right internal node N2.",
+          "kind": "number"
+        },
+        {
+          "id": "n2_y",
+          "unit": "units",
+          "meaning": "Vertical coordinate of right internal node N2.",
+          "kind": "number"
+        },
+        {
+          "id": "l1_x",
+          "unit": "units",
+          "meaning": "Horizontal coordinate of leaf L1.",
+          "kind": "number"
+        },
+        {
+          "id": "l1_y",
+          "unit": "units",
+          "meaning": "Vertical coordinate of leaf L1.",
+          "kind": "number"
+        },
+        {
+          "id": "l2_x",
+          "unit": "units",
+          "meaning": "Horizontal coordinate of leaf L2.",
+          "kind": "number"
+        },
+        {
+          "id": "l2_y",
+          "unit": "units",
+          "meaning": "Vertical coordinate of leaf L2.",
+          "kind": "number"
+        },
+        {
+          "id": "l3_x",
+          "unit": "units",
+          "meaning": "Horizontal coordinate of leaf L3.",
+          "kind": "number"
+        },
+        {
+          "id": "l3_y",
+          "unit": "units",
+          "meaning": "Vertical coordinate of leaf L3.",
+          "kind": "number"
+        },
+        {
+          "id": "l4_x",
+          "unit": "units",
+          "meaning": "Horizontal coordinate of leaf L4.",
+          "kind": "number"
+        },
+        {
+          "id": "l4_y",
+          "unit": "units",
+          "meaning": "Vertical coordinate of leaf L4.",
+          "kind": "number"
+        },
+        {
+          "id": "err_end_x",
+          "unit": "units",
+          "meaning": "Right endpoint of the training error segment on the cost bar.",
+          "kind": "number"
+        },
+        {
+          "id": "tot_end_x",
+          "unit": "units",
+          "meaning": "Right endpoint of the total cost R_alpha(T) bar.",
+          "kind": "number"
+        },
+        {
+          "id": "is_overfit",
+          "unit": "",
+          "meaning": "True when the noisy overfitting branch is still unpruned.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_optimal",
+          "unit": "",
+          "meaning": "True when the tree has pruned only the noisy branch for peak test accuracy.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_underfit",
+          "unit": "",
+          "meaning": "True when a real signal branch has also been pruned.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "units",
+        "parts": [
+          {
+            "type": "line",
+            "id": "e_n0_n1",
+            "from": [
+              0,
+              5.4
+            ],
+            "to": [
+              "n1_x",
+              "n1_y"
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "e_n0_n2",
+            "from": [
+              0,
+              5.4
+            ],
+            "to": [
+              "n2_x",
+              "n2_y"
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "e_n1_l1",
+            "from": [
+              "n1_x",
+              "n1_y"
+            ],
+            "to": [
+              "l1_x",
+              "l1_y"
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "e_n1_l2",
+            "from": [
+              "n1_x",
+              "n1_y"
+            ],
+            "to": [
+              "l2_x",
+              "l2_y"
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "e_n2_l3",
+            "from": [
+              "n2_x",
+              "n2_y"
+            ],
+            "to": [
+              "l3_x",
+              "l3_y"
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "e_n2_l4",
+            "from": [
+              "n2_x",
+              "n2_y"
+            ],
+            "to": [
+              "l4_x",
+              "l4_y"
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "dot",
+            "id": "d_l1",
+            "at": [
+              "l1_x",
+              "l1_y"
+            ],
+            "size": "medium",
+            "of": "tree"
+          },
+          {
+            "type": "dot",
+            "id": "d_l2",
+            "at": [
+              "l2_x",
+              "l2_y"
+            ],
+            "size": "medium",
+            "of": "tree"
+          },
+          {
+            "type": "dot",
+            "id": "d_l3",
+            "at": [
+              "l3_x",
+              "l3_y"
+            ],
+            "size": "medium",
+            "of": "tree"
+          },
+          {
+            "type": "dot",
+            "id": "d_l4",
+            "at": [
+              "l4_x",
+              "l4_y"
+            ],
+            "size": "medium",
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "err_bar",
+            "from": [
+              -2.5,
+              0.5
+            ],
+            "to": [
+              "err_end_x",
+              0.5
+            ],
+            "of": "train"
+          },
+          {
+            "type": "line",
+            "id": "pen_bar",
+            "from": [
+              "err_end_x",
+              0.5
+            ],
+            "to": [
+              "tot_end_x",
+              0.5
+            ],
+            "of": "penalty"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Accuracy vs. Alpha Sweep",
+        "x": {
+          "over": "time",
+          "label": "Time (alpha=0.01t)",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Accuracy",
+          "unit": "%"
+        },
+        "series": [
+          {
+            "value": "train_acc",
+            "label": "Train acc",
+            "of": "train",
+            "style": "line"
+          },
+          {
+            "value": "test_acc",
+            "label": "Test acc",
+            "of": "test",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "leaf_count",
+        "label": "Leaves |T|",
+        "unit": "leaves",
+        "decimals": 0,
+        "of": "tree"
+      },
+      {
+        "value": "test_acc",
+        "label": "Test acc",
+        "unit": "%",
+        "decimals": 1,
+        "of": "test"
+      },
+      {
+        "value": "train_acc",
+        "label": "Train acc",
+        "unit": "%",
+        "decimals": 1,
+        "of": "train"
+      },
+      {
+        "value": "next_alpha",
+        "label": "Next g(t)",
+        "unit": "err/lf",
+        "decimals": 3,
+        "of": "penalty"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Top: tree T; bar: R(T) + a|T|.",
+        "Prune when R(t)-R(T_t) <= a(|T|-1)."
+      ],
+      "cases": [
+        {
+          "when": "is_overfit",
+          "text": "4 leaves: noisy branch overfits."
+        },
+        {
+          "when": "is_optimal",
+          "text": "3 leaves: optimal test accuracy."
+        },
+        {
+          "when": "is_underfit",
+          "text": "2 leaves: signal branch pruned."
+        }
+      ],
+      "otherwise": "1 leaf: root-only underfitting."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "top-to-bottom",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "decreases",
+        "value": "test_acc",
+        "with": "noise_rate"
+      },
+      {
+        "type": "increases",
+        "value": "total_cost",
+        "with": "noise_rate"
+      },
+      {
+        "type": "unchanged",
+        "value": "cur_alpha",
+        "when": "noise_rate"
+      }
+    ],
+    "lesson": {
+      "title": "Cost-Complexity Pruning: Tree Size vs. Accuracy",
+      "description": "Watch branches collapse as the penalty alpha grows over time, and adjust label noise to vary overfitting. Compare the tree and cost bar against train and test accuracy.",
+      "instructions": "Press play or scrub time to increase alpha (0.01 per second) and trigger each weakest-link collapse. Move the label noise slider to shift the pruning thresholds and see when pruning helps test accuracy most.",
+      "goal": "Increasing alpha prunes weakest-link branches first, improving test accuracy by removing overfitting until further pruning removes real signal and causes underfitting."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

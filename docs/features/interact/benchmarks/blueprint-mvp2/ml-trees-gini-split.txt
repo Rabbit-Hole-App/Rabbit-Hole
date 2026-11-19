@@ -1,0 +1,1136 @@
+run ej_62d3453677c644f9907510c27758da19: PASSED the light checker
+prompt: how do I compute the Gini impurity on both sides of a split and the information gain?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 3755081329   seconds: 81.105   cost: $0.1802
+
+== dice
+{
+  "controlQuantities": [
+    "left_a",
+    "left_b"
+  ],
+  "n": 2,
+  "k": 1,
+  "ids": [
+    "left_b"
+  ]
+}
+
+== calls
+quantities: answered, 15.368 s, 1240 in + 2813 thinking + 807 out, $0.0290
+blueprint: answered, 65.015 s, 10521 in + 15412 thinking + 2648 out, $0.1512
+
+== problems
+none
+
+== blueprint (first): "Gini Impurity and Information Gain Across a Split"; controls: left_b
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Gini impurity measures class mixing via 1 - sum(p_i^2) on each branch. Information gain equals the parent Gini minus the sample-weighted average of the left and right Gini impurities.",
+    "formula": "\\Delta G = G_P - w_L G_L - w_R G_R",
+    "assumptions": [
+      "The parent node holds 20 fixed samples: 12 in Class A and 8 in Class B (G_P = 0.48).",
+      "A binary split routes every sample to either the left or right child branch.",
+      "Information gain here uses Gini impurity decrease rather than Shannon entropy."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "n_total",
+      "label": "Parent total",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Total number of samples in the parent node before splitting."
+    },
+    {
+      "id": "g_parent",
+      "label": "Parent Gini",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Gini impurity of the parent node with 12 Class A and 8 Class B samples."
+    },
+    {
+      "id": "left_a",
+      "label": "Left Class A",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Number of Class A samples (out of 12) routed to the left branch."
+    },
+    {
+      "id": "left_b",
+      "label": "Left Class B",
+      "unit": "samples",
+      "role": "control",
+      "meaning": "Number of Class B samples (out of 8) routed to the left branch."
+    },
+    {
+      "id": "n_left",
+      "label": "Left total",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Total samples routed to the left child branch."
+    },
+    {
+      "id": "n_right",
+      "label": "Right total",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Remaining samples routed to the right child branch."
+    },
+    {
+      "id": "g_left",
+      "label": "Left Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity 1 - p_A^2 - p_B^2 of the left child branch."
+    },
+    {
+      "id": "g_right",
+      "label": "Right Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity 1 - p_A^2 - p_B^2 of the right child branch."
+    },
+    {
+      "id": "g_weighted",
+      "label": "Weighted split Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Sample-weighted average of left and right child Gini impurities."
+    },
+    {
+      "id": "info_gain",
+      "label": "Information gain",
+      "unit": "",
+      "role": "result",
+      "meaning": "Impurity reduction from parent Gini to weighted split Gini."
+    }
+  ],
+  "things": [
+    {
+      "id": "parent",
+      "label": "Parent node"
+    },
+    {
+      "id": "left_branch",
+      "label": "Left child"
+    },
+    {
+      "id": "right_branch",
+      "label": "Right child"
+    },
+    {
+      "id": "gain",
+      "label": "Info gain"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "left_b",
+      "label": "Left Class B",
+      "unit": "samples",
+      "min": 0,
+      "max": 8,
+      "default": 2,
+      "step": 1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 4,
+    "label": "Flow cycle",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var nTotal = 20; var gParent = 0.48; var leftA = 9; var rightA = 3; var totalB = 8; var leftB = inputs.left_b; var rightB = totalB - leftB; var nLeft = leftA + leftB; var nRight = rightA + rightB; var pLeftA = leftA / nLeft; var pLeftB = leftB / nLeft; var gLeft = 1 - pLeftA * pLeftA - pLeftB * pLeftB; var pRightA = rightA / nRight; var pRightB = rightB / nRight; var gRight = 1 - pRightA * pRightA - pRightB * pRightB; var gWeighted = (nLeft / nTotal) * gLeft + (nRight / nTotal) * gRight; var infoGain = gParent - gWeighted; if (infoGain < 0 && infoGain > -1e-12) { infoGain = 0; } var phase = (t % 2) / 2; var flowLX = 5 - 2.5 * phase; var flowLY = 8.2 - 3.2 * phase; var flowRX = 5 + 2.5 * phase; var flowRY = 8.2 - 3.2 * phase; var barLeftX = 0.6 + 7.8 * gLeft; var barRightX = 5.6 + 7.8 * gRight; var barSplitX = 2.5 + 10 * gWeighted; return { n_left: nLeft, n_right: nRight, g_left: gLeft, g_right: gRight, g_weighted: gWeighted, info_gain: infoGain, flow_l_x: flowLX, flow_l_y: flowLY, flow_r_x: flowRX, flow_r_y: flowRY, bar_left_x: barLeftX, bar_right_x: barRightX, bar_split_x: barSplitX, is_left_pure: leftB === 0, is_right_pure: leftB === 8, is_uninformative: leftB === 6, is_right_balanced: leftB === 5 }; }",
+    "outputs": [
+      {
+        "id": "n_left",
+        "unit": "samples",
+        "meaning": "Total samples routed to the left child branch.",
+        "kind": "number"
+      },
+      {
+        "id": "n_right",
+        "unit": "samples",
+        "meaning": "Remaining samples routed to the right child branch.",
+        "kind": "number"
+      },
+      {
+        "id": "g_left",
+        "unit": "",
+        "meaning": "Gini impurity of the left child branch.",
+        "kind": "number"
+      },
+      {
+        "id": "g_right",
+        "unit": "",
+        "meaning": "Gini impurity of the right child branch.",
+        "kind": "number"
+      },
+      {
+        "id": "g_weighted",
+        "unit": "",
+        "meaning": "Sample-weighted average of left and right Gini impurities.",
+        "kind": "number"
+      },
+      {
+        "id": "info_gain",
+        "unit": "",
+        "meaning": "Gini impurity reduction from parent to weighted split.",
+        "kind": "number"
+      },
+      {
+        "id": "flow_l_x",
+        "unit": "diagram",
+        "meaning": "Horizontal coordinate of the left branch flow marker.",
+        "kind": "number"
+      },
+      {
+        "id": "flow_l_y",
+        "unit": "diagram",
+        "meaning": "Vertical coordinate of the left branch flow marker.",
+        "kind": "number"
+      },
+      {
+        "id": "flow_r_x",
+        "unit": "diagram",
+        "meaning": "Horizontal coordinate of the right branch flow marker.",
+        "kind": "number"
+      },
+      {
+        "id": "flow_r_y",
+        "unit": "diagram",
+        "meaning": "Vertical coordinate of the right branch flow marker.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_left_x",
+        "unit": "diagram",
+        "meaning": "Right endpoint of the left child Gini impurity bar.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_right_x",
+        "unit": "diagram",
+        "meaning": "Right endpoint of the right child Gini impurity bar.",
+        "kind": "number"
+      },
+      {
+        "id": "bar_split_x",
+        "unit": "diagram",
+        "meaning": "Right endpoint of the weighted split Gini bar.",
+        "kind": "number"
+      },
+      {
+        "id": "is_left_pure",
+        "unit": "",
+        "meaning": "True when zero Class B samples go left.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_right_pure",
+        "unit": "",
+        "meaning": "True when all Class B samples go left.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_uninformative",
+        "unit": "",
+        "meaning": "True when both branches keep the 60/40 parent ratio.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_right_balanced",
+        "unit": "",
+        "meaning": "True when the right branch has equal A and B counts.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "diagram",
+      "parts": [
+        {
+          "type": "label",
+          "id": "parent_lbl",
+          "at": [
+            5,
+            9.2
+          ],
+          "text": "Parent: 12A 8B (G=0.48)"
+        },
+        {
+          "type": "arrow",
+          "id": "left_arrow",
+          "from": [
+            5,
+            8.2
+          ],
+          "to": [
+            2.5,
+            5
+          ],
+          "label": "L",
+          "of": "left_branch"
+        },
+        {
+          "type": "arrow",
+          "id": "right_arrow",
+          "from": [
+            5,
+            8.2
+          ],
+          "to": [
+            7.5,
+            5
+          ],
+          "label": "R",
+          "of": "right_branch"
+        },
+        {
+          "type": "dot",
+          "id": "flow_left",
+          "at": [
+            "flow_l_x",
+            "flow_l_y"
+          ],
+          "size": "medium",
+          "of": "left_branch"
+        },
+        {
+          "type": "dot",
+          "id": "flow_right",
+          "at": [
+            "flow_r_x",
+            "flow_r_y"
+          ],
+          "size": "medium",
+          "of": "right_branch"
+        },
+        {
+          "type": "label",
+          "id": "left_lbl",
+          "at": [
+            2.5,
+            4.3
+          ],
+          "text": "Left Gini (9A + B)"
+        },
+        {
+          "type": "line",
+          "id": "left_gini_bar",
+          "from": [
+            0.5,
+            3.6
+          ],
+          "to": [
+            "bar_left_x",
+            3.6
+          ],
+          "of": "left_branch"
+        },
+        {
+          "type": "label",
+          "id": "right_lbl",
+          "at": [
+            7.5,
+            4.3
+          ],
+          "text": "Right Gini (3A + B)"
+        },
+        {
+          "type": "line",
+          "id": "right_gini_bar",
+          "from": [
+            5.5,
+            3.6
+          ],
+          "to": [
+            "bar_right_x",
+            3.6
+          ],
+          "of": "right_branch"
+        },
+        {
+          "type": "line",
+          "id": "parent_gini_bar",
+          "from": [
+            2.5,
+            2.1
+          ],
+          "to": [
+            7.3,
+            2.1
+          ],
+          "of": "parent"
+        },
+        {
+          "type": "line",
+          "id": "split_gini_bar",
+          "from": [
+            2.5,
+            1.4
+          ],
+          "to": [
+            "bar_split_x",
+            1.4
+          ],
+          "of": "parent"
+        },
+        {
+          "type": "arrow",
+          "id": "gain_arrow",
+          "from": [
+            "bar_split_x",
+            1.4
+          ],
+          "to": [
+            7.35,
+            1.4
+          ],
+          "label": "Gain",
+          "of": "gain"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Gini and Gain vs Left Class B",
+      "x": {
+        "over": "left_b",
+        "label": "Left Class B",
+        "unit": "count"
+      },
+      "y": {
+        "label": "Impurity / Gain",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "g_left",
+          "label": "Left Gini",
+          "of": "left_branch",
+          "style": "line"
+        },
+        {
+          "value": "g_right",
+          "label": "Right Gini",
+          "of": "right_branch",
+          "style": "line"
+        },
+        {
+          "value": "info_gain",
+          "label": "Info gain",
+          "of": "gain",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "info_gain",
+      "label": "Info gain",
+      "unit": "",
+      "decimals": 3,
+      "of": "gain"
+    },
+    {
+      "value": "g_left",
+      "label": "Left Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "left_branch"
+    },
+    {
+      "value": "g_right",
+      "label": "Right Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "right_branch"
+    },
+    {
+      "value": "g_weighted",
+      "label": "Split Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "parent"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Parent Gini is 0.48 (12 A, 8 B).",
+      "Left has 9 A; Right has 3 A."
+    ],
+    "cases": [
+      {
+        "when": "is_left_pure",
+        "text": "Left is pure (G_L = 0), max gain."
+      },
+      {
+        "when": "is_right_pure",
+        "text": "Right is pure (G_R = 0), small gain."
+      },
+      {
+        "when": "is_uninformative",
+        "text": "Both match 60/40 mix: zero gain."
+      },
+      {
+        "when": "is_right_balanced",
+        "text": "Right is 50/50 (G_R = 0.50 max)."
+      }
+    ],
+    "otherwise": "Weighted Gini beats parent 0.48."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "top-to-bottom",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "n_left",
+      "with": "left_b"
+    },
+    {
+      "type": "decreases",
+      "value": "n_right",
+      "with": "left_b"
+    },
+    {
+      "type": "increases",
+      "value": "g_left",
+      "with": "left_b"
+    },
+    {
+      "type": "equal",
+      "value": "g_left",
+      "to": "g_right",
+      "at": [
+        {
+          "input": "left_b",
+          "value": 6
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "Gini Impurity and Information Gain Across a Split",
+    "description": "Explore how routing Class B samples between left and right branches changes each child node's Gini impurity. Watch how the sample-weighted average determines information gain.",
+    "instructions": "Move the Left Class B slider from 0 to 8 samples while 9 Class A samples stay left and 3 go right. Compare the Left, Right, and Weighted Split Gini bars against the 0.48 Parent Gini bar and trace the curves on the graph.",
+    "goal": "Compute each branch's Gini impurity from its class fractions, weight them by branch sample counts, and subtract from the parent Gini to find information gain."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "Gini impurity measures class mixing via 1 - sum(p_i^2) on each branch. Information gain equals the parent Gini minus the sample-weighted average of the left and right Gini impurities.",
+    "formula": "\\Delta G = G_P - w_L G_L - w_R G_R",
+    "assumptions": [
+      "The parent node holds 20 fixed samples: 12 in Class A and 8 in Class B (G_P = 0.48).",
+      "A binary split routes every sample to either the left or right child branch.",
+      "Information gain here uses Gini impurity decrease rather than Shannon entropy."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "n_total",
+      "label": "Parent total",
+      "unit": "samples",
+      "role": "fixed",
+      "meaning": "Total number of samples in the parent node before splitting."
+    },
+    {
+      "id": "g_parent",
+      "label": "Parent Gini",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Gini impurity of the parent node with 12 Class A and 8 Class B samples."
+    },
+    {
+      "id": "left_a",
+      "label": "Left Class A",
+      "unit": "samples",
+      "role": "control",
+      "meaning": "Number of Class A samples (out of 12) routed to the left branch."
+    },
+    {
+      "id": "left_b",
+      "label": "Left Class B",
+      "unit": "samples",
+      "role": "control",
+      "meaning": "Number of Class B samples (out of 8) routed to the left branch."
+    },
+    {
+      "id": "n_left",
+      "label": "Left total",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Total samples routed to the left child branch."
+    },
+    {
+      "id": "n_right",
+      "label": "Right total",
+      "unit": "samples",
+      "role": "result",
+      "meaning": "Remaining samples routed to the right child branch."
+    },
+    {
+      "id": "g_left",
+      "label": "Left Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity 1 - p_A^2 - p_B^2 of the left child branch."
+    },
+    {
+      "id": "g_right",
+      "label": "Right Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity 1 - p_A^2 - p_B^2 of the right child branch."
+    },
+    {
+      "id": "g_weighted",
+      "label": "Weighted split Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Sample-weighted average of left and right child Gini impurities."
+    },
+    {
+      "id": "info_gain",
+      "label": "Information gain",
+      "unit": "",
+      "role": "result",
+      "meaning": "Impurity reduction from parent Gini to weighted split Gini."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"Gini impurity measures class mixing via 1 - sum(p_i^2) on each branch. Information gain equals the parent Gini minus the sample-weighted average of the left and right Gini impurities.","formula":"\\Delta G = G_P - w_L G_L - w_R G_R","assumptions":["The parent node holds 20 fixed samples: 12 in Class A and 8 in Class B (G_P = 0.48).","A binary split routes every sample to either the left or right child branch.","Information gain here uses Gini impurity decrease rather than Shannon entropy."]},"quantities":[{"id":"n_total","label":"Parent total","unit":"samples","role":"fixed","meaning":"Total number of samples in the parent node before splitting."},{"id":"g_parent","label":"Parent Gini","unit":"","role":"fixed","meaning":"Gini impurity of the parent node with 12 Class A and 8 Class B samples."},{"id":"left_a","label":"Left Class A","unit":"samples","role":"fixed","meaning":"Number of Class A samples (out of 12) routed to the left branch."},{"id":"left_b","label":"Left Class B","unit":"samples","role":"control","meaning":"Number of Class B samples (out of 8) routed to the left branch."},{"id":"n_left","label":"Left total","unit":"samples","role":"result","meaning":"Total samples routed to the left child branch."},{"id":"n_right","label":"Right total","unit":"samples","role":"result","meaning":"Remaining samples routed to the right child branch."},{"id":"g_left","label":"Left Gini","unit":"","role":"result","meaning":"Gini impurity 1 - p_A^2 - p_B^2 of the left child branch."},{"id":"g_right","label":"Right Gini","unit":"","role":"result","meaning":"Gini impurity 1 - p_A^2 - p_B^2 of the right child branch."},{"id":"g_weighted","label":"Weighted split Gini","unit":"","role":"result","meaning":"Sample-weighted average of left and right child Gini impurities."},{"id":"info_gain","label":"Information gain","unit":"","role":"result","meaning":"Impurity reduction from parent Gini to weighted split Gini."}],"things":[{"id":"parent","label":"Parent node"},{"id":"left_branch","label":"Left child"},{"id":"right_branch","label":"Right child"},{"id":"gain","label":"Info gain"}],"inputs":[{"type":"number","id":"left_b","label":"Left Class B","unit":"samples","min":0,"max":8,"default":2,"step":1}],"time":{"mode":"continuous","duration":4,"label":"Flow cycle","unit":"s"},"math":{"code":"function compute(inputs, t) { var nTotal = 20; var gParent = 0.48; var leftA = 9; var rightA = 3; var totalB = 8; var leftB = inputs.left_b; var rightB = totalB - leftB; var nLeft = leftA + leftB; var nRight = rightA + rightB; var pLeftA = leftA / nLeft; var pLeftB = leftB / nLeft; var gLeft = 1 - pLeftA * pLeftA - pLeftB * pLeftB; var pRightA = rightA / nRight; var pRightB = rightB / nRight; var gRight = 1 - pRightA * pRightA - pRightB * pRightB; var gWeighted = (nLeft / nTotal) * gLeft + (nRight / nTotal) * gRight; var infoGain = gParent - gWeighted; if (infoGain < 0 && infoGain > -1e-12) { infoGain = 0; } var phase = (t % 2) / 2; var flowLX = 5 - 2.5 * phase; var flowLY = 8.2 - 3.2 * phase; var flowRX = 5 + 2.5 * phase; var flowRY = 8.2 - 3.2 * phase; var barLeftX = 0.6 + 7.8 * gLeft; var barRightX = 5.6 + 7.8 * gRight; var barSplitX = 2.5 + 10 * gWeighted; return { n_left: nLeft, n_right: nRight, g_left: gLeft, g_right: gRight, g_weighted: gWeighted, info_gain: infoGain, flow_l_x: flowLX, flow_l_y: flowLY, flow_r_x: flowRX, flow_r_y: flowRY, bar_left_x: barLeftX, bar_right_x: barRightX, bar_split_x: barSplitX, is_left_pure: leftB === 0, is_right_pure: leftB === 8, is_uninformative: leftB === 6, is_right_balanced: leftB === 5 }; }","outputs":[{"id":"n_left","unit":"samples","meaning":"Total samples routed to the left child branch.","kind":"number"},{"id":"n_right","unit":"samples","meaning":"Remaining samples routed to the right child branch.","kind":"number"},{"id":"g_left","unit":"","meaning":"Gini impurity of the left child branch.","kind":"number"},{"id":"g_right","unit":"","meaning":"Gini impurity of the right child branch.","kind":"number"},{"id":"g_weighted","unit":"","meaning":"Sample-weighted average of left and right Gini impurities.","kind":"number"},{"id":"info_gain","unit":"","meaning":"Gini impurity reduction from parent to weighted split.","kind":"number"},{"id":"flow_l_x","unit":"diagram","meaning":"Horizontal coordinate of the left branch flow marker.","kind":"number"},{"id":"flow_l_y","unit":"diagram","meaning":"Vertical coordinate of the left branch flow marker.","kind":"number"},{"id":"flow_r_x","unit":"diagram","meaning":"Horizontal coordinate of the right branch flow marker.","kind":"number"},{"id":"flow_r_y","unit":"diagram","meaning":"Vertical coordinate of the right branch flow marker.","kind":"number"},{"id":"bar_left_x","unit":"diagram","meaning":"Right endpoint of the left child Gini impurity bar.","kind":"number"},{"id":"bar_right_x","unit":"diagram","meaning":"Right endpoint of the right child Gini impurity bar.","kind":"number"},{"id":"bar_split_x","unit":"diagram","meaning":"Right endpoint of the weighted split Gini bar.","kind":"number"},{"id":"is_left_pure","unit":"","meaning":"True when zero Class B samples go left.","kind":"flag"},{"id":"is_right_pure","unit":"","meaning":"True when all Class B samples go left.","kind":"flag"},{"id":"is_uninformative","unit":"","meaning":"True when both branches keep the 60/40 parent ratio.","kind":"flag"},{"id":"is_right_balanced","unit":"","meaning":"True when the right branch has equal A and B counts.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"diagram","parts":[{"type":"label","id":"parent_lbl","at":[5,9.2],"text":"Parent: 12A 8B (G=0.48)"},{"type":"arrow","id":"left_arrow","from":[5,8.2],"to":[2.5,5],"label":"L","of":"left_branch"},{"type":"arrow","id":"right_arrow","from":[5,8.2],"to":[7.5,5],"label":"R","of":"right_branch"},{"type":"dot","id":"flow_left","at":["flow_l_x","flow_l_y"],"size":"medium","of":"left_branch"},{"type":"dot","id":"flow_right","at":["flow_r_x","flow_r_y"],"size":"medium","of":"right_branch"},{"type":"label","id":"left_lbl","at":[2.5,4.3],"text":"Left Gini (9A + B)"},{"type":"line","id":"left_gini_bar","from":[0.5,3.6],"to":["bar_left_x",3.6],"of":"left_branch"},{"type":"label","id":"right_lbl","at":[7.5,4.3],"text":"Right Gini (3A + B)"},{"type":"line","id":"right_gini_bar","from":[5.5,3.6],"to":["bar_right_x",3.6],"of":"right_branch"},{"type":"line","id":"parent_gini_bar","from":[2.5,2.1],"to":[7.3,2.1],"of":"parent"},{"type":"line","id":"split_gini_bar","from":[2.5,1.4],"to":["bar_split_x",1.4],"of":"parent"},{"type":"arrow","id":"gain_arrow","from":["bar_split_x",1.4],"to":[7.35,1.4],"label":"Gain","of":"gain"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Gini and Gain vs Left Class B","x":{"over":"left_b","label":"Left Class B","unit":"count"},"y":{"label":"Impurity / Gain","unit":""},"series":[{"value":"g_left","label":"Left Gini","of":"left_branch","style":"line"},{"value":"g_right","label":"Right Gini","of":"right_branch","style":"line"},{"value":"info_gain","label":"Info gain","of":"gain","style":"line"}]}},"values":[{"value":"info_gain","label":"Info gain","unit":"","decimals":3,"of":"gain"},{"value":"g_left","label":"Left Gini","unit":"","decimals":3,"of":"left_branch"},{"value":"g_right","label":"Right Gini","unit":"","decimals":3,"of":"right_branch"},{"value":"g_weighted","label":"Split Gini","unit":"","decimals":3,"of":"parent"}],"explanation":{"always":["Parent Gini is 0.48 (12 A, 8 B).","Left has 9 A; Right has 3 A."],"cases":[{"when":"is_left_pure","text":"Left is pure (G_L = 0), max gain."},{"when":"is_right_pure","text":"Right is pure (G_R = 0), small gain."},{"when":"is_uninformative","text":"Both match 60/40 mix: zero gain."},{"when":"is_right_balanced","text":"Right is 50/50 (G_R = 0.50 max)."}],"otherwise":"Weighted Gini beats parent 0.48."},"layout":{"pictureCount":"two","runs":"top-to-bottom","panelRole":"equal"},"claims":[{"type":"increases","value":"n_left","with":"left_b"},{"type":"decreases","value":"n_right","with":"left_b"},{"type":"increases","value":"g_left","with":"left_b"},{"type":"equal","value":"g_left","to":"g_right","at":[{"input":"left_b","value":6}]}],"lesson":{"title":"Gini Impurity and Information Gain Across a Split","description":"Explore how routing Class B samples between left and right branches changes each child node's Gini impurity. Watch how the sample-weighted average determines information gain.","instructions":"Move the Left Class B slider from 0 to 8 samples while 9 Class A samples stay left and 3 go right. Compare the Left, Right, and Weighted Split Gini bars against the 0.48 Parent Gini bar and trace the curves on the graph.","goal":"Compute each branch's Gini impurity from its class fractions, weight them by branch sample counts, and subtract from the parent Gini to find information gain."}}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "Gini impurity measures class mixing via 1 - sum(p_i^2) on each branch. Information gain equals the parent Gini minus the sample-weighted average of the left and right Gini impurities.",
+      "formula": "\\Delta G = G_P - w_L G_L - w_R G_R",
+      "assumptions": [
+        "The parent node holds 20 fixed samples: 12 in Class A and 8 in Class B (G_P = 0.48).",
+        "A binary split routes every sample to either the left or right child branch.",
+        "Information gain here uses Gini impurity decrease rather than Shannon entropy."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "n_total",
+        "label": "Parent total",
+        "unit": "samples",
+        "role": "fixed",
+        "meaning": "Total number of samples in the parent node before splitting."
+      },
+      {
+        "id": "g_parent",
+        "label": "Parent Gini",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Gini impurity of the parent node with 12 Class A and 8 Class B samples."
+      },
+      {
+        "id": "left_a",
+        "label": "Left Class A",
+        "unit": "samples",
+        "role": "fixed",
+        "meaning": "Number of Class A samples (out of 12) routed to the left branch."
+      },
+      {
+        "id": "left_b",
+        "label": "Left Class B",
+        "unit": "samples",
+        "role": "control",
+        "meaning": "Number of Class B samples (out of 8) routed to the left branch."
+      },
+      {
+        "id": "n_left",
+        "label": "Left total",
+        "unit": "samples",
+        "role": "result",
+        "meaning": "Total samples routed to the left child branch."
+      },
+      {
+        "id": "n_right",
+        "label": "Right total",
+        "unit": "samples",
+        "role": "result",
+        "meaning": "Remaining samples routed to the right child branch."
+      },
+      {
+        "id": "g_left",
+        "label": "Left Gini",
+        "unit": "",
+        "role": "result",
+        "meaning": "Gini impurity 1 - p_A^2 - p_B^2 of the left child branch."
+      },
+      {
+        "id": "g_right",
+        "label": "Right Gini",
+        "unit": "",
+        "role": "result",
+        "meaning": "Gini impurity 1 - p_A^2 - p_B^2 of the right child branch."
+      },
+      {
+        "id": "g_weighted",
+        "label": "Weighted split Gini",
+        "unit": "",
+        "role": "result",
+        "meaning": "Sample-weighted average of left and right child Gini impurities."
+      },
+      {
+        "id": "info_gain",
+        "label": "Information gain",
+        "unit": "",
+        "role": "result",
+        "meaning": "Impurity reduction from parent Gini to weighted split Gini."
+      }
+    ],
+    "things": [
+      {
+        "id": "parent",
+        "label": "Parent node"
+      },
+      {
+        "id": "left_branch",
+        "label": "Left child"
+      },
+      {
+        "id": "right_branch",
+        "label": "Right child"
+      },
+      {
+        "id": "gain",
+        "label": "Info gain"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "left_b",
+        "label": "Left Class B",
+        "unit": "samples",
+        "min": 0,
+        "max": 8,
+        "default": 2,
+        "step": 1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 4,
+      "label": "Flow cycle",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var nTotal = 20; var gParent = 0.48; var leftA = 9; var rightA = 3; var totalB = 8; var leftB = inputs.left_b; var rightB = totalB - leftB; var nLeft = leftA + leftB; var nRight = rightA + rightB; var pLeftA = leftA / nLeft; var pLeftB = leftB / nLeft; var gLeft = 1 - pLeftA * pLeftA - pLeftB * pLeftB; var pRightA = rightA / nRight; var pRightB = rightB / nRight; var gRight = 1 - pRightA * pRightA - pRightB * pRightB; var gWeighted = (nLeft / nTotal) * gLeft + (nRight / nTotal) * gRight; var infoGain = gParent - gWeighted; if (infoGain < 0 && infoGain > -1e-12) { infoGain = 0; } var phase = (t % 2) / 2; var flowLX = 5 - 2.5 * phase; var flowLY = 8.2 - 3.2 * phase; var flowRX = 5 + 2.5 * phase; var flowRY = 8.2 - 3.2 * phase; var barLeftX = 0.6 + 7.8 * gLeft; var barRightX = 5.6 + 7.8 * gRight; var barSplitX = 2.5 + 10 * gWeighted; return { n_left: nLeft, n_right: nRight, g_left: gLeft, g_right: gRight, g_weighted: gWeighted, info_gain: infoGain, flow_l_x: flowLX, flow_l_y: flowLY, flow_r_x: flowRX, flow_r_y: flowRY, bar_left_x: barLeftX, bar_right_x: barRightX, bar_split_x: barSplitX, is_left_pure: leftB === 0, is_right_pure: leftB === 8, is_uninformative: leftB === 6, is_right_balanced: leftB === 5 }; }",
+      "outputs": [
+        {
+          "id": "n_left",
+          "unit": "samples",
+          "meaning": "Total samples routed to the left child branch.",
+          "kind": "number"
+        },
+        {
+          "id": "n_right",
+          "unit": "samples",
+          "meaning": "Remaining samples routed to the right child branch.",
+          "kind": "number"
+        },
+        {
+          "id": "g_left",
+          "unit": "",
+          "meaning": "Gini impurity of the left child branch.",
+          "kind": "number"
+        },
+        {
+          "id": "g_right",
+          "unit": "",
+          "meaning": "Gini impurity of the right child branch.",
+          "kind": "number"
+        },
+        {
+          "id": "g_weighted",
+          "unit": "",
+          "meaning": "Sample-weighted average of left and right Gini impurities.",
+          "kind": "number"
+        },
+        {
+          "id": "info_gain",
+          "unit": "",
+          "meaning": "Gini impurity reduction from parent to weighted split.",
+          "kind": "number"
+        },
+        {
+          "id": "flow_l_x",
+          "unit": "diagram",
+          "meaning": "Horizontal coordinate of the left branch flow marker.",
+          "kind": "number"
+        },
+        {
+          "id": "flow_l_y",
+          "unit": "diagram",
+          "meaning": "Vertical coordinate of the left branch flow marker.",
+          "kind": "number"
+        },
+        {
+          "id": "flow_r_x",
+          "unit": "diagram",
+          "meaning": "Horizontal coordinate of the right branch flow marker.",
+          "kind": "number"
+        },
+        {
+          "id": "flow_r_y",
+          "unit": "diagram",
+          "meaning": "Vertical coordinate of the right branch flow marker.",
+          "kind": "number"
+        },
+        {
+          "id": "bar_left_x",
+          "unit": "diagram",
+          "meaning": "Right endpoint of the left child Gini impurity bar.",
+          "kind": "number"
+        },
+        {
+          "id": "bar_right_x",
+          "unit": "diagram",
+          "meaning": "Right endpoint of the right child Gini impurity bar.",
+          "kind": "number"
+        },
+        {
+          "id": "bar_split_x",
+          "unit": "diagram",
+          "meaning": "Right endpoint of the weighted split Gini bar.",
+          "kind": "number"
+        },
+        {
+          "id": "is_left_pure",
+          "unit": "",
+          "meaning": "True when zero Class B samples go left.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_right_pure",
+          "unit": "",
+          "meaning": "True when all Class B samples go left.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_uninformative",
+          "unit": "",
+          "meaning": "True when both branches keep the 60/40 parent ratio.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_right_balanced",
+          "unit": "",
+          "meaning": "True when the right branch has equal A and B counts.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "diagram",
+        "parts": [
+          {
+            "type": "label",
+            "id": "parent_lbl",
+            "at": [
+              5,
+              9.2
+            ],
+            "text": "Parent: 12A 8B (G=0.48)"
+          },
+          {
+            "type": "arrow",
+            "id": "left_arrow",
+            "from": [
+              5,
+              8.2
+            ],
+            "to": [
+              2.5,
+              5
+            ],
+            "label": "L",
+            "of": "left_branch"
+          },
+          {
+            "type": "arrow",
+            "id": "right_arrow",
+            "from": [
+              5,
+              8.2
+            ],
+            "to": [
+              7.5,
+              5
+            ],
+            "label": "R",
+            "of": "right_branch"
+          },
+          {
+            "type": "dot",
+            "id": "flow_left",
+            "at": [
+              "flow_l_x",
+              "flow_l_y"
+            ],
+            "size": "medium",
+            "of": "left_branch"
+          },
+          {
+            "type": "dot",
+            "id": "flow_right",
+            "at": [
+              "flow_r_x",
+              "flow_r_y"
+            ],
+            "size": "medium",
+            "of": "right_branch"
+          },
+          {
+            "type": "label",
+            "id": "left_lbl",
+            "at": [
+              2.5,
+              4.3
+            ],
+            "text": "Left Gini (9A + B)"
+          },
+          {
+            "type": "line",
+            "id": "left_gini_bar",
+            "from": [
+              0.5,
+              3.6
+            ],
+            "to": [
+              "bar_left_x",
+              3.6
+            ],
+            "of": "left_branch"
+          },
+          {
+            "type": "label",
+            "id": "right_lbl",
+            "at": [
+              7.5,
+              4.3
+            ],
+            "text": "Right Gini (3A + B)"
+          },
+          {
+            "type": "line",
+            "id": "right_gini_bar",
+            "from": [
+              5.5,
+              3.6
+            ],
+            "to": [
+              "bar_right_x",
+              3.6
+            ],
+            "of": "right_branch"
+          },
+          {
+            "type": "line",
+            "id": "parent_gini_bar",
+            "from": [
+              2.5,
+              2.1
+            ],
+            "to": [
+              7.3,
+              2.1
+            ],
+            "of": "parent"
+          },
+          {
+            "type": "line",
+            "id": "split_gini_bar",
+            "from": [
+              2.5,
+              1.4
+            ],
+            "to": [
+              "bar_split_x",
+              1.4
+            ],
+            "of": "parent"
+          },
+          {
+            "type": "arrow",
+            "id": "gain_arrow",
+            "from": [
+              "bar_split_x",
+              1.4
+            ],
+            "to": [
+              7.35,
+              1.4
+            ],
+            "label": "Gain",
+            "of": "gain"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Gini and Gain vs Left Class B",
+        "x": {
+          "over": "left_b",
+          "label": "Left Class B",
+          "unit": "count"
+        },
+        "y": {
+          "label": "Impurity / Gain",
+          "unit": ""
+        },
+        "series": [
+          {
+            "value": "g_left",
+            "label": "Left Gini",
+            "of": "left_branch",
+            "style": "line"
+          },
+          {
+            "value": "g_right",
+            "label": "Right Gini",
+            "of": "right_branch",
+            "style": "line"
+          },
+          {
+            "value": "info_gain",
+            "label": "Info gain",
+            "of": "gain",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "info_gain",
+        "label": "Info gain",
+        "unit": "",
+        "decimals": 3,
+        "of": "gain"
+      },
+      {
+        "value": "g_left",
+        "label": "Left Gini",
+        "unit": "",
+        "decimals": 3,
+        "of": "left_branch"
+      },
+      {
+        "value": "g_right",
+        "label": "Right Gini",
+        "unit": "",
+        "decimals": 3,
+        "of": "right_branch"
+      },
+      {
+        "value": "g_weighted",
+        "label": "Split Gini",
+        "unit": "",
+        "decimals": 3,
+        "of": "parent"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Parent Gini is 0.48 (12 A, 8 B).",
+        "Left has 9 A; Right has 3 A."
+      ],
+      "cases": [
+        {
+          "when": "is_left_pure",
+          "text": "Left is pure (G_L = 0), max gain."
+        },
+        {
+          "when": "is_right_pure",
+          "text": "Right is pure (G_R = 0), small gain."
+        },
+        {
+          "when": "is_uninformative",
+          "text": "Both match 60/40 mix: zero gain."
+        },
+        {
+          "when": "is_right_balanced",
+          "text": "Right is 50/50 (G_R = 0.50 max)."
+        }
+      ],
+      "otherwise": "Weighted Gini beats parent 0.48."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "top-to-bottom",
+      "panelRole": "equal"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "n_left",
+        "with": "left_b"
+      },
+      {
+        "type": "decreases",
+        "value": "n_right",
+        "with": "left_b"
+      },
+      {
+        "type": "increases",
+        "value": "g_left",
+        "with": "left_b"
+      },
+      {
+        "type": "equal",
+        "value": "g_left",
+        "to": "g_right",
+        "at": [
+          {
+            "input": "left_b",
+            "value": 6
+          }
+        ]
+      }
+    ],
+    "lesson": {
+      "title": "Gini Impurity and Information Gain Across a Split",
+      "description": "Explore how routing Class B samples between left and right branches changes each child node's Gini impurity. Watch how the sample-weighted average determines information gain.",
+      "instructions": "Move the Left Class B slider from 0 to 8 samples while 9 Class A samples stay left and 3 go right. Compare the Left, Right, and Weighted Split Gini bars against the 0.48 Parent Gini bar and trace the curves on the graph.",
+      "goal": "Compute each branch's Gini impurity from its class fractions, weight them by branch sample counts, and subtract from the parent Gini to find information gain."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

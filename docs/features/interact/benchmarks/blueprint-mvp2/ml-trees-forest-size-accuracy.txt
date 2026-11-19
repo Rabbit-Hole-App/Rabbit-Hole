@@ -1,0 +1,865 @@
+run ej_d0faaf45fbf84e77b4492e8a23f46569: PASSED the light checker
+prompt: how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 2793550448   seconds: 93.122   cost: $0.1644
+
+== dice
+{
+  "controlQuantities": [
+    "n_trees",
+    "rho",
+    "single_acc"
+  ],
+  "n": 3,
+  "k": 1,
+  "ids": [
+    "n_trees"
+  ]
+}
+
+== calls
+quantities: answered, 12.623 s, 1252 in + 1764 thinking + 434 out, $0.0184
+blueprint: answered, 79.848 s, 10394 in + 15319 thinking + 2079 out, $0.1461
+
+== problems
+none
+
+== blueprint (first): "How does random forest accuracy change with tree count?"; controls: n_trees
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Adding trees to a random forest averages out individual tree errors, lowering ensemble variance proportional to (1 - rho)/B while leaving bias unchanged. Test accuracy rises sharply from 1 to 50 trees and then levels off near an asymptote by 200 trees without overfitting.",
+    "formula": "V = \\sigma^2(\\rho + \\frac{1-\\rho}{B})",
+    "assumptions": [
+      "Trees are identically distributed with fixed depth and feature subsampling.",
+      "Test data is drawn from the same distribution as the training data.",
+      "Trees are combined by equal-weight averaging or majority vote."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "n_trees",
+      "label": "Number of trees",
+      "unit": "trees",
+      "role": "control",
+      "meaning": "Count B of decision trees combined in the random forest (1 to 200)."
+    },
+    {
+      "id": "rho",
+      "label": "Tree correlation",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Average pairwise correlation between predictions of two trees in the forest."
+    },
+    {
+      "id": "single_acc",
+      "label": "Single-tree accuracy",
+      "unit": "%",
+      "role": "fixed",
+      "meaning": "Expected test accuracy achieved by a single decision tree (B = 1)."
+    },
+    {
+      "id": "bayes_acc",
+      "label": "Bayes ceiling",
+      "unit": "%",
+      "role": "fixed",
+      "meaning": "Maximum achievable test accuracy limited by irreducible label noise."
+    },
+    {
+      "id": "var_factor",
+      "label": "Variance factor",
+      "unit": "",
+      "role": "result",
+      "meaning": "Remaining fraction of single-tree variance: rho + (1 - rho) / B."
+    },
+    {
+      "id": "test_acc",
+      "label": "Test accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Expected random forest test accuracy at the chosen number of trees B."
+    },
+    {
+      "id": "max_acc",
+      "label": "Asymptotic accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Limiting test accuracy as B approaches infinity, limited by tree correlation."
+    },
+    {
+      "id": "acc_gain",
+      "label": "Gain over 1 tree",
+      "unit": "pct pts",
+      "role": "result",
+      "meaning": "Increase in test accuracy compared with a single-tree baseline."
+    }
+  ],
+  "things": [
+    {
+      "id": "forest",
+      "label": "Random forest"
+    },
+    {
+      "id": "single_tree",
+      "label": "Single tree"
+    },
+    {
+      "id": "limit",
+      "label": "Asymptote"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "n_trees",
+      "label": "Number of trees",
+      "unit": "trees",
+      "min": 1,
+      "max": 200,
+      "default": 10,
+      "step": 1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 12,
+    "label": "Sample run",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var B = inputs.n_trees; var rho = 0.12; var single_acc = 72; var bayes_acc = 96; var var_factor = rho + (1 - rho) / B; var gap = bayes_acc - single_acc; var test_acc = bayes_acc - gap * Math.sqrt(var_factor); var max_acc = bayes_acc - gap * Math.sqrt(rho); var acc_gain = test_acc - single_acc; var sample_x = 2 * t; var wave = Math.sin(2 * Math.PI * t / 3); var single_trial_y = single_acc + 6 * wave; var forest_trial_y = test_acc + 6 * Math.sqrt(var_factor) * wave; var is_single = B === 1; var is_steep = B > 1 && B <= 10; var is_knee = B > 10 && B <= 50; return { var_factor: var_factor, test_acc: test_acc, max_acc: max_acc, acc_gain: acc_gain, sample_x: sample_x, single_trial_y: single_trial_y, forest_trial_y: forest_trial_y, is_single: is_single, is_steep: is_steep, is_knee: is_knee }; }",
+    "outputs": [
+      {
+        "id": "var_factor",
+        "unit": "",
+        "meaning": "Remaining fraction of single-tree variance: rho + (1 - rho) / B.",
+        "kind": "number"
+      },
+      {
+        "id": "test_acc",
+        "unit": "%",
+        "meaning": "Expected random forest test accuracy at the chosen number of trees B.",
+        "kind": "number"
+      },
+      {
+        "id": "max_acc",
+        "unit": "%",
+        "meaning": "Limiting test accuracy as B approaches infinity, limited by tree correlation.",
+        "kind": "number"
+      },
+      {
+        "id": "acc_gain",
+        "unit": "pct pts",
+        "meaning": "Increase in test accuracy compared with a single-tree baseline.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_x",
+        "unit": "%",
+        "meaning": "Horizontal position of the simulated test-batch sweep over time.",
+        "kind": "number"
+      },
+      {
+        "id": "single_trial_y",
+        "unit": "%",
+        "meaning": "Simulated test-batch accuracy of a single tree oscillating around its 72% mean.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_trial_y",
+        "unit": "%",
+        "meaning": "Simulated test-batch accuracy of the forest with spread scaled by sqrt(var_factor).",
+        "kind": "number"
+      },
+      {
+        "id": "is_single",
+        "unit": "",
+        "meaning": "True when the forest contains only 1 tree.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_steep",
+        "unit": "",
+        "meaning": "True when the forest has 2 to 10 trees in the steep initial gain region.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_knee",
+        "unit": "",
+        "meaning": "True when the forest has 11 to 50 trees approaching the curve knee.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "%",
+      "parts": [
+        {
+          "type": "line",
+          "id": "bayes_line",
+          "from": [
+            0,
+            96
+          ],
+          "to": [
+            24,
+            96
+          ]
+        },
+        {
+          "type": "label",
+          "id": "bayes_label",
+          "at": [
+            12,
+            97.8
+          ],
+          "text": "Bayes ceiling 96%"
+        },
+        {
+          "type": "line",
+          "id": "limit_line",
+          "from": [
+            0,
+            "max_acc"
+          ],
+          "to": [
+            24,
+            "max_acc"
+          ],
+          "of": "limit"
+        },
+        {
+          "type": "label",
+          "id": "limit_label",
+          "at": [
+            12,
+            91.5
+          ],
+          "text": "Asymptote 87.7%",
+          "of": "limit"
+        },
+        {
+          "type": "line",
+          "id": "single_line",
+          "from": [
+            0,
+            72
+          ],
+          "to": [
+            24,
+            72
+          ],
+          "of": "single_tree"
+        },
+        {
+          "type": "label",
+          "id": "single_label",
+          "at": [
+            12,
+            63.5
+          ],
+          "text": "Single tree 72% avg",
+          "of": "single_tree"
+        },
+        {
+          "type": "line",
+          "id": "forest_line",
+          "from": [
+            0,
+            "test_acc"
+          ],
+          "to": [
+            24,
+            "test_acc"
+          ],
+          "of": "forest"
+        },
+        {
+          "type": "trace",
+          "id": "single_trace",
+          "at": [
+            "sample_x",
+            "single_trial_y"
+          ],
+          "of": "single_tree"
+        },
+        {
+          "type": "dot",
+          "id": "single_dot",
+          "at": [
+            "sample_x",
+            "single_trial_y"
+          ],
+          "size": "medium",
+          "of": "single_tree"
+        },
+        {
+          "type": "trace",
+          "id": "forest_trace",
+          "at": [
+            "sample_x",
+            "forest_trial_y"
+          ],
+          "of": "forest"
+        },
+        {
+          "type": "dot",
+          "id": "forest_dot",
+          "at": [
+            "sample_x",
+            "forest_trial_y"
+          ],
+          "size": "large",
+          "of": "forest"
+        },
+        {
+          "type": "dot",
+          "id": "forest_acc_dot",
+          "at": [
+            25.5,
+            "test_acc"
+          ],
+          "size": "large",
+          "of": "forest"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Test accuracy vs tree count",
+      "x": {
+        "over": "n_trees",
+        "label": "Number of trees",
+        "unit": "trees"
+      },
+      "y": {
+        "label": "Test accuracy",
+        "unit": "%"
+      },
+      "series": [
+        {
+          "value": "test_acc",
+          "label": "Forest acc",
+          "of": "forest",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "test_acc",
+      "label": "Test acc",
+      "unit": "%",
+      "decimals": 1,
+      "of": "forest"
+    },
+    {
+      "value": "acc_gain",
+      "label": "Gain vs 1",
+      "unit": "pts",
+      "decimals": 1,
+      "of": "forest"
+    },
+    {
+      "value": "var_factor",
+      "label": "Var factor",
+      "unit": "",
+      "decimals": 3,
+      "of": "forest"
+    },
+    {
+      "value": "max_acc",
+      "label": "Asymptote",
+      "unit": "%",
+      "decimals": 1,
+      "of": "limit"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Bayes ceiling: 96.0%, rho: 0.12",
+      "Asymptote: 87.7% (1-tree: 72.0%)"
+    ],
+    "cases": [
+      {
+        "when": "is_single",
+        "text": "1 tree: full variance (factor 1.00)"
+      },
+      {
+        "when": "is_steep",
+        "text": "2-10 trees: steep variance drop"
+      },
+      {
+        "when": "is_knee",
+        "text": "11-50 trees: approaching asymptote"
+      }
+    ],
+    "otherwise": "51-200 trees: flat near 87.7% limit"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "test_acc",
+      "with": "n_trees"
+    },
+    {
+      "type": "increases",
+      "value": "acc_gain",
+      "with": "n_trees"
+    },
+    {
+      "type": "decreases",
+      "value": "var_factor",
+      "with": "n_trees"
+    },
+    {
+      "type": "unchanged",
+      "value": "max_acc",
+      "when": "n_trees"
+    }
+  ],
+  "lesson": {
+    "title": "How does random forest accuracy change with tree count?",
+    "description": "Test accuracy and prediction spread update as you vary the forest size from 1 to 200 trees. Watch how averaging lowers variance while tree correlation caps the gain.",
+    "instructions": "Slide Number of trees to 1, 5, 10, 50, and 200 while watching both panels. Compare the forest trace and live accuracy against the single-tree baseline, correlation asymptote, and Bayes ceiling.",
+    "goal": "Averaging independent tree errors boosts accuracy steeply from 1 to 50 trees, then levels off by 200 trees at a limit set by tree correlation without overfitting."
+  }
+}
+
+== quantities answer (exactly as returned)
+{"relationship":{"statement":"Adding trees to a random forest averages out individual tree errors, lowering ensemble variance proportional to (1 - rho)/B while leaving bias unchanged. Test accuracy rises sharply from 1 to 50 trees and then levels off near an asymptote by 200 trees without overfitting.","formula":"V = \\sigma^2(\\rho + \\frac{1-\\rho}{B})","assumptions":["Trees are identically distributed with fixed depth and feature subsampling.","Test data is drawn from the same distribution as the training data.","Trees are combined by equal-weight averaging or majority vote."]},"quantities":[{"id":"n_trees","label":"Number of trees","unit":"trees","role":"control","meaning":"Count B of decision trees combined in the random forest (1 to 200)."},{"id":"rho","label":"Tree correlation","unit":"","role":"control","meaning":"Average pairwise correlation between predictions of two trees in the forest."},{"id":"single_acc","label":"Single-tree accuracy","unit":"%","role":"control","meaning":"Expected test accuracy achieved by a single decision tree (B = 1)."},{"id":"bayes_acc","label":"Bayes ceiling","unit":"%","role":"fixed","meaning":"Maximum achievable test accuracy limited by irreducible label noise."},{"id":"var_factor","label":"Variance factor","unit":"","role":"result","meaning":"Remaining fraction of single-tree variance: rho + (1 - rho) / B."},{"id":"test_acc","label":"Test accuracy","unit":"%","role":"result","meaning":"Expected random forest test accuracy at the chosen number of trees B."},{"id":"max_acc","label":"Asymptotic accuracy","unit":"%","role":"result","meaning":"Limiting test accuracy as B approaches infinity, limited by tree correlation."},{"id":"acc_gain","label":"Gain over 1 tree","unit":"pct pts","role":"result","meaning":"Increase in test accuracy compared with a single-tree baseline."}]}
+
+== first blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"Adding trees to a random forest averages out individual tree errors, lowering ensemble variance proportional to (1 - rho)/B while leaving bias unchanged. Test accuracy rises sharply from 1 to 50 trees and then levels off near an asymptote by 200 trees without overfitting.","formula":"V = \\sigma^2(\\rho + \\frac{1-\\rho}{B})","assumptions":["Trees are identically distributed with fixed depth and feature subsampling.","Test data is drawn from the same distribution as the training data.","Trees are combined by equal-weight averaging or majority vote."]},"quantities":[{"id":"n_trees","label":"Number of trees","unit":"trees","role":"control","meaning":"Count B of decision trees combined in the random forest (1 to 200)."},{"id":"rho","label":"Tree correlation","unit":"","role":"fixed","meaning":"Average pairwise correlation between predictions of two trees in the forest."},{"id":"single_acc","label":"Single-tree accuracy","unit":"%","role":"fixed","meaning":"Expected test accuracy achieved by a single decision tree (B = 1)."},{"id":"bayes_acc","label":"Bayes ceiling","unit":"%","role":"fixed","meaning":"Maximum achievable test accuracy limited by irreducible label noise."},{"id":"var_factor","label":"Variance factor","unit":"","role":"result","meaning":"Remaining fraction of single-tree variance: rho + (1 - rho) / B."},{"id":"test_acc","label":"Test accuracy","unit":"%","role":"result","meaning":"Expected random forest test accuracy at the chosen number of trees B."},{"id":"max_acc","label":"Asymptotic accuracy","unit":"%","role":"result","meaning":"Limiting test accuracy as B approaches infinity, limited by tree correlation."},{"id":"acc_gain","label":"Gain over 1 tree","unit":"pct pts","role":"result","meaning":"Increase in test accuracy compared with a single-tree baseline."}],"things":[{"id":"forest","label":"Random forest"},{"id":"single_tree","label":"Single tree"},{"id":"limit","label":"Asymptote"}],"inputs":[{"type":"number","id":"n_trees","label":"Number of trees","unit":"trees","min":1,"max":200,"default":10,"step":1}],"time":{"mode":"continuous","duration":12,"label":"Sample run","unit":"s"},"math":{"code":"function compute(inputs, t) { var B = inputs.n_trees; var rho = 0.12; var single_acc = 72; var bayes_acc = 96; var var_factor = rho + (1 - rho) / B; var gap = bayes_acc - single_acc; var test_acc = bayes_acc - gap * Math.sqrt(var_factor); var max_acc = bayes_acc - gap * Math.sqrt(rho); var acc_gain = test_acc - single_acc; var sample_x = 2 * t; var wave = Math.sin(2 * Math.PI * t / 3); var single_trial_y = single_acc + 6 * wave; var forest_trial_y = test_acc + 6 * Math.sqrt(var_factor) * wave; var is_single = B === 1; var is_steep = B > 1 && B <= 10; var is_knee = B > 10 && B <= 50; return { var_factor: var_factor, test_acc: test_acc, max_acc: max_acc, acc_gain: acc_gain, sample_x: sample_x, single_trial_y: single_trial_y, forest_trial_y: forest_trial_y, is_single: is_single, is_steep: is_steep, is_knee: is_knee }; }","outputs":[{"id":"var_factor","unit":"","meaning":"Remaining fraction of single-tree variance: rho + (1 - rho) / B.","kind":"number"},{"id":"test_acc","unit":"%","meaning":"Expected random forest test accuracy at the chosen number of trees B.","kind":"number"},{"id":"max_acc","unit":"%","meaning":"Limiting test accuracy as B approaches infinity, limited by tree correlation.","kind":"number"},{"id":"acc_gain","unit":"pct pts","meaning":"Increase in test accuracy compared with a single-tree baseline.","kind":"number"},{"id":"sample_x","unit":"%","meaning":"Horizontal position of the simulated test-batch sweep over time.","kind":"number"},{"id":"single_trial_y","unit":"%","meaning":"Simulated test-batch accuracy of a single tree oscillating around its 72% mean.","kind":"number"},{"id":"forest_trial_y","unit":"%","meaning":"Simulated test-batch accuracy of the forest with spread scaled by sqrt(var_factor).","kind":"number"},{"id":"is_single","unit":"","meaning":"True when the forest contains only 1 tree.","kind":"flag"},{"id":"is_steep","unit":"","meaning":"True when the forest has 2 to 10 trees in the steep initial gain region.","kind":"flag"},{"id":"is_knee","unit":"","meaning":"True when the forest has 11 to 50 trees approaching the curve knee.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"%","parts":[{"type":"line","id":"bayes_line","from":[0,96],"to":[24,96]},{"type":"label","id":"bayes_label","at":[12,97.8],"text":"Bayes ceiling 96%"},{"type":"line","id":"limit_line","from":[0,"max_acc"],"to":[24,"max_acc"],"of":"limit"},{"type":"label","id":"limit_label","at":[12,91.5],"text":"Asymptote 87.7%","of":"limit"},{"type":"line","id":"single_line","from":[0,72],"to":[24,72],"of":"single_tree"},{"type":"label","id":"single_label","at":[12,63.5],"text":"Single tree 72% avg","of":"single_tree"},{"type":"line","id":"forest_line","from":[0,"test_acc"],"to":[24,"test_acc"],"of":"forest"},{"type":"trace","id":"single_trace","at":["sample_x","single_trial_y"],"of":"single_tree"},{"type":"dot","id":"single_dot","at":["sample_x","single_trial_y"],"size":"medium","of":"single_tree"},{"type":"trace","id":"forest_trace","at":["sample_x","forest_trial_y"],"of":"forest"},{"type":"dot","id":"forest_dot","at":["sample_x","forest_trial_y"],"size":"large","of":"forest"},{"type":"dot","id":"forest_acc_dot","at":[25.5,"test_acc"],"size":"large","of":"forest"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Test accuracy vs tree count","x":{"over":"n_trees","label":"Number of trees","unit":"trees"},"y":{"label":"Test accuracy","unit":"%"},"series":[{"value":"test_acc","label":"Forest acc","of":"forest","style":"line"}]}},"values":[{"value":"test_acc","label":"Test acc","unit":"%","decimals":1,"of":"forest"},{"value":"acc_gain","label":"Gain vs 1","unit":"pts","decimals":1,"of":"forest"},{"value":"var_factor","label":"Var factor","unit":"","decimals":3,"of":"forest"},{"value":"max_acc","label":"Asymptote","unit":"%","decimals":1,"of":"limit"}],"explanation":{"always":["Bayes ceiling: 96.0%, rho: 0.12","Asymptote: 87.7% (1-tree: 72.0%)"],"cases":[{"when":"is_single","text":"1 tree: full variance (factor 1.00)"},{"when":"is_steep","text":"2-10 trees: steep variance drop"},{"when":"is_knee","text":"11-50 trees: approaching asymptote"}],"otherwise":"51-200 trees: flat near 87.7% limit"},"layout":{"pictureCount":"two","runs":"left-to-right","panelRole":"equal"},"claims":[{"type":"increases","value":"test_acc","with":"n_trees"},{"type":"increases","value":"acc_gain","with":"n_trees"},{"type":"decreases","value":"var_factor","with":"n_trees"},{"type":"unchanged","value":"max_acc","when":"n_trees"}],"lesson":{"title":"How does random forest accuracy change with tree count?","description":"Test accuracy and prediction spread update as you vary the forest size from 1 to 200 trees. Watch how averaging lowers variance while tree correlation caps the gain.","instructions":"Slide Number of trees to 1, 5, 10, 50, and 200 while watching both panels. Compare the forest trace and live accuracy against the single-tree baseline, correlation asymptote, and Bayes ceiling.","goal":"Averaging independent tree errors boosts accuracy steeply from 1 to 50 trees, then levels off by 200 trees at a limit set by tree correlation without overfitting."}}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "Adding trees to a random forest averages out individual tree errors, lowering ensemble variance proportional to (1 - rho)/B while leaving bias unchanged. Test accuracy rises sharply from 1 to 50 trees and then levels off near an asymptote by 200 trees without overfitting.",
+      "formula": "V = \\sigma^2(\\rho + \\frac{1-\\rho}{B})",
+      "assumptions": [
+        "Trees are identically distributed with fixed depth and feature subsampling.",
+        "Test data is drawn from the same distribution as the training data.",
+        "Trees are combined by equal-weight averaging or majority vote."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "n_trees",
+        "label": "Number of trees",
+        "unit": "trees",
+        "role": "control",
+        "meaning": "Count B of decision trees combined in the random forest (1 to 200)."
+      },
+      {
+        "id": "rho",
+        "label": "Tree correlation",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Average pairwise correlation between predictions of two trees in the forest."
+      },
+      {
+        "id": "single_acc",
+        "label": "Single-tree accuracy",
+        "unit": "%",
+        "role": "fixed",
+        "meaning": "Expected test accuracy achieved by a single decision tree (B = 1)."
+      },
+      {
+        "id": "bayes_acc",
+        "label": "Bayes ceiling",
+        "unit": "%",
+        "role": "fixed",
+        "meaning": "Maximum achievable test accuracy limited by irreducible label noise."
+      },
+      {
+        "id": "var_factor",
+        "label": "Variance factor",
+        "unit": "",
+        "role": "result",
+        "meaning": "Remaining fraction of single-tree variance: rho + (1 - rho) / B."
+      },
+      {
+        "id": "test_acc",
+        "label": "Test accuracy",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Expected random forest test accuracy at the chosen number of trees B."
+      },
+      {
+        "id": "max_acc",
+        "label": "Asymptotic accuracy",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Limiting test accuracy as B approaches infinity, limited by tree correlation."
+      },
+      {
+        "id": "acc_gain",
+        "label": "Gain over 1 tree",
+        "unit": "pct pts",
+        "role": "result",
+        "meaning": "Increase in test accuracy compared with a single-tree baseline."
+      }
+    ],
+    "things": [
+      {
+        "id": "forest",
+        "label": "Random forest"
+      },
+      {
+        "id": "single_tree",
+        "label": "Single tree"
+      },
+      {
+        "id": "limit",
+        "label": "Asymptote"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "n_trees",
+        "label": "Number of trees",
+        "unit": "trees",
+        "min": 1,
+        "max": 200,
+        "default": 10,
+        "step": 1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 12,
+      "label": "Sample run",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var B = inputs.n_trees; var rho = 0.12; var single_acc = 72; var bayes_acc = 96; var var_factor = rho + (1 - rho) / B; var gap = bayes_acc - single_acc; var test_acc = bayes_acc - gap * Math.sqrt(var_factor); var max_acc = bayes_acc - gap * Math.sqrt(rho); var acc_gain = test_acc - single_acc; var sample_x = 2 * t; var wave = Math.sin(2 * Math.PI * t / 3); var single_trial_y = single_acc + 6 * wave; var forest_trial_y = test_acc + 6 * Math.sqrt(var_factor) * wave; var is_single = B === 1; var is_steep = B > 1 && B <= 10; var is_knee = B > 10 && B <= 50; return { var_factor: var_factor, test_acc: test_acc, max_acc: max_acc, acc_gain: acc_gain, sample_x: sample_x, single_trial_y: single_trial_y, forest_trial_y: forest_trial_y, is_single: is_single, is_steep: is_steep, is_knee: is_knee }; }",
+      "outputs": [
+        {
+          "id": "var_factor",
+          "unit": "",
+          "meaning": "Remaining fraction of single-tree variance: rho + (1 - rho) / B.",
+          "kind": "number"
+        },
+        {
+          "id": "test_acc",
+          "unit": "%",
+          "meaning": "Expected random forest test accuracy at the chosen number of trees B.",
+          "kind": "number"
+        },
+        {
+          "id": "max_acc",
+          "unit": "%",
+          "meaning": "Limiting test accuracy as B approaches infinity, limited by tree correlation.",
+          "kind": "number"
+        },
+        {
+          "id": "acc_gain",
+          "unit": "pct pts",
+          "meaning": "Increase in test accuracy compared with a single-tree baseline.",
+          "kind": "number"
+        },
+        {
+          "id": "sample_x",
+          "unit": "%",
+          "meaning": "Horizontal position of the simulated test-batch sweep over time.",
+          "kind": "number"
+        },
+        {
+          "id": "single_trial_y",
+          "unit": "%",
+          "meaning": "Simulated test-batch accuracy of a single tree oscillating around its 72% mean.",
+          "kind": "number"
+        },
+        {
+          "id": "forest_trial_y",
+          "unit": "%",
+          "meaning": "Simulated test-batch accuracy of the forest with spread scaled by sqrt(var_factor).",
+          "kind": "number"
+        },
+        {
+          "id": "is_single",
+          "unit": "",
+          "meaning": "True when the forest contains only 1 tree.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_steep",
+          "unit": "",
+          "meaning": "True when the forest has 2 to 10 trees in the steep initial gain region.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_knee",
+          "unit": "",
+          "meaning": "True when the forest has 11 to 50 trees approaching the curve knee.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "%",
+        "parts": [
+          {
+            "type": "line",
+            "id": "bayes_line",
+            "from": [
+              0,
+              96
+            ],
+            "to": [
+              24,
+              96
+            ]
+          },
+          {
+            "type": "label",
+            "id": "bayes_label",
+            "at": [
+              12,
+              97.8
+            ],
+            "text": "Bayes ceiling 96%"
+          },
+          {
+            "type": "line",
+            "id": "limit_line",
+            "from": [
+              0,
+              "max_acc"
+            ],
+            "to": [
+              24,
+              "max_acc"
+            ],
+            "of": "limit"
+          },
+          {
+            "type": "label",
+            "id": "limit_label",
+            "at": [
+              12,
+              91.5
+            ],
+            "text": "Asymptote 87.7%",
+            "of": "limit"
+          },
+          {
+            "type": "line",
+            "id": "single_line",
+            "from": [
+              0,
+              72
+            ],
+            "to": [
+              24,
+              72
+            ],
+            "of": "single_tree"
+          },
+          {
+            "type": "label",
+            "id": "single_label",
+            "at": [
+              12,
+              63.5
+            ],
+            "text": "Single tree 72% avg",
+            "of": "single_tree"
+          },
+          {
+            "type": "line",
+            "id": "forest_line",
+            "from": [
+              0,
+              "test_acc"
+            ],
+            "to": [
+              24,
+              "test_acc"
+            ],
+            "of": "forest"
+          },
+          {
+            "type": "trace",
+            "id": "single_trace",
+            "at": [
+              "sample_x",
+              "single_trial_y"
+            ],
+            "of": "single_tree"
+          },
+          {
+            "type": "dot",
+            "id": "single_dot",
+            "at": [
+              "sample_x",
+              "single_trial_y"
+            ],
+            "size": "medium",
+            "of": "single_tree"
+          },
+          {
+            "type": "trace",
+            "id": "forest_trace",
+            "at": [
+              "sample_x",
+              "forest_trial_y"
+            ],
+            "of": "forest"
+          },
+          {
+            "type": "dot",
+            "id": "forest_dot",
+            "at": [
+              "sample_x",
+              "forest_trial_y"
+            ],
+            "size": "large",
+            "of": "forest"
+          },
+          {
+            "type": "dot",
+            "id": "forest_acc_dot",
+            "at": [
+              25.5,
+              "test_acc"
+            ],
+            "size": "large",
+            "of": "forest"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Test accuracy vs tree count",
+        "x": {
+          "over": "n_trees",
+          "label": "Number of trees",
+          "unit": "trees"
+        },
+        "y": {
+          "label": "Test accuracy",
+          "unit": "%"
+        },
+        "series": [
+          {
+            "value": "test_acc",
+            "label": "Forest acc",
+            "of": "forest",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "test_acc",
+        "label": "Test acc",
+        "unit": "%",
+        "decimals": 1,
+        "of": "forest"
+      },
+      {
+        "value": "acc_gain",
+        "label": "Gain vs 1",
+        "unit": "pts",
+        "decimals": 1,
+        "of": "forest"
+      },
+      {
+        "value": "var_factor",
+        "label": "Var factor",
+        "unit": "",
+        "decimals": 3,
+        "of": "forest"
+      },
+      {
+        "value": "max_acc",
+        "label": "Asymptote",
+        "unit": "%",
+        "decimals": 1,
+        "of": "limit"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Bayes ceiling: 96.0%, rho: 0.12",
+        "Asymptote: 87.7% (1-tree: 72.0%)"
+      ],
+      "cases": [
+        {
+          "when": "is_single",
+          "text": "1 tree: full variance (factor 1.00)"
+        },
+        {
+          "when": "is_steep",
+          "text": "2-10 trees: steep variance drop"
+        },
+        {
+          "when": "is_knee",
+          "text": "11-50 trees: approaching asymptote"
+        }
+      ],
+      "otherwise": "51-200 trees: flat near 87.7% limit"
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "equal"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "test_acc",
+        "with": "n_trees"
+      },
+      {
+        "type": "increases",
+        "value": "acc_gain",
+        "with": "n_trees"
+      },
+      {
+        "type": "decreases",
+        "value": "var_factor",
+        "with": "n_trees"
+      },
+      {
+        "type": "unchanged",
+        "value": "max_acc",
+        "when": "n_trees"
+      }
+    ],
+    "lesson": {
+      "title": "How does random forest accuracy change with tree count?",
+      "description": "Test accuracy and prediction spread update as you vary the forest size from 1 to 200 trees. Watch how averaging lowers variance while tree correlation caps the gain.",
+      "instructions": "Slide Number of trees to 1, 5, 10, 50, and 200 while watching both panels. Compare the forest trace and live accuracy against the single-tree baseline, correlation asymptote, and Bayes ceiling.",
+      "goal": "Averaging independent tree errors boosts accuracy steeply from 1 to 50 trees, then levels off by 200 trees at a limit set by tree correlation without overfitting."
+    }
+  }
+}
+
+== checker output, corrected answer
+none

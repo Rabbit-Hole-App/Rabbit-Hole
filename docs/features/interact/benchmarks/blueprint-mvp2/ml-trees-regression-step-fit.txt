@@ -1,0 +1,1818 @@
+run ej_a9b558cf935b4b50a8300076894520ee: PASSED the light checker
+prompt: how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 274514323   seconds: 163.354   cost: $0.2954
+
+== dice
+{
+  "controlQuantities": [
+    "depth",
+    "x_query",
+    "noise_sd"
+  ],
+  "n": 3,
+  "k": 3,
+  "ids": [
+    "depth",
+    "x_query",
+    "noise_sd"
+  ]
+}
+
+== calls
+quantities: answered, 15.648 s, 1247 in + 2027 thinking + 758 out, $0.0228
+blueprint: answered, 107.32 s, 10479 in + 18140 thinking + 4301 out, $0.1840
+blueprint: answered, 35.894 s, 14880 in + 4348 thinking + 4495 out, $0.0886
+
+== problems
+none
+
+== blueprint (corrected): "How Regression Trees Approximate sin(x) by Depth"; controls: depth, x_query, noise_sd
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A regression tree splits the x-axis into at most 2^d intervals and predicts the sample mean inside each interval. Going from depth 2 (4 steps) to depth 5 (32 steps) replaces coarse flat segments with fine steps that hug sin(x) and drop the approximation error.",
+    "formula": "M \\le 2^d,\\; \\hat{y}(x)=\\bar{y}_m",
+    "assumptions": [
+      "Samples lie on [0, 2pi] and are split greedily to minimize squared error.",
+      "Each leaf outputs one constant value equal to its region's sample mean.",
+      "Every leaf keeps at least one training sample, capping splits at sample count."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits from root to leaf (compare 2 vs 5)."
+    },
+    {
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "role": "control",
+      "meaning": "Input x position where the true curve and step prediction are compared."
+    },
+    {
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "role": "control",
+      "meaning": "Standard deviation of random noise added to the training samples."
+    },
+    {
+      "id": "n_samples",
+      "label": "Training samples",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Number of data points on [0, 2pi] used to grow the regression tree."
+    },
+    {
+      "id": "domain_max",
+      "label": "Domain upper bound",
+      "unit": "rad",
+      "role": "fixed",
+      "meaning": "Upper endpoint 2pi of the interval [0, 2pi] over which sin(x) is fit."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "role": "result",
+      "meaning": "Number of constant-height intervals (at most 2^d) formed by the tree."
+    },
+    {
+      "id": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Exact value of sin(x) evaluated at the query position."
+    },
+    {
+      "id": "y_pred",
+      "label": "Tree prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Constant step height (leaf mean) predicted by the tree at query x."
+    },
+    {
+      "id": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "role": "result",
+      "meaning": "Root mean squared error between the step function and true sin(x)."
+    }
+  ],
+  "things": [
+    {
+      "id": "sine_wave",
+      "label": "True sin(x)"
+    },
+    {
+      "id": "tree_fit",
+      "label": "Tree step fit"
+    },
+    {
+      "id": "query_probe",
+      "label": "Query x"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "min": 2,
+      "max": 5,
+      "default": 2,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "min": 0,
+      "max": 6.28,
+      "default": 1,
+      "step": 0.04
+    },
+    {
+      "type": "number",
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "step": 0.05
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Scan time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var N = 64; var DMAX = 2 * Math.PI; var rawD = Math.max(1, Math.min(6, inputs.depth)); var d0 = Math.floor(rawD); var d1 = Math.ceil(rawD); var frac = rawD - d0; var xq = Math.max(0, Math.min(DMAX, inputs.x_query)); var noise = Math.max(0, inputs.noise_sd); var xs = new Array(N); var prefY = new Array(N + 1); prefY[0] = 0; for (var i = 0; i < N; i++) { var x = ((i + 0.37) / N) * DMAX; xs[i] = x; var r1 = Math.sin((i * 3 + 1) * 12.9898 + 78.233) * 43758.5453; var r2 = Math.sin((i * 3 + 2) * 12.9898 + 78.233) * 43758.5453; var r3 = Math.sin((i * 3 + 3) * 12.9898 + 78.233) * 43758.5453; var eps = ((r1 - Math.floor(r1)) + (r2 - Math.floor(r2)) + (r3 - Math.floor(r3)) - 1.5) * 2; var y = Math.sin(x) + noise * eps; prefY[i + 1] = prefY[i] + y; } function fitTree(maxD) { var leaves = []; function build(lo, hi, dLeft, xMin, xMax) { var n = hi - lo; var sum = prefY[hi] - prefY[lo]; var mean = sum / n; if (dLeft <= 0 || n < 2) { leaves.push([xMin, xMax, mean]); return; } var baseScore = (sum * sum) / n; var bestScore = baseScore + 1e-12; var bestMid = -1; for (var mid = lo + 1; mid < hi; mid++) { var sL = prefY[mid] - prefY[lo]; var sR = prefY[hi] - prefY[mid]; var sc = (sL * sL) / (mid - lo) + (sR * sR) / (hi - mid); if (sc > bestScore) { bestScore = sc; bestMid = mid; } } if (bestMid === -1) { leaves.push([xMin, xMax, mean]); return; } var splitX = 0.5 * (xs[bestMid - 1] + xs[bestMid]); build(lo, bestMid, dLeft - 1, xMin, splitX); build(bestMid, hi, dLeft - 1, splitX, xMax); } build(0, N, maxD, 0, DMAX); var sqErrInt = 0; for (var k = 0; k < leaves.length; k++) { var a = leaves[k][0]; var b = leaves[k][1]; var c = leaves[k][2]; var fa = (c * c + 0.5) * a + 2 * c * Math.cos(a) - 0.25 * Math.sin(2 * a); var fb = (c * c + 0.5) * b + 2 * c * Math.cos(b) - 0.25 * Math.sin(2 * b); sqErrInt += Math.max(0, fb - fa); } return { leaves: leaves, rmse: Math.sqrt(sqErrInt / DMAX) }; } function predLeaves(leaves, xp) { for (var k = 0; k < leaves.length; k++) { if (xp <= leaves[k][1] || k === leaves.length - 1) { return leaves[k][2]; } } return 0; } var t0 = fitTree(d0); var t1 = frac > 0 ? fitTree(d1) : t0; var xScan = Math.max(0, Math.min(DMAX, (t / 6) * DMAX)); var leafCount = (1 - frac) * t0.leaves.length + frac * t1.leaves.length; var rmse = (1 - frac) * t0.rmse + frac * t1.rmse; var yPred = (1 - frac) * predLeaves(t0.leaves, xq) + frac * predLeaves(t1.leaves, xq); var yPredScan = (1 - frac) * predLeaves(t0.leaves, xScan) + frac * predLeaves(t1.leaves, xScan); return { leaf_count: leafCount, y_true: Math.sin(xq), y_pred: yPred, rmse_clean: rmse, x_scan: xScan, y_true_scan: Math.sin(xScan), y_pred_scan: yPredScan, x_query_out: xq, is_noisy_overfit: rawD >= 4 && noise >= 0.25, is_shallow: rawD <= 2, is_deep_clean: rawD >= 5 && noise < 0.25 }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "",
+        "meaning": "Number of constant-height intervals formed by the tree.",
+        "kind": "number"
+      },
+      {
+        "id": "y_true",
+        "unit": "",
+        "meaning": "Exact value of sin(x) at query x.",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred",
+        "unit": "",
+        "meaning": "Tree leaf mean predicted at query x.",
+        "kind": "number"
+      },
+      {
+        "id": "rmse_clean",
+        "unit": "",
+        "meaning": "Root mean squared error against true sin(x).",
+        "kind": "number"
+      },
+      {
+        "id": "x_scan",
+        "unit": "rad",
+        "meaning": "Horizontal sweep position across [0, 2pi] over time.",
+        "kind": "number"
+      },
+      {
+        "id": "y_true_scan",
+        "unit": "",
+        "meaning": "True sin(x) at the sweep position.",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred_scan",
+        "unit": "",
+        "meaning": "Tree step prediction at the sweep position.",
+        "kind": "number"
+      },
+      {
+        "id": "x_query_out",
+        "unit": "rad",
+        "meaning": "Clamped query x coordinate for drawing.",
+        "kind": "number"
+      },
+      {
+        "id": "is_noisy_overfit",
+        "unit": "",
+        "meaning": "True when high depth and sample noise cause jagged overfitting.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_shallow",
+        "unit": "",
+        "meaning": "True when tree depth is 2 or less.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_deep_clean",
+        "unit": "",
+        "meaning": "True when tree depth is 5 with low noise.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "rad",
+      "parts": [
+        {
+          "type": "line",
+          "id": "x_axis",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            6.2832,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "y_axis",
+          "from": [
+            0,
+            -1.4
+          ],
+          "to": [
+            0,
+            1.4
+          ]
+        },
+        {
+          "type": "line",
+          "id": "query_guide",
+          "from": [
+            "x_query_out",
+            -1.4
+          ],
+          "to": [
+            "x_query_out",
+            1.4
+          ],
+          "of": "query_probe"
+        },
+        {
+          "type": "trace",
+          "id": "true_trace",
+          "at": [
+            "x_scan",
+            "y_true_scan"
+          ],
+          "of": "sine_wave"
+        },
+        {
+          "type": "trace",
+          "id": "tree_trace",
+          "at": [
+            "x_scan",
+            "y_pred_scan"
+          ],
+          "of": "tree_fit"
+        },
+        {
+          "type": "dot",
+          "id": "true_scan_dot",
+          "at": [
+            "x_scan",
+            "y_true_scan"
+          ],
+          "size": "small",
+          "of": "sine_wave"
+        },
+        {
+          "type": "dot",
+          "id": "tree_scan_dot",
+          "at": [
+            "x_scan",
+            "y_pred_scan"
+          ],
+          "size": "small",
+          "of": "tree_fit"
+        },
+        {
+          "type": "dot",
+          "id": "true_query_dot",
+          "at": [
+            "x_query_out",
+            "y_true"
+          ],
+          "size": "medium",
+          "of": "sine_wave"
+        },
+        {
+          "type": "dot",
+          "id": "tree_query_dot",
+          "at": [
+            "x_query_out",
+            "y_pred"
+          ],
+          "size": "medium",
+          "of": "tree_fit"
+        },
+        {
+          "type": "arrow",
+          "id": "error_arrow",
+          "from": [
+            "x_query_out",
+            "y_true"
+          ],
+          "to": [
+            "x_query_out",
+            "y_pred"
+          ],
+          "label": "err",
+          "of": "query_probe"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Curve Error vs Tree Depth",
+      "x": {
+        "over": "depth",
+        "label": "Tree depth",
+        "unit": ""
+      },
+      "y": {
+        "label": "Curve RMSE",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "rmse_clean",
+          "label": "Curve RMSE",
+          "of": "tree_fit",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "decimals": 3,
+      "of": "sine_wave"
+    },
+    {
+      "value": "y_pred",
+      "label": "Tree pred",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree_fit"
+    },
+    {
+      "value": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree_fit"
+    },
+    {
+      "value": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "decimals": 0,
+      "of": "tree_fit"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Each leaf outputs its region mean",
+      "Split count caps at 2^depth"
+    ],
+    "cases": [
+      {
+        "when": "is_noisy_overfit",
+        "text": "Deep leaves overfit sample noise"
+      },
+      {
+        "when": "is_shallow",
+        "text": "Depth 2: coarse steps miss wave"
+      },
+      {
+        "when": "is_deep_clean",
+        "text": "Depth 5: fine steps hug sin(x)"
+      }
+    ],
+    "otherwise": "Mid depth: steps narrow the error"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "rmse_clean",
+      "with": "depth",
+      "at": [
+        {
+          "input": "noise_sd",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "increases",
+      "value": "leaf_count",
+      "with": "depth",
+      "at": [
+        {
+          "input": "noise_sd",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "unchanged",
+      "value": "y_true",
+      "when": "depth"
+    },
+    {
+      "type": "unchanged",
+      "value": "rmse_clean",
+      "when": "x_query"
+    },
+    {
+      "type": "unchanged",
+      "value": "y_true",
+      "when": "noise_sd"
+    }
+  ],
+  "lesson": {
+    "title": "How Regression Trees Approximate sin(x) by Depth",
+    "description": "Watch a regression tree fit sin(x) with flat constant steps across zero to two pi. Compare coarse depth two against fine depth five as error drops.",
+    "instructions": "Move Tree depth from 2 to 5 to see how splitting changes the step fit and error curve. Slide Query x to inspect local error, and raise Sample noise to test overfitting.",
+    "goal": "Deeper trees divide x into smaller intervals so constant leaf means track sin(x) closely, though noisy samples make deep leaves overfit."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "A regression tree splits the x-axis into at most 2^d intervals and predicts the sample mean inside each interval. Going from depth 2 (4 steps) to depth 5 (32 steps) replaces coarse flat segments with fine steps that hug sin(x) and drop the approximation error.",
+    "formula": "M \\le 2^d,\\; \\hat{y}(x)=\\bar{y}_m",
+    "assumptions": [
+      "Samples lie on [0, 2pi] and are split greedily to minimize squared error.",
+      "Each leaf outputs one constant value equal to its region's sample mean.",
+      "Every leaf keeps at least one training sample, capping splits at sample count."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits from root to leaf (compare 2 vs 5)."
+    },
+    {
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "role": "control",
+      "meaning": "Input x position where the true curve and step prediction are compared."
+    },
+    {
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "role": "control",
+      "meaning": "Standard deviation of random noise added to the training samples."
+    },
+    {
+      "id": "n_samples",
+      "label": "Training samples",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Number of data points on [0, 2pi] used to grow the regression tree."
+    },
+    {
+      "id": "domain_max",
+      "label": "Domain upper bound",
+      "unit": "rad",
+      "role": "fixed",
+      "meaning": "Upper endpoint 2pi of the interval [0, 2pi] over which sin(x) is fit."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "role": "result",
+      "meaning": "Number of constant-height intervals (at most 2^d) formed by the tree."
+    },
+    {
+      "id": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Exact value of sin(x) evaluated at the query position."
+    },
+    {
+      "id": "y_pred",
+      "label": "Tree prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Constant step height (leaf mean) predicted by the tree at query x."
+    },
+    {
+      "id": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "role": "result",
+      "meaning": "Root mean squared error between the step function and true sin(x)."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A regression tree splits the x-axis into at most 2^d intervals and predicts the sample mean inside each interval. Going from depth 2 (4 steps) to depth 5 (32 steps) replaces coarse flat segments with fine steps that hug sin(x) and drop the approximation error.",
+    "formula": "M \\le 2^d,\\; \\hat{y}(x)=\\bar{y}_m",
+    "assumptions": [
+      "Samples lie on [0, 2pi] and are split greedily to minimize squared error.",
+      "Each leaf outputs one constant value equal to its region's sample mean.",
+      "Every leaf keeps at least one training sample, capping splits at sample count."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits from root to leaf (compare 2 vs 5)."
+    },
+    {
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "role": "control",
+      "meaning": "Input x position where the true curve and step prediction are compared."
+    },
+    {
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "role": "control",
+      "meaning": "Standard deviation of random noise added to the training samples."
+    },
+    {
+      "id": "n_samples",
+      "label": "Training samples",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Number of data points on [0, 2pi] used to grow the regression tree."
+    },
+    {
+      "id": "domain_max",
+      "label": "Domain upper bound",
+      "unit": "rad",
+      "role": "fixed",
+      "meaning": "Upper endpoint 2pi of the interval [0, 2pi] over which sin(x) is fit."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "role": "result",
+      "meaning": "Number of constant-height intervals (at most 2^d) formed by the tree."
+    },
+    {
+      "id": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Exact value of sin(x) evaluated at the query position."
+    },
+    {
+      "id": "y_pred",
+      "label": "Tree prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Constant step height (leaf mean) predicted by the tree at query x."
+    },
+    {
+      "id": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "role": "result",
+      "meaning": "Root mean squared error between the step function and true sin(x)."
+    }
+  ],
+  "things": [
+    {
+      "id": "sine_wave",
+      "label": "True sin(x)"
+    },
+    {
+      "id": "tree_fit",
+      "label": "Tree step fit"
+    },
+    {
+      "id": "query_probe",
+      "label": "Query x"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "min": 2,
+      "max": 5,
+      "default": 2,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "min": 0,
+      "max": 6.28,
+      "default": 1,
+      "step": 0.04
+    },
+    {
+      "type": "number",
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "step": 0.05
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Scan time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var N = 64; var DMAX = 2 * Math.PI; var depth = Math.max(1, Math.min(6, Math.round(inputs.depth))); var xq = Math.max(0, Math.min(DMAX, inputs.x_query)); var noise = Math.max(0, inputs.noise_sd); var xs = new Array(N); var prefY = new Array(N + 1); prefY[0] = 0; for (var i = 0; i < N; i++) { var x = ((i + 0.37) / N) * DMAX; xs[i] = x; var r1 = Math.sin((i * 3 + 1) * 12.9898 + 78.233) * 43758.5453; var r2 = Math.sin((i * 3 + 2) * 12.9898 + 78.233) * 43758.5453; var r3 = Math.sin((i * 3 + 3) * 12.9898 + 78.233) * 43758.5453; var eps = ((r1 - Math.floor(r1)) + (r2 - Math.floor(r2)) + (r3 - Math.floor(r3)) - 1.5) * 2; var y = Math.sin(x) + noise * eps; prefY[i + 1] = prefY[i] + y; } var leaves = []; function build(lo, hi, dLeft, xMin, xMax) { var n = hi - lo; var sum = prefY[hi] - prefY[lo]; var mean = sum / n; if (dLeft <= 0 || n < 2) { leaves.push([xMin, xMax, mean]); return; } var baseScore = (sum * sum) / n; var bestScore = baseScore + 1e-12; var bestMid = -1; for (var mid = lo + 1; mid < hi; mid++) { var sL = prefY[mid] - prefY[lo]; var sR = prefY[hi] - prefY[mid]; var sc = (sL * sL) / (mid - lo) + (sR * sR) / (hi - mid); if (sc > bestScore) { bestScore = sc; bestMid = mid; } } if (bestMid === -1) { leaves.push([xMin, xMax, mean]); return; } var splitX = 0.5 * (xs[bestMid - 1] + xs[bestMid]); build(lo, bestMid, dLeft - 1, xMin, splitX); build(bestMid, hi, dLeft - 1, splitX, xMax); } build(0, N, depth, 0, DMAX); function pred(xp) { for (var k = 0; k < leaves.length; k++) { if (xp <= leaves[k][1] || k === leaves.length - 1) { return leaves[k][2]; } } return 0; } var sqErrInt = 0; for (var k = 0; k < leaves.length; k++) { var a = leaves[k][0]; var b = leaves[k][1]; var c = leaves[k][2]; var fa = (c * c + 0.5) * a + 2 * c * Math.cos(a) - 0.25 * Math.sin(2 * a); var fb = (c * c + 0.5) * b + 2 * c * Math.cos(b) - 0.25 * Math.sin(2 * b); sqErrInt += Math.max(0, fb - fa); } var rmse = Math.sqrt(sqErrInt / DMAX); var xScan = Math.max(0, Math.min(DMAX, (t / 6) * DMAX)); return { leaf_count: leaves.length, y_true: Math.sin(xq), y_pred: pred(xq), rmse_clean: rmse, x_scan: xScan, y_true_scan: Math.sin(xScan), y_pred_scan: pred(xScan), x_query_out: xq, is_noisy_overfit: depth >= 4 && noise >= 0.25, is_shallow: depth <= 2, is_deep_clean: depth >= 5 && noise < 0.25 }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "",
+        "meaning": "Number of constant-height intervals formed by the tree.",
+        "kind": "number"
+      },
+      {
+        "id": "y_true",
+        "unit": "",
+        "meaning": "Exact value of sin(x) at query x.",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred",
+        "unit": "",
+        "meaning": "Tree leaf mean predicted at query x.",
+        "kind": "number"
+      },
+      {
+        "id": "rmse_clean",
+        "unit": "",
+        "meaning": "Root mean squared error against true sin(x).",
+        "kind": "number"
+      },
+      {
+        "id": "x_scan",
+        "unit": "rad",
+        "meaning": "Horizontal sweep position across [0, 2pi] over time.",
+        "kind": "number"
+      },
+      {
+        "id": "y_true_scan",
+        "unit": "",
+        "meaning": "True sin(x) at the sweep position.",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred_scan",
+        "unit": "",
+        "meaning": "Tree step prediction at the sweep position.",
+        "kind": "number"
+      },
+      {
+        "id": "x_query_out",
+        "unit": "rad",
+        "meaning": "Clamped query x coordinate for drawing.",
+        "kind": "number"
+      },
+      {
+        "id": "is_noisy_overfit",
+        "unit": "",
+        "meaning": "True when high depth and sample noise cause jagged overfitting.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_shallow",
+        "unit": "",
+        "meaning": "True when tree depth is 2 or less.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_deep_clean",
+        "unit": "",
+        "meaning": "True when tree depth is 5 with low noise.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "rad",
+      "parts": [
+        {
+          "type": "line",
+          "id": "x_axis",
+          "from": [0, 0],
+          "to": [6.2832, 0]
+        },
+        {
+          "type": "line",
+          "id": "y_axis",
+          "from": [0, -1.4],
+          "to": [0, 1.4]
+        },
+        {
+          "type": "line",
+          "id": "query_guide",
+          "from": ["x_query_out", -1.4],
+          "to": ["x_query_out", 1.4],
+          "of": "query_probe"
+        },
+        {
+          "type": "trace",
+          "id": "true_trace",
+          "at": ["x_scan", "y_true_scan"],
+          "of": "sine_wave"
+        },
+        {
+          "type": "trace",
+          "id": "tree_trace",
+          "at": ["x_scan", "y_pred_scan"],
+          "of": "tree_fit"
+        },
+        {
+          "type": "dot",
+          "id": "true_scan_dot",
+          "at": ["x_scan", "y_true_scan"],
+          "size": "small",
+          "of": "sine_wave"
+        },
+        {
+          "type": "dot",
+          "id": "tree_scan_dot",
+          "at": ["x_scan", "y_pred_scan"],
+          "size": "small",
+          "of": "tree_fit"
+        },
+        {
+          "type": "dot",
+          "id": "true_query_dot",
+          "at": ["x_query_out", "y_true"],
+          "size": "medium",
+          "of": "sine_wave"
+        },
+        {
+          "type": "dot",
+          "id": "tree_query_dot",
+          "at": ["x_query_out", "y_pred"],
+          "size": "medium",
+          "of": "tree_fit"
+        },
+        {
+          "type": "arrow",
+          "id": "error_arrow",
+          "from": ["x_query_out", "y_true"],
+          "to": ["x_query_out", "y_pred"],
+          "label": "err",
+          "of": "query_probe"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Curve Error vs Tree Depth",
+      "x": {
+        "over": "depth",
+        "label": "Tree depth",
+        "unit": ""
+      },
+      "y": {
+        "label": "Curve RMSE",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "rmse_clean",
+          "label": "Curve RMSE",
+          "of": "tree_fit",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "decimals": 3,
+      "of": "sine_wave"
+    },
+    {
+      "value": "y_pred",
+      "label": "Tree pred",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree_fit"
+    },
+    {
+      "value": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree_fit"
+    },
+    {
+      "value": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "decimals": 0,
+      "of": "tree_fit"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Each leaf outputs its region mean",
+      "Split count caps at 2^depth"
+    ],
+    "cases": [
+      {
+        "when": "is_noisy_overfit",
+        "text": "Deep leaves overfit sample noise"
+      },
+      {
+        "when": "is_shallow",
+        "text": "Depth 2: coarse steps miss wave"
+      },
+      {
+        "when": "is_deep_clean",
+        "text": "Depth 5: fine steps hug sin(x)"
+      }
+    ],
+    "otherwise": "Mid depth: steps narrow the error"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "rmse_clean",
+      "with": "depth",
+      "at": [
+        {
+          "input": "noise_sd",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "increases",
+      "value": "leaf_count",
+      "with": "depth",
+      "at": [
+        {
+          "input": "noise_sd",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "unchanged",
+      "value": "y_true",
+      "when": "depth"
+    },
+    {
+      "type": "unchanged",
+      "value": "rmse_clean",
+      "when": "x_query"
+    },
+    {
+      "type": "unchanged",
+      "value": "y_true",
+      "when": "noise_sd"
+    }
+  ],
+  "lesson": {
+    "title": "How Regression Trees Approximate sin(x) by Depth",
+    "description": "Watch a regression tree fit sin(x) with flat constant steps across zero to two pi. Compare coarse depth two against fine depth five as error drops.",
+    "instructions": "Move Tree depth from 2 to 5 to see how splitting changes the step fit and error curve. Slide Query x to inspect local error, and raise Sample noise to test overfitting.",
+    "goal": "Deeper trees divide x into smaller intervals so constant leaf means track sin(x) closely, though noisy samples make deep leaves overfit."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A regression tree splits the x-axis into at most 2^d intervals and predicts the sample mean inside each interval. Going from depth 2 (4 steps) to depth 5 (32 steps) replaces coarse flat segments with fine steps that hug sin(x) and drop the approximation error.",
+    "formula": "M \\le 2^d,\\; \\hat{y}(x)=\\bar{y}_m",
+    "assumptions": [
+      "Samples lie on [0, 2pi] and are split greedily to minimize squared error.",
+      "Each leaf outputs one constant value equal to its region's sample mean.",
+      "Every leaf keeps at least one training sample, capping splits at sample count."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "role": "control",
+      "meaning": "Maximum number of sequential splits from root to leaf (compare 2 vs 5)."
+    },
+    {
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "role": "control",
+      "meaning": "Input x position where the true curve and step prediction are compared."
+    },
+    {
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "role": "control",
+      "meaning": "Standard deviation of random noise added to the training samples."
+    },
+    {
+      "id": "n_samples",
+      "label": "Training samples",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Number of data points on [0, 2pi] used to grow the regression tree."
+    },
+    {
+      "id": "domain_max",
+      "label": "Domain upper bound",
+      "unit": "rad",
+      "role": "fixed",
+      "meaning": "Upper endpoint 2pi of the interval [0, 2pi] over which sin(x) is fit."
+    },
+    {
+      "id": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "role": "result",
+      "meaning": "Number of constant-height intervals (at most 2^d) formed by the tree."
+    },
+    {
+      "id": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "role": "result",
+      "meaning": "Exact value of sin(x) evaluated at the query position."
+    },
+    {
+      "id": "y_pred",
+      "label": "Tree prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Constant step height (leaf mean) predicted by the tree at query x."
+    },
+    {
+      "id": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "role": "result",
+      "meaning": "Root mean squared error between the step function and true sin(x)."
+    }
+  ],
+  "things": [
+    {
+      "id": "sine_wave",
+      "label": "True sin(x)"
+    },
+    {
+      "id": "tree_fit",
+      "label": "Tree step fit"
+    },
+    {
+      "id": "query_probe",
+      "label": "Query x"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "depth",
+      "label": "Tree depth",
+      "unit": "",
+      "min": 2,
+      "max": 5,
+      "default": 2,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "x_query",
+      "label": "Query x",
+      "unit": "rad",
+      "min": 0,
+      "max": 6.28,
+      "default": 1,
+      "step": 0.04
+    },
+    {
+      "type": "number",
+      "id": "noise_sd",
+      "label": "Sample noise",
+      "unit": "",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "step": 0.05
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Scan time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var N = 64; var DMAX = 2 * Math.PI; var rawD = Math.max(1, Math.min(6, inputs.depth)); var d0 = Math.floor(rawD); var d1 = Math.ceil(rawD); var frac = rawD - d0; var xq = Math.max(0, Math.min(DMAX, inputs.x_query)); var noise = Math.max(0, inputs.noise_sd); var xs = new Array(N); var prefY = new Array(N + 1); prefY[0] = 0; for (var i = 0; i < N; i++) { var x = ((i + 0.37) / N) * DMAX; xs[i] = x; var r1 = Math.sin((i * 3 + 1) * 12.9898 + 78.233) * 43758.5453; var r2 = Math.sin((i * 3 + 2) * 12.9898 + 78.233) * 43758.5453; var r3 = Math.sin((i * 3 + 3) * 12.9898 + 78.233) * 43758.5453; var eps = ((r1 - Math.floor(r1)) + (r2 - Math.floor(r2)) + (r3 - Math.floor(r3)) - 1.5) * 2; var y = Math.sin(x) + noise * eps; prefY[i + 1] = prefY[i] + y; } function fitTree(maxD) { var leaves = []; function build(lo, hi, dLeft, xMin, xMax) { var n = hi - lo; var sum = prefY[hi] - prefY[lo]; var mean = sum / n; if (dLeft <= 0 || n < 2) { leaves.push([xMin, xMax, mean]); return; } var baseScore = (sum * sum) / n; var bestScore = baseScore + 1e-12; var bestMid = -1; for (var mid = lo + 1; mid < hi; mid++) { var sL = prefY[mid] - prefY[lo]; var sR = prefY[hi] - prefY[mid]; var sc = (sL * sL) / (mid - lo) + (sR * sR) / (hi - mid); if (sc > bestScore) { bestScore = sc; bestMid = mid; } } if (bestMid === -1) { leaves.push([xMin, xMax, mean]); return; } var splitX = 0.5 * (xs[bestMid - 1] + xs[bestMid]); build(lo, bestMid, dLeft - 1, xMin, splitX); build(bestMid, hi, dLeft - 1, splitX, xMax); } build(0, N, maxD, 0, DMAX); var sqErrInt = 0; for (var k = 0; k < leaves.length; k++) { var a = leaves[k][0]; var b = leaves[k][1]; var c = leaves[k][2]; var fa = (c * c + 0.5) * a + 2 * c * Math.cos(a) - 0.25 * Math.sin(2 * a); var fb = (c * c + 0.5) * b + 2 * c * Math.cos(b) - 0.25 * Math.sin(2 * b); sqErrInt += Math.max(0, fb - fa); } return { leaves: leaves, rmse: Math.sqrt(sqErrInt / DMAX) }; } function predLeaves(leaves, xp) { for (var k = 0; k < leaves.length; k++) { if (xp <= leaves[k][1] || k === leaves.length - 1) { return leaves[k][2]; } } return 0; } var t0 = fitTree(d0); var t1 = frac > 0 ? fitTree(d1) : t0; var xScan = Math.max(0, Math.min(DMAX, (t / 6) * DMAX)); var leafCount = (1 - frac) * t0.leaves.length + frac * t1.leaves.length; var rmse = (1 - frac) * t0.rmse + frac * t1.rmse; var yPred = (1 - frac) * predLeaves(t0.leaves, xq) + frac * predLeaves(t1.leaves, xq); var yPredScan = (1 - frac) * predLeaves(t0.leaves, xScan) + frac * predLeaves(t1.leaves, xScan); return { leaf_count: leafCount, y_true: Math.sin(xq), y_pred: yPred, rmse_clean: rmse, x_scan: xScan, y_true_scan: Math.sin(xScan), y_pred_scan: yPredScan, x_query_out: xq, is_noisy_overfit: rawD >= 4 && noise >= 0.25, is_shallow: rawD <= 2, is_deep_clean: rawD >= 5 && noise < 0.25 }; }",
+    "outputs": [
+      {
+        "id": "leaf_count",
+        "unit": "",
+        "meaning": "Number of constant-height intervals formed by the tree.",
+        "kind": "number"
+      },
+      {
+        "id": "y_true",
+        "unit": "",
+        "meaning": "Exact value of sin(x) at query x.",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred",
+        "unit": "",
+        "meaning": "Tree leaf mean predicted at query x.",
+        "kind": "number"
+      },
+      {
+        "id": "rmse_clean",
+        "unit": "",
+        "meaning": "Root mean squared error against true sin(x).",
+        "kind": "number"
+      },
+      {
+        "id": "x_scan",
+        "unit": "rad",
+        "meaning": "Horizontal sweep position across [0, 2pi] over time.",
+        "kind": "number"
+      },
+      {
+        "id": "y_true_scan",
+        "unit": "",
+        "meaning": "True sin(x) at the sweep position.",
+        "kind": "number"
+      },
+      {
+        "id": "y_pred_scan",
+        "unit": "",
+        "meaning": "Tree step prediction at the sweep position.",
+        "kind": "number"
+      },
+      {
+        "id": "x_query_out",
+        "unit": "rad",
+        "meaning": "Clamped query x coordinate for drawing.",
+        "kind": "number"
+      },
+      {
+        "id": "is_noisy_overfit",
+        "unit": "",
+        "meaning": "True when high depth and sample noise cause jagged overfitting.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_shallow",
+        "unit": "",
+        "meaning": "True when tree depth is 2 or less.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_deep_clean",
+        "unit": "",
+        "meaning": "True when tree depth is 5 with low noise.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "rad",
+      "parts": [
+        {
+          "type": "line",
+          "id": "x_axis",
+          "from": [0, 0],
+          "to": [6.2832, 0]
+        },
+        {
+          "type": "line",
+          "id": "y_axis",
+          "from": [0, -1.4],
+          "to": [0, 1.4]
+        },
+        {
+          "type": "line",
+          "id": "query_guide",
+          "from": ["x_query_out", -1.4],
+          "to": ["x_query_out", 1.4],
+          "of": "query_probe"
+        },
+        {
+          "type": "trace",
+          "id": "true_trace",
+          "at": ["x_scan", "y_true_scan"],
+          "of": "sine_wave"
+        },
+        {
+          "type": "trace",
+          "id": "tree_trace",
+          "at": ["x_scan", "y_pred_scan"],
+          "of": "tree_fit"
+        },
+        {
+          "type": "dot",
+          "id": "true_scan_dot",
+          "at": ["x_scan", "y_true_scan"],
+          "size": "small",
+          "of": "sine_wave"
+        },
+        {
+          "type": "dot",
+          "id": "tree_scan_dot",
+          "at": ["x_scan", "y_pred_scan"],
+          "size": "small",
+          "of": "tree_fit"
+        },
+        {
+          "type": "dot",
+          "id": "true_query_dot",
+          "at": ["x_query_out", "y_true"],
+          "size": "medium",
+          "of": "sine_wave"
+        },
+        {
+          "type": "dot",
+          "id": "tree_query_dot",
+          "at": ["x_query_out", "y_pred"],
+          "size": "medium",
+          "of": "tree_fit"
+        },
+        {
+          "type": "arrow",
+          "id": "error_arrow",
+          "from": ["x_query_out", "y_true"],
+          "to": ["x_query_out", "y_pred"],
+          "label": "err",
+          "of": "query_probe"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Curve Error vs Tree Depth",
+      "x": {
+        "over": "depth",
+        "label": "Tree depth",
+        "unit": ""
+      },
+      "y": {
+        "label": "Curve RMSE",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "rmse_clean",
+          "label": "Curve RMSE",
+          "of": "tree_fit",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "y_true",
+      "label": "True sin(x)",
+      "unit": "",
+      "decimals": 3,
+      "of": "sine_wave"
+    },
+    {
+      "value": "y_pred",
+      "label": "Tree pred",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree_fit"
+    },
+    {
+      "value": "rmse_clean",
+      "label": "Curve RMSE",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree_fit"
+    },
+    {
+      "value": "leaf_count",
+      "label": "Leaf steps",
+      "unit": "",
+      "decimals": 0,
+      "of": "tree_fit"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Each leaf outputs its region mean",
+      "Split count caps at 2^depth"
+    ],
+    "cases": [
+      {
+        "when": "is_noisy_overfit",
+        "text": "Deep leaves overfit sample noise"
+      },
+      {
+        "when": "is_shallow",
+        "text": "Depth 2: coarse steps miss wave"
+      },
+      {
+        "when": "is_deep_clean",
+        "text": "Depth 5: fine steps hug sin(x)"
+      }
+    ],
+    "otherwise": "Mid depth: steps narrow the error"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "rmse_clean",
+      "with": "depth",
+      "at": [
+        {
+          "input": "noise_sd",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "increases",
+      "value": "leaf_count",
+      "with": "depth",
+      "at": [
+        {
+          "input": "noise_sd",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "unchanged",
+      "value": "y_true",
+      "when": "depth"
+    },
+    {
+      "type": "unchanged",
+      "value": "rmse_clean",
+      "when": "x_query"
+    },
+    {
+      "type": "unchanged",
+      "value": "y_true",
+      "when": "noise_sd"
+    }
+  ],
+  "lesson": {
+    "title": "How Regression Trees Approximate sin(x) by Depth",
+    "description": "Watch a regression tree fit sin(x) with flat constant steps across zero to two pi. Compare coarse depth two against fine depth five as error drops.",
+    "instructions": "Move Tree depth from 2 to 5 to see how splitting changes the step fit and error curve. Slide Query x to inspect local error, and raise Sample noise to test overfitting.",
+    "goal": "Deeper trees divide x into smaller intervals so constant leaf means track sin(x) closely, though noisy samples make deep leaves overfit."
+  }
+}
+
+== checker output, first answer
+{
+  "ok": false,
+  "failed": 8,
+  "problems": [
+    {
+      "code": "claims",
+      "path": "claims[0]",
+      "message": "Claim 1 fails: `rmse_clean` does not fall as `depth` rises from 2 to 2.375 (0.255 to 0.255).",
+      "check": 8
+    },
+    {
+      "code": "claims",
+      "path": "claims[1]",
+      "message": "Claim 2 fails: `leaf_count` does not rise as `depth` rises from 2 to 2.375 (4 to 4).",
+      "check": 8
+    }
+  ],
+  "notes": [],
+  "measured": null
+}
+
+== checker output, corrected answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A regression tree splits the x-axis into at most 2^d intervals and predicts the sample mean inside each interval. Going from depth 2 (4 steps) to depth 5 (32 steps) replaces coarse flat segments with fine steps that hug sin(x) and drop the approximation error.",
+      "formula": "M \\le 2^d,\\; \\hat{y}(x)=\\bar{y}_m",
+      "assumptions": [
+        "Samples lie on [0, 2pi] and are split greedily to minimize squared error.",
+        "Each leaf outputs one constant value equal to its region's sample mean.",
+        "Every leaf keeps at least one training sample, capping splits at sample count."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "depth",
+        "label": "Tree depth",
+        "unit": "",
+        "role": "control",
+        "meaning": "Maximum number of sequential splits from root to leaf (compare 2 vs 5)."
+      },
+      {
+        "id": "x_query",
+        "label": "Query x",
+        "unit": "rad",
+        "role": "control",
+        "meaning": "Input x position where the true curve and step prediction are compared."
+      },
+      {
+        "id": "noise_sd",
+        "label": "Sample noise",
+        "unit": "",
+        "role": "control",
+        "meaning": "Standard deviation of random noise added to the training samples."
+      },
+      {
+        "id": "n_samples",
+        "label": "Training samples",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Number of data points on [0, 2pi] used to grow the regression tree."
+      },
+      {
+        "id": "domain_max",
+        "label": "Domain upper bound",
+        "unit": "rad",
+        "role": "fixed",
+        "meaning": "Upper endpoint 2pi of the interval [0, 2pi] over which sin(x) is fit."
+      },
+      {
+        "id": "leaf_count",
+        "label": "Leaf steps",
+        "unit": "",
+        "role": "result",
+        "meaning": "Number of constant-height intervals (at most 2^d) formed by the tree."
+      },
+      {
+        "id": "y_true",
+        "label": "True sin(x)",
+        "unit": "",
+        "role": "result",
+        "meaning": "Exact value of sin(x) evaluated at the query position."
+      },
+      {
+        "id": "y_pred",
+        "label": "Tree prediction",
+        "unit": "",
+        "role": "result",
+        "meaning": "Constant step height (leaf mean) predicted by the tree at query x."
+      },
+      {
+        "id": "rmse_clean",
+        "label": "Curve RMSE",
+        "unit": "",
+        "role": "result",
+        "meaning": "Root mean squared error between the step function and true sin(x)."
+      }
+    ],
+    "things": [
+      {
+        "id": "sine_wave",
+        "label": "True sin(x)"
+      },
+      {
+        "id": "tree_fit",
+        "label": "Tree step fit"
+      },
+      {
+        "id": "query_probe",
+        "label": "Query x"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "depth",
+        "label": "Tree depth",
+        "unit": "",
+        "min": 2,
+        "max": 5,
+        "default": 2,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "id": "x_query",
+        "label": "Query x",
+        "unit": "rad",
+        "min": 0,
+        "max": 6.28,
+        "default": 1,
+        "step": 0.04
+      },
+      {
+        "type": "number",
+        "id": "noise_sd",
+        "label": "Sample noise",
+        "unit": "",
+        "min": 0,
+        "max": 0.5,
+        "default": 0,
+        "step": 0.05
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Scan time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var N = 64; var DMAX = 2 * Math.PI; var rawD = Math.max(1, Math.min(6, inputs.depth)); var d0 = Math.floor(rawD); var d1 = Math.ceil(rawD); var frac = rawD - d0; var xq = Math.max(0, Math.min(DMAX, inputs.x_query)); var noise = Math.max(0, inputs.noise_sd); var xs = new Array(N); var prefY = new Array(N + 1); prefY[0] = 0; for (var i = 0; i < N; i++) { var x = ((i + 0.37) / N) * DMAX; xs[i] = x; var r1 = Math.sin((i * 3 + 1) * 12.9898 + 78.233) * 43758.5453; var r2 = Math.sin((i * 3 + 2) * 12.9898 + 78.233) * 43758.5453; var r3 = Math.sin((i * 3 + 3) * 12.9898 + 78.233) * 43758.5453; var eps = ((r1 - Math.floor(r1)) + (r2 - Math.floor(r2)) + (r3 - Math.floor(r3)) - 1.5) * 2; var y = Math.sin(x) + noise * eps; prefY[i + 1] = prefY[i] + y; } function fitTree(maxD) { var leaves = []; function build(lo, hi, dLeft, xMin, xMax) { var n = hi - lo; var sum = prefY[hi] - prefY[lo]; var mean = sum / n; if (dLeft <= 0 || n < 2) { leaves.push([xMin, xMax, mean]); return; } var baseScore = (sum * sum) / n; var bestScore = baseScore + 1e-12; var bestMid = -1; for (var mid = lo + 1; mid < hi; mid++) { var sL = prefY[mid] - prefY[lo]; var sR = prefY[hi] - prefY[mid]; var sc = (sL * sL) / (mid - lo) + (sR * sR) / (hi - mid); if (sc > bestScore) { bestScore = sc; bestMid = mid; } } if (bestMid === -1) { leaves.push([xMin, xMax, mean]); return; } var splitX = 0.5 * (xs[bestMid - 1] + xs[bestMid]); build(lo, bestMid, dLeft - 1, xMin, splitX); build(bestMid, hi, dLeft - 1, splitX, xMax); } build(0, N, maxD, 0, DMAX); var sqErrInt = 0; for (var k = 0; k < leaves.length; k++) { var a = leaves[k][0]; var b = leaves[k][1]; var c = leaves[k][2]; var fa = (c * c + 0.5) * a + 2 * c * Math.cos(a) - 0.25 * Math.sin(2 * a); var fb = (c * c + 0.5) * b + 2 * c * Math.cos(b) - 0.25 * Math.sin(2 * b); sqErrInt += Math.max(0, fb - fa); } return { leaves: leaves, rmse: Math.sqrt(sqErrInt / DMAX) }; } function predLeaves(leaves, xp) { for (var k = 0; k < leaves.length; k++) { if (xp <= leaves[k][1] || k === leaves.length - 1) { return leaves[k][2]; } } return 0; } var t0 = fitTree(d0); var t1 = frac > 0 ? fitTree(d1) : t0; var xScan = Math.max(0, Math.min(DMAX, (t / 6) * DMAX)); var leafCount = (1 - frac) * t0.leaves.length + frac * t1.leaves.length; var rmse = (1 - frac) * t0.rmse + frac * t1.rmse; var yPred = (1 - frac) * predLeaves(t0.leaves, xq) + frac * predLeaves(t1.leaves, xq); var yPredScan = (1 - frac) * predLeaves(t0.leaves, xScan) + frac * predLeaves(t1.leaves, xScan); return { leaf_count: leafCount, y_true: Math.sin(xq), y_pred: yPred, rmse_clean: rmse, x_scan: xScan, y_true_scan: Math.sin(xScan), y_pred_scan: yPredScan, x_query_out: xq, is_noisy_overfit: rawD >= 4 && noise >= 0.25, is_shallow: rawD <= 2, is_deep_clean: rawD >= 5 && noise < 0.25 }; }",
+      "outputs": [
+        {
+          "id": "leaf_count",
+          "unit": "",
+          "meaning": "Number of constant-height intervals formed by the tree.",
+          "kind": "number"
+        },
+        {
+          "id": "y_true",
+          "unit": "",
+          "meaning": "Exact value of sin(x) at query x.",
+          "kind": "number"
+        },
+        {
+          "id": "y_pred",
+          "unit": "",
+          "meaning": "Tree leaf mean predicted at query x.",
+          "kind": "number"
+        },
+        {
+          "id": "rmse_clean",
+          "unit": "",
+          "meaning": "Root mean squared error against true sin(x).",
+          "kind": "number"
+        },
+        {
+          "id": "x_scan",
+          "unit": "rad",
+          "meaning": "Horizontal sweep position across [0, 2pi] over time.",
+          "kind": "number"
+        },
+        {
+          "id": "y_true_scan",
+          "unit": "",
+          "meaning": "True sin(x) at the sweep position.",
+          "kind": "number"
+        },
+        {
+          "id": "y_pred_scan",
+          "unit": "",
+          "meaning": "Tree step prediction at the sweep position.",
+          "kind": "number"
+        },
+        {
+          "id": "x_query_out",
+          "unit": "rad",
+          "meaning": "Clamped query x coordinate for drawing.",
+          "kind": "number"
+        },
+        {
+          "id": "is_noisy_overfit",
+          "unit": "",
+          "meaning": "True when high depth and sample noise cause jagged overfitting.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_shallow",
+          "unit": "",
+          "meaning": "True when tree depth is 2 or less.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_deep_clean",
+          "unit": "",
+          "meaning": "True when tree depth is 5 with low noise.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "rad",
+        "parts": [
+          {
+            "type": "line",
+            "id": "x_axis",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              6.2832,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "y_axis",
+            "from": [
+              0,
+              -1.4
+            ],
+            "to": [
+              0,
+              1.4
+            ]
+          },
+          {
+            "type": "line",
+            "id": "query_guide",
+            "from": [
+              "x_query_out",
+              -1.4
+            ],
+            "to": [
+              "x_query_out",
+              1.4
+            ],
+            "of": "query_probe"
+          },
+          {
+            "type": "trace",
+            "id": "true_trace",
+            "at": [
+              "x_scan",
+              "y_true_scan"
+            ],
+            "of": "sine_wave"
+          },
+          {
+            "type": "trace",
+            "id": "tree_trace",
+            "at": [
+              "x_scan",
+              "y_pred_scan"
+            ],
+            "of": "tree_fit"
+          },
+          {
+            "type": "dot",
+            "id": "true_scan_dot",
+            "at": [
+              "x_scan",
+              "y_true_scan"
+            ],
+            "size": "small",
+            "of": "sine_wave"
+          },
+          {
+            "type": "dot",
+            "id": "tree_scan_dot",
+            "at": [
+              "x_scan",
+              "y_pred_scan"
+            ],
+            "size": "small",
+            "of": "tree_fit"
+          },
+          {
+            "type": "dot",
+            "id": "true_query_dot",
+            "at": [
+              "x_query_out",
+              "y_true"
+            ],
+            "size": "medium",
+            "of": "sine_wave"
+          },
+          {
+            "type": "dot",
+            "id": "tree_query_dot",
+            "at": [
+              "x_query_out",
+              "y_pred"
+            ],
+            "size": "medium",
+            "of": "tree_fit"
+          },
+          {
+            "type": "arrow",
+            "id": "error_arrow",
+            "from": [
+              "x_query_out",
+              "y_true"
+            ],
+            "to": [
+              "x_query_out",
+              "y_pred"
+            ],
+            "label": "err",
+            "of": "query_probe"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Curve Error vs Tree Depth",
+        "x": {
+          "over": "depth",
+          "label": "Tree depth",
+          "unit": ""
+        },
+        "y": {
+          "label": "Curve RMSE",
+          "unit": ""
+        },
+        "series": [
+          {
+            "value": "rmse_clean",
+            "label": "Curve RMSE",
+            "of": "tree_fit",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "y_true",
+        "label": "True sin(x)",
+        "unit": "",
+        "decimals": 3,
+        "of": "sine_wave"
+      },
+      {
+        "value": "y_pred",
+        "label": "Tree pred",
+        "unit": "",
+        "decimals": 3,
+        "of": "tree_fit"
+      },
+      {
+        "value": "rmse_clean",
+        "label": "Curve RMSE",
+        "unit": "",
+        "decimals": 3,
+        "of": "tree_fit"
+      },
+      {
+        "value": "leaf_count",
+        "label": "Leaf steps",
+        "unit": "",
+        "decimals": 0,
+        "of": "tree_fit"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Each leaf outputs its region mean",
+        "Split count caps at 2^depth"
+      ],
+      "cases": [
+        {
+          "when": "is_noisy_overfit",
+          "text": "Deep leaves overfit sample noise"
+        },
+        {
+          "when": "is_shallow",
+          "text": "Depth 2: coarse steps miss wave"
+        },
+        {
+          "when": "is_deep_clean",
+          "text": "Depth 5: fine steps hug sin(x)"
+        }
+      ],
+      "otherwise": "Mid depth: steps narrow the error"
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "equal"
+    },
+    "claims": [
+      {
+        "type": "decreases",
+        "value": "rmse_clean",
+        "with": "depth",
+        "at": [
+          {
+            "input": "noise_sd",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "type": "increases",
+        "value": "leaf_count",
+        "with": "depth",
+        "at": [
+          {
+            "input": "noise_sd",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "type": "unchanged",
+        "value": "y_true",
+        "when": "depth"
+      },
+      {
+        "type": "unchanged",
+        "value": "rmse_clean",
+        "when": "x_query"
+      },
+      {
+        "type": "unchanged",
+        "value": "y_true",
+        "when": "noise_sd"
+      }
+    ],
+    "lesson": {
+      "title": "How Regression Trees Approximate sin(x) by Depth",
+      "description": "Watch a regression tree fit sin(x) with flat constant steps across zero to two pi. Compare coarse depth two against fine depth five as error drops.",
+      "instructions": "Move Tree depth from 2 to 5 to see how splitting changes the step fit and error curve. Slide Query x to inspect local error, and raise Sample noise to test overfitting.",
+      "goal": "Deeper trees divide x into smaller intervals so constant leaf means track sin(x) closely, though noisy samples make deep leaves overfit."
+    }
+  }
+}

@@ -1,0 +1,1950 @@
+run ej_d449156d936b47d6915623ef003749dc: PASSED the light checker
+prompt: how does a decision tree trace a new point from the root to a prediction?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 1840873680   seconds: 123.129   cost: $0.2690
+
+== dice
+{
+  "controlQuantities": [
+    "x1",
+    "x2",
+    "t_root"
+  ],
+  "n": 3,
+  "k": 3,
+  "ids": [
+    "x1",
+    "x2",
+    "t_root"
+  ]
+}
+
+== calls
+quantities: answered, 13.388 s, 1238 in + 1751 thinking + 707 out, $0.0203
+blueprint: answered, 88.272 s, 10419 in + 18930 thinking + 3826 out, $0.1863
+blueprint: answered, 19.727 s, 14435 in + 1448 thinking + 3992 out, $0.0625
+
+== problems
+none
+
+== blueprint (corrected): "How a Decision Tree Traces a Point"; controls: x1, x2, t_root
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Starting at the root, the tree tests one feature of the point against a threshold to branch left or right. Repeating these axis-aligned splits guides the point into one leaf region, whose stored value becomes the prediction.",
+    "formula": "\\hat{y}(x) = y_{\\text{leaf}(x)}",
+    "assumptions": [
+      "The tree is already trained with fixed axis-aligned split boundaries.",
+      "Each internal node tests one feature of a two-dimensional query point.",
+      "Each leaf stores a fixed class probability computed during training."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Horizontal coordinate of the new query point tested at the root split."
+    },
+    {
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "role": "control",
+      "meaning": "Vertical coordinate of the new query point tested at the second-level split."
+    },
+    {
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Decision boundary on feature x1 at the root node separating left and right branches."
+    },
+    {
+      "id": "t_left",
+      "label": "Left split t2L",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches left."
+    },
+    {
+      "id": "t_right",
+      "label": "Right split t2R",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches right."
+    },
+    {
+      "id": "margin_root",
+      "label": "Root split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x1 - t1; negative goes left and positive goes right."
+    },
+    {
+      "id": "margin_child",
+      "label": "Child split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x2 - t2 at the active second-level decision node."
+    },
+    {
+      "id": "leaf_id",
+      "label": "Reached leaf",
+      "unit": "",
+      "role": "result",
+      "meaning": "Identifier (1 to 4) of the terminal leaf region containing the query point."
+    },
+    {
+      "id": "prediction",
+      "label": "Leaf prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Class probability output stored in the reached leaf region."
+    }
+  ],
+  "things": [
+    {
+      "id": "point",
+      "label": "Query point"
+    },
+    {
+      "id": "tree",
+      "label": "Split boundaries"
+    },
+    {
+      "id": "leaf",
+      "label": "Leaf prediction"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "min": 0.5,
+      "max": 9.5,
+      "default": 7.2,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "min": 0.5,
+      "max": 9.5,
+      "default": 8.2,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "min": 2,
+      "max": 8,
+      "default": 5,
+      "step": 0.1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Trace step",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var x1 = inputs.x1; var x2 = inputs.x2; var t_root = inputs.t_root; var t_left = 3.5; var t_right = 6.5; var go_left = x1 <= t_root; var t_child = go_left ? t_left : t_right; var go_low = x2 <= t_child; var margin_root = x1 - t_root; var margin_child = x2 - t_child; var leaf_id = go_left ? (go_low ? 1 : 2) : (go_low ? 3 : 4); var prediction = leaf_id === 1 ? 0.15 : (leaf_id === 2 ? 0.45 : (leaf_id === 3 ? 0.70 : 0.90)); var left_mid_x = t_root * 0.5; var right_mid_x = t_root + (10 - t_root) * 0.5; var u = Math.max(0, Math.min(1, t / 6)); var tracer_x = u <= 0.5 ? t_root + (u * 2) * (x1 - t_root) : x1; var tracer_y = u <= 0.5 ? t_child : t_child + ((u - 0.5) * 2) * (x2 - t_child); return { root_x: t_root, query_x1: x1, query_x2: x2, margin_root: margin_root, margin_child: margin_child, leaf_id: leaf_id, prediction: prediction, left_mid_x: left_mid_x, right_mid_x: right_mid_x, tracer_x: tracer_x, tracer_y: tracer_y, in_leaf_1: leaf_id === 1, in_leaf_2: leaf_id === 2, in_leaf_3: leaf_id === 3, in_leaf_4: leaf_id === 4 }; }",
+    "outputs": [
+      {
+        "id": "root_x",
+        "unit": "",
+        "meaning": "Position of the root threshold along feature x1.",
+        "kind": "number"
+      },
+      {
+        "id": "query_x1",
+        "unit": "",
+        "meaning": "Horizontal coordinate x1 of the query point.",
+        "kind": "number"
+      },
+      {
+        "id": "query_x2",
+        "unit": "",
+        "meaning": "Vertical coordinate x2 of the query point.",
+        "kind": "number"
+      },
+      {
+        "id": "margin_root",
+        "unit": "",
+        "meaning": "Signed horizontal distance from the root threshold t1 to x1.",
+        "kind": "number"
+      },
+      {
+        "id": "margin_child",
+        "unit": "",
+        "meaning": "Signed vertical distance from the active child threshold t2 to x2.",
+        "kind": "number"
+      },
+      {
+        "id": "leaf_id",
+        "unit": "",
+        "meaning": "Reached leaf region index from 1 to 4.",
+        "kind": "number"
+      },
+      {
+        "id": "prediction",
+        "unit": "",
+        "meaning": "Stored class probability of the reached leaf.",
+        "kind": "number"
+      },
+      {
+        "id": "left_mid_x",
+        "unit": "",
+        "meaning": "Horizontal midpoint of the left branch regions.",
+        "kind": "number"
+      },
+      {
+        "id": "right_mid_x",
+        "unit": "",
+        "meaning": "Horizontal midpoint of the right branch regions.",
+        "kind": "number"
+      },
+      {
+        "id": "tracer_x",
+        "unit": "",
+        "meaning": "Horizontal position of the animated decision tracer.",
+        "kind": "number"
+      },
+      {
+        "id": "tracer_y",
+        "unit": "",
+        "meaning": "Vertical position of the animated decision tracer.",
+        "kind": "number"
+      },
+      {
+        "id": "in_leaf_1",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 1.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_2",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 2.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_3",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 3.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_4",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 4.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "arrow",
+          "id": "axis_x1",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            10,
+            0
+          ],
+          "label": "x1"
+        },
+        {
+          "type": "arrow",
+          "id": "axis_x2",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            10
+          ],
+          "label": "x2"
+        },
+        {
+          "type": "line",
+          "id": "root_split",
+          "from": [
+            "root_x",
+            0
+          ],
+          "to": [
+            "root_x",
+            10
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "left_split",
+          "from": [
+            0,
+            3.5
+          ],
+          "to": [
+            "root_x",
+            3.5
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "right_split",
+          "from": [
+            "root_x",
+            6.5
+          ],
+          "to": [
+            10,
+            6.5
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "trace",
+          "id": "path_trace",
+          "at": [
+            "tracer_x",
+            "tracer_y"
+          ],
+          "of": "point"
+        },
+        {
+          "type": "dot",
+          "id": "query_dot",
+          "at": [
+            "query_x1",
+            "query_x2"
+          ],
+          "size": "small",
+          "of": "point"
+        },
+        {
+          "type": "dot",
+          "id": "tracer_dot",
+          "at": [
+            "tracer_x",
+            "tracer_y"
+          ],
+          "size": "large",
+          "of": "point"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf1",
+          "at": [
+            "left_mid_x",
+            1.75
+          ],
+          "text": "Leaf 1 (p=0.15)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf2",
+          "at": [
+            "left_mid_x",
+            6.75
+          ],
+          "text": "Leaf 2 (p=0.45)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf3",
+          "at": [
+            "right_mid_x",
+            3.25
+          ],
+          "text": "Leaf 3 (p=0.70)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf4",
+          "at": [
+            "right_mid_x",
+            8.25
+          ],
+          "text": "Leaf 4 (p=0.90)",
+          "of": "leaf"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Prediction across Feature x1",
+      "x": {
+        "over": "x1",
+        "label": "Feature x1",
+        "unit": ""
+      },
+      "y": {
+        "label": "Leaf prediction",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "prediction",
+          "label": "Prediction",
+          "of": "leaf",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "prediction",
+      "label": "Prediction",
+      "unit": "",
+      "decimals": 2,
+      "of": "leaf"
+    },
+    {
+      "value": "leaf_id",
+      "label": "Leaf",
+      "unit": "",
+      "decimals": 0,
+      "of": "leaf"
+    },
+    {
+      "value": "margin_root",
+      "label": "Root margin",
+      "unit": "",
+      "decimals": 2,
+      "of": "point"
+    },
+    {
+      "value": "margin_child",
+      "label": "Child margin",
+      "unit": "",
+      "decimals": 2,
+      "of": "point"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Root tests x1 <= t1 to go left.",
+      "Child tests x2 <= t2 to pick leaf."
+    ],
+    "cases": [
+      {
+        "when": "in_leaf_1",
+        "text": "x1<=t1, x2<=3.5 -> Leaf 1 (p=0.15)."
+      },
+      {
+        "when": "in_leaf_2",
+        "text": "x1<=t1, x2>3.5 -> Leaf 2 (p=0.45)."
+      },
+      {
+        "when": "in_leaf_3",
+        "text": "x1>t1, x2<=6.5 -> Leaf 3 (p=0.70)."
+      },
+      {
+        "when": "in_leaf_4",
+        "text": "x1>t1, x2>6.5 -> Leaf 4 (p=0.90)."
+      }
+    ],
+    "otherwise": "Tracing point to its leaf region."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "margin_root",
+      "with": "x1"
+    },
+    {
+      "type": "decreases",
+      "value": "margin_root",
+      "with": "t_root"
+    },
+    {
+      "type": "unchanged",
+      "value": "margin_root",
+      "when": "x2"
+    },
+    {
+      "type": "increases",
+      "value": "margin_child",
+      "with": "x2"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Traces a Point",
+    "description": "Watch a query point step through a two-level decision tree in feature space. Adjust x1, x2, and the root threshold to see which leaf region and prediction it reaches.",
+    "instructions": "Move the Feature x1 and Feature x2 sliders to place the query point, and scrub time to watch the horizontal root test followed by the vertical child test. Slide Root threshold t1 to shift the main boundary and see the split margins and prediction update.",
+    "goal": "A decision tree classifies a point by testing one feature at a time against fixed thresholds until it lands in a single leaf region with a constant prediction."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "Starting at the root, the tree tests one feature of the point against a threshold to branch left or right. Repeating these axis-aligned splits guides the point into one leaf region, whose stored value becomes the prediction.",
+    "formula": "\\hat{y}(x) = y_{\\text{leaf}(x)}",
+    "assumptions": [
+      "The tree is already trained with fixed axis-aligned split boundaries.",
+      "Each internal node tests one feature of a two-dimensional query point.",
+      "Each leaf stores a fixed class probability computed during training."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Horizontal coordinate of the new query point tested at the root split."
+    },
+    {
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "role": "control",
+      "meaning": "Vertical coordinate of the new query point tested at the second-level split."
+    },
+    {
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Decision boundary on feature x1 at the root node separating left and right branches."
+    },
+    {
+      "id": "t_left",
+      "label": "Left split t2L",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches left."
+    },
+    {
+      "id": "t_right",
+      "label": "Right split t2R",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches right."
+    },
+    {
+      "id": "margin_root",
+      "label": "Root split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x1 - t1; negative goes left and positive goes right."
+    },
+    {
+      "id": "margin_child",
+      "label": "Child split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x2 - t2 at the active second-level decision node."
+    },
+    {
+      "id": "leaf_id",
+      "label": "Reached leaf",
+      "unit": "",
+      "role": "result",
+      "meaning": "Identifier (1 to 4) of the terminal leaf region containing the query point."
+    },
+    {
+      "id": "prediction",
+      "label": "Leaf prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Class probability output stored in the reached leaf region."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Starting at the root, the tree tests one feature of the point against a threshold to branch left or right. Repeating these axis-aligned splits guides the point into one leaf region, whose stored value becomes the prediction.",
+    "formula": "\\hat{y}(x) = y_{\\text{leaf}(x)}",
+    "assumptions": [
+      "The tree is already trained with fixed axis-aligned split boundaries.",
+      "Each internal node tests one feature of a two-dimensional query point.",
+      "Each leaf stores a fixed class probability computed during training."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Horizontal coordinate of the new query point tested at the root split."
+    },
+    {
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "role": "control",
+      "meaning": "Vertical coordinate of the new query point tested at the second-level split."
+    },
+    {
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Decision boundary on feature x1 at the root node separating left and right branches."
+    },
+    {
+      "id": "t_left",
+      "label": "Left split t2L",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches left."
+    },
+    {
+      "id": "t_right",
+      "label": "Right split t2R",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches right."
+    },
+    {
+      "id": "margin_root",
+      "label": "Root split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x1 - t1; negative goes left and positive goes right."
+    },
+    {
+      "id": "margin_child",
+      "label": "Child split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x2 - t2 at the active second-level decision node."
+    },
+    {
+      "id": "leaf_id",
+      "label": "Reached leaf",
+      "unit": "",
+      "role": "result",
+      "meaning": "Identifier (1 to 4) of the terminal leaf region containing the query point."
+    },
+    {
+      "id": "prediction",
+      "label": "Leaf prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Class probability output stored in the reached leaf region."
+    }
+  ],
+  "things": [
+    {
+      "id": "point",
+      "label": "Query point"
+    },
+    {
+      "id": "tree",
+      "label": "Split boundaries"
+    },
+    {
+      "id": "leaf",
+      "label": "Leaf prediction"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "min": 0.5,
+      "max": 9.5,
+      "default": 7.2,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "min": 0.5,
+      "max": 9.5,
+      "default": 8.2,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "min": 2.0,
+      "max": 8.0,
+      "default": 5.0,
+      "step": 0.1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Trace step",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var x1 = inputs.x1; var x2 = inputs.x2; var t_root = inputs.t_root; var t_left = 3.5; var t_right = 6.5; var go_left = x1 <= t_root; var t_child = go_left ? t_left : t_right; var go_low = x2 <= t_child; var margin_root = x1 - t_root; var margin_child = x2 - t_child; var leaf_id = go_left ? (go_low ? 1 : 2) : (go_low ? 3 : 4); var prediction = leaf_id === 1 ? 0.15 : (leaf_id === 2 ? 0.45 : (leaf_id === 3 ? 0.70 : 0.90)); var left_mid_x = t_root * 0.5; var right_mid_x = t_root + (10 - t_root) * 0.5; var u = Math.max(0, Math.min(1, t / 6)); var tracer_x = u <= 0.5 ? t_root + (u * 2) * (x1 - t_root) : x1; var tracer_y = u <= 0.5 ? t_child : t_child + ((u - 0.5) * 2) * (x2 - t_child); return { margin_root: margin_root, margin_child: margin_child, leaf_id: leaf_id, prediction: prediction, left_mid_x: left_mid_x, right_mid_x: right_mid_x, tracer_x: tracer_x, tracer_y: tracer_y, in_leaf_1: leaf_id === 1, in_leaf_2: leaf_id === 2, in_leaf_3: leaf_id === 3, in_leaf_4: leaf_id === 4 }; }",
+    "outputs": [
+      {
+        "id": "margin_root",
+        "unit": "",
+        "meaning": "Signed horizontal distance from the root threshold t1 to x1.",
+        "kind": "number"
+      },
+      {
+        "id": "margin_child",
+        "unit": "",
+        "meaning": "Signed vertical distance from the active child threshold t2 to x2.",
+        "kind": "number"
+      },
+      {
+        "id": "leaf_id",
+        "unit": "",
+        "meaning": "Reached leaf region index from 1 to 4.",
+        "kind": "number"
+      },
+      {
+        "id": "prediction",
+        "unit": "",
+        "meaning": "Stored class probability of the reached leaf.",
+        "kind": "number"
+      },
+      {
+        "id": "left_mid_x",
+        "unit": "",
+        "meaning": "Horizontal midpoint of the left branch regions.",
+        "kind": "number"
+      },
+      {
+        "id": "right_mid_x",
+        "unit": "",
+        "meaning": "Horizontal midpoint of the right branch regions.",
+        "kind": "number"
+      },
+      {
+        "id": "tracer_x",
+        "unit": "",
+        "meaning": "Horizontal position of the animated decision tracer.",
+        "kind": "number"
+      },
+      {
+        "id": "tracer_y",
+        "unit": "",
+        "meaning": "Vertical position of the animated decision tracer.",
+        "kind": "number"
+      },
+      {
+        "id": "in_leaf_1",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 1.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_2",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 2.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_3",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 3.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_4",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 4.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "arrow",
+          "id": "axis_x1",
+          "from": [0, 0],
+          "to": [10, 0],
+          "label": "x1"
+        },
+        {
+          "type": "arrow",
+          "id": "axis_x2",
+          "from": [0, 0],
+          "to": [0, 10],
+          "label": "x2"
+        },
+        {
+          "type": "line",
+          "id": "root_split",
+          "from": ["t_root", 0],
+          "to": ["t_root", 10],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "left_split",
+          "from": [0, 3.5],
+          "to": ["t_root", 3.5],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "right_split",
+          "from": ["t_root", 6.5],
+          "to": [10, 6.5],
+          "of": "tree"
+        },
+        {
+          "type": "trace",
+          "id": "path_trace",
+          "at": ["tracer_x", "tracer_y"],
+          "of": "point"
+        },
+        {
+          "type": "dot",
+          "id": "query_dot",
+          "at": ["x1", "x2"],
+          "size": "small",
+          "of": "point"
+        },
+        {
+          "type": "dot",
+          "id": "tracer_dot",
+          "at": ["tracer_x", "tracer_y"],
+          "size": "large",
+          "of": "point"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf1",
+          "at": ["left_mid_x", 1.75],
+          "text": "Leaf 1 (p=0.15)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf2",
+          "at": ["left_mid_x", 6.75],
+          "text": "Leaf 2 (p=0.45)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf3",
+          "at": ["right_mid_x", 3.25],
+          "text": "Leaf 3 (p=0.70)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf4",
+          "at": ["right_mid_x", 8.25],
+          "text": "Leaf 4 (p=0.90)",
+          "of": "leaf"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Prediction across Feature x1",
+      "x": {
+        "over": "x1",
+        "label": "Feature x1",
+        "unit": ""
+      },
+      "y": {
+        "label": "Leaf prediction",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "prediction",
+          "label": "Prediction",
+          "of": "leaf",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "prediction",
+      "label": "Prediction",
+      "unit": "",
+      "decimals": 2,
+      "of": "leaf"
+    },
+    {
+      "value": "leaf_id",
+      "label": "Leaf",
+      "unit": "",
+      "decimals": 0,
+      "of": "leaf"
+    },
+    {
+      "value": "margin_root",
+      "label": "Root margin",
+      "unit": "",
+      "decimals": 2,
+      "of": "point"
+    },
+    {
+      "value": "margin_child",
+      "label": "Child margin",
+      "unit": "",
+      "decimals": 2,
+      "of": "point"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Root tests x1 <= t1 to go left.",
+      "Child tests x2 <= t2 to pick leaf."
+    ],
+    "cases": [
+      {
+        "when": "in_leaf_1",
+        "text": "x1<=t1, x2<=3.5 -> Leaf 1 (p=0.15)."
+      },
+      {
+        "when": "in_leaf_2",
+        "text": "x1<=t1, x2>3.5 -> Leaf 2 (p=0.45)."
+      },
+      {
+        "when": "in_leaf_3",
+        "text": "x1>t1, x2<=6.5 -> Leaf 3 (p=0.70)."
+      },
+      {
+        "when": "in_leaf_4",
+        "text": "x1>t1, x2>6.5 -> Leaf 4 (p=0.90)."
+      }
+    ],
+    "otherwise": "Tracing point to its leaf region."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "margin_root",
+      "with": "x1"
+    },
+    {
+      "type": "decreases",
+      "value": "margin_root",
+      "with": "t_root"
+    },
+    {
+      "type": "unchanged",
+      "value": "margin_root",
+      "when": "x2"
+    },
+    {
+      "type": "increases",
+      "value": "margin_child",
+      "with": "x2"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Traces a Point",
+    "description": "Watch a query point step through a two-level decision tree in feature space. Adjust x1, x2, and the root threshold to see which leaf region and prediction it reaches.",
+    "instructions": "Move the Feature x1 and Feature x2 sliders to place the query point, and scrub time to watch the horizontal root test followed by the vertical child test. Slide Root threshold t1 to shift the main boundary and see the split margins and prediction update.",
+    "goal": "A decision tree classifies a point by testing one feature at a time against fixed thresholds until it lands in a single leaf region with a constant prediction."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "Starting at the root, the tree tests one feature of the point against a threshold to branch left or right. Repeating these axis-aligned splits guides the point into one leaf region, whose stored value becomes the prediction.",
+    "formula": "\\hat{y}(x) = y_{\\text{leaf}(x)}",
+    "assumptions": [
+      "The tree is already trained with fixed axis-aligned split boundaries.",
+      "Each internal node tests one feature of a two-dimensional query point.",
+      "Each leaf stores a fixed class probability computed during training."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Horizontal coordinate of the new query point tested at the root split."
+    },
+    {
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "role": "control",
+      "meaning": "Vertical coordinate of the new query point tested at the second-level split."
+    },
+    {
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "role": "control",
+      "meaning": "Decision boundary on feature x1 at the root node separating left and right branches."
+    },
+    {
+      "id": "t_left",
+      "label": "Left split t2L",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches left."
+    },
+    {
+      "id": "t_right",
+      "label": "Right split t2R",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Fixed threshold on feature x2 evaluated when the root branches right."
+    },
+    {
+      "id": "margin_root",
+      "label": "Root split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x1 - t1; negative goes left and positive goes right."
+    },
+    {
+      "id": "margin_child",
+      "label": "Child split margin",
+      "unit": "",
+      "role": "result",
+      "meaning": "Signed difference x2 - t2 at the active second-level decision node."
+    },
+    {
+      "id": "leaf_id",
+      "label": "Reached leaf",
+      "unit": "",
+      "role": "result",
+      "meaning": "Identifier (1 to 4) of the terminal leaf region containing the query point."
+    },
+    {
+      "id": "prediction",
+      "label": "Leaf prediction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Class probability output stored in the reached leaf region."
+    }
+  ],
+  "things": [
+    {
+      "id": "point",
+      "label": "Query point"
+    },
+    {
+      "id": "tree",
+      "label": "Split boundaries"
+    },
+    {
+      "id": "leaf",
+      "label": "Leaf prediction"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "x1",
+      "label": "Feature x1",
+      "unit": "",
+      "min": 0.5,
+      "max": 9.5,
+      "default": 7.2,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "x2",
+      "label": "Feature x2",
+      "unit": "",
+      "min": 0.5,
+      "max": 9.5,
+      "default": 8.2,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "t_root",
+      "label": "Root threshold t1",
+      "unit": "",
+      "min": 2.0,
+      "max": 8.0,
+      "default": 5.0,
+      "step": 0.1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Trace step",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var x1 = inputs.x1; var x2 = inputs.x2; var t_root = inputs.t_root; var t_left = 3.5; var t_right = 6.5; var go_left = x1 <= t_root; var t_child = go_left ? t_left : t_right; var go_low = x2 <= t_child; var margin_root = x1 - t_root; var margin_child = x2 - t_child; var leaf_id = go_left ? (go_low ? 1 : 2) : (go_low ? 3 : 4); var prediction = leaf_id === 1 ? 0.15 : (leaf_id === 2 ? 0.45 : (leaf_id === 3 ? 0.70 : 0.90)); var left_mid_x = t_root * 0.5; var right_mid_x = t_root + (10 - t_root) * 0.5; var u = Math.max(0, Math.min(1, t / 6)); var tracer_x = u <= 0.5 ? t_root + (u * 2) * (x1 - t_root) : x1; var tracer_y = u <= 0.5 ? t_child : t_child + ((u - 0.5) * 2) * (x2 - t_child); return { root_x: t_root, query_x1: x1, query_x2: x2, margin_root: margin_root, margin_child: margin_child, leaf_id: leaf_id, prediction: prediction, left_mid_x: left_mid_x, right_mid_x: right_mid_x, tracer_x: tracer_x, tracer_y: tracer_y, in_leaf_1: leaf_id === 1, in_leaf_2: leaf_id === 2, in_leaf_3: leaf_id === 3, in_leaf_4: leaf_id === 4 }; }",
+    "outputs": [
+      {
+        "id": "root_x",
+        "unit": "",
+        "meaning": "Position of the root threshold along feature x1.",
+        "kind": "number"
+      },
+      {
+        "id": "query_x1",
+        "unit": "",
+        "meaning": "Horizontal coordinate x1 of the query point.",
+        "kind": "number"
+      },
+      {
+        "id": "query_x2",
+        "unit": "",
+        "meaning": "Vertical coordinate x2 of the query point.",
+        "kind": "number"
+      },
+      {
+        "id": "margin_root",
+        "unit": "",
+        "meaning": "Signed horizontal distance from the root threshold t1 to x1.",
+        "kind": "number"
+      },
+      {
+        "id": "margin_child",
+        "unit": "",
+        "meaning": "Signed vertical distance from the active child threshold t2 to x2.",
+        "kind": "number"
+      },
+      {
+        "id": "leaf_id",
+        "unit": "",
+        "meaning": "Reached leaf region index from 1 to 4.",
+        "kind": "number"
+      },
+      {
+        "id": "prediction",
+        "unit": "",
+        "meaning": "Stored class probability of the reached leaf.",
+        "kind": "number"
+      },
+      {
+        "id": "left_mid_x",
+        "unit": "",
+        "meaning": "Horizontal midpoint of the left branch regions.",
+        "kind": "number"
+      },
+      {
+        "id": "right_mid_x",
+        "unit": "",
+        "meaning": "Horizontal midpoint of the right branch regions.",
+        "kind": "number"
+      },
+      {
+        "id": "tracer_x",
+        "unit": "",
+        "meaning": "Horizontal position of the animated decision tracer.",
+        "kind": "number"
+      },
+      {
+        "id": "tracer_y",
+        "unit": "",
+        "meaning": "Vertical position of the animated decision tracer.",
+        "kind": "number"
+      },
+      {
+        "id": "in_leaf_1",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 1.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_2",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 2.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_3",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 3.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_leaf_4",
+        "unit": "",
+        "meaning": "True when the point falls into leaf 4.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "arrow",
+          "id": "axis_x1",
+          "from": [0, 0],
+          "to": [10, 0],
+          "label": "x1"
+        },
+        {
+          "type": "arrow",
+          "id": "axis_x2",
+          "from": [0, 0],
+          "to": [0, 10],
+          "label": "x2"
+        },
+        {
+          "type": "line",
+          "id": "root_split",
+          "from": ["root_x", 0],
+          "to": ["root_x", 10],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "left_split",
+          "from": [0, 3.5],
+          "to": ["root_x", 3.5],
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "right_split",
+          "from": ["root_x", 6.5],
+          "to": [10, 6.5],
+          "of": "tree"
+        },
+        {
+          "type": "trace",
+          "id": "path_trace",
+          "at": ["tracer_x", "tracer_y"],
+          "of": "point"
+        },
+        {
+          "type": "dot",
+          "id": "query_dot",
+          "at": ["query_x1", "query_x2"],
+          "size": "small",
+          "of": "point"
+        },
+        {
+          "type": "dot",
+          "id": "tracer_dot",
+          "at": ["tracer_x", "tracer_y"],
+          "size": "large",
+          "of": "point"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf1",
+          "at": ["left_mid_x", 1.75],
+          "text": "Leaf 1 (p=0.15)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf2",
+          "at": ["left_mid_x", 6.75],
+          "text": "Leaf 2 (p=0.45)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf3",
+          "at": ["right_mid_x", 3.25],
+          "text": "Leaf 3 (p=0.70)",
+          "of": "leaf"
+        },
+        {
+          "type": "label",
+          "id": "lbl_leaf4",
+          "at": ["right_mid_x", 8.25],
+          "text": "Leaf 4 (p=0.90)",
+          "of": "leaf"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Prediction across Feature x1",
+      "x": {
+        "over": "x1",
+        "label": "Feature x1",
+        "unit": ""
+      },
+      "y": {
+        "label": "Leaf prediction",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "prediction",
+          "label": "Prediction",
+          "of": "leaf",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "prediction",
+      "label": "Prediction",
+      "unit": "",
+      "decimals": 2,
+      "of": "leaf"
+    },
+    {
+      "value": "leaf_id",
+      "label": "Leaf",
+      "unit": "",
+      "decimals": 0,
+      "of": "leaf"
+    },
+    {
+      "value": "margin_root",
+      "label": "Root margin",
+      "unit": "",
+      "decimals": 2,
+      "of": "point"
+    },
+    {
+      "value": "margin_child",
+      "label": "Child margin",
+      "unit": "",
+      "decimals": 2,
+      "of": "point"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Root tests x1 <= t1 to go left.",
+      "Child tests x2 <= t2 to pick leaf."
+    ],
+    "cases": [
+      {
+        "when": "in_leaf_1",
+        "text": "x1<=t1, x2<=3.5 -> Leaf 1 (p=0.15)."
+      },
+      {
+        "when": "in_leaf_2",
+        "text": "x1<=t1, x2>3.5 -> Leaf 2 (p=0.45)."
+      },
+      {
+        "when": "in_leaf_3",
+        "text": "x1>t1, x2<=6.5 -> Leaf 3 (p=0.70)."
+      },
+      {
+        "when": "in_leaf_4",
+        "text": "x1>t1, x2>6.5 -> Leaf 4 (p=0.90)."
+      }
+    ],
+    "otherwise": "Tracing point to its leaf region."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "margin_root",
+      "with": "x1"
+    },
+    {
+      "type": "decreases",
+      "value": "margin_root",
+      "with": "t_root"
+    },
+    {
+      "type": "unchanged",
+      "value": "margin_root",
+      "when": "x2"
+    },
+    {
+      "type": "increases",
+      "value": "margin_child",
+      "with": "x2"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Traces a Point",
+    "description": "Watch a query point step through a two-level decision tree in feature space. Adjust x1, x2, and the root threshold to see which leaf region and prediction it reaches.",
+    "instructions": "Move the Feature x1 and Feature x2 sliders to place the query point, and scrub time to watch the horizontal root test followed by the vertical child test. Slide Root threshold t1 to shift the main boundary and see the split margins and prediction update.",
+    "goal": "A decision tree classifies a point by testing one feature at a time against fixed thresholds until it lands in a single leaf region with a constant prediction."
+  }
+}
+
+== checker output, first answer
+{
+  "ok": false,
+  "failed": 2,
+  "problems": [
+    {
+      "code": "names",
+      "path": "pictures.main.parts[2].from[0]",
+      "message": "`pictures.main.parts[2].from[0]` names `t_root`, which is not a declared output.",
+      "check": 2
+    },
+    {
+      "code": "names",
+      "path": "pictures.main.parts[2].to[0]",
+      "message": "`pictures.main.parts[2].to[0]` names `t_root`, which is not a declared output.",
+      "check": 2
+    },
+    {
+      "code": "names",
+      "path": "pictures.main.parts[3].to[0]",
+      "message": "`pictures.main.parts[3].to[0]` names `t_root`, which is not a declared output.",
+      "check": 2
+    },
+    {
+      "code": "names",
+      "path": "pictures.main.parts[4].from[0]",
+      "message": "`pictures.main.parts[4].from[0]` names `t_root`, which is not a declared output.",
+      "check": 2
+    },
+    {
+      "code": "names",
+      "path": "pictures.main.parts[6].at[0]",
+      "message": "`pictures.main.parts[6].at[0]` names `x1`, which is not a declared output.",
+      "check": 2
+    },
+    {
+      "code": "names",
+      "path": "pictures.main.parts[6].at[1]",
+      "message": "`pictures.main.parts[6].at[1]` names `x2`, which is not a declared output.",
+      "check": 2
+    }
+  ],
+  "notes": [],
+  "measured": null
+}
+
+== checker output, corrected answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "Starting at the root, the tree tests one feature of the point against a threshold to branch left or right. Repeating these axis-aligned splits guides the point into one leaf region, whose stored value becomes the prediction.",
+      "formula": "\\hat{y}(x) = y_{\\text{leaf}(x)}",
+      "assumptions": [
+        "The tree is already trained with fixed axis-aligned split boundaries.",
+        "Each internal node tests one feature of a two-dimensional query point.",
+        "Each leaf stores a fixed class probability computed during training."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "x1",
+        "label": "Feature x1",
+        "unit": "",
+        "role": "control",
+        "meaning": "Horizontal coordinate of the new query point tested at the root split."
+      },
+      {
+        "id": "x2",
+        "label": "Feature x2",
+        "unit": "",
+        "role": "control",
+        "meaning": "Vertical coordinate of the new query point tested at the second-level split."
+      },
+      {
+        "id": "t_root",
+        "label": "Root threshold t1",
+        "unit": "",
+        "role": "control",
+        "meaning": "Decision boundary on feature x1 at the root node separating left and right branches."
+      },
+      {
+        "id": "t_left",
+        "label": "Left split t2L",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Fixed threshold on feature x2 evaluated when the root branches left."
+      },
+      {
+        "id": "t_right",
+        "label": "Right split t2R",
+        "unit": "",
+        "role": "fixed",
+        "meaning": "Fixed threshold on feature x2 evaluated when the root branches right."
+      },
+      {
+        "id": "margin_root",
+        "label": "Root split margin",
+        "unit": "",
+        "role": "result",
+        "meaning": "Signed difference x1 - t1; negative goes left and positive goes right."
+      },
+      {
+        "id": "margin_child",
+        "label": "Child split margin",
+        "unit": "",
+        "role": "result",
+        "meaning": "Signed difference x2 - t2 at the active second-level decision node."
+      },
+      {
+        "id": "leaf_id",
+        "label": "Reached leaf",
+        "unit": "",
+        "role": "result",
+        "meaning": "Identifier (1 to 4) of the terminal leaf region containing the query point."
+      },
+      {
+        "id": "prediction",
+        "label": "Leaf prediction",
+        "unit": "",
+        "role": "result",
+        "meaning": "Class probability output stored in the reached leaf region."
+      }
+    ],
+    "things": [
+      {
+        "id": "point",
+        "label": "Query point"
+      },
+      {
+        "id": "tree",
+        "label": "Split boundaries"
+      },
+      {
+        "id": "leaf",
+        "label": "Leaf prediction"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "x1",
+        "label": "Feature x1",
+        "unit": "",
+        "min": 0.5,
+        "max": 9.5,
+        "default": 7.2,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "x2",
+        "label": "Feature x2",
+        "unit": "",
+        "min": 0.5,
+        "max": 9.5,
+        "default": 8.2,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "t_root",
+        "label": "Root threshold t1",
+        "unit": "",
+        "min": 2,
+        "max": 8,
+        "default": 5,
+        "step": 0.1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Trace step",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var x1 = inputs.x1; var x2 = inputs.x2; var t_root = inputs.t_root; var t_left = 3.5; var t_right = 6.5; var go_left = x1 <= t_root; var t_child = go_left ? t_left : t_right; var go_low = x2 <= t_child; var margin_root = x1 - t_root; var margin_child = x2 - t_child; var leaf_id = go_left ? (go_low ? 1 : 2) : (go_low ? 3 : 4); var prediction = leaf_id === 1 ? 0.15 : (leaf_id === 2 ? 0.45 : (leaf_id === 3 ? 0.70 : 0.90)); var left_mid_x = t_root * 0.5; var right_mid_x = t_root + (10 - t_root) * 0.5; var u = Math.max(0, Math.min(1, t / 6)); var tracer_x = u <= 0.5 ? t_root + (u * 2) * (x1 - t_root) : x1; var tracer_y = u <= 0.5 ? t_child : t_child + ((u - 0.5) * 2) * (x2 - t_child); return { root_x: t_root, query_x1: x1, query_x2: x2, margin_root: margin_root, margin_child: margin_child, leaf_id: leaf_id, prediction: prediction, left_mid_x: left_mid_x, right_mid_x: right_mid_x, tracer_x: tracer_x, tracer_y: tracer_y, in_leaf_1: leaf_id === 1, in_leaf_2: leaf_id === 2, in_leaf_3: leaf_id === 3, in_leaf_4: leaf_id === 4 }; }",
+      "outputs": [
+        {
+          "id": "root_x",
+          "unit": "",
+          "meaning": "Position of the root threshold along feature x1.",
+          "kind": "number"
+        },
+        {
+          "id": "query_x1",
+          "unit": "",
+          "meaning": "Horizontal coordinate x1 of the query point.",
+          "kind": "number"
+        },
+        {
+          "id": "query_x2",
+          "unit": "",
+          "meaning": "Vertical coordinate x2 of the query point.",
+          "kind": "number"
+        },
+        {
+          "id": "margin_root",
+          "unit": "",
+          "meaning": "Signed horizontal distance from the root threshold t1 to x1.",
+          "kind": "number"
+        },
+        {
+          "id": "margin_child",
+          "unit": "",
+          "meaning": "Signed vertical distance from the active child threshold t2 to x2.",
+          "kind": "number"
+        },
+        {
+          "id": "leaf_id",
+          "unit": "",
+          "meaning": "Reached leaf region index from 1 to 4.",
+          "kind": "number"
+        },
+        {
+          "id": "prediction",
+          "unit": "",
+          "meaning": "Stored class probability of the reached leaf.",
+          "kind": "number"
+        },
+        {
+          "id": "left_mid_x",
+          "unit": "",
+          "meaning": "Horizontal midpoint of the left branch regions.",
+          "kind": "number"
+        },
+        {
+          "id": "right_mid_x",
+          "unit": "",
+          "meaning": "Horizontal midpoint of the right branch regions.",
+          "kind": "number"
+        },
+        {
+          "id": "tracer_x",
+          "unit": "",
+          "meaning": "Horizontal position of the animated decision tracer.",
+          "kind": "number"
+        },
+        {
+          "id": "tracer_y",
+          "unit": "",
+          "meaning": "Vertical position of the animated decision tracer.",
+          "kind": "number"
+        },
+        {
+          "id": "in_leaf_1",
+          "unit": "",
+          "meaning": "True when the point falls into leaf 1.",
+          "kind": "flag"
+        },
+        {
+          "id": "in_leaf_2",
+          "unit": "",
+          "meaning": "True when the point falls into leaf 2.",
+          "kind": "flag"
+        },
+        {
+          "id": "in_leaf_3",
+          "unit": "",
+          "meaning": "True when the point falls into leaf 3.",
+          "kind": "flag"
+        },
+        {
+          "id": "in_leaf_4",
+          "unit": "",
+          "meaning": "True when the point falls into leaf 4.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "units",
+        "parts": [
+          {
+            "type": "arrow",
+            "id": "axis_x1",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              10,
+              0
+            ],
+            "label": "x1"
+          },
+          {
+            "type": "arrow",
+            "id": "axis_x2",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              0,
+              10
+            ],
+            "label": "x2"
+          },
+          {
+            "type": "line",
+            "id": "root_split",
+            "from": [
+              "root_x",
+              0
+            ],
+            "to": [
+              "root_x",
+              10
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "left_split",
+            "from": [
+              0,
+              3.5
+            ],
+            "to": [
+              "root_x",
+              3.5
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "line",
+            "id": "right_split",
+            "from": [
+              "root_x",
+              6.5
+            ],
+            "to": [
+              10,
+              6.5
+            ],
+            "of": "tree"
+          },
+          {
+            "type": "trace",
+            "id": "path_trace",
+            "at": [
+              "tracer_x",
+              "tracer_y"
+            ],
+            "of": "point"
+          },
+          {
+            "type": "dot",
+            "id": "query_dot",
+            "at": [
+              "query_x1",
+              "query_x2"
+            ],
+            "size": "small",
+            "of": "point"
+          },
+          {
+            "type": "dot",
+            "id": "tracer_dot",
+            "at": [
+              "tracer_x",
+              "tracer_y"
+            ],
+            "size": "large",
+            "of": "point"
+          },
+          {
+            "type": "label",
+            "id": "lbl_leaf1",
+            "at": [
+              "left_mid_x",
+              1.75
+            ],
+            "text": "Leaf 1 (p=0.15)",
+            "of": "leaf"
+          },
+          {
+            "type": "label",
+            "id": "lbl_leaf2",
+            "at": [
+              "left_mid_x",
+              6.75
+            ],
+            "text": "Leaf 2 (p=0.45)",
+            "of": "leaf"
+          },
+          {
+            "type": "label",
+            "id": "lbl_leaf3",
+            "at": [
+              "right_mid_x",
+              3.25
+            ],
+            "text": "Leaf 3 (p=0.70)",
+            "of": "leaf"
+          },
+          {
+            "type": "label",
+            "id": "lbl_leaf4",
+            "at": [
+              "right_mid_x",
+              8.25
+            ],
+            "text": "Leaf 4 (p=0.90)",
+            "of": "leaf"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Prediction across Feature x1",
+        "x": {
+          "over": "x1",
+          "label": "Feature x1",
+          "unit": ""
+        },
+        "y": {
+          "label": "Leaf prediction",
+          "unit": ""
+        },
+        "series": [
+          {
+            "value": "prediction",
+            "label": "Prediction",
+            "of": "leaf",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "prediction",
+        "label": "Prediction",
+        "unit": "",
+        "decimals": 2,
+        "of": "leaf"
+      },
+      {
+        "value": "leaf_id",
+        "label": "Leaf",
+        "unit": "",
+        "decimals": 0,
+        "of": "leaf"
+      },
+      {
+        "value": "margin_root",
+        "label": "Root margin",
+        "unit": "",
+        "decimals": 2,
+        "of": "point"
+      },
+      {
+        "value": "margin_child",
+        "label": "Child margin",
+        "unit": "",
+        "decimals": 2,
+        "of": "point"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Root tests x1 <= t1 to go left.",
+        "Child tests x2 <= t2 to pick leaf."
+      ],
+      "cases": [
+        {
+          "when": "in_leaf_1",
+          "text": "x1<=t1, x2<=3.5 -> Leaf 1 (p=0.15)."
+        },
+        {
+          "when": "in_leaf_2",
+          "text": "x1<=t1, x2>3.5 -> Leaf 2 (p=0.45)."
+        },
+        {
+          "when": "in_leaf_3",
+          "text": "x1>t1, x2<=6.5 -> Leaf 3 (p=0.70)."
+        },
+        {
+          "when": "in_leaf_4",
+          "text": "x1>t1, x2>6.5 -> Leaf 4 (p=0.90)."
+        }
+      ],
+      "otherwise": "Tracing point to its leaf region."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "equal"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "margin_root",
+        "with": "x1"
+      },
+      {
+        "type": "decreases",
+        "value": "margin_root",
+        "with": "t_root"
+      },
+      {
+        "type": "unchanged",
+        "value": "margin_root",
+        "when": "x2"
+      },
+      {
+        "type": "increases",
+        "value": "margin_child",
+        "with": "x2"
+      }
+    ],
+    "lesson": {
+      "title": "How a Decision Tree Traces a Point",
+      "description": "Watch a query point step through a two-level decision tree in feature space. Adjust x1, x2, and the root threshold to see which leaf region and prediction it reaches.",
+      "instructions": "Move the Feature x1 and Feature x2 sliders to place the query point, and scrub time to watch the horizontal root test followed by the vertical child test. Slide Root threshold t1 to shift the main boundary and see the split margins and prediction update.",
+      "goal": "A decision tree classifies a point by testing one feature at a time against fixed thresholds until it lands in a single leaf region with a constant prediction."
+    }
+  }
+}

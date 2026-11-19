@@ -1,0 +1,1469 @@
+run ej_15c3d0e3a67547a2be3bc1ae7d52fd00: PASSED the light checker
+prompt: how does a random forest combine the predictions of its trees into one answer?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 1033705616   seconds: 100.555   cost: $0.1776
+
+== dice
+{
+  "controlQuantities": [
+    "num_trees",
+    "tree_spread",
+    "tree_correlation"
+  ],
+  "n": 3,
+  "k": 2,
+  "ids": [
+    "num_trees",
+    "tree_correlation"
+  ]
+}
+
+== calls
+quantities: answered, 14.171 s, 1237 in + 2039 thinking + 425 out, $0.0203
+blueprint: answered, 84.596 s, 10397 in + 14492 thinking + 4392 out, $0.1572
+
+== problems
+none
+
+== blueprint (first): "How a Random Forest Combines Its Trees"; controls: num_trees, tree_correlation
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A random forest combines its trees by averaging their numerical outputs or taking the majority class vote, which cancels out independent tree errors to yield a stabler prediction.",
+    "formula": "\\hat{y} = \\frac{1}{N}\\sum_{i=1}^N y_i",
+    "assumptions": [
+      "Every tree has equal weight in the average and majority vote.",
+      "Individual trees are unbiased around the true target with equal error spread.",
+      "A class vote counts as positive when a tree prediction exceeds the fixed cutoff."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "num_trees",
+      "label": "Number of trees",
+      "unit": "trees",
+      "role": "control",
+      "meaning": "How many decision trees contribute a prediction to the forest."
+    },
+    {
+      "id": "tree_spread",
+      "label": "Tree error spread",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Standard deviation of an individual tree prediction error."
+    },
+    {
+      "id": "tree_correlation",
+      "label": "Tree correlation",
+      "unit": "",
+      "role": "control",
+      "meaning": "How strongly errors move together across trees from shared splits."
+    },
+    {
+      "id": "true_target",
+      "label": "True target",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Reference target value that unbiased trees center around."
+    },
+    {
+      "id": "decision_cutoff",
+      "label": "Class cutoff",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Threshold above which a tree casts a positive class vote."
+    },
+    {
+      "id": "forest_mean",
+      "label": "Forest mean",
+      "unit": "units",
+      "role": "result",
+      "meaning": "Arithmetic average of all active tree predictions in the forest."
+    },
+    {
+      "id": "majority_vote_share",
+      "label": "Positive vote share",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of trees voting positive; over 50% wins the majority vote."
+    },
+    {
+      "id": "forest_error_std",
+      "label": "Forest error spread",
+      "unit": "units",
+      "role": "result",
+      "meaning": "Expected standard deviation of the combined forest prediction."
+    },
+    {
+      "id": "error_reduction",
+      "label": "Variance reduction",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage reduction in prediction variance compared to one tree."
+    }
+  ],
+  "things": [
+    {
+      "id": "single_tree",
+      "label": "Single tree"
+    },
+    {
+      "id": "other_trees",
+      "label": "Other trees"
+    },
+    {
+      "id": "forest",
+      "label": "Random forest"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "num_trees",
+      "label": "Number of trees",
+      "unit": "trees",
+      "min": 1,
+      "max": 25,
+      "default": 9,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "tree_correlation",
+      "label": "Tree correlation",
+      "unit": "",
+      "min": 0,
+      "max": 0.9,
+      "default": 0.2,
+      "step": 0.1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 10,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var TRUE_TARGET = 5.2; var TREE_SPREAD = 1.6; var DECISION_CUTOFF = 4.8; var N = Math.max(1, Math.min(25, Math.round(inputs.num_trees))); var rho = Math.max(0, Math.min(0.95, inputs.tree_correlation)); var w = (2 * Math.PI) / 10; var zShared = 1.05 * Math.sin(w * t + 0.4) + 0.75 * Math.cos(2 * w * t - 0.8); var sShare = Math.sqrt(rho); var sIndep = Math.sqrt(1 - rho); var sumY = 0; var posCount = 0; var sampleY = [0, 0, 0, 0, 0]; for (var i = 0; i < N; i++) { var phi = i * 2.39996323; var zIndep = 1.05 * Math.sin(w * t + phi) + 0.75 * Math.cos(2 * w * t - 1.7 * phi); var yi = TRUE_TARGET + TREE_SPREAD * (sShare * zShared + sIndep * zIndep); sumY += yi; if (yi > DECISION_CUTOFF) { posCount += 1; } if (i < 5) { sampleY[i] = yi; } } var forest_mean = sumY / N; var majority_vote_share = (posCount / N) * 100; var varRatio = rho + (1 - rho) / N; var forest_error_std = TREE_SPREAD * Math.sqrt(varRatio); var error_reduction = (1 - varRatio) * 100; var tree1_y = sampleY[0]; var tree2_x = N >= 2 ? 2.1 : 1.2; var tree2_y = N >= 2 ? sampleY[1] : tree1_y; var tree3_x = N >= 3 ? 3.0 : tree2_x; var tree3_y = N >= 3 ? sampleY[2] : tree2_y; var tree4_x = N >= 4 ? 3.9 : tree3_x; var tree4_y = N >= 4 ? sampleY[3] : tree3_y; var tree5_x = N >= 5 ? 4.8 : tree4_x; var tree5_y = N >= 5 ? sampleY[4] : tree4_y; return { forest_mean: forest_mean, majority_vote_share: majority_vote_share, forest_error_std: forest_error_std, error_reduction: error_reduction, tree1_y: tree1_y, tree2_x: tree2_x, tree2_y: tree2_y, tree3_x: tree3_x, tree3_y: tree3_y, tree4_x: tree4_x, tree4_y: tree4_y, tree5_x: tree5_x, tree5_y: tree5_y, forest_band_low: TRUE_TARGET - forest_error_std, forest_band_high: TRUE_TARGET + forest_error_std, is_single_tree: N === 1, is_high_corr: rho >= 0.6, is_majority_pos: majority_vote_share > 50 }; }",
+    "outputs": [
+      {
+        "id": "forest_mean",
+        "unit": "units",
+        "meaning": "Arithmetic average of all active tree predictions in the forest.",
+        "kind": "number"
+      },
+      {
+        "id": "majority_vote_share",
+        "unit": "%",
+        "meaning": "Percentage of trees voting positive; over 50% wins the majority vote.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_error_std",
+        "unit": "units",
+        "meaning": "Expected standard deviation of the combined forest prediction.",
+        "kind": "number"
+      },
+      {
+        "id": "error_reduction",
+        "unit": "%",
+        "meaning": "Percentage reduction in prediction variance compared to one tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree1_y",
+        "unit": "units",
+        "meaning": "Current prediction of the first tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree2_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the second sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree2_y",
+        "unit": "units",
+        "meaning": "Current prediction of the second sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree3_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the third sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree3_y",
+        "unit": "units",
+        "meaning": "Current prediction of the third sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree4_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the fourth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree4_y",
+        "unit": "units",
+        "meaning": "Current prediction of the fourth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree5_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the fifth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree5_y",
+        "unit": "units",
+        "meaning": "Current prediction of the fifth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_band_low",
+        "unit": "units",
+        "meaning": "Lower bound of one forest standard deviation around the true target.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_band_high",
+        "unit": "units",
+        "meaning": "Upper bound of one forest standard deviation around the true target.",
+        "kind": "number"
+      },
+      {
+        "id": "is_single_tree",
+        "unit": "",
+        "meaning": "True when only one tree is active in the forest.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_high_corr",
+        "unit": "",
+        "meaning": "True when tree correlation is high (0.6 or above).",
+        "kind": "flag"
+      },
+      {
+        "id": "is_majority_pos",
+        "unit": "",
+        "meaning": "True when more than half of the trees vote positive.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "line",
+          "id": "target_line",
+          "from": [
+            0.5,
+            5.2
+          ],
+          "to": [
+            7.5,
+            5.2
+          ]
+        },
+        {
+          "type": "label",
+          "id": "target_label",
+          "at": [
+            0.5,
+            5.45
+          ],
+          "text": "True target (5.2)"
+        },
+        {
+          "type": "line",
+          "id": "cutoff_line",
+          "from": [
+            0.5,
+            4.8
+          ],
+          "to": [
+            7.5,
+            4.8
+          ]
+        },
+        {
+          "type": "label",
+          "id": "cutoff_label",
+          "at": [
+            0.5,
+            4.45
+          ],
+          "text": "Class cutoff (4.8)"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_1",
+          "at": [
+            1.2,
+            "tree1_y"
+          ],
+          "size": "medium",
+          "of": "single_tree"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_2",
+          "at": [
+            "tree2_x",
+            "tree2_y"
+          ],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_3",
+          "at": [
+            "tree3_x",
+            "tree3_y"
+          ],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_4",
+          "at": [
+            "tree4_x",
+            "tree4_y"
+          ],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_5",
+          "at": [
+            "tree5_x",
+            "tree5_y"
+          ],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "line",
+          "id": "forest_band",
+          "from": [
+            6.5,
+            "forest_band_low"
+          ],
+          "to": [
+            6.5,
+            "forest_band_high"
+          ],
+          "of": "forest"
+        },
+        {
+          "type": "line",
+          "id": "forest_bar",
+          "from": [
+            5.8,
+            "forest_mean"
+          ],
+          "to": [
+            7.2,
+            "forest_mean"
+          ],
+          "of": "forest"
+        },
+        {
+          "type": "dot",
+          "id": "forest_dot",
+          "at": [
+            6.5,
+            "forest_mean"
+          ],
+          "size": "large",
+          "of": "forest"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Single Tree vs Forest Mean",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Prediction",
+        "unit": "units"
+      },
+      "series": [
+        {
+          "value": "tree1_y",
+          "label": "Single tree",
+          "of": "single_tree",
+          "style": "line"
+        },
+        {
+          "value": "forest_mean",
+          "label": "Forest mean",
+          "of": "forest",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "forest_mean",
+      "label": "Forest mean",
+      "unit": "units",
+      "decimals": 2,
+      "of": "forest"
+    },
+    {
+      "value": "majority_vote_share",
+      "label": "Pos votes",
+      "unit": "%",
+      "decimals": 0,
+      "of": "forest"
+    },
+    {
+      "value": "forest_error_std",
+      "label": "Forest std",
+      "unit": "units",
+      "decimals": 2,
+      "of": "forest"
+    },
+    {
+      "value": "error_reduction",
+      "label": "Var reduced",
+      "unit": "%",
+      "decimals": 0,
+      "of": "forest"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Forest mean averages all tree votes"
+    ],
+    "cases": [
+      {
+        "when": "is_single_tree",
+        "text": "Single tree: no errors cancel out"
+      },
+      {
+        "when": "is_high_corr",
+        "text": "High correlation limits averaging"
+      },
+      {
+        "when": "is_majority_pos",
+        "text": "Forest cancels noise; majority wins"
+      }
+    ],
+    "otherwise": "Shared dip pulls majority below cut"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "forest_error_std",
+      "with": "num_trees"
+    },
+    {
+      "type": "increases",
+      "value": "error_reduction",
+      "with": "num_trees"
+    },
+    {
+      "type": "increases",
+      "value": "forest_error_std",
+      "with": "tree_correlation"
+    },
+    {
+      "type": "decreases",
+      "value": "error_reduction",
+      "with": "tree_correlation"
+    },
+    {
+      "type": "unchanged",
+      "value": "forest_error_std",
+      "when": "tree_correlation",
+      "at": [
+        {
+          "input": "num_trees",
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "How a Random Forest Combines Its Trees",
+    "description": "Individual trees make noisy predictions around the target, while the random forest averages them into one steadier estimate. Adjust the tree count and correlation to watch the forest error shrink.",
+    "instructions": "Drag Number of trees from 1 up to 25 and watch the forest mean and spread band stabilize around the true target. Then increase Tree correlation to see why shared errors limit how much averaging can reduce variance.",
+    "goal": "Averaging many diverse trees cancels independent errors and keeps the forest mean and majority vote reliable, whereas high tree correlation prevents errors from canceling."
+  }
+}
+
+== quantities answer (exactly as returned)
+{"relationship":{"statement":"A random forest combines its trees by averaging their numerical outputs or taking the majority class vote, which cancels out independent tree errors to yield a stabler prediction.","formula":"\\hat{y} = \\frac{1}{N}\\sum_{i=1}^N y_i","assumptions":["Every tree has equal weight in the average and majority vote.","Individual trees are unbiased around the true target with equal error spread.","A class vote counts as positive when a tree prediction exceeds the fixed cutoff."]},"quantities":[{"id":"num_trees","label":"Number of trees","unit":"trees","role":"control","meaning":"How many decision trees contribute a prediction to the forest."},{"id":"tree_spread","label":"Tree error spread","unit":"units","role":"control","meaning":"Standard deviation of an individual tree prediction error."},{"id":"tree_correlation","label":"Tree correlation","unit":"","role":"control","meaning":"How strongly errors move together across trees from shared splits."},{"id":"true_target","label":"True target","unit":"units","role":"fixed","meaning":"Reference target value that unbiased trees center around."},{"id":"decision_cutoff","label":"Class cutoff","unit":"units","role":"fixed","meaning":"Threshold above which a tree casts a positive class vote."},{"id":"forest_mean","label":"Forest mean","unit":"units","role":"result","meaning":"Arithmetic average of all active tree predictions in the forest."},{"id":"majority_vote_share","label":"Positive vote share","unit":"%","role":"result","meaning":"Percentage of trees voting positive; over 50% wins the majority vote."},{"id":"forest_error_std","label":"Forest error spread","unit":"units","role":"result","meaning":"Expected standard deviation of the combined forest prediction."},{"id":"error_reduction","label":"Variance reduction","unit":"%","role":"result","meaning":"Percentage reduction in prediction variance compared to one tree."}]}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A random forest combines its trees by averaging their numerical outputs or taking the majority class vote, which cancels out independent tree errors to yield a stabler prediction.",
+    "formula": "\\hat{y} = \\frac{1}{N}\\sum_{i=1}^N y_i",
+    "assumptions": [
+      "Every tree has equal weight in the average and majority vote.",
+      "Individual trees are unbiased around the true target with equal error spread.",
+      "A class vote counts as positive when a tree prediction exceeds the fixed cutoff."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "num_trees",
+      "label": "Number of trees",
+      "unit": "trees",
+      "role": "control",
+      "meaning": "How many decision trees contribute a prediction to the forest."
+    },
+    {
+      "id": "tree_spread",
+      "label": "Tree error spread",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Standard deviation of an individual tree prediction error."
+    },
+    {
+      "id": "tree_correlation",
+      "label": "Tree correlation",
+      "unit": "",
+      "role": "control",
+      "meaning": "How strongly errors move together across trees from shared splits."
+    },
+    {
+      "id": "true_target",
+      "label": "True target",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Reference target value that unbiased trees center around."
+    },
+    {
+      "id": "decision_cutoff",
+      "label": "Class cutoff",
+      "unit": "units",
+      "role": "fixed",
+      "meaning": "Threshold above which a tree casts a positive class vote."
+    },
+    {
+      "id": "forest_mean",
+      "label": "Forest mean",
+      "unit": "units",
+      "role": "result",
+      "meaning": "Arithmetic average of all active tree predictions in the forest."
+    },
+    {
+      "id": "majority_vote_share",
+      "label": "Positive vote share",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of trees voting positive; over 50% wins the majority vote."
+    },
+    {
+      "id": "forest_error_std",
+      "label": "Forest error spread",
+      "unit": "units",
+      "role": "result",
+      "meaning": "Expected standard deviation of the combined forest prediction."
+    },
+    {
+      "id": "error_reduction",
+      "label": "Variance reduction",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage reduction in prediction variance compared to one tree."
+    }
+  ],
+  "things": [
+    {
+      "id": "single_tree",
+      "label": "Single tree"
+    },
+    {
+      "id": "other_trees",
+      "label": "Other trees"
+    },
+    {
+      "id": "forest",
+      "label": "Random forest"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "num_trees",
+      "label": "Number of trees",
+      "unit": "trees",
+      "min": 1,
+      "max": 25,
+      "default": 9,
+      "step": 1
+    },
+    {
+      "type": "number",
+      "id": "tree_correlation",
+      "label": "Tree correlation",
+      "unit": "",
+      "min": 0,
+      "max": 0.9,
+      "default": 0.2,
+      "step": 0.1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 10,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var TRUE_TARGET = 5.2; var TREE_SPREAD = 1.6; var DECISION_CUTOFF = 4.8; var N = Math.max(1, Math.min(25, Math.round(inputs.num_trees))); var rho = Math.max(0, Math.min(0.95, inputs.tree_correlation)); var w = (2 * Math.PI) / 10; var zShared = 1.05 * Math.sin(w * t + 0.4) + 0.75 * Math.cos(2 * w * t - 0.8); var sShare = Math.sqrt(rho); var sIndep = Math.sqrt(1 - rho); var sumY = 0; var posCount = 0; var sampleY = [0, 0, 0, 0, 0]; for (var i = 0; i < N; i++) { var phi = i * 2.39996323; var zIndep = 1.05 * Math.sin(w * t + phi) + 0.75 * Math.cos(2 * w * t - 1.7 * phi); var yi = TRUE_TARGET + TREE_SPREAD * (sShare * zShared + sIndep * zIndep); sumY += yi; if (yi > DECISION_CUTOFF) { posCount += 1; } if (i < 5) { sampleY[i] = yi; } } var forest_mean = sumY / N; var majority_vote_share = (posCount / N) * 100; var varRatio = rho + (1 - rho) / N; var forest_error_std = TREE_SPREAD * Math.sqrt(varRatio); var error_reduction = (1 - varRatio) * 100; var tree1_y = sampleY[0]; var tree2_x = N >= 2 ? 2.1 : 1.2; var tree2_y = N >= 2 ? sampleY[1] : tree1_y; var tree3_x = N >= 3 ? 3.0 : tree2_x; var tree3_y = N >= 3 ? sampleY[2] : tree2_y; var tree4_x = N >= 4 ? 3.9 : tree3_x; var tree4_y = N >= 4 ? sampleY[3] : tree3_y; var tree5_x = N >= 5 ? 4.8 : tree4_x; var tree5_y = N >= 5 ? sampleY[4] : tree4_y; return { forest_mean: forest_mean, majority_vote_share: majority_vote_share, forest_error_std: forest_error_std, error_reduction: error_reduction, tree1_y: tree1_y, tree2_x: tree2_x, tree2_y: tree2_y, tree3_x: tree3_x, tree3_y: tree3_y, tree4_x: tree4_x, tree4_y: tree4_y, tree5_x: tree5_x, tree5_y: tree5_y, forest_band_low: TRUE_TARGET - forest_error_std, forest_band_high: TRUE_TARGET + forest_error_std, is_single_tree: N === 1, is_high_corr: rho >= 0.6, is_majority_pos: majority_vote_share > 50 }; }",
+    "outputs": [
+      {
+        "id": "forest_mean",
+        "unit": "units",
+        "meaning": "Arithmetic average of all active tree predictions in the forest.",
+        "kind": "number"
+      },
+      {
+        "id": "majority_vote_share",
+        "unit": "%",
+        "meaning": "Percentage of trees voting positive; over 50% wins the majority vote.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_error_std",
+        "unit": "units",
+        "meaning": "Expected standard deviation of the combined forest prediction.",
+        "kind": "number"
+      },
+      {
+        "id": "error_reduction",
+        "unit": "%",
+        "meaning": "Percentage reduction in prediction variance compared to one tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree1_y",
+        "unit": "units",
+        "meaning": "Current prediction of the first tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree2_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the second sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree2_y",
+        "unit": "units",
+        "meaning": "Current prediction of the second sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree3_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the third sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree3_y",
+        "unit": "units",
+        "meaning": "Current prediction of the third sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree4_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the fourth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree4_y",
+        "unit": "units",
+        "meaning": "Current prediction of the fourth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree5_x",
+        "unit": "units",
+        "meaning": "Display x-coordinate for the fifth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "tree5_y",
+        "unit": "units",
+        "meaning": "Current prediction of the fifth sample tree.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_band_low",
+        "unit": "units",
+        "meaning": "Lower bound of one forest standard deviation around the true target.",
+        "kind": "number"
+      },
+      {
+        "id": "forest_band_high",
+        "unit": "units",
+        "meaning": "Upper bound of one forest standard deviation around the true target.",
+        "kind": "number"
+      },
+      {
+        "id": "is_single_tree",
+        "unit": "",
+        "meaning": "True when only one tree is active in the forest.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_high_corr",
+        "unit": "",
+        "meaning": "True when tree correlation is high (0.6 or above).",
+        "kind": "flag"
+      },
+      {
+        "id": "is_majority_pos",
+        "unit": "",
+        "meaning": "True when more than half of the trees vote positive.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "units",
+      "parts": [
+        {
+          "type": "line",
+          "id": "target_line",
+          "from": [0.5, 5.2],
+          "to": [7.5, 5.2]
+        },
+        {
+          "type": "label",
+          "id": "target_label",
+          "at": [0.5, 5.45],
+          "text": "True target (5.2)"
+        },
+        {
+          "type": "line",
+          "id": "cutoff_line",
+          "from": [0.5, 4.8],
+          "to": [7.5, 4.8]
+        },
+        {
+          "type": "label",
+          "id": "cutoff_label",
+          "at": [0.5, 4.45],
+          "text": "Class cutoff (4.8)"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_1",
+          "at": [1.2, "tree1_y"],
+          "size": "medium",
+          "of": "single_tree"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_2",
+          "at": ["tree2_x", "tree2_y"],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_3",
+          "at": ["tree3_x", "tree3_y"],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_4",
+          "at": ["tree4_x", "tree4_y"],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "dot",
+          "id": "tree_dot_5",
+          "at": ["tree5_x", "tree5_y"],
+          "size": "medium",
+          "of": "other_trees"
+        },
+        {
+          "type": "line",
+          "id": "forest_band",
+          "from": [6.5, "forest_band_low"],
+          "to": [6.5, "forest_band_high"],
+          "of": "forest"
+        },
+        {
+          "type": "line",
+          "id": "forest_bar",
+          "from": [5.8, "forest_mean"],
+          "to": [7.2, "forest_mean"],
+          "of": "forest"
+        },
+        {
+          "type": "dot",
+          "id": "forest_dot",
+          "at": [6.5, "forest_mean"],
+          "size": "large",
+          "of": "forest"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Single Tree vs Forest Mean",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Prediction",
+        "unit": "units"
+      },
+      "series": [
+        {
+          "value": "tree1_y",
+          "label": "Single tree",
+          "of": "single_tree",
+          "style": "line"
+        },
+        {
+          "value": "forest_mean",
+          "label": "Forest mean",
+          "of": "forest",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "forest_mean",
+      "label": "Forest mean",
+      "unit": "units",
+      "decimals": 2,
+      "of": "forest"
+    },
+    {
+      "value": "majority_vote_share",
+      "label": "Pos votes",
+      "unit": "%",
+      "decimals": 0,
+      "of": "forest"
+    },
+    {
+      "value": "forest_error_std",
+      "label": "Forest std",
+      "unit": "units",
+      "decimals": 2,
+      "of": "forest"
+    },
+    {
+      "value": "error_reduction",
+      "label": "Var reduced",
+      "unit": "%",
+      "decimals": 0,
+      "of": "forest"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Forest mean averages all tree votes"
+    ],
+    "cases": [
+      {
+        "when": "is_single_tree",
+        "text": "Single tree: no errors cancel out"
+      },
+      {
+        "when": "is_high_corr",
+        "text": "High correlation limits averaging"
+      },
+      {
+        "when": "is_majority_pos",
+        "text": "Forest cancels noise; majority wins"
+      }
+    ],
+    "otherwise": "Shared dip pulls majority below cut"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "forest_error_std",
+      "with": "num_trees"
+    },
+    {
+      "type": "increases",
+      "value": "error_reduction",
+      "with": "num_trees"
+    },
+    {
+      "type": "increases",
+      "value": "forest_error_std",
+      "with": "tree_correlation"
+    },
+    {
+      "type": "decreases",
+      "value": "error_reduction",
+      "with": "tree_correlation"
+    },
+    {
+      "type": "unchanged",
+      "value": "forest_error_std",
+      "when": "tree_correlation",
+      "at": [
+        {
+          "input": "num_trees",
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "How a Random Forest Combines Its Trees",
+    "description": "Individual trees make noisy predictions around the target, while the random forest averages them into one steadier estimate. Adjust the tree count and correlation to watch the forest error shrink.",
+    "instructions": "Drag Number of trees from 1 up to 25 and watch the forest mean and spread band stabilize around the true target. Then increase Tree correlation to see why shared errors limit how much averaging can reduce variance.",
+    "goal": "Averaging many diverse trees cancels independent errors and keeps the forest mean and majority vote reliable, whereas high tree correlation prevents errors from canceling."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+{
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A random forest combines its trees by averaging their numerical outputs or taking the majority class vote, which cancels out independent tree errors to yield a stabler prediction.",
+      "formula": "\\hat{y} = \\frac{1}{N}\\sum_{i=1}^N y_i",
+      "assumptions": [
+        "Every tree has equal weight in the average and majority vote.",
+        "Individual trees are unbiased around the true target with equal error spread.",
+        "A class vote counts as positive when a tree prediction exceeds the fixed cutoff."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "num_trees",
+        "label": "Number of trees",
+        "unit": "trees",
+        "role": "control",
+        "meaning": "How many decision trees contribute a prediction to the forest."
+      },
+      {
+        "id": "tree_spread",
+        "label": "Tree error spread",
+        "unit": "units",
+        "role": "fixed",
+        "meaning": "Standard deviation of an individual tree prediction error."
+      },
+      {
+        "id": "tree_correlation",
+        "label": "Tree correlation",
+        "unit": "",
+        "role": "control",
+        "meaning": "How strongly errors move together across trees from shared splits."
+      },
+      {
+        "id": "true_target",
+        "label": "True target",
+        "unit": "units",
+        "role": "fixed",
+        "meaning": "Reference target value that unbiased trees center around."
+      },
+      {
+        "id": "decision_cutoff",
+        "label": "Class cutoff",
+        "unit": "units",
+        "role": "fixed",
+        "meaning": "Threshold above which a tree casts a positive class vote."
+      },
+      {
+        "id": "forest_mean",
+        "label": "Forest mean",
+        "unit": "units",
+        "role": "result",
+        "meaning": "Arithmetic average of all active tree predictions in the forest."
+      },
+      {
+        "id": "majority_vote_share",
+        "label": "Positive vote share",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Percentage of trees voting positive; over 50% wins the majority vote."
+      },
+      {
+        "id": "forest_error_std",
+        "label": "Forest error spread",
+        "unit": "units",
+        "role": "result",
+        "meaning": "Expected standard deviation of the combined forest prediction."
+      },
+      {
+        "id": "error_reduction",
+        "label": "Variance reduction",
+        "unit": "%",
+        "role": "result",
+        "meaning": "Percentage reduction in prediction variance compared to one tree."
+      }
+    ],
+    "things": [
+      {
+        "id": "single_tree",
+        "label": "Single tree"
+      },
+      {
+        "id": "other_trees",
+        "label": "Other trees"
+      },
+      {
+        "id": "forest",
+        "label": "Random forest"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "num_trees",
+        "label": "Number of trees",
+        "unit": "trees",
+        "min": 1,
+        "max": 25,
+        "default": 9,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "id": "tree_correlation",
+        "label": "Tree correlation",
+        "unit": "",
+        "min": 0,
+        "max": 0.9,
+        "default": 0.2,
+        "step": 0.1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 10,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var TRUE_TARGET = 5.2; var TREE_SPREAD = 1.6; var DECISION_CUTOFF = 4.8; var N = Math.max(1, Math.min(25, Math.round(inputs.num_trees))); var rho = Math.max(0, Math.min(0.95, inputs.tree_correlation)); var w = (2 * Math.PI) / 10; var zShared = 1.05 * Math.sin(w * t + 0.4) + 0.75 * Math.cos(2 * w * t - 0.8); var sShare = Math.sqrt(rho); var sIndep = Math.sqrt(1 - rho); var sumY = 0; var posCount = 0; var sampleY = [0, 0, 0, 0, 0]; for (var i = 0; i < N; i++) { var phi = i * 2.39996323; var zIndep = 1.05 * Math.sin(w * t + phi) + 0.75 * Math.cos(2 * w * t - 1.7 * phi); var yi = TRUE_TARGET + TREE_SPREAD * (sShare * zShared + sIndep * zIndep); sumY += yi; if (yi > DECISION_CUTOFF) { posCount += 1; } if (i < 5) { sampleY[i] = yi; } } var forest_mean = sumY / N; var majority_vote_share = (posCount / N) * 100; var varRatio = rho + (1 - rho) / N; var forest_error_std = TREE_SPREAD * Math.sqrt(varRatio); var error_reduction = (1 - varRatio) * 100; var tree1_y = sampleY[0]; var tree2_x = N >= 2 ? 2.1 : 1.2; var tree2_y = N >= 2 ? sampleY[1] : tree1_y; var tree3_x = N >= 3 ? 3.0 : tree2_x; var tree3_y = N >= 3 ? sampleY[2] : tree2_y; var tree4_x = N >= 4 ? 3.9 : tree3_x; var tree4_y = N >= 4 ? sampleY[3] : tree3_y; var tree5_x = N >= 5 ? 4.8 : tree4_x; var tree5_y = N >= 5 ? sampleY[4] : tree4_y; return { forest_mean: forest_mean, majority_vote_share: majority_vote_share, forest_error_std: forest_error_std, error_reduction: error_reduction, tree1_y: tree1_y, tree2_x: tree2_x, tree2_y: tree2_y, tree3_x: tree3_x, tree3_y: tree3_y, tree4_x: tree4_x, tree4_y: tree4_y, tree5_x: tree5_x, tree5_y: tree5_y, forest_band_low: TRUE_TARGET - forest_error_std, forest_band_high: TRUE_TARGET + forest_error_std, is_single_tree: N === 1, is_high_corr: rho >= 0.6, is_majority_pos: majority_vote_share > 50 }; }",
+      "outputs": [
+        {
+          "id": "forest_mean",
+          "unit": "units",
+          "meaning": "Arithmetic average of all active tree predictions in the forest.",
+          "kind": "number"
+        },
+        {
+          "id": "majority_vote_share",
+          "unit": "%",
+          "meaning": "Percentage of trees voting positive; over 50% wins the majority vote.",
+          "kind": "number"
+        },
+        {
+          "id": "forest_error_std",
+          "unit": "units",
+          "meaning": "Expected standard deviation of the combined forest prediction.",
+          "kind": "number"
+        },
+        {
+          "id": "error_reduction",
+          "unit": "%",
+          "meaning": "Percentage reduction in prediction variance compared to one tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree1_y",
+          "unit": "units",
+          "meaning": "Current prediction of the first tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree2_x",
+          "unit": "units",
+          "meaning": "Display x-coordinate for the second sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree2_y",
+          "unit": "units",
+          "meaning": "Current prediction of the second sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree3_x",
+          "unit": "units",
+          "meaning": "Display x-coordinate for the third sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree3_y",
+          "unit": "units",
+          "meaning": "Current prediction of the third sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree4_x",
+          "unit": "units",
+          "meaning": "Display x-coordinate for the fourth sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree4_y",
+          "unit": "units",
+          "meaning": "Current prediction of the fourth sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree5_x",
+          "unit": "units",
+          "meaning": "Display x-coordinate for the fifth sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "tree5_y",
+          "unit": "units",
+          "meaning": "Current prediction of the fifth sample tree.",
+          "kind": "number"
+        },
+        {
+          "id": "forest_band_low",
+          "unit": "units",
+          "meaning": "Lower bound of one forest standard deviation around the true target.",
+          "kind": "number"
+        },
+        {
+          "id": "forest_band_high",
+          "unit": "units",
+          "meaning": "Upper bound of one forest standard deviation around the true target.",
+          "kind": "number"
+        },
+        {
+          "id": "is_single_tree",
+          "unit": "",
+          "meaning": "True when only one tree is active in the forest.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_high_corr",
+          "unit": "",
+          "meaning": "True when tree correlation is high (0.6 or above).",
+          "kind": "flag"
+        },
+        {
+          "id": "is_majority_pos",
+          "unit": "",
+          "meaning": "True when more than half of the trees vote positive.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "units",
+        "parts": [
+          {
+            "type": "line",
+            "id": "target_line",
+            "from": [
+              0.5,
+              5.2
+            ],
+            "to": [
+              7.5,
+              5.2
+            ]
+          },
+          {
+            "type": "label",
+            "id": "target_label",
+            "at": [
+              0.5,
+              5.45
+            ],
+            "text": "True target (5.2)"
+          },
+          {
+            "type": "line",
+            "id": "cutoff_line",
+            "from": [
+              0.5,
+              4.8
+            ],
+            "to": [
+              7.5,
+              4.8
+            ]
+          },
+          {
+            "type": "label",
+            "id": "cutoff_label",
+            "at": [
+              0.5,
+              4.45
+            ],
+            "text": "Class cutoff (4.8)"
+          },
+          {
+            "type": "dot",
+            "id": "tree_dot_1",
+            "at": [
+              1.2,
+              "tree1_y"
+            ],
+            "size": "medium",
+            "of": "single_tree"
+          },
+          {
+            "type": "dot",
+            "id": "tree_dot_2",
+            "at": [
+              "tree2_x",
+              "tree2_y"
+            ],
+            "size": "medium",
+            "of": "other_trees"
+          },
+          {
+            "type": "dot",
+            "id": "tree_dot_3",
+            "at": [
+              "tree3_x",
+              "tree3_y"
+            ],
+            "size": "medium",
+            "of": "other_trees"
+          },
+          {
+            "type": "dot",
+            "id": "tree_dot_4",
+            "at": [
+              "tree4_x",
+              "tree4_y"
+            ],
+            "size": "medium",
+            "of": "other_trees"
+          },
+          {
+            "type": "dot",
+            "id": "tree_dot_5",
+            "at": [
+              "tree5_x",
+              "tree5_y"
+            ],
+            "size": "medium",
+            "of": "other_trees"
+          },
+          {
+            "type": "line",
+            "id": "forest_band",
+            "from": [
+              6.5,
+              "forest_band_low"
+            ],
+            "to": [
+              6.5,
+              "forest_band_high"
+            ],
+            "of": "forest"
+          },
+          {
+            "type": "line",
+            "id": "forest_bar",
+            "from": [
+              5.8,
+              "forest_mean"
+            ],
+            "to": [
+              7.2,
+              "forest_mean"
+            ],
+            "of": "forest"
+          },
+          {
+            "type": "dot",
+            "id": "forest_dot",
+            "at": [
+              6.5,
+              "forest_mean"
+            ],
+            "size": "large",
+            "of": "forest"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Single Tree vs Forest Mean",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Prediction",
+          "unit": "units"
+        },
+        "series": [
+          {
+            "value": "tree1_y",
+            "label": "Single tree",
+            "of": "single_tree",
+            "style": "line"
+          },
+          {
+            "value": "forest_mean",
+            "label": "Forest mean",
+            "of": "forest",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "forest_mean",
+        "label": "Forest mean",
+        "unit": "units",
+        "decimals": 2,
+        "of": "forest"
+      },
+      {
+        "value": "majority_vote_share",
+        "label": "Pos votes",
+        "unit": "%",
+        "decimals": 0,
+        "of": "forest"
+      },
+      {
+        "value": "forest_error_std",
+        "label": "Forest std",
+        "unit": "units",
+        "decimals": 2,
+        "of": "forest"
+      },
+      {
+        "value": "error_reduction",
+        "label": "Var reduced",
+        "unit": "%",
+        "decimals": 0,
+        "of": "forest"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Forest mean averages all tree votes"
+      ],
+      "cases": [
+        {
+          "when": "is_single_tree",
+          "text": "Single tree: no errors cancel out"
+        },
+        {
+          "when": "is_high_corr",
+          "text": "High correlation limits averaging"
+        },
+        {
+          "when": "is_majority_pos",
+          "text": "Forest cancels noise; majority wins"
+        }
+      ],
+      "otherwise": "Shared dip pulls majority below cut"
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "decreases",
+        "value": "forest_error_std",
+        "with": "num_trees"
+      },
+      {
+        "type": "increases",
+        "value": "error_reduction",
+        "with": "num_trees"
+      },
+      {
+        "type": "increases",
+        "value": "forest_error_std",
+        "with": "tree_correlation"
+      },
+      {
+        "type": "decreases",
+        "value": "error_reduction",
+        "with": "tree_correlation"
+      },
+      {
+        "type": "unchanged",
+        "value": "forest_error_std",
+        "when": "tree_correlation",
+        "at": [
+          {
+            "input": "num_trees",
+            "value": 1
+          }
+        ]
+      }
+    ],
+    "lesson": {
+      "title": "How a Random Forest Combines Its Trees",
+      "description": "Individual trees make noisy predictions around the target, while the random forest averages them into one steadier estimate. Adjust the tree count and correlation to watch the forest error shrink.",
+      "instructions": "Drag Number of trees from 1 up to 25 and watch the forest mean and spread band stabilize around the true target. Then increase Tree correlation to see why shared errors limit how much averaging can reduce variance.",
+      "goal": "Averaging many diverse trees cancels independent errors and keeps the forest mean and majority vote reliable, whereas high tree correlation prevents errors from canceling."
+    }
+  }
+}
+
+== checker output, corrected answer
+none
