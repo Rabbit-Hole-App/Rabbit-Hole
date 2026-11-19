@@ -1,3 +1,5 @@
+> **NO-GO (Reviewer, 2026-11-19): release 164 on 87339cd7e must NOT be released.** The statement below that Durable Objects, queue consumer and scheduled handlers need no preload is FALSE: RoadmapJobs.alarm() (roadmap-jobs.js:38) -> runDueRoadmapEvents -> the step_accepted handler (roadmap-wire.js:76) -> generateRoadmapCard -> generateArtifact -> selectForAuthor -> selectWithSteer (default argument referenceLibrary(), explanation-references.js:104) throws in an isolate that served no /api/ request; roadmap-events.js:74 would swallow it as a retry. Being fixed as START-3b on feat/start-3; a new candidate, recovery branch and report replace this one. The launcher file was renamed so it cannot be run by accident.
+
 # Release 164 (release B): START-3 and GEN-1 R1: report
 
 Release name: 164-start-3
