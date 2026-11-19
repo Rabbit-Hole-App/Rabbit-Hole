@@ -1,0 +1,914 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "2a1888cdd4153eaa065b0f46d79cf12e90e9bd33",
+    "tree": "56cfe01dfddebd5650335c551862c4e7b6d419cd",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "4de17635d24a46512f4d43464d8be43a7047506f",
+    "tree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3696,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 75,
+    "newOwnPromptFirstPicks": 75,
+    "newOwnExactPromptFirstPicks": 75
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3880,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3880,
+    "computedCandidateCaseInputs": 3880
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "a8785bbed34dcc32ffad3bba1e18f20f2e49d2c3",
+  "publishedTree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370",
+  "publishedBaseline": "02e8c9ce56f0de7e1fc29722010c976e3c0fbbd5",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "The same surface word can have different contextual representations in sentences that mean different things.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "ELMo maps a whole sentence to a sequence of contextual vectors with one vector aligned to each token.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "Show ambiguous token output rows for seal in animal and gasket contexts.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "How does contextual sequence alignment give one vector to every input token?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "Keep every input position visible while comparing ambiguous token output rows.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "Change only the right cue and recompute contextual sequence alignment.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "prompt": "Compare ambiguous token output rows without averaging the whole sentence.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "prompt": "Forward and backward language models supply complementary context states at the same token position.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "prompt": "Show independent directional states at each position of a seal glides.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "prompt": "How do opposite read streams reach the selected seal position?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "prompt": "Change the right cue while keeping independent directional states separate.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "prompt": "Compare opposite read streams without treating them as BERT self-attention.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "prompt": "Which independent directional states stay fixed before an edited suffix?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-two-directional-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-two-directional-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "prompt": "ELMo concatenates the forward and backward states at each depth and combines the layer representations with task-specific weights.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "prompt": "Show task layer mixture products after concatenating forward and backward states.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "prompt": "Explain the direction concat layer sum with compatible base and layer widths.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "prompt": "Keep token states fixed and change the task layer mixture products.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "prompt": "Which coefficients in a direction concat layer sum index depths rather than tokens?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "prompt": "Recompute task layer mixture products before adding their output coordinates.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "prompt": "Layer selection and layer combination can change the quality of frozen text features for a downstream task.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "prompt": "Show a frozen pooling F1 comparison with supplied untrained readouts.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "prompt": "How do fixed cohort layer readouts turn frozen features into predictions?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "prompt": "Reorder samples and recompute a frozen pooling F1 comparison.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "prompt": "Keep feature widths and fixed cohort layer readouts aligned for last, sum and join.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "prompt": "Explain why a frozen pooling F1 comparison does not prove a general best layer.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    }
+  ]
+}

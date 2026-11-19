@@ -1,0 +1,16 @@
+{
+  "commit": "4de17635d24a46512f4d43464d8be43a7047506f",
+  "tree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-contextual-embeddings-contextual-word-vectors",
+    "ml-contextual-embeddings-two-directional-states",
+    "ml-contextual-embeddings-weighted-layer-states",
+    "ml-contextual-embeddings-layer-pooling-evaluation"
+  ],
+  "additionalReusedIds": [],
+  "references": [],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "publishedCommit": "a8785bbed34dcc32ffad3bba1e18f20f2e49d2c3",
+  "publishedTree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370"
+}

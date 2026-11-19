@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+    "packages/web/src/tutor-diagrams/topic-contextual-embeddings-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-contextual-embeddings-data.js",
+    "packages/web/src/tutor-diagrams/topic-contextual-embeddings-sources.json"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "ids": [
+        "ml-contextual-embeddings-contextual-word-vectors",
+        "ml-contextual-embeddings-two-directional-states",
+        "ml-contextual-embeddings-weighted-layer-states",
+        "ml-contextual-embeddings-layer-pooling-evaluation"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "a8785bbed34dcc32ffad3bba1e18f20f2e49d2c3",
+  "publishedTree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370"
+}

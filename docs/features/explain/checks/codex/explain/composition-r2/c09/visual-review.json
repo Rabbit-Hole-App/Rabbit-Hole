@@ -1,0 +1,12 @@
+{
+  "commit": "4de17635d24a46512f4d43464d8be43a7047506f",
+  "tree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370",
+  "viewsRead": 17,
+  "noteExceptions": [],
+  "observations": [
+    "The contextual-state captions now separate feature indices and numeric values with spaces. The weighted-layer-state data and chart values are unchanged.",
+    "`ml-contextual-embeddings-layer-pooling-evaluation` Detailed uses six labelled bars. At 408 px the chart renderer suppresses four above-bar numeric labels to avoid collisions. The companion retains the predictions by ID."
+  ],
+  "publishedCommit": "a8785bbed34dcc32ffad3bba1e18f20f2e49d2c3",
+  "publishedTree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370"
+}
