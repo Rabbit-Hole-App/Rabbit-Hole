@@ -3,6 +3,7 @@
 // set is a server constant (ROADMAP_FORMATS) passed as a trusted option; it is never read from a body, a client-writable job or the
 // model. Typed and Quick Edit /explain are untouched (startExplain first). This module never writes a board, a job or a URL.
 import { generateArtifact, prepareArtifactAuthorRequest } from '../learn-artifact.js';
+import { referenceLibraryReady } from '../reference-library-lazy.js';
 import { CHAT_GEMINI, MODEL, autoModel, loggedModel, planUsesOpenAI } from '../learn-models.js';
 import { planModel } from '../ask.js';
 import { requestSpendBound } from '../learn-spend.js';
@@ -71,6 +72,7 @@ export function authorInput(rec, limits = ROADMAP_LIMITS, env = {}) {
 // CORE.05: the quote of the actual full first author request of an accepted record. Zero model calls.
 // -> { outcome: 'quoted', boundMicros, requestFingerprint, provider, model } | a failure
 export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {}) {
+  await referenceLibraryReady(); // START-3: the reference library is loaded on first use: every async owner of a library read awaits it first (reference-library-lazy.js)
   const built = authorInput(rec, limits, env);
   if (built.failed) return built.failed;
   const prepared = prepareArtifactAuthorRequest(env, built.input, built.options);
