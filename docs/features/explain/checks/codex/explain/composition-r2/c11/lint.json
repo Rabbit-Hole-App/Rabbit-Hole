@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+    "packages/web/src/tutor-diagrams/composition-music-tokenization-references.js",
+    "packages/web/src/tutor-diagrams/topic-language-generation-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-language-generation-data.js",
+    "packages/web/src/tutor-diagrams/topic-language-generation-overlays.js",
+    "packages/web/src/tutor-diagrams/topic-language-generation-sources.json",
+    "packages/web/src/tutor-diagrams/topic-music-tokenization-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-music-tokenization-data.js"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "ids": [
+        "ml-language-generation-vocabulary-score-probabilities",
+        "ml-language-generation-key-value-cache",
+        "ml-language-generation-greedy-versus-sampling",
+        "ml-language-generation-autoregressive-feedback"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-music-tokenization-references.js",
+      "ids": [
+        "ml-music-tokenization-music-events-and-time"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/topic-language-generation-overlays.js",
+      "ids": [
+        "ml-gpt2-music-event-tokens",
+        "ml-word2vec-prefix-guesses",
+        "ml-kv-cache-decode",
+        "ml-gpt2-continue-prefix"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "54cb9c136d6912234745bc6a67e55d951e971690",
+  "publishedTree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7"
+}

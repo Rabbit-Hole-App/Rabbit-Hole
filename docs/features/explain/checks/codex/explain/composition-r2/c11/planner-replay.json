@@ -1,0 +1,2384 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "9098bc2ea3ab517f07285de7261125d1c92966a0",
+    "tree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "01b03d5dcfc308e848fa3c913c158a45071370f0",
+    "tree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3885,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 201,
+    "newOwnPromptFirstPicks": 201,
+    "newOwnExactPromptFirstPicks": 192
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 4174,
+    "reusedBaseCaseInputs": 3994,
+    "computedBaseCaseInputs": 180,
+    "computedCandidateCaseInputs": 4174
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "54cb9c136d6912234745bc6a67e55d951e971690",
+  "publishedTree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7",
+  "publishedBaseline": "144c094d16a59fb56241d68bb0cb6bcf81c3271f",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "The output layer projects a hidden vector to one score per token in the vocabulary.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "Compute tied vocabulary head scores from the given hidden state and table.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "Keep candidate logit probability slots aligned with the input lookup rows.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "softmax-probabilities",
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": "softmax-probabilities",
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "Show the numeric operands behind tied vocabulary head scores.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "Add the same score offset to candidate logit probability slots and renormalize.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "softmax-probabilities",
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": "softmax-probabilities",
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "Why are tied vocabulary head scores different from attention scores over positions?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "The cache keeps a layer's earlier keys and values for future token queries.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "A decoder head uses stored earlier keys as well as the newly computed key when scoring context.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "Show layer cache row origins for old and current positions.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "Normalize attention for the current query cached positions only.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "Keep K and V coordinates attached to their layer cache row origins.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "Append one pair and recompute current query cached positions.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-key-value-cache",
+      "prompt": "Compare layer cache row origins with full-prefix reprojection on the same inputs.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-key-value-cache",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-key-value-cache",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Compare same distribution selection rules without changing the probabilities.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "softmax-probabilities",
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": "softmax-probabilities",
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Show the greedy maximum sampled draw choosing different tokens.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Locate a labelled draw in all intervals of the same distribution selection rules.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Move only the draw while keeping the greedy maximum sampled draw comparison fixed.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Explain why same distribution selection rules do not rank sample quality.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-greedy-versus-sampling",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "beforePlannerKind": "number-line",
+          "afterPlannerKind": "number-line"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "The encoder computes source memory before the decoder begins to predict target tokens.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Autoregressive generation appends each predicted token to the prefix and repeats until a stop token or limit.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "A causal decoder reveals one predicted token at each successive generation step.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Generation can begin from a special start condition even with no user text.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Trace an encode once generation trace through an explicit stop token.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Show each growing prefix stop event from the actual appended token arrays.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Distinguish an empty start from a supplied prompt in an encode once generation trace.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Keep source memory fixed while comparing the growing prefix stop event with a token limit.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "prompt": "Show the emitted token and exact next-call prefix in an encode once generation trace.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-generation-autoregressive-feedback",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-generation-autoregressive-feedback",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Trace music event clock reconstruction from ids to overlapping notes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Which simultaneous note changes occur at the same accumulated clock?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Keep every wait in music event clock reconstruction.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Swap the two distinct-pitch simultaneous note changes and recompute intervals.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Match music event clock reconstruction to every onset and release.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-music-tokenization-music-events-and-time",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-music-tokenization-music-events-and-time",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "how does KV caching speed up inference?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-kv-cache-decode",
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": "ml-kv-cache-decode",
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-kv-cache-decode",
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": "ml-kv-cache-decode",
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-kv-cache-decode",
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": "ml-kv-cache-decode",
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "The next inference step processes the new token while earlier context remains available.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "A new token query can score cached earlier keys without recomputing their projections.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Show new token query reuse earlier projections across two decoder steps.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Trace successive cache append read steps for the current key and value.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Which new token query reuse earlier projections avoids processing old tokens again?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Keep old and current pairs available in successive cache append read steps.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Follow successive cache append read steps without claiming a timing benchmark.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-kv-cache-decode",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-kv-cache-decode",
+          "beforePlannerKind": "sequence",
+          "afterPlannerKind": "sequence"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "How does GPT-2 generate text one token at a time?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-gpt2-continue-prefix",
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": "ml-gpt2-continue-prefix",
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-gpt2-continue-prefix",
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": "ml-gpt2-continue-prefix",
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-gpt2-continue-prefix",
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": "ml-gpt2-continue-prefix",
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "The token just predicted becomes part of the next autoregressive input.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Show the newly predicted token next prefix dependency in the hall-light example.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Which newly predicted token next prefix event feeds the second call?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Follow the newly predicted token next prefix after choosing flickers.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Explain the newly predicted token next prefix without inventing another prediction.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Keep the enlarged input in the newly predicted token next prefix example literal.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Why does GPT-2 feed its own predicted token back into the prompt?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-gpt2-continue-prefix",
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": "ml-gpt2-continue-prefix",
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-gpt2-continue-prefix",
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": "ml-gpt2-continue-prefix",
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-gpt2-continue-prefix",
+          "afterId": "ml-gpt2-continue-prefix",
+          "beforeReferenceId": "ml-gpt2-continue-prefix",
+          "afterReferenceId": "ml-gpt2-continue-prefix",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "How does Music Transformer turn a performance into tokens?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-gpt2-music-event-tokens",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "ml-gpt2-music-event-tokens",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-gpt2-music-event-tokens",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "ml-gpt2-music-event-tokens",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-gpt2-music-event-tokens",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "ml-gpt2-music-event-tokens",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Music can be tokenized into a vocabulary that encodes changes in pitch, timing and loudness.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Show music pitch timing loudness vocabulary with stable event ids.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Which event ids onset release velocity entries change the performance?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Explain music pitch timing loudness vocabulary without drawing a keyboard.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Why can event ids onset release velocity include a time shift with no note?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "lag-feature-matrix",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "lag-feature-matrix",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "lag-feature-matrix",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "lag-feature-matrix",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "lag-feature-matrix",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "lag-feature-matrix",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Keep repeated waits in the same music pitch timing loudness vocabulary slot.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "How do note starts, releases, and time shifts become tokens for a music Transformer?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-gpt2-music-event-tokens",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "ml-gpt2-music-event-tokens",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-gpt2-music-event-tokens",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "ml-gpt2-music-event-tokens",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-gpt2-music-event-tokens",
+          "afterId": "ml-gpt2-music-event-tokens",
+          "beforeReferenceId": "ml-gpt2-music-event-tokens",
+          "afterReferenceId": "ml-gpt2-music-event-tokens",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "In the Word2vec introduction, how does a keyboard rank possible next words?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-word2vec-prefix-guesses",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-word2vec-prefix-guesses",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-word2vec-prefix-guesses",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-word2vec-prefix-guesses",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-word2vec-prefix-guesses",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-word2vec-prefix-guesses",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Keyboard suggestions illustrate the same basic next-token task as a language model.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Show keyboard ranked continuation chances after the fixed robot prefix.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Compare fixed prefix next token alternatives without recreating a keyboard interface.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Why do keyboard ranked continuation chances have different bar lengths?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Keep the same observed words while showing fixed prefix next token alternatives.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Distinguish keyboard ranked continuation chances from skip-gram training pairs.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Why do keyboard next-word guesses have probabilities before picking a word?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-word2vec-prefix-guesses",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-word2vec-prefix-guesses",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-word2vec-prefix-guesses",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-word2vec-prefix-guesses",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-word2vec-prefix-guesses",
+          "afterId": "ml-word2vec-prefix-guesses",
+          "beforeReferenceId": "ml-word2vec-prefix-guesses",
+          "afterReferenceId": "ml-word2vec-prefix-guesses",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    }
+  ]
+}

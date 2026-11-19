@@ -1,0 +1,128 @@
+{
+  "commit": "01b03d5dcfc308e848fa3c913c158a45071370f0",
+  "tree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-language-generation-vocabulary-score-probabilities",
+    "ml-language-generation-key-value-cache",
+    "ml-language-generation-greedy-versus-sampling",
+    "ml-language-generation-autoregressive-feedback",
+    "ml-music-tokenization-music-events-and-time",
+    "ml-kv-cache-decode",
+    "ml-gpt2-continue-prefix",
+    "ml-gpt2-music-event-tokens",
+    "ml-word2vec-prefix-guesses"
+  ],
+  "additionalReusedIds": [],
+  "references": [
+    {
+      "id": "ml-language-generation-vocabulary-score-probabilities",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Independent given operands produce vocabulary scores",
+            "edgeCount": 2,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h",
+                "to": "z",
+                "label": "Dot with token rows",
+                "words": 4
+              },
+              {
+                "edgeIndex": 1,
+                "from": "E",
+                "to": "z",
+                "label": "Supply scoring weights",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Shift every score, keep normalized choices fixed",
+            "edgeCount": 2,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h",
+                "to": "z",
+                "label": "Dot with token rows",
+                "words": 4
+              },
+              {
+                "edgeIndex": 1,
+                "from": "E",
+                "to": "z",
+                "label": "Supply scoring weights",
+                "words": 3
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    }
+  ],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "review": {
+    "authoredLabelsCompliant": true,
+    "authoredLabels": [
+      {
+        "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "Dot with token rows"
+      },
+      {
+        "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "Supply scoring weights"
+      },
+      {
+        "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+        "depth": "deep",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "Dot with token rows"
+      },
+      {
+        "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+        "depth": "deep",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "Supply scoring weights"
+      }
+    ],
+    "notes": "The hidden state and shared output rows have distinct scoring roles."
+  },
+  "publishedCommit": "54cb9c136d6912234745bc6a67e55d951e971690",
+  "publishedTree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7"
+}

@@ -1,0 +1,28 @@
+{
+  "commit": "01b03d5dcfc308e848fa3c913c158a45071370f0",
+  "tree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7",
+  "viewsRead": 39,
+  "noteExceptions": [
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 7,
+      "reason": "The current relationship renderer puts the arrow labels into 4 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "depth": "deep",
+      "role": "main",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    }
+  ],
+  "observations": [
+    "The relationship graph renderer leaves node boxes unfilled and numbers its arrow labels in these references: `ml-language-generation-vocabulary-score-probabilities`. These views are listed for the renderer review.",
+    "The stop cases now distinguish “after 3” and “limit 2” in prose. Compact names in the event ledger, such as `Start60`, are literal token identifiers.",
+    "The vocabulary and greedy-versus-sampling charts omit some above-bar numeric labels at 408 px. The score grid and sampling partition preserve the relevant numbers and identities."
+  ],
+  "publishedCommit": "54cb9c136d6912234745bc6a67e55d951e971690",
+  "publishedTree": "ef664e092edc3df828d2be5e3a1dd2f0870f3ce7"
+}
