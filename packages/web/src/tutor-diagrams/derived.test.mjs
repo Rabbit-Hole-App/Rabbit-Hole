@@ -60,7 +60,7 @@ test('box fences: a whisker beyond a written fence still fails; computed fences 
   assert.deepEqual(issues(box({ outliers: [{ label: 'High', value: 18 }] })), [], 'no fences written: the outlier is read against the whiskers, as in 154');
 });
 
-// ---- box-plot values (BOX-1 a) ----
+// ---- box-plot values (BOX-1) ----
 // The learner's data from the R2 bench: odd n = 9, median of each half with the middle value left out gives Q1 5.5, median 8, Q3 11.5; the bench cards drew Q3 10 / 10.5 and a median of 8.5.
 const DATA = [3, 5, 6, 7, 8, 9, 11, 12, 40];
 const valued = (extra = {}, values = DATA) => box({ values, whiskerLow: 3, q1: 5.5, median: 8, q3: 11.5, whiskerHigh: 12, ...extra }, { label: 'Score', min: 0, max: 100 });
@@ -75,23 +75,39 @@ test('box values: the quartiles are the medians of the halves, the middle value 
   assert.equal(filled(valued()).boxes[0].iqr, undefined, 'and silent: never drawn');
 });
 
-test('box values: wrong written statistics are rejected, tagged arithmetic, with the right numbers (the R2 bench cards: Q3 10.5 and median 8.5)', () => {
-  const wrong = issues(valued({ median: 8.5, q3: 10.5 }));
-  assert.equal(arithmetic(wrong).length, 1);
-  assert.equal(wrong[0].message, 'Box "Trial": its 9 values give median 8 (not 8.5), Q3 11.5 (not 10.5). Q1 and Q3 are the medians of the lower and upper halves, the middle value left out when n is odd.');
-  assert.match(issues(valued({ whiskerHigh: 40 }))[0].message, /upper whisker 12 \(not 40\)/);
-  assert.match(arithmetic(issues(valued({ outliers: [{ label: 'High', value: 12 }] })))[0].message, /have outliers 40 \(outside the fences -3.5 and 20.5\), not 12/);
-  assert.match(arithmetic(issues(valued({ values: [3, 5, 6, 7, 8, 9, 11, 12, 13], whiskerHigh: 13, outliers: [{ label: 'High', value: 13 }] })))[0].message, /have no outlier/);
+test('box values: typed statistics are written over, never rejected (the R2 bench cards: Q3 10.5, median 8.5, fences and outliers wrong)', () => {
+  assert.deepEqual(issues(valued({ median: 8.5, q3: 10.5 })), [], 'no problem: the code computes them');
+  assert.deepEqual(issues(valued({ whiskerHigh: 40, fences: { lower: -1, upper: 18 }, outliers: [{ label: 'High', value: 12 }] })), []);
+  const d = filled(valued({ q1: 6, median: 8.5, q3: 10.5, whiskerLow: 5, whiskerHigh: 40, fences: { lower: -1, upper: 18 }, outliers: [{ label: 'High', value: 12 }] }));
+  assert.deepEqual([d.boxes[0].q1, d.boxes[0].median, d.boxes[0].q3, d.boxes[0].whiskerLow, d.boxes[0].whiskerHigh], [5.5, 8, 11.5, 3, 12]);
+  assert.deepEqual(d.boxes[0].fences, { lower: -3.5, upper: 20.5 });
+  assert.deepEqual(d.boxes[0].outliers, [{ label: '40', value: 40 }], 'the typed outlier 12 is replaced by the real one');
+  const none = filled(valued({ outliers: [{ label: 'High', value: 13 }] }, [3, 5, 6, 7, 8, 9, 11, 12, 13]));
+  assert.equal(none.boxes[0].outliers, undefined, 'typed outliers go when no value lies outside the fences');
+  assert.equal(filled(valued({ q1: 9, median: 2, q3: 1, whiskerLow: 9, whiskerHigh: 3 })).boxes[0].q3, 11.5, 'even statistics that break the order are not validated, they are overwritten');
 });
 
-test('box values: even n, decimals (half a unit of the decimals written), and a written value replaced by the computed one', () => {
+test('box values: the Reviewer\'s five datasets give the expected statistics (median of the halves, the middle value left out for odd n)', () => {
+  const sets = [
+    { data: [3, 5, 6, 7, 8, 9, 11, 12, 40], q1: 5.5, median: 8, q3: 11.5, iqr: 6, lower: -3.5, upper: 20.5, outlier: 40 },
+    { data: [52, 55, 61, 64, 67, 70, 72, 75, 78, 98], q1: 61, median: 68.5, q3: 75, iqr: 14, lower: 40, upper: 96, outlier: 98 },
+    { data: [12, 15, 17, 18, 20, 22, 24, 25, 60], q1: 16, median: 20, q3: 24.5, iqr: 8.5, lower: 3.25, upper: 37.25, outlier: 60 },
+    { data: [30, 32, 35, 38, 40, 45, 48, 52, 150], q1: 33.5, median: 40, q3: 50, iqr: 16.5, lower: 8.75, upper: 74.75, outlier: 150 },
+    { data: [80, 85, 90, 92, 95, 99, 104, 110, 300], q1: 87.5, median: 95, q3: 107, iqr: 19.5, lower: 58.25, upper: 136.25, outlier: 300 },
+  ];
+  for (const s of sets) {
+    const d = everything(box({ values: s.data, q1: 1, median: 2, q3: 3, whiskerLow: 0, whiskerHigh: 4 }, { label: 'Score', min: -10, max: 400 })).boxes[0];
+    assert.deepEqual([d.q1, d.median, d.q3, d.iqr, d.fences.lower, d.fences.upper, d.outliers.map(o => o.value), d.whiskerHigh === s.outlier], [s.q1, s.median, s.q3, s.iqr, s.lower, s.upper, [s.outlier], false], s.data.join(','));
+  }
+});
+
+test('box values: even n and decimals (statistics keep one more decimal than the data), typed values replaced by the computed ones', () => {
   const even = [52, 55, 61, 64, 67, 70, 72, 75, 78, 98]; // n = 10: halves of 5, Q1 61, median 68.5, Q3 75, fences 40 and 96
-  assert.deepEqual(issues(valued({ whiskerLow: 52, q1: 61, median: 68.5, q3: 75, whiskerHigh: 78 }, even)), []);
-  assert.equal(arithmetic(issues(valued({ whiskerLow: 52, q1: 62.5, median: 71, q3: 76.5, whiskerHigh: 78 }, even))).length, 1, 'the plan-arm statistics of the bench are not the quartiles');
-  const fine = [1.1, 1.3, 1.4, 1.9, 2.2, 2.5, 3.1, 3.6]; // Q1 1.35, median 2.05, Q3 2.8 (statistics keep one more decimal than the data)
-  assert.deepEqual(issues(valued({ whiskerLow: 1.1, q1: 1.4, median: 2.05, q3: 2.8, whiskerHigh: 3.6 }, fine)), [], '1.4 for 1.35 is within half a unit of one decimal');
-  assert.equal(arithmetic(issues(valued({ whiskerLow: 1.1, q1: 1.5, median: 2.05, q3: 2.8, whiskerHigh: 3.6 }, fine))).length, 1);
-  assert.equal(filled(valued({ whiskerLow: 1.1, q1: 1.4, median: 2.05, q3: 2.8, whiskerHigh: 3.6 }, fine)).boxes[0].q1, 1.35, 'the picture draws the computed value');
+  const d = filled(valued({ whiskerLow: 52, q1: 62.5, median: 71, q3: 76.5, whiskerHigh: 78 }, even)).boxes[0]; // the plan-arm statistics of the bench
+  assert.deepEqual([d.q1, d.median, d.q3, d.whiskerHigh], [61, 68.5, 75, 78]);
+  const fine = [1.1, 1.3, 1.4, 1.9, 2.2, 2.5, 3.1, 3.6]; // Q1 1.35, median 2.05, Q3 2.8
+  const f = filled(valued({ whiskerLow: 1.1, q1: 1.4, median: 2.1, q3: 2.8, whiskerHigh: 3.6 }, fine)).boxes[0];
+  assert.deepEqual([f.q1, f.median, f.q3], [1.35, 2.05, 2.8]);
 });
 
 test('box values: a box without values is unchanged (no iqr drawn, fences and outliers as written)', () => {
