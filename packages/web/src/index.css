@@ -1101,7 +1101,9 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-learn-card-view] [data-card-slot] { width: 100% !important; height: auto !important; margin: 0 !important; }
 [data-learn-card-view] [data-block]:has(> [data-scroll]) { height: auto !important; max-height: none !important; }
 [data-learn-card-view] [data-block] > [data-scroll] { max-height: none !important; flex: none !important; }
-[data-learn-card-view] [data-block] > :is([data-drag-handle], [data-node-tool]) { display: none; }
+/* The drag strip keeps its room (the card's top edge and the gap over its title, owner 2026-11-18: diagram and notebook titles hugged the edge) but cannot be dragged. */
+[data-learn-card-view] [data-block] > [data-drag-handle] { visibility: hidden; pointer-events: none; }
+[data-learn-card-view] [data-block] > [data-node-tool] { display: none; }
 /* No Ask a follow-up + under a card in the Cards tab (owner 2026-11-18): the one composer asks. */
 [data-learn-card-view] :is([data-follow-up-toggle], [data-follow-up]) { display: none !important; }
 /* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
