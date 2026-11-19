@@ -1,15 +1,17 @@
 {
   "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
   "base": {
-    "commit": "37495e5ad27e7bdb2ad299de87c882e62827ec41",
+    "commit": "a7636508ca180aa871c4a4b9f41872fb10212ad1",
+    "tree": "36f106385f0de378cb3bfcf32b2e3b877442588e",
     "trackedEdits": false
   },
   "candidate": {
-    "commit": "f951e6d111646f9715920154e28baee8135795b6",
+    "commit": "beec5935b40ce78cba8e009523d59adfe6e69cec",
+    "tree": "dbf5a2d7396d706087256d403affd2f4c7b5dbf6",
     "trackedEdits": false
   },
   "summary": {
-    "existingCatalogueCases": 3090,
+    "existingCatalogueCases": 3099,
     "savedPlannerCases": 474,
     "existingFirstPicksMoved": 0,
     "existingWrapperOnlyMoves": 0,
@@ -32,12 +34,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-pop-up-toaster-stages",
+        "firstReferenceId": "pool-pop-up-toaster-stages",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-pop-up-toaster-stages",
+        "offered": [
+          "pool-pop-up-toaster-stages"
+        ]
       },
       "after": {
         "firstId": "pool-pop-up-toaster-stages",
@@ -49,8 +53,8 @@
           "pool-pop-up-toaster-stages"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -63,12 +67,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-pop-up-toaster-stages",
+        "firstReferenceId": "pool-pop-up-toaster-stages",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-pop-up-toaster-stages",
+        "offered": [
+          "pool-pop-up-toaster-stages"
+        ]
       },
       "after": {
         "firstId": "pool-pop-up-toaster-stages",
@@ -80,8 +86,8 @@
           "pool-pop-up-toaster-stages"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -94,12 +100,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-pop-up-toaster-stages",
+        "firstReferenceId": "pool-pop-up-toaster-stages",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-pop-up-toaster-stages",
+        "offered": [
+          "pool-pop-up-toaster-stages"
+        ]
       },
       "after": {
         "firstId": "pool-pop-up-toaster-stages",
@@ -111,8 +119,8 @@
           "pool-pop-up-toaster-stages"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -125,12 +133,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-mesh-and-paper-water-filter",
+        "firstReferenceId": "pool-mesh-and-paper-water-filter",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-mesh-and-paper-water-filter",
+        "offered": [
+          "pool-mesh-and-paper-water-filter"
+        ]
       },
       "after": {
         "firstId": "pool-mesh-and-paper-water-filter",
@@ -142,8 +152,8 @@
           "pool-mesh-and-paper-water-filter"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -156,12 +166,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-mesh-and-paper-water-filter",
+        "firstReferenceId": "pool-mesh-and-paper-water-filter",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-mesh-and-paper-water-filter",
+        "offered": [
+          "pool-mesh-and-paper-water-filter"
+        ]
       },
       "after": {
         "firstId": "pool-mesh-and-paper-water-filter",
@@ -173,8 +185,8 @@
           "pool-mesh-and-paper-water-filter"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -187,12 +199,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-mesh-and-paper-water-filter",
+        "firstReferenceId": "pool-mesh-and-paper-water-filter",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-mesh-and-paper-water-filter",
+        "offered": [
+          "pool-mesh-and-paper-water-filter"
+        ]
       },
       "after": {
         "firstId": "pool-mesh-and-paper-water-filter",
@@ -204,8 +218,8 @@
           "pool-mesh-and-paper-water-filter"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -218,12 +232,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-parcel-sorting-line",
+        "firstReferenceId": "pool-parcel-sorting-line",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-parcel-sorting-line",
+        "offered": [
+          "pool-parcel-sorting-line"
+        ]
       },
       "after": {
         "firstId": "pool-parcel-sorting-line",
@@ -235,8 +251,8 @@
           "pool-parcel-sorting-line"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -249,12 +265,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-parcel-sorting-line",
+        "firstReferenceId": "pool-parcel-sorting-line",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-parcel-sorting-line",
+        "offered": [
+          "pool-parcel-sorting-line"
+        ]
       },
       "after": {
         "firstId": "pool-parcel-sorting-line",
@@ -266,8 +284,8 @@
           "pool-parcel-sorting-line"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     },
     {
@@ -280,12 +298,14 @@
       "plannerKind": "block-stack",
       "visualCount": 1,
       "before": {
-        "firstId": null,
-        "firstReferenceId": null,
-        "firstKind": null,
+        "firstId": "pool-parcel-sorting-line",
+        "firstReferenceId": "pool-parcel-sorting-line",
+        "firstKind": "block-stack",
         "resolvedPlannerKind": "block-stack",
-        "steer": null,
-        "offered": []
+        "steer": "pool-parcel-sorting-line",
+        "offered": [
+          "pool-parcel-sorting-line"
+        ]
       },
       "after": {
         "firstId": "pool-parcel-sorting-line",
@@ -297,13 +317,20 @@
           "pool-parcel-sorting-line"
         ]
       },
-      "firstChanged": true,
-      "familyChanged": true,
+      "firstChanged": false,
+      "familyChanged": false,
       "kindChanged": false
     }
   ],
   "newOwnPromptMisses": [],
   "errors": [],
-  "publishedCommit": "8af35e35742fbee0e198dd8f18eaebe5054ab7ed",
-  "publishedTree": "61af7850748ff6ac06bfdb1fd3178cc328ab90d9"
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3208,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3208,
+    "computedCandidateCaseInputs": 3208
+  },
+  "publishedCommit": "a580aa22a1f4328a3c6b3ce8fefc01c9ef9a2e2e",
+  "publishedTree": "dbf5a2d7396d706087256d403affd2f4c7b5dbf6"
 }

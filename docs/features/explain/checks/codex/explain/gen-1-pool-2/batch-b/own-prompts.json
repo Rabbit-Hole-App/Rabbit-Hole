@@ -1,0 +1,47 @@
+[
+  {
+    "prompt": "What are the timed stages of a pop-up toaster cycle?",
+    "depth": "brief",
+    "first": "pool-pop-up-toaster-stages"
+  },
+  {
+    "prompt": "What are the timed stages of a pop-up toaster cycle?",
+    "depth": "balanced",
+    "first": "pool-pop-up-toaster-stages"
+  },
+  {
+    "prompt": "What are the timed stages of a pop-up toaster cycle?",
+    "depth": "detailed",
+    "first": "pool-pop-up-toaster-stages"
+  },
+  {
+    "prompt": "How much grit gets through the mesh and paper water filter?",
+    "depth": "brief",
+    "first": "pool-mesh-and-paper-water-filter"
+  },
+  {
+    "prompt": "How much grit gets through the mesh and paper water filter?",
+    "depth": "balanced",
+    "first": "pool-mesh-and-paper-water-filter"
+  },
+  {
+    "prompt": "How much grit gets through the mesh and paper water filter?",
+    "depth": "detailed",
+    "first": "pool-mesh-and-paper-water-filter"
+  },
+  {
+    "prompt": "How far does a parcel travel along the sorting line from intake to dispatch?",
+    "depth": "brief",
+    "first": "pool-parcel-sorting-line"
+  },
+  {
+    "prompt": "How far does a parcel travel along the sorting line from intake to dispatch?",
+    "depth": "balanced",
+    "first": "pool-parcel-sorting-line"
+  },
+  {
+    "prompt": "How far does a parcel travel along the sorting line from intake to dispatch?",
+    "depth": "detailed",
+    "first": "pool-parcel-sorting-line"
+  }
+]

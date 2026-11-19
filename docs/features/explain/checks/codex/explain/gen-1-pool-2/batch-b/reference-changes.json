@@ -1,0 +1,112 @@
+{
+  "captionsAndValuesPreserved": true,
+  "routingInputsPreserved": true,
+  "rows": [
+    {
+      "id": "pool-pop-up-toaster-stages",
+      "depth": "overview",
+      "roles": {
+        "chamber": "changed",
+        "lift": "output"
+      },
+      "labelChanges": [
+        {
+          "block": "chamber",
+          "before": "Heating chamber",
+          "after": "Bread browns in chamber"
+        },
+        {
+          "block": "lift",
+          "before": "Spring lift",
+          "after": "Toast pops up"
+        }
+      ]
+    },
+    {
+      "id": "pool-pop-up-toaster-stages",
+      "depth": "standard",
+      "roles": {
+        "browning": "changed",
+        "lift": "output"
+      },
+      "labelChanges": [
+        {
+          "block": "lift",
+          "before": "Spring lift",
+          "after": "Toast pops up"
+        }
+      ]
+    },
+    {
+      "id": "pool-pop-up-toaster-stages",
+      "depth": "deep",
+      "roles": {
+        "browning": "changed",
+        "lift": "output"
+      },
+      "labelChanges": [
+        {
+          "block": "lift",
+          "before": "Spring lift",
+          "after": "Toast pops up"
+        }
+      ]
+    },
+    {
+      "id": "pool-mesh-and-paper-water-filter",
+      "depth": "overview",
+      "roles": {
+        "screens": "changed",
+        "cup": "output"
+      },
+      "labelChanges": []
+    },
+    {
+      "id": "pool-mesh-and-paper-water-filter",
+      "depth": "standard",
+      "roles": {
+        "mesh": "changed",
+        "paper": "changed",
+        "cup": "output"
+      },
+      "labelChanges": []
+    },
+    {
+      "id": "pool-mesh-and-paper-water-filter",
+      "depth": "deep",
+      "roles": {
+        "mesh": "changed",
+        "paper": "changed",
+        "cup": "output"
+      },
+      "labelChanges": []
+    },
+    {
+      "id": "pool-parcel-sorting-line",
+      "depth": "overview",
+      "roles": {
+        "sorting": "changed",
+        "cart": "output"
+      },
+      "labelChanges": []
+    },
+    {
+      "id": "pool-parcel-sorting-line",
+      "depth": "standard",
+      "roles": {
+        "chute": "changed",
+        "cart": "output"
+      },
+      "labelChanges": []
+    },
+    {
+      "id": "pool-parcel-sorting-line",
+      "depth": "deep",
+      "roles": {
+        "chute": "changed",
+        "cart": "output"
+      },
+      "labelChanges": []
+    }
+  ]
+}

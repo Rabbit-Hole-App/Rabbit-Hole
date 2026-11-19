@@ -1,5 +1,5 @@
 {
-  "ref": "f951e6d111646f9715920154e28baee8135795b6",
+  "ref": "beec5935b40ce78cba8e009523d59adfe6e69cec",
   "requestedWidth": 408,
   "sheetWidth": 1296,
   "sheetHeight": 1658,
@@ -13,6 +13,7 @@
         {
           "depth": "overview",
           "role": "main",
+          "source": "depths.overview.spec",
           "kind": "block-stack",
           "x": 18,
           "y": 117,
@@ -23,12 +24,13 @@
           "displayHeight": 267,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "9aa7ef615af55155bbd8b7c9b44412e17567e1e5b9940cc434e3df0c4c25f145",
+          "rawSvgSha256": "21e3ac97ce1384658ec2b98d84890b1d911122ba1575cf127f8e49ce420138d2",
           "derivedTextResolved": false
         },
         {
           "depth": "standard",
           "role": "main",
+          "source": "depths.standard.spec",
           "kind": "block-stack",
           "x": 444,
           "y": 117,
@@ -39,12 +41,13 @@
           "displayHeight": 425,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "19f501b82b895f8d349df8e5efc1b621e692c8ac2a1d6971508f506aa6134b51",
+          "rawSvgSha256": "befaa93f920156a4e12b22efdf481edcdad77e96142b877279258a36049df13f",
           "derivedTextResolved": false
         },
         {
           "depth": "deep",
           "role": "main",
+          "source": "depths.deep.spec",
           "kind": "block-stack",
           "x": 870,
           "y": 117,
@@ -55,7 +58,7 @@
           "displayHeight": 464,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "b5d520db6611b26d0ff8feefe9941223b6998ff32a9a8764112e3388edb24ee9",
+          "rawSvgSha256": "87d2b72b942456ebb6cfbb73f506c29cc0515582f5ecd4ad82f676a13488076f",
           "derivedTextResolved": false
         }
       ]
@@ -66,6 +69,7 @@
         {
           "depth": "overview",
           "role": "main",
+          "source": "depths.overview.spec",
           "kind": "block-stack",
           "x": 18,
           "y": 648,
@@ -76,12 +80,13 @@
           "displayHeight": 267,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "ba3bb227c6bc5eb5b9deb1daa3e2ebaf6277f27ca5cd009ab803257f7f337621",
+          "rawSvgSha256": "92a0c2e0ba59f62ceffebed5bf260f7c3affe901e861374b3e2b5dbc1bf9fc67",
           "derivedTextResolved": false
         },
         {
           "depth": "standard",
           "role": "main",
+          "source": "depths.standard.spec",
           "kind": "block-stack",
           "x": 444,
           "y": 648,
@@ -92,12 +97,13 @@
           "displayHeight": 447,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "7e49a4dcc24ae45accb5aacb3a1f7225591b3ebc7e23c0b50464d093f185060e",
+          "rawSvgSha256": "07d13452fcd731da20ee1456a2a3ca7210c3f34fbb6087625639b105510a3fd9",
           "derivedTextResolved": false
         },
         {
           "depth": "deep",
           "role": "main",
+          "source": "depths.deep.spec",
           "kind": "block-stack",
           "x": 870,
           "y": 648,
@@ -108,7 +114,7 @@
           "displayHeight": 442,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "478a482300f6e3fa8802dec57b769a4f5fa57899c8720fd748fe370ced7325b9",
+          "rawSvgSha256": "1fcc9fdb4c5ca5992ca29eeb5dff043039f0725516830bc8af1f9f3059d8005d",
           "derivedTextResolved": false
         }
       ]
@@ -119,6 +125,7 @@
         {
           "depth": "overview",
           "role": "main",
+          "source": "depths.overview.spec",
           "kind": "block-stack",
           "x": 18,
           "y": 1162,
@@ -129,12 +136,13 @@
           "displayHeight": 267,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "8f981935baced9e98445af642b83d7bbc57e5ed1ebbc08939853f12e661b45a8",
+          "rawSvgSha256": "9541716eeea731719a626c20262461eb51071c5f6826b049174c42f10fcc5393",
           "derivedTextResolved": false
         },
         {
           "depth": "standard",
           "role": "main",
+          "source": "depths.standard.spec",
           "kind": "block-stack",
           "x": 444,
           "y": 1162,
@@ -145,12 +153,13 @@
           "displayHeight": 447,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "4ad8a41001ec445e8344f5539c5da5033053b806f84e75e191d7582e8a3861bf",
+          "rawSvgSha256": "8173ec1108c1e3b322731042d7f4d5b3e92cc2051e8e7a58aee252af3fad7531",
           "derivedTextResolved": false
         },
         {
           "depth": "deep",
           "role": "main",
+          "source": "depths.deep.spec",
           "kind": "block-stack",
           "x": 870,
           "y": 1162,
@@ -161,12 +170,12 @@
           "displayHeight": 464,
           "foreignObjects": 0,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "3bb2d9c93a01f4080a4f86d58c5cb94066a69a308b9060735420a54278461ca0",
+          "rawSvgSha256": "63a963d0c631309c0c39e9983708b54af60903712e19e9bc0eafdc29dc9cbb11",
           "derivedTextResolved": false
         }
       ]
     }
   ],
-  "publishedCommit": "8af35e35742fbee0e198dd8f18eaebe5054ab7ed",
-  "publishedTree": "61af7850748ff6ac06bfdb1fd3178cc328ab90d9"
+  "publishedCommit": "a580aa22a1f4328a3c6b3ce8fefc01c9ef9a2e2e",
+  "publishedTree": "dbf5a2d7396d706087256d403affd2f4c7b5dbf6"
 }

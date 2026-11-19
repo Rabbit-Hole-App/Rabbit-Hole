@@ -1,0 +1,218 @@
+{
+  "nativeWidth": 408,
+  "sameGeometry": true,
+  "viewsChanged": [
+    {
+      "id": "pool-pop-up-toaster-stages",
+      "depth": "overview",
+      "width": 408,
+      "height": 267,
+      "priorSha256": "9aa7ef615af55155bbd8b7c9b44412e17567e1e5b9940cc434e3df0c4c25f145",
+      "revisedSha256": "21e3ac97ce1384658ec2b98d84890b1d911122ba1575cf127f8e49ce420138d2",
+      "paint": {
+        "chamber": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "lift": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-pop-up-toaster-stages",
+      "depth": "standard",
+      "width": 408,
+      "height": 425,
+      "priorSha256": "19f501b82b895f8d349df8e5efc1b621e692c8ac2a1d6971508f506aa6134b51",
+      "revisedSha256": "befaa93f920156a4e12b22efdf481edcdad77e96142b877279258a36049df13f",
+      "paint": {
+        "browning": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "lift": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-pop-up-toaster-stages",
+      "depth": "deep",
+      "width": 408,
+      "height": 464,
+      "priorSha256": "b5d520db6611b26d0ff8feefe9941223b6998ff32a9a8764112e3388edb24ee9",
+      "revisedSha256": "87d2b72b942456ebb6cfbb73f506c29cc0515582f5ecd4ad82f676a13488076f",
+      "paint": {
+        "browning": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "lift": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-mesh-and-paper-water-filter",
+      "depth": "overview",
+      "width": 408,
+      "height": 267,
+      "priorSha256": "ba3bb227c6bc5eb5b9deb1daa3e2ebaf6277f27ca5cd009ab803257f7f337621",
+      "revisedSha256": "92a0c2e0ba59f62ceffebed5bf260f7c3affe901e861374b3e2b5dbc1bf9fc67",
+      "paint": {
+        "screens": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "cup": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-mesh-and-paper-water-filter",
+      "depth": "standard",
+      "width": 408,
+      "height": 447,
+      "priorSha256": "7e49a4dcc24ae45accb5aacb3a1f7225591b3ebc7e23c0b50464d093f185060e",
+      "revisedSha256": "07d13452fcd731da20ee1456a2a3ca7210c3f34fbb6087625639b105510a3fd9",
+      "paint": {
+        "mesh": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "paper": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "cup": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-mesh-and-paper-water-filter",
+      "depth": "deep",
+      "width": 408,
+      "height": 442,
+      "priorSha256": "478a482300f6e3fa8802dec57b769a4f5fa57899c8720fd748fe370ced7325b9",
+      "revisedSha256": "1fcc9fdb4c5ca5992ca29eeb5dff043039f0725516830bc8af1f9f3059d8005d",
+      "paint": {
+        "mesh": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "paper": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "cup": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-parcel-sorting-line",
+      "depth": "overview",
+      "width": 408,
+      "height": 267,
+      "priorSha256": "8f981935baced9e98445af642b83d7bbc57e5ed1ebbc08939853f12e661b45a8",
+      "revisedSha256": "9541716eeea731719a626c20262461eb51071c5f6826b049174c42f10fcc5393",
+      "paint": {
+        "sorting": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "cart": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-parcel-sorting-line",
+      "depth": "standard",
+      "width": 408,
+      "height": 447,
+      "priorSha256": "4ad8a41001ec445e8344f5539c5da5033053b806f84e75e191d7582e8a3861bf",
+      "revisedSha256": "8173ec1108c1e3b322731042d7f4d5b3e92cc2051e8e7a58aee252af3fad7531",
+      "paint": {
+        "chute": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "cart": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    },
+    {
+      "id": "pool-parcel-sorting-line",
+      "depth": "deep",
+      "width": 408,
+      "height": 464,
+      "priorSha256": "3bb2d9c93a01f4080a4f86d58c5cb94066a69a308b9060735420a54278461ca0",
+      "revisedSha256": "63a963d0c631309c0c39e9983708b54af60903712e19e9bc0eafdc29dc9cbb11",
+      "paint": {
+        "chute": {
+          "role": "changed",
+          "fill": "#8DBFEF",
+          "stroke": "#426db2",
+          "stroke-width": "3"
+        },
+        "cart": {
+          "role": "output",
+          "fill": "#67B9A0",
+          "stroke": "#32211C",
+          "stroke-width": "2.5"
+        }
+      }
+    }
+  ],
+  "sameBlockAndConnectorGeometry": true,
+  "onlyAuthoredRolesChangedPaint": true
+}
