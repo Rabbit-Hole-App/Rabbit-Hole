@@ -57,7 +57,7 @@ function printOption(inks, unitCents) {
 
 const reduced = printOption(2, 55);
 const original = printOption(logoInks, 95);
-const dollars = cents => cents / 100;
+const fromCents = cents => cents / 100;
 
 export const posterPrint = {
   copies,
@@ -66,8 +66,8 @@ export const posterPrint = {
   logoInks,
   reduced,
   original,
-  budgetDollars: dollars(budgetCents),
-  reducedDollars: dollars(reduced.totalCents),
-  savedDollars: dollars(original.totalCents - reduced.totalCents),
+  budgetAmount: fromCents(budgetCents),
+  reducedAmount: fromCents(reduced.totalCents),
+  savedAmount: fromCents(original.totalCents - reduced.totalCents),
   savedMinutes: original.setupMinutes - reduced.setupMinutes,
 };

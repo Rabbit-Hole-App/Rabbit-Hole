@@ -72,8 +72,8 @@ test('the poster budget and setup comparison use the same print run', () => {
   const savedCost = (original.unitCents - reduced.unitCents) * copies / 100;
   const setupMinutes = reduced.inks * minutesPerInk;
   const savedTime = (original.inks - reduced.inks) * minutesPerInk;
-  assert.equal(reducedCost, posterPrint.reducedDollars);
-  assert.equal(savedCost, posterPrint.savedDollars);
+  assert.equal(reducedCost, posterPrint.reducedAmount);
+  assert.equal(savedCost, posterPrint.savedAmount);
   assert.equal(setupMinutes, reduced.setupMinutes);
   assert.equal(savedTime, posterPrint.savedMinutes);
   assert.equal(logoInks, original.inks);

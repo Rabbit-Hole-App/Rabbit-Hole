@@ -130,6 +130,16 @@ test('affected tests: a changed test runs itself, a changed module runs the test
   assert.deepEqual(affectedTests(['packages/web/src/c/none.test.mjs'], tests)[0].ran, ['packages/web/src/c/none.test.mjs']);
 });
 
+test('affected tests: credits-only-ui runs when web or control-plane source changed, even with no control-plane file changed (CRED-1)', () => {
+  const credits = 'packages/control-plane/test/credits-only-ui.test.js';
+  const tests = T(['packages/web/src/a/card.test.mjs', "import { x } from './card.js';"], [credits, 'walk(web)']);
+  const out = affectedTests(['packages/web/src/a/card.js'], tests);
+  assert.deepEqual(out.map(e => e.cwd), ['packages/web', 'packages/control-plane']);
+  assert.deepEqual(out[1], { cwd: 'packages/control-plane', args: ['--test', 'test/credits-only-ui.test.js'], ran: [credits], uncovered: [] });
+  assert.equal(affectedTests(['packages/web/src/a/card.test.mjs'], tests).length, 1, 'a changed test file is not a scanned source');
+  assert.equal(affectedTests(['packages/control-plane/test/other.test.js', 'packages/web/src/a/card.js'], T(...tests, ['packages/control-plane/test/other.test.js', ''])).find(e => e.cwd === 'packages/control-plane').ran.filter(r => r === credits).length, 1, 'not listed twice');
+});
+
 test('affected tests: a test that scans the source tree runs with the selected tests of its suite (TEST-3)', () => {
   const tests = T(['packages/web/src/a/card.test.mjs', "import { x } from './card.js';"], ['packages/web/src/scan.test.mjs', "for (const n of readdirSync(new URL('web/src', root), { recursive: true })) {}"],
     ['packages/control-plane/test/scan-cp.test.js', "readdirSync(dir, { recursive: true })"]);

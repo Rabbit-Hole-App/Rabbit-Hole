@@ -101,12 +101,14 @@ export const SUITES = [
   { cwd: 'packages/control-plane', own: /^packages\/control-plane\/(?!.*\.md$)/, test: /^packages\/control-plane\/test\/.+\.test\.js$/, all: ['--test'] },
   { cwd: '.', own: /^scripts\/[^/]+\.mjs$/, test: /^scripts\/[^/]+\.test\.mjs$/, all: ['--test', 'scripts/*.test.mjs'] },
 ];
+// Tests that read the source of another suite: they run whenever a file under `scans` changed (CRED-1).
+export const TREE_SCANS = [{ test: 'packages/control-plane/test/credits-only-ui.test.js', scans: /^packages\/(web|control-plane)\/src\/(?!.*\.test\.)/ }];
 // changed: paths added, copied, modified or renamed; tests: Map(path -> text) of every test file. A changed test runs itself; a
 // changed module runs the tests that import it by relative path (one hop). A suite whose changed files select no test at all runs
 // whole, so a code change never "passes" on zero tests; the changed files no test imports are listed as uncovered.
 // -> [{ cwd, args, ran, uncovered }] (empty: no unit-tested code changed).
 export function affectedTests(changed, tests, suites = SUITES) {
-  return suites.flatMap(s => {
+  const out = suites.flatMap(s => {
     const own = changed.filter(p => s.own.test(p)), hit = new Set(), uncovered = [];
     if (!own.length) return [];
     for (const p of own) {
@@ -123,6 +125,16 @@ export function affectedTests(changed, tests, suites = SUITES) {
     return [files.length ? { cwd: s.cwd, args: ['--test', ...files.map(f => posix.relative(s.cwd, f))], ran: files, uncovered }
       : { cwd: s.cwd, args: s.all, ran: [`all ${s.cwd}`], uncovered }];
   });
+  // CRED-1 (release 167): a test in one suite that scans another suite's source runs when a file under the scanned trees changed, even if its own suite has no changed file.
+  for (const scan of TREE_SCANS) {
+    if (!tests.has(scan.test) || !changed.some(p => scan.scans.test(p))) continue;
+    const s = suites.find(x => x.test.test(scan.test)), entry = out.find(e => e.cwd === s.cwd);
+    if (entry?.ran.some(r => r.startsWith('all '))) continue;
+    const rel = posix.relative(s.cwd, scan.test);
+    if (!entry) out.push({ cwd: s.cwd, args: ['--test', rel], ran: [scan.test], uncovered: [] });
+    else if (!entry.ran.includes(scan.test)) { entry.args.push(rel); entry.ran.push(scan.test); }
+  }
+  return out;
 }
 
 // ---- the preview ----
