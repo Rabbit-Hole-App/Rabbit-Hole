@@ -17,7 +17,8 @@ import { anthropic } from './ask.js';
 import { newTurn, sectionTurn } from './learn-section-research.js';
 import { codeNameError } from './learn-section-brief.js';
 
-export const LAYERS = ['overview'];
+import { CODEBASE_INDEX_TOOL, LAYERS } from './learn-index-layers.js';
+export { CODEBASE_INDEX_TOOL, LAYERS };
 export const OVERVIEW_CAP_USD = 0.15, BUILDING_MINUTES = 2;
 const DIGEST = { manifestBytes: 6000, readmeBytes: 6000, symbols: 40, headFiles: 20, headLines: 15, sourcePaths: 150, tests: 30, entries: 15 };
 const MANIFEST = /^(package\.json|pyproject\.toml|setup\.py|setup\.cfg|cargo\.toml|go\.mod|requirements[\w.-]*\.txt)$/i;
@@ -158,6 +159,26 @@ export async function indexGet(env, repo, layer, scope = '', { build = false, sn
   await env.REPOSITORY_SNAPSHOTS.put(key, JSON.stringify(value), { httpMetadata: { contentType: 'application/json' } });
   await settle(env, repo, layer, scope, 'ready', out.usd);
   return { status: 'ready', value, usd: out.usd, built: true };
+}
+
+// The codebase_index tool (codebase-index-spec.md section 3), for the research loop and the chat's tool loop: stored -> its JSON at no cost; missing -> built inside what the caller has left
+// (remainingUsd: the turn's cap less what it spent; the build is capped by it and by the layer's own cap, and its cost is returned as usd for the caller to count). A layer being built by
+// someone else answers building; one that cannot be built is an error the model reads and goes on without.
+const TOOL_MIN_BUILD_USD = 0.05, BUILDING_NOTE = 'Someone else is building this layer now; use the other tools, or ask again shortly.';
+export async function codebaseIndexTool(env, snapshot, input = {}, { remainingUsd = null, deps = {} } = {}) {
+  const layer = input?.layer, scope = typeof input?.topic === 'string' ? input.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) : '';
+  if (!LAYERS.includes(layer)) throw new Error(`layer must be one of ${LAYERS.join(', ')}`);
+  if (!snapshot?.repo || !snapshot?.commit) throw new Error('No repository source on this canvas.');
+  const repo = { repo: snapshot.repo, commit: snapshot.commit }, key = layer === 'overview' ? '' : scope;
+  const stored = await indexGet(env, repo, layer, key, { build: false });
+  if (stored.status === 'ready') return { value: stored.value, usd: 0 };
+  if (stored.status === 'building') return { value: { status: 'building', note: BUILDING_NOTE }, usd: 0 };
+  if (remainingUsd != null && remainingUsd < TOOL_MIN_BUILD_USD) throw new Error("Not enough of this turn's budget is left to build the index; use the other tools.");
+  const capUsd = remainingUsd == null ? undefined : Math.min(OVERVIEW_CAP_USD, remainingUsd);
+  const got = await indexGet(env, repo, layer, key, { build: true, snapshot, deps: { ...deps, ...(capUsd ? { capUsd } : {}) } });
+  if (got.status === 'ready') return { value: got.value, usd: got.built ? got.usd : 0 };
+  if (got.status === 'building') return { value: { status: 'building', note: BUILDING_NOTE }, usd: 0 };
+  throw Object.assign(new Error('The index could not be built just now; read the code with the other tools.'), { usd: got.usd || 0 });
 }
 
 // The learn_index action (learn-codebase-source-map.js, metered learn_index): { layer: 'overview', scope? } -> 200 { status: 'ready', index } | 200 { status: 'building' }

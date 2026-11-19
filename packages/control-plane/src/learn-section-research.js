@@ -19,6 +19,7 @@ import { discoverSources, searchCanvasSource } from './learn-search.js';
 import { LEARN_TASKS, costUsd, modelRequest } from './learn-models.js';
 import { estimatedSpendBound } from './learn-spend.js';
 import { logTutorCall, tutorRecord } from './tutor-prompt.js';
+import { CODEBASE_INDEX_TOOL } from './learn-index-layers.js';
 
 const MATERIAL_SOURCE = { paper: 'arxiv', video: 'youtube', article: 'wikipedia' };
 export const SEARCH_MATERIAL_TOOL = { name: 'search_material', description: 'Search for existing material a beat may point the learner to: kind paper (arXiv), video (YouTube) or article (Wikipedia). Returns up to five results with one line on why each fits. Search only when the excerpts and your own knowledge do not settle it.', input_schema: {
@@ -27,7 +28,7 @@ export const SEARCH_MATERIAL_TOOL = { name: 'search_material', description: 'Sea
 export const SEARCH_WEB_TOOL = { name: 'search_web', description: 'Search the public web for pages (no site restriction). Returns candidate pages with their titles and dates; a candidate is not evidence until its text is read.', input_schema: {
   type: 'object', additionalProperties: false, required: ['query'], properties: { query: { type: 'string', minLength: 1, maxLength: 300 } },
 } };
-const DEFS = Object.fromEntries([...REPOSITORY_TOOLS, READ_ARXIV_TOOL, SEARCH_ARXIV_TOOL, READ_WIKIPEDIA_TOOL, SEARCH_WIKIPEDIA_TOOL, FIND_VIDEO_MOMENTS_TOOL, SEARCH_MATERIAL_TOOL, SEARCH_WEB_TOOL].map(t => [t.name, t]));
+const DEFS = Object.fromEntries([...REPOSITORY_TOOLS, CODEBASE_INDEX_TOOL, READ_ARXIV_TOOL, SEARCH_ARXIV_TOOL, READ_WIKIPEDIA_TOOL, SEARCH_WIKIPEDIA_TOOL, FIND_VIDEO_MOMENTS_TOOL, SEARCH_MATERIAL_TOOL, SEARCH_WEB_TOOL].map(t => [t.name, t]));
 const REPOSITORY = new Set(REPOSITORY_TOOLS.map(t => t.name));
 
 export const researchToolDefs = names => (names || []).filter(name => Object.hasOwn(DEFS, name)).map(name => DEFS[name]);
@@ -41,6 +42,17 @@ export async function researchTool(name, input = {}, ctx) {
   if (REPOSITORY.has(name)) {
     if (!ctx.snapshot) throw new Error('No repository source on this canvas.');
     return { content: text(repositoryTool(ctx.snapshot, name, input)), turn };
+  }
+  if (name === 'codebase_index') {
+    // The stored index (learn-index.js, loaded on use: it imports this file). A build is counted against this turn's cap (turn.extraUsd, read by sectionTurn).
+    if (!ctx.snapshot) throw new Error('No repository source on this canvas.');
+    const { codebaseIndexTool } = await import('./learn-index.js');
+    let out;
+    try { out = await codebaseIndexTool(ctx.env, ctx.snapshot, input, { remainingUsd: ctx.remainingUsd ?? null, deps: { callModel: deps.callModel } }); }
+    catch (error) { if (error.usd) turn.extraUsd = (turn.extraUsd || 0) + error.usd; throw error; }
+    turn.extraUsd = (turn.extraUsd || 0) + (out.usd || 0);
+    turn.searches.push({ tool: name, query: String(input?.layer || ''), ids: [] });
+    return { content: text(out.value), turn };
   }
   if (name === 'read_arxiv_paper') {
     const paper = await (deps.readPaper || readArxivPaper)(input.id);
@@ -104,7 +116,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
     const tools = [...researchToolDefs(research), submit]; // kept after the step limit: earlier tool_use blocks name them; a call past the limit is answered 'not run'
     const body = modelRequest(system, messages, task.maxTokens, { output_config: { effort: task.effort }, tools, tool_choice: { type: 'auto' } });
     const bound = estimatedSpendBound(body, model); // input at 3 request bytes a unit, still above the real rate (BLOCKERS.md)
-    if (bound == null || usage.usd + bound > capUsd) return { failed: 'over_cap', errors: errors.length ? errors : ['the cost limit for this item did not allow another call'], usage, repairs };
+    if (bound == null || usage.usd + (ctx.turn?.extraUsd || 0) + bound > capUsd) return { failed: 'over_cap', errors: errors.length ? errors : ['the cost limit for this item did not allow another call'], usage, repairs };
     logTutorCall({ ...record, call: usage.calls + 1 });
     let result;
     try {
@@ -118,6 +130,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
     if (!submits.length && calls.length && !cutOff(result) && steps < maxResearchSteps) {
       // Research: run every call, answer each, and go on.
       steps += 1;
+      ctx.remainingUsd = capUsd - usage.usd - (ctx.turn?.extraUsd || 0); // what a research tool that spends (codebase_index) may use
       const results = [];
       for (const call of calls) {
         try { results.push({ type: 'tool_result', tool_use_id: call.id, content: (await researchTool(call.name, call.input, ctx)).content }); }

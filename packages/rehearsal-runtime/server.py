@@ -53,9 +53,12 @@ def run(key: str, job: dict) -> None:
         out = run_rehearsal(job, ModalSandbox(on_created=created), MODEL, status, escalation_model=os.environ.get('REHEARSAL_MODEL', ''))
         with LOCK:
             JOBS[key].update(status=out.status, error=out.error, zip=out.zip, finished=time.time(), updated=time.time())
+        if out.status == 'failed':
+            print(f"rehearsal {key[:8]} failed: {out.error}", flush=True)  # the operator's record of why (a failed job was otherwise unrecoverable once retried)
     except Exception as e:  # noqa: BLE001 - the job must end in a state the control plane can read
         with LOCK:
             JOBS[key].update(status='failed', error=f'internal_error: {type(e).__name__}: {e}', finished=time.time(), updated=time.time())
+        print(f"rehearsal {key[:8]} failed: internal_error: {type(e).__name__}", flush=True)
     finally:
         SLOT.release()
 
@@ -76,9 +79,11 @@ def catalogue(key: str, job: dict) -> None:
     except cat.CatalogueFailed as e:
         with LOCK:
             CATALOGUES[key].update(status='failed', error=f'{e.code}: {e.detail}'[:400], finished=time.time(), updated=time.time())
+        print(f"catalogue {key[:8]} failed: {e.code}: {e.detail}"[:420], flush=True)  # the operator's record of why: the job's error is replaced when the owner retries
     except Exception as e:  # noqa: BLE001 - the job must end in a state the control plane can read; the class name only, never a message that might carry a key
         with LOCK:
             CATALOGUES[key].update(status='failed', error=f'catalogue_unavailable: {type(e).__name__}', finished=time.time(), updated=time.time())
+        print(f"catalogue {key[:8]} failed: catalogue_unavailable: {type(e).__name__}", flush=True)  # the class name only, as stored: a message might carry a key
     finally:
         CAT_SLOT.release()
 

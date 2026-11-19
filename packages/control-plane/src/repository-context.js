@@ -102,12 +102,20 @@ export function repositoryTool(snapshot, name, input = {}) {
     if (typeof input.query !== 'string' || !input.query.trim() || input.query.length>200) throw Error('Query must contain 1–200 characters');
     const q=input.query.toLowerCase(), terms=q.split(/\s+/).filter(Boolean);
     const nodes=graph.nodes.filter(n=>terms.some(t=>`${n.label} ${n.path||''}`.toLowerCase().includes(t))).slice(0,20);
-    const matches=[];
+    let matches=[], method;
     for (const [path,content] of Object.entries(files)) {
       for (const [i,line] of content.split('\n').entries()) if (line.toLowerCase().includes(q)) { matches.push({path,line:i+1,text:line.slice(0,300)}); if(matches.length>=25) break; }
       if(matches.length>=25) break;
     }
-    return {nodes,matches};
+    // Nothing held the whole phrase: the lines holding the most of its words come first (codebase-index-spec.md section 3).
+    const words=[...new Set(terms.filter(t=>t.length>1))];
+    if (!matches.length && words.length>1) {
+      const scored=[];
+      for (const [path,content] of Object.entries(files)) for (const [i,line] of content.split('\n').entries()) { const low=line.toLowerCase(), n=words.filter(t=>low.includes(t)).length; if(n) scored.push({path,line:i+1,text:line.slice(0,300),n}); }
+      scored.sort((a,b)=>b.n-a.n||(a.path<b.path?-1:a.path>b.path?1:0)||a.line-b.line);
+      matches=scored.slice(0,25).map(({n,...m})=>m); method='No line held the whole phrase; the lines holding the most of its words come first';
+    }
+    return {nodes,matches,...(method?{method}:{})};
   }
   if (name === 'get_relationships') {
     const node=graph.nodes.find(n=>n.id===input.nodeId); if(!node) throw Error('Node not found in this commit');
