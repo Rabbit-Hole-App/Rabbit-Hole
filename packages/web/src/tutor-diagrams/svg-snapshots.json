@@ -2826,6 +2826,21 @@
       "width": 720,
       "height": 311
     },
+    "pool-fired-tile-widths/320": {
+      "sha256": "eb05028422c539ee49db03c408d2135cdb2b3b3ebdb91ccb91588ec4c753e462",
+      "width": 360,
+      "height": 471.5
+    },
+    "pool-fired-tile-widths/408": {
+      "sha256": "d84d235e943361f1896853bede01fd45c72d6621a076a830a3f49800e7a9d821",
+      "width": 408,
+      "height": 420.5
+    },
+    "pool-fired-tile-widths/720": {
+      "sha256": "04b29eaf0efd964dc6c6cc6192fab8e682c30ca19183e2989fb0f3dbcddd95d4",
+      "width": 720,
+      "height": 420.5
+    },
     "pool-orchard-packing-expense/320": {
       "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
       "width": 320,
@@ -2870,6 +2885,21 @@
       "sha256": "f15e8d0cb99edd923748a87478873c5632bc97880821ea1b054849e2512f7126",
       "width": 720,
       "height": 344
+    },
+    "pool-sunflower-tray-heights/320": {
+      "sha256": "cba2e23f8ac2c32e4f1f8b13cc31ea651e3ad4d01453884c210acd8716db871a",
+      "width": 360,
+      "height": 498.5
+    },
+    "pool-sunflower-tray-heights/408": {
+      "sha256": "1106c6c4d0841fa1bbcd18f6247f05701d061f822baa6325f3201644d2785f26",
+      "width": 408,
+      "height": 464.5
+    },
+    "pool-sunflower-tray-heights/720": {
+      "sha256": "57484da8cb1d1dcd50441fc8bf298d3576f2291405d469638f3fc7860afec43b",
+      "width": 720,
+      "height": 447.5
     },
     "pool-trivia-team-score/320": {
       "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
