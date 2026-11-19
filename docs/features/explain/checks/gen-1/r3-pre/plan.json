@@ -1,0 +1,241 @@
+{
+ "meta": {
+  "source": "R1 bench set A, AFTER rep 1 prompts",
+  "arm": "plan",
+  "cells": 29
+ },
+ "items": [
+  {
+   "idx": 1,
+   "set": "P",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 2,
+   "set": "P",
+   "prompt": "How does Bayesian optimization decide which setting to try next?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 3,
+   "set": "P",
+   "prompt": "How does successive halving decide which trials get more training?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 4,
+   "set": "P",
+   "prompt": "how does attention work in a transformer?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 5,
+   "set": "P",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 6,
+   "set": "P",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 7,
+   "set": "P",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 8,
+   "set": "P",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 9,
+   "set": "P",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 10,
+   "set": "P",
+   "prompt": "How does a transformer get query, key and value vectors from one token?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 11,
+   "set": "P",
+   "prompt": "how does cross-validation detect overfitting?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 12,
+   "set": "P",
+   "prompt": "How do attention scores turn into weights?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 13,
+   "set": "P",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 14,
+   "set": "P",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 15,
+   "set": "P",
+   "prompt": "How does a transformer get a match score between words?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 16,
+   "set": "P",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 17,
+   "set": "P",
+   "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 18,
+   "set": "P",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 19,
+   "set": "P",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 20,
+   "set": "P",
+   "prompt": "How does a transformer turn scores into a guess for the next word?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 21,
+   "set": "P",
+   "prompt": "How does next-token training compare a probability vector with a one-hot target?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 22,
+   "set": "P",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 23,
+   "set": "P",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "depth": "brief",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 24,
+   "set": "P",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "depth": "brief",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 25,
+   "set": "P",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "depth": "brief",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 26,
+   "set": "P",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "depth": "brief",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 27,
+   "set": "P",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "depth": "brief",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 28,
+   "set": "P",
+   "prompt": "How can I compare encoder self-attention heatmaps from different heads?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  },
+  {
+   "idx": 29,
+   "set": "P",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low"
+  }
+ ]
+}
