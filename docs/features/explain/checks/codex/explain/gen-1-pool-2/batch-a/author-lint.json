@@ -1,0 +1,16 @@
+[
+  {
+    "id": "pool-garden-grant-softmax",
+    "depth": "overview",
+    "rule": 9,
+    "detail": "Brief must have fewer rendered elements than Balanced (0 versus 0).",
+    "severity": "warning"
+  },
+  {
+    "id": "pool-fruit-tea-blend-softmax",
+    "depth": "overview",
+    "rule": 9,
+    "detail": "Brief must have fewer rendered elements than Balanced (0 versus 0).",
+    "severity": "warning"
+  }
+]

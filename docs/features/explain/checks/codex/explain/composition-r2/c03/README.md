@@ -1,26 +1,24 @@
-# C03 · Transformer at release 164
+# C03 · Reviewed labels
 
-Branch `explain/composition-c03-r2` at `5e5381dff2bb03193cb205f994049dbaa711137b`. The prerequisite C01/C02 carryover is `4da7d85dc3356700923dc9a6cab676a132f2009a` on main `a88949c27`.
-The tranche adds three references and three existing-reference overlays. The context-rules panels comparison has an authored matrix single.
+Source commit `83727c378cc48644d5186952051b11453121fedc` on `explain/composition-c03-r2` follows the accepted `5e5381dff`.
+
+The layer blocks and Detailed caption show W₁ and W₂. The weighted source context chart for “nous” labels its unchanged values 1.436 and 0.564 as Feature 1 and Feature 2.
 
 ## Compact token counts
 
-Measured on compact `{id, spec}` with `cl100k_base`. Cells with different authored and parser-completed counts show both.
+Counts use compact `{id, spec}` and `cl100k_base`. Where the parser changes the count, the cell shows authored / completed.
 
 | Reference | Overview | Standard | Detailed | Detailed companion | Author single |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `ml-transformer-cross-attention-alignment` | 114 | 149 | 109 / 108 | 145 | — |
+| `ml-transformer-cross-attention-alignment` | 114 | 149 | 111 / 110 | 145 | — |
 | `ml-transformer-context-rules` | 104 | 236 | 245 | 127 | 105 |
 | `ml-transformer-encoder-decoder-memory` | 194 | 194 | 197 | — | — |
-| `ml-transformer-contextual-layer-states` | 132 | 185 | 191 | 138 | — |
+| `ml-transformer-contextual-layer-states` | 132 | 187 | 195 | 138 | — |
 | `ml-transformer-positionwise-feedforward` | 231 | 230 | 237 | — | — |
 | `ml-transformer-original-decoder-sublayers` | 213 | 224 | 230 | — | — |
 
-## Verification
+The three affected views changed and the other 19 SVG view hashes match the accepted sheet. The contextual-layer-states snapshots were refreshed at 320, 408, and 720 px. The weighted chart appears at Detailed, while the snapshot catalogue captures the registered Standard view.
 
-- The production replay moved zero first picks and zero planner kinds across 3,057 existing catalogue cases and 474 saved cases. At all three depths, 22 prompts selected a new reference and seven new prompts selected the intended existing reference. [Replay](planner-replay.json) · [New prompts](new-prompts.md)
-- All 1,543 affected tests passed, including arithmetic, actual author requests, the content contract, snapshots, and the lazy library accessor. The reference and overlay linters returned zero findings. The web build passed. [Linter](lint.json) · [Spec verification](tokens.json)
-- The three new references add nine snapshot entries at the repository snapshot widths.
-- The sheet contains 22 views at a requested width of 408 px. Five have native widths of 444–524 px and fit to the column. The reused decoder repeat bracket crosses the readable ×6 marker. [Preview dimensions](preview-layout.json)
+All 27 affected tests passed, including arithmetic, author reference selection, the lazy library accessor, and snapshots. All 22 specs passed with zero schema or content errors. The maximum compact count is 245 and the reference linter found zero issues. [Spec verification](tokens.json) · [Linter](lint.json) · [View changes](render-changes.json) · [Snapshot changes](snapshot-changes.json)
 
 ![C03 contact sheet at 408 px per diagram](contact-sheet.png)

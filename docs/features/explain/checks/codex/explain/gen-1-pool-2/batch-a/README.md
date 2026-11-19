@@ -1,20 +1,19 @@
-# GEN-1 example pool 2 · Batch A
+# GEN-1 example pool 2 · Batch A review revision
 
-Source commit `8ebb70e353a4b9e16204db99afba584625991e21` on `explain/gen-1-pool-2`, based on release 164 (`a88949c27`).
-The sheet has 33 diagrams at native 408 px.
+Source commit `e88f0ab873b0e933699cdf1b2767cda1ba2e1bb4` adds the accepted adjustment on top of `bda73b91d`.
 
-The source exercises all seven derived rows. The transformation lists and plot annotations leave their computed results to the parser. Both box-plot references retain raw observations in their data file and leave the fences to code. The proportion histogram and token-links provide counts, the sample set provides a replacement draw, and the heatmap provides cells without a fixed scale.
+Standard and Detailed omit item-link rows for the garden grant and fruit tea softmax examples. The Detailed captions retain the leading-share calculations.
 
-The bakery example computes the out-of-bag group. Release 164 renders the word “draws” beside every group tally, including the unpicked group.
+The refreshed sheet contains all 33 views at native 408 px. The four changed views have new SVG digests.
 
 ## Compact tokens
 
-Each cell is authored / parser-completed `{id, spec}`, measured with `cl100k_base`.
+Each cell shows authored and parser-completed counts for `{id, spec}` with `cl100k_base`.
 
 | Reference | Overview | Standard | Detailed |
 | --- | ---: | ---: | ---: |
-| `pool-garden-grant-softmax` | 109 / 124 | 136 / 151 | 132 / 147 |
-| `pool-fruit-tea-blend-softmax` | 109 / 124 | 136 / 151 | 133 / 148 |
+| `pool-garden-grant-softmax` | 109 / 124 | 118 / 133 | 114 / 129 |
+| `pool-fruit-tea-blend-softmax` | 109 / 124 | 117 / 132 | 114 / 129 |
 | `pool-rain-barrel-midpoint` | 152 / 155 | 165 / 168 | 172 / 175 |
 | `pool-dog-park-gate-mean` | 170 / 173 | 183 / 186 | 187 / 190 |
 | `pool-farm-stand-shelf-peak` | 162 / 165 | 179 / 182 | 187 / 190 |
@@ -25,12 +24,13 @@ Each cell is authored / parser-completed `{id, spec}`, measured with `cl100k_bas
 | `pool-craft-market-aisle-traffic` | 103 / 113 | 125 / 135 | 142 / 152 |
 | `pool-repair-cafe-station-weights` | 85 / 91 | 108 / 120 | 109 / 121 |
 
-## Verification
+## Checks
 
-- The planner and selector replay moved zero first picks and zero planner kinds across 3,057 existing catalogue cases and 474 saved cases. All 33 new prompt-depth cases picked their intended reference.
-- All 18 new data and reference tests passed. The focused suites passed 538 tests, including the lazy loader and SVG snapshot tests.
-- Added 33 new snapshot entries. Existing hashes match release 164 and preceding commits.
+- Passed all 43 focused tests, including the SVG fingerprints, content contract, pool data, lazy library and board-link audit.
+- Regenerated six fingerprints for the two softmax references at 320, 408 and 720 px.
+- Compared the accepted and revised reference objects. The only difference is the removal of the item links.
+- The reference linter reports no errors and two warnings because Overview and Standard now have equal element counts.
 
-[Per-depth token and schema checks](tokens.json) · [Planner replay](replay.json) · [Preview dimensions](preview-layout.json)
+[Token counts and schema checks](tokens.json) · [Preview dimensions](preview-layout.json) · [Fingerprint changes](snapshots.json) · [Reference comparison](selector-inputs.json)
 
-![Contact sheet at 408 px per diagram](contact-sheet.png)
+![Batch A reviewed at 408 px per view](contact-sheet.png)

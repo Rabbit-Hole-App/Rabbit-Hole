@@ -1,0 +1,20 @@
+{
+  "changed": [
+    "ml-transformer-contextual-layer-states/deep/main",
+    "ml-transformer-contextual-layer-states/standard/main",
+    "ml-transformer-cross-attention-alignment/deep/main"
+  ],
+  "preserved": 19,
+  "labels": [
+    "Feature 1",
+    "Feature 2",
+    "W₁",
+    "W₂"
+  ],
+  "preservedValues": [
+    1.436,
+    0.564
+  ],
+  "publishedCommit": "83727c378cc48644d5186952051b11453121fedc",
+  "publishedTree": "91a45e6a1495dd49afc2370f1544c1410a89112f"
+}

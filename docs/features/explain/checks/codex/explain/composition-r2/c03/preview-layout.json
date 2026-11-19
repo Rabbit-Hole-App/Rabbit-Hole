@@ -1,5 +1,5 @@
 {
-  "ref": "5b112b3de6c80b1db7d53f6db12d80fb9924d9b5",
+  "ref": "14e755dfe8491d84207230a1da53ded8bb22ce2d",
   "requestedWidth": 408,
   "sheetWidth": 1296,
   "sheetHeight": 6795,
@@ -58,7 +58,7 @@
           "displayHeight": 355.9912087912088,
           "foreignObjects": 1,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "9dadce1603469319081cd8d3561eaddb80b6645debb935e61ee1640c3aca2918",
+          "rawSvgSha256": "07d3d2f66dff6cb3f5e3139c8cee4a3f632ca91a7c96216ab1a80851d5d251b4",
           "derivedTextResolved": false
         },
         {
@@ -260,7 +260,7 @@
           "displayHeight": 866,
           "foreignObjects": 2,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "2b245c70bef48303ef69c763593c063a88aa19aa7575ca448861c8d5b1b9560f",
+          "rawSvgSha256": "e1fea6ae0e0212ebfa52f5d6b52d7e21c27017b960867c06895248509b528cf4",
           "derivedTextResolved": false
         },
         {
@@ -277,7 +277,7 @@
           "displayHeight": 866,
           "foreignObjects": 3,
           "missingMathFallbacks": 0,
-          "rawSvgSha256": "77351551a22e73cc84b6dfabd4fc743fc2eef03ba573ce751eff3a8144e8de17",
+          "rawSvgSha256": "d4db35c7da88f7c55c88e6cda56bedbc521d286b7f474267e96b3e682a6995f4",
           "derivedTextResolved": false
         },
         {
@@ -412,6 +412,6 @@
       ]
     }
   ],
-  "publishedCommit": "5e5381dff2bb03193cb205f994049dbaa711137b",
-  "publishedTree": "3bd966cfebcbf2351e00b5a28548047740f2a058"
+  "publishedCommit": "83727c378cc48644d5186952051b11453121fedc",
+  "publishedTree": "91a45e6a1495dd49afc2370f1544c1410a89112f"
 }

@@ -1,0 +1,9 @@
+{
+  "ids": [
+    "pool-garden-grant-softmax",
+    "pool-fruit-tea-blend-softmax"
+  ],
+  "onlyChange": "Removed item links from Standard and Detailed. All remaining fields, including captions and selector inputs, match the accepted references.",
+  "publishedCommit": "e88f0ab873b0e933699cdf1b2767cda1ba2e1bb4",
+  "publishedTree": "36f106385f0de378cb3bfcf32b2e3b877442588e"
+}
