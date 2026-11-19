@@ -390,3 +390,41 @@ test('box plot: a whisker beyond a correct fence is an arithmetic issue naming t
   assert.equal(schema.safeParse(tenth({ whiskerHigh: 21.5 })).success, true);
   assert.equal(schema.safeParse(tenth({ whiskerHigh: 21.7 })).success, false);
 });
+
+// HEAT-1: a heatmap drawn blank has no contrast; a grid with every cell above the diagonal blocked keeps its diagonal. Both tagged arithmetic.
+const grid = (n, cell) => Array.from({ length: n }, (_, i) => ({ label: String(i + 1), cells: Array.from({ length: n }, (_, j) => cell(i, j)) }));
+const gridCard = (rowsIn, range, extra = {}) => ({ kind: 'heatmap', title: 'A grid', rowLabel: 'Row', columnLabel: 'Column', columns: rowsIn[0].cells.map((_, j) => String(j + 1)), rows: rowsIn, range, ...extra });
+// the card of the 155 report: strictly lower triangular, every allowed cell 0 at range 0 to 1, row 1 and the diagonal blocked
+const archiveGrid = gridCard(grid(6, (i, j) => (j < i ? 0 : null)), { min: 0, max: 1 });
+
+test('heatmap contrast: every numeric cell at the value drawn with no fill is refused, tagged arithmetic; the archive grid fails both rules', () => {
+  const issues = arithmeticOf(archiveGrid);
+  assert.equal(issues.length, 2);
+  assert.match(issues[0].message, /^Every numeric cell is 0, the value drawn with no fill/);
+  assert.match(issues[1].message, /the diagonal is blocked in rows 1, 2, 3, 4, 5, 6/);
+  // the second archive shape: the diagonal allowed, every cell 0 on a signed range (0 is the blank point there)
+  const diagonalAllowed = gridCard(grid(6, (i, j) => (j <= i ? 0 : null)), { min: -4, max: 4 });
+  const [only] = arithmeticOf(diagonalAllowed);
+  assert.equal(arithmeticOf(diagonalAllowed).length, 1);
+  assert.match(only.message, /^Every numeric cell is 0/);
+});
+
+test('heatmap contrast: a 0 and 1 grid with blocked cells, a uniform grid at a drawn value and any grid with two values pass', () => {
+  assert.deepEqual(arithmeticOf(gridCard(grid(6, (i, j) => (j <= i ? 1 : null)), { min: 0, max: 1 })), [], 'allowed 1, blocked null: the blocked cells are drawn');
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, () => 0.2), { min: 0, max: 1 })), [], 'every cell 0.2 is drawn at 20 percent fill');
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, (i, j) => (i === j ? 1 : 0)), { min: 0, max: 1 })), []);
+  assert.equal(schema.safeParse(gridCard(grid(2, () => 1), { min: 0, max: 1 })).success, true, 'a grid at the top of its range is drawn');
+});
+
+test('heatmap diagonal: the cells above the diagonal blocked, then the diagonal must be numeric; other null patterns are left alone', () => {
+  const kept = gridCard(grid(4, (i, j) => (j <= i ? (i === j ? 2 : 1) : null)), { min: 0, max: 2 });
+  assert.deepEqual(arithmeticOf(kept), []);
+  const dropped = gridCard(grid(4, (i, j) => (j < i ? 1 : null)), { min: 0, max: 2 });
+  const [issue] = arithmeticOf(dropped);
+  assert.deepEqual(issue.path, ['rows']);
+  assert.match(issue.message, /rows 1, 2, 3, 4/);
+  // not a triangle (a blocked cell elsewhere), not square, no numeric cell: no diagonal rule
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, (i, j) => (i === 0 && j === 1 ? null : i + j + 1)), { min: 0, max: 6 })), []);
+  assert.deepEqual(arithmeticOf(gridCard([{ label: 'a', cells: [null, 1, null] }, { label: 'b', cells: [2, null, null] }], { min: 0, max: 2 })), [], 'two rows, three columns is not square');
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, () => null), { min: 0, max: 1 })), [], 'no numeric cell: nothing to compare');
+});
