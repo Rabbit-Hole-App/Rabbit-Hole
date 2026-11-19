@@ -161,3 +161,15 @@ test('(c) a unit after the number is part of the statistic: "IQR is 14.5 ms" and
   assert.equal(says('The IQR is 19.5 ms. The upper fence at 136.25 ms marks off 300 ms. The lower fence equals 58.25 ms; the median is 95 ms.'), null);
   assert.equal(says('The median of 9 values is 95 ms and the IQR of 19.5 ms is Q3 - Q1 = 107 - 87.5 = 19.5.'), null, 'a count of values and an equation are still skipped');
 });
+
+// ---- v4 (1): "<term> is <expression> = <result>" compares the result ----
+const resp = [80, 85, 90, 92, 95, 99, 104, 110, 300], respX = { x: { label: 'Time', min: 0, max: 320 } };
+const saysResp = (text, caption) => numbersIssue(card(text, box({ values: resp }, { ...respX, ...(caption ? { caption } : {}) })));
+
+test('(c) v4-1: the result of "<term> is a - b = c" is compared with the drawn statistic; the operands stay skipped (the v3 idx 15 caption)', () => {
+  const bad = saysResp('A plain sentence.', 'IQR is $104 - 90 = 14$. The upper fence is $104 + 1.5 \\times 14 = 125$. The value 300 ms is an outlier.');
+  assert.match(bad.problem, /"IQR 14", "upper fence 125" but the box-plot "Scores and the outlier" draws Q1 87\.5, median 95, Q3 107, IQR 19\.5, lower fence 58\.25, upper fence 136\.25/);
+  assert.equal(saysResp('IQR is 107 - 87.5 = 19.5. The upper fence is 107 + 1.5 x 19.5 = 136.25. The lower fence is 87.5 - 1.5 x 19.5 = 58.25.'), null, 'correct results pass');
+  assert.equal(saysResp('We take Q3 - Q1 = 107 - 87.5 = 19.5, then 1.5 x IQR = 29.25 and the fence is Q3 + 29.25 = 136.25.'), null, 'operands and equations without a term-first number stay skipped');
+  assert.match(saysResp('The median is 95 - 3 = 92.').problem, /"median 92"/);
+});

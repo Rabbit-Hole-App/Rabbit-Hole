@@ -569,6 +569,7 @@ export function boxFieldsChanged(md) {
 const STAT_TEXT = /(?<![\w.]|[-+×*/]\s*|\bx\s*)(upper fence|lower fence|interquartile range|IQR|median|first quartile|lower quartile|third quartile|upper quartile|Q1|Q3)(?!\w|[-+]\d)(?:\s*\([^()]*[A-Za-z][^()]*\))?\s*(?:(?:is|are|was|of|at|equals|sits at|stands at)\b|[=:≈~])?\s*\(?\s*(-?\d+(?:\.\d+)?)/gi;
 const plainStats = text => String(text ?? '').replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1').replace(/\\(?:times|cdot)/g, '×').replace(/\\[,;!]|\\left|\\right|\$|\*\*/g, ' ').replace(/Q_\{?([13])\}?/g, 'Q$1').replace(/[−–‐‑‒—]/g, '-').replace(/[·⋅∙]/g, '×');
 const NOT_OPERAND = /^\s*(?:[+×*/^÷]|-\s*\d|x\s*\d|(?:minus|plus|times|divided|over)\b)|^\w|^\s+(?:values?|numbers?|data|points?|observations?|samples?|items?|elements?|entries|readings?|students?|people|rows|times|more|less|higher|lower|above|below|greater|smaller|larger|bigger|apart|wide|long|away|spread)\b/i;
+const EXPR_RESULT = /^(?:\s*(?:[+×*/÷]|-|x(?=\s*\d))\s*\(?-?\d+(?:\.\d+)?\)?)+\s*=\s*(-?\d+(?:\.\d+)?)/i; // "- 90 = 14", "+ 1.5 × 14 = 125": an expression after the term's first number, and its result
 const STAT_KEY = { 'interquartile range': 'iqr', 'first quartile': 'q1', 'lower quartile': 'q1', 'third quartile': 'q3', 'upper quartile': 'q3' };
 const STAT_SAY = [['q1', 'Q1'], ['median', 'median'], ['q3', 'Q3'], ['iqr', 'IQR'], ['lower fence', 'lower fence'], ['upper fence', 'upper fence']];
 // -> [] or ONE message: every wrong statement of the card (at most four named, then "and N more"), then the full drawn set once (per box when the card has several), so the single repair has every
@@ -578,10 +579,11 @@ export function boxTextIssues(boxDiagrams, texts) {
   const boxes = boxDiagrams.flatMap(d => d.boxes.map(box => ({ box, drawn: boxDrawn(box) })));
   for (const text of texts.map(plainStats)) {
     for (const m of text.matchAll(STAT_TEXT)) {
-      if (NOT_OPERAND.test(text.slice(m.index + m[0].length))) continue;
-      const word = m[1].toLowerCase(), key = STAT_KEY[word] ?? word, wrote = Number(m[2]), places = (m[2].split('.')[1] ?? '').length;
-      if (boxes.some(x => Math.abs(x.drawn[key] - wrote) <= 0.5 * 10 ** -places + 1e-9) || seen.has(`${key} ${m[2]}`)) continue;
-      seen.add(`${key} ${m[2]}`); wrong.push(`"${m[1]} ${m[2]}"`);
+      const tail = text.slice(m.index + m[0].length), eq = EXPR_RESULT.exec(tail); // "IQR is 104 - 90 = 14": the result is what the term is said to be
+      if (!eq && NOT_OPERAND.test(tail)) continue;
+      const said = eq ? eq[1] : m[2], word = m[1].toLowerCase(), key = STAT_KEY[word] ?? word, wrote = Number(said), places = (said.split('.')[1] ?? '').length;
+      if (boxes.some(x => Math.abs(x.drawn[key] - wrote) <= 0.5 * 10 ** -places + 1e-9) || seen.has(`${key} ${said}`)) continue;
+      seen.add(`${key} ${said}`); wrong.push(`"${m[1]} ${said}"`);
     }
   }
   if (!wrong.length) return [];
