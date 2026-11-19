@@ -299,7 +299,7 @@ test('softmax grouped bar chart (NUM-3c): a score series and a probability serie
 
 test('softmax list transformation: temperature, T =, scaled, scaling, masked, causal and log-softmax turn the recompute off; a correct softmax(before / T) card passes', () => {
   const plain = ['0.70', '0.26', '0.04'];
-  for (const extra of [{ title: 'Softmax with temperature' }, { caption: 'Temperature T lowers the entropy' }, { operation: 'Apply softmax with T = 0.5' }, { operation: 'Softmax, T=2' }, { title: 'Scaled softmax' },
+  for (const extra of [{ title: 'Softmax with temperature' }, { caption: 'Temperature T lowers the entropy' }, { title: 'Scaled softmax' },
     { title: 'Softmax after scaling' }, { title: 'Masked softmax' }, { operation: 'Causal softmax' }, { title: 'Log-softmax' }, { title: 'Log softmax' }, { before: { label: 'Scaled scores', items: ['2.0', '1.0', '0.1'] } }, { after: { label: 'Softmax at temperature 2', items: plain } }]) {
     assert.deepEqual(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], plain, extra))), [], JSON.stringify(extra));
   }
@@ -307,6 +307,39 @@ test('softmax list transformation: temperature, T =, scaled, scaling, masked, ca
   assert.deepEqual(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.86', '0.12', '0.02'], { operation: 'Softmax of scores divided by temperature T = 0.5' })), []);
   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.86', '0.12', '0.02']))).length, 1, 'the same numbers without the gate word are a plain softmax and are wrong');
   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], plain, { title: 'Softmax result, set t = 3' }))).length, 1, 'a lowercase t is not the temperature marker');
+});
+
+// NUM-3d (i): "exponential and divide by the sum" and the written formula start the recompute like the word softmax; (ii) SOFT-T: a label T = <positive number> is the temperature, the after items are checked against softmax(before / T).
+const words = (operation, extra = {}) => softmax(['2.0', '1.0', '0.1'], ['0.70', '0.26', '0.04'], { title: 'Turning scores into shares', operation, before: { label: 'Raw scores', items: ['2.0', '1.0', '0.1'] }, after: { label: 'Shares', items: ['0.70', '0.26', '0.04'] }, ...extra });
+test('softmax list transformation (NUM-3d i): the spellings of exponential and divide by the sum, and the written formula, start the recompute; unrelated divide-by-sum wording does not', () => {
+  for (const operation of ['Apply exponential and divide by the sum', 'Exponentiate and divide by the sum', 'Exponentials divided by their sum', 'exp(x) / sum of exp', 'e^x over the sum of e^x', 'Exponentiate each score, then divide each by the total',
+    String.raw`Apply $\sigma(z)_i = \frac{e^{z_i}}{\sum_j e^{z_j}}$`, String.raw`e^{z_i} / \sum_j e^{z_j}`, 'exp(z_i)/Σ exp(z_j)']) {
+    const issues = arithmetic(softmaxIssues(words(operation)));
+    assert.equal(issues.length, 1, operation);
+    assert.ok(issues[0].message.includes('softmax(2.0, 1.0, 0.1) = 0.66, 0.24, 0.10, not 0.70, 0.26, 0.04'), operation);
+    assert.deepEqual(softmaxIssues(words(operation, { after: { label: 'Shares', items: ['0.66', '0.24', '0.10'] } })), [], 'the right values pass: ' + operation);
+  }
+  for (const operation of ['Divide by the square root of 4', 'Scale and round to 8 bits', 'Subtract the mean and divide by the standard deviation', 'Sum of squares divided by n', 'Exponential decay over the sum of years']) {
+    assert.deepEqual(arithmetic(softmaxIssues(words(operation))), [], operation);
+  }
+  assert.deepEqual(arithmetic(softmaxIssues(words('Apply exponential and divide by the sum, masked'))), [], 'a switched-off wording still turns it off');
+  assert.deepEqual(softmaxIssues(words('Apply exponential and divide by the sum', { after: { label: 'Percent', items: ['66%', '24%', '10%'] } })), [], 'percent items are read as fractions');
+});
+
+test('softmax list transformation (NUM-3d ii, SOFT-T): a T = <positive number> label is the temperature and the after items are checked; an unparsable or non-positive T, two different Ts, or masked / scaled-dot wording keeps the switch-off', () => {
+  const t = (label, after) => softmax(['2.0', '1.0', '0.1'], after, { operation: 'Apply softmax', after: { label: 'Probabilities', items: after }, before: { label: label, items: ['2.0', '1.0', '0.1'] } });
+  // softmax(2.0, 1.0, 0.1 / 2) = 0.50, 0.30, 0.19 ; softmax(2.0 / 0.5, 1.0 / 0.5, 0.1 / 0.5) = 0.86, 0.12, 0.02
+  const wrong = arithmetic(softmaxIssues(t('Scores, T = 2', ['0.66', '0.24', '0.10'])));
+  assert.equal(wrong.length, 1);
+  assert.ok(wrong[0].message.includes('softmax(2.0, 1.0, 0.1 / 2) = 0.50, 0.30, 0.19, not 0.66, 0.24, 0.10'), wrong[0].message);
+  assert.deepEqual(softmaxIssues(t('Scores, T = 2', ['0.50', '0.30', '0.19'])), [], 'the right softmax(before / 2) passes');
+  assert.deepEqual(softmaxIssues(t('Scores at T=0.5', ['0.86', '0.12', '0.02'])), [], 'T=0.5 with no spaces');
+  assert.equal(arithmetic(softmaxIssues(t('Scores at T=0.5', ['0.66', '0.24', '0.10']))).length, 1);
+  assert.deepEqual(softmaxIssues(t('Temperature scaled scores, T = 2', ['0.50', '0.30', '0.19'])), [], 'temperature and scaled words do not switch a parsable T off');
+  assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.66', '0.24', '0.10'], { operation: 'Softmax with T = 2' }))).length, 1, 'T on the operation counts too');
+  for (const [label, why] of [['Scores, T = tau', 'unparsable'], ['Scores, T = 0', 'zero'], ['Scores, T = -1', 'negative'], ['Scores, T = 1 and T = 2', 'two Ts'], ['Masked scores, T = 2', 'masked'], ['Scaled dot-product scores, T = 2', 'scaled dot'], ['Temperature 2', 'temperature without T =']]) {
+    assert.deepEqual(arithmetic(softmaxIssues(t(label, ['0.66', '0.24', '0.10']))), [], why);
+  }
 });
 
 test('softmax list transformation: a gated card that calls its after values probabilities must still sum to 1 within the half-units', () => {
