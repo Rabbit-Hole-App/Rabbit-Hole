@@ -40,7 +40,7 @@ function insidePicture(geometry, { width, height }, where) {
   walk(geometry);
 }
 
-const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow'];
+const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow', 'layers', 'tensor'];
 for (const kind of FITTED) {
   test(`${kind}: the neutral example in every box at sizes 14, 12 and 16 equals the box when the box is at least min, else min; nothing text is larger than asked; geometry lies inside the picture`, () => {
     const spec = neutral(kind);
@@ -130,7 +130,7 @@ test('a kind that is not fitted ignores box and sizes, returns min equal to its 
   assert.equal(markup(asked), markup(plain));
   assert.deepEqual(plain.min, { width: plain.width, height: plain.height });
   assert.equal(plain.geometry, null);
-  for (const kind of ['tensor', 'layers', 'cycle']) assert.equal(renderTutorDiagram(neutral(kind), 408).geometry, null, kind);
+  for (const kind of ['cycle']) assert.equal(renderTutorDiagram(neutral(kind), 408).geometry, null, kind);
   const flow = neutral('flow'), rendered = renderTutorDiagram(flow, 408);
   assert.ok(rendered.geometry && Array.isArray(rendered.geometry.nodes) && Array.isArray(rendered.geometry.edges));
   // the title block is counted: each node is lower than in the layout's own coordinates by the title height
@@ -166,7 +166,7 @@ test('min.parts: the parts of an axis add up to min.width and min.height, for ev
   const names = renderTutorDiagram(spec, 408, { box: { width: 408, height: 100 } }).min.parts.filter(part => part.axis === 'height').map(part => part.part);
   assert.ok(names.includes('title') && names.includes('caption') && names.includes('plot area'), names.join(', '));
   // a kind that is not fitted has no parts: min is its drawn size
-  assert.equal(renderTutorDiagram(neutral('tensor'), 408).min.parts, undefined);
+  assert.equal(renderTutorDiagram(neutral('cycle'), 408).min.parts, undefined);
 });
 
 test('what sets min.height of a plot: a legend that needs a second row grows min.height by that row, and min.parts names it', () => {
@@ -330,7 +330,7 @@ test('bar-chart: options.range fixes the value axis; values outside it are clamp
 
 // ---- batch 4: parts.frame false (no outer card, no outer padding) ----
 const FRAME_KINDS = [...FITTED.map(kind => [kind, neutral(kind)]), ['tree binary', TREES.binary], ['tree hierarchy', TREES.hierarchy]];
-const framePadOf = spec => (spec.diagram.kind === 'flow' ? 14 : 12);
+const framePadOf = spec => ({ flow: 14, tensor: 6 })[spec.diagram.kind] ?? 12;
 // The picture without its svg tag and its card rect: what is drawn inside.
 const inner = rendered => markup(rendered).replace(/^<svg[^>]*>/, '').replace(/<rect x="0.5" y="0.5"[^>]*><\/rect>/, '');
 for (const [name, spec] of FRAME_KINDS) {

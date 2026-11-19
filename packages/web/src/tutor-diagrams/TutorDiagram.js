@@ -16,16 +16,16 @@ const CAPTION_GUTTER = 32;
 const TITLE_STYLE = { size: 17, weight: 700 }; // the written card draws its title at TEACHING_TEXT.display (interact-style.test.mjs pins this line)
 
 // kinds-fit: the kinds that take a box, sizes and legend/parts switches; every other kind ignores them and is drawn as always (its `min` is its drawn size).
-const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
+const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow', 'layers', 'tensor']);
 // A bar chart is fitted in its plain and grouped forms (vertical bars) and a matrix in its plain layout; a stacked bar chart (a stacked series chart or one stacked bar) and a matrix with layout teaching are drawn as always: min is their drawn size, geometry null.
 const isFitted = diagram => (FITTED_KINDS.has(diagram.kind) || isTopDownTree(diagram)) && !(diagram.kind === 'bar-chart' && diagram.variant === 'stacked') && !(diagram.kind === 'matrix' && diagram.layout === 'teaching');
 // The kinds whose layout reports positions: `geometry` is an object for these (in the picture's coordinates, the title block counted) and null for every other kind.
-const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
+const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow', 'layers', 'tensor']);
 // A decision tree drawn top down (binary or hierarchy layout, with metadata or a path; the dot trees, the plain trees and the outline and dendrogram layouts keep today's drawing) is fitted and reports geometry.
 const isTopDownTree = diagram => diagram.kind === 'tree' && !isDotTree(diagram) && extendedTree(diagram) && (diagram.layout === 'binary' || diagram.layout === 'hierarchy');
 
 // parts.frame: false leaves out the outer card and the layout's own outer padding (every layout keeps PAD around its content: 12 px, the flow 14 px).
-const FRAME_PAD = { flow: 14 };
+const FRAME_PAD = { flow: 14, tensor: 6 }; // the tensor strip keeps 6 px (STRIP_PAD) around its cells
 const framePad = diagram => FRAME_PAD[diagram.kind] ?? 12;
 
 // Moves every y of a geometry (a box, a point pair, a plot area) down by dy (the title block) and every x by dx (the padding left out by frame: false).
