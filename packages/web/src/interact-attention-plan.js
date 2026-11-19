@@ -18,7 +18,7 @@ Object.assign(plan, {
   cardDescription: 'Pick a word and see how strongly it attends to every word in the sentence. The weights are illustrative, not taken from a model.',
   instructions: 'Pick a word.',
   learningGoal: 'In attention, each word gives a weight to every word of the sentence; the weights sum to one and the largest shows what it looks at most.',
-  assumptions: ['The weights are made up for the picture and are not taken from a model.'], limitations: ['One six-word sentence and one attention head.'],
+  assumptions: ['The weights are illustrative; no model produced them.'], limitations: ['One six-word sentence and one attention head.'],
 });
 Object.assign(plan.scene, {
   layout: LAYOUT,
