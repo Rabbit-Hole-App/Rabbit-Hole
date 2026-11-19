@@ -70,7 +70,7 @@ test('box values: the quartiles are the medians of the halves, the middle value 
   const d = filled(valued());
   assert.deepEqual([d.boxes[0].q1, d.boxes[0].median, d.boxes[0].q3, d.boxes[0].whiskerLow, d.boxes[0].whiskerHigh], [5.5, 8, 11.5, 3, 12]);
   assert.deepEqual(d.boxes[0].fences, { lower: -3.5, upper: 20.5 }, 'an outlier makes the fences drawn');
-  assert.deepEqual(d.boxes[0].outliers, [{ label: '40', value: 40 }], 'outliers the author left out are filled from the values');
+  assert.deepEqual(d.boxes[0].outliers, [{ label: 'Outlier', value: 40 }], 'outliers the author left out are filled from the values, labelled Outlier');
   assert.equal(everything(valued()).boxes[0].iqr, 6, 'the IQR is a derived path');
   assert.equal(filled(valued()).boxes[0].iqr, undefined, 'and silent: never drawn');
 });
@@ -81,7 +81,7 @@ test('box values: typed statistics are written over, never rejected (the R2 benc
   const d = filled(valued({ q1: 6, median: 8.5, q3: 10.5, whiskerLow: 5, whiskerHigh: 40, fences: { lower: -1, upper: 18 }, outliers: [{ label: 'High', value: 12 }] }));
   assert.deepEqual([d.boxes[0].q1, d.boxes[0].median, d.boxes[0].q3, d.boxes[0].whiskerLow, d.boxes[0].whiskerHigh], [5.5, 8, 11.5, 3, 12]);
   assert.deepEqual(d.boxes[0].fences, { lower: -3.5, upper: 20.5 });
-  assert.deepEqual(d.boxes[0].outliers, [{ label: '40', value: 40 }], 'the typed outlier 12 is replaced by the real one');
+  assert.deepEqual(d.boxes[0].outliers, [{ label: 'Outlier', value: 40 }], 'the typed outlier 12 is replaced by the real one, labelled Outlier');
   const none = filled(valued({ outliers: [{ label: 'High', value: 13 }] }, [3, 5, 6, 7, 8, 9, 11, 12, 13]));
   assert.equal(none.boxes[0].outliers, undefined, 'typed outliers go when no value lies outside the fences');
   assert.equal(filled(valued({ q1: 9, median: 2, q3: 1, whiskerLow: 9, whiskerHigh: 3 })).boxes[0].q3, 11.5, 'even statistics that break the order are not validated, they are overwritten');
@@ -191,4 +191,10 @@ test('silent fill audit: box fences are silent without outliers; every other row
   assert.deepEqual(outcome, { 'plain box': 'unchanged', 'box with an outlier': 'filled', heatmap: 'filled', links: 'filled', histogram: 'filled' });
   // the heatmap's colour scale needs its range; raw weights and counts are what the author wrote, shown as shares; a softmax list is the `after` card itself (derived-schema.test.mjs);
   // a `derive` annotation is the author's own annotation (derived-schema.test.mjs); an out-of-bag group is declared by outOfBagFor (the sample-set tests).
+});
+
+test('box values: an author-written label on a value that really is outside the fences stays; a filled outlier is labelled Outlier, never its own number', () => {
+  assert.deepEqual(filled(valued({ outliers: [{ label: 'Spike', value: 40 }] })).boxes[0].outliers, [{ label: 'Spike', value: 40 }]);
+  assert.deepEqual(filled(valued({ outliers: [{ label: 'Spike', value: 12 }] })).boxes[0].outliers, [{ label: 'Outlier', value: 40 }], 'the label of a value that is not an outlier goes with it');
+  assert.deepEqual(filled(valued()).boxes[0].outliers, [{ label: 'Outlier', value: 40 }]);
 });
