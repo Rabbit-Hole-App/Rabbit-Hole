@@ -5,11 +5,14 @@ import { architectureSingleSpecs } from './illustration-architecture-references.
 import { transformerMultiheadReference, transformerMultiheadSingleSpec } from './transformer-multihead-reference.js';
 import { figureChapterSingleSpecs } from './figure-chapter-single-specs.js';
 import { softmaxSingleSpec } from './topic-logistic-regression-references.js';
+import { regularizationSingleSpecs } from './composition-regularization-single-specs.js';
+import { distributionShiftSingleSpecs } from './composition-distribution-shift-single-specs.js';
 
 const panelsById = new Map(diagramReferences.map(ref => [ref.id, ref]));
 const explicit = { ...specsA, ...specsB, ...architectureSingleSpecs,
   [transformerMultiheadReference.id]: transformerMultiheadSingleSpec,
   ...figureChapterSingleSpecs,
+  ...regularizationSingleSpecs, ...distributionShiftSingleSpecs,
   'ml-logistic-regression-softmax': softmaxSingleSpec, // the panels reference's one-diagram variant, built from the topic's data module
 };
 // Every `panels` reference without an authored variant gets its answer panel (the last panel of its standard figure) as the one-diagram variant, so a panels

@@ -5,6 +5,7 @@ import { references } from './composition-attention-references.js';
 import { tutorDiagramSchema } from './spec.js';
 import { lintDiagramContent } from './content-contract.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
+import { selectForAuthor } from '../../../control-plane/src/explanation-references.js';
 
 test('C02 attention divides two-component query-key dot products by the square root of head width', () => {
   const d = derived();
@@ -34,6 +35,26 @@ test('C02 stable softmax agrees with direct exponentials and keeps the ranking w
   }
   assert.ok(d.doubled.weights[2] > d.base.weights[2]);
   assert.ok(d.doubled.weights[1] < d.base.weights[1]);
+});
+
+test('C02 outgoing attention single visibly connects query and keys through scaled dot products to its computed weights', () => {
+  const reference = selectForAuthor({ prompt: references[0].prompts[0], depth: 'balanced' }).references[0];
+  assert.strictEqual(reference.id, 'ml-attention-scaled-score-normalization-single');
+  const { diagram } = reference.spec;
+  const caption = diagram.caption ?? '';
+  assert.ok(caption.includes(`q=(${parameters.query.join(',')})`), 'The visible caption states the query used for these weights');
+  for (const { label, key } of keys) {
+    assert.ok(caption.includes(`${label} $(${key.join(',')})$`), `The visible caption states key ${label}`);
+  }
+  assert.ok(caption.includes(`d_k=${parameters.query.length}`), 'The head width is tied to the shown query');
+  assert.match(caption, /dot products/iu, 'The caption identifies the raw matches');
+  assert.match(caption, /divid[\s\S]*\\sqrt\{d_k\}[\s\S]*softmax/iu, 'The visible operation divides by the square root before softmax');
+  const exponentials = keys.map(({ key }) => Math.exp(key.reduce((score, value, i) => score + value * parameters.query[i], 0) / Math.sqrt(parameters.query.length)));
+  const denominator = exponentials.reduce((sum, value) => sum + value, 0);
+  assert.deepStrictEqual(diagram.bars.map(bar => bar.value), exponentials.map(value => Number((value / denominator).toFixed(parameters.precision))));
+  assert.strictEqual(diagram.total, undefined, 'The outgoing single uses the author-supported stacked form');
+  assert.ok(caption.length <= 140);
+  assert.ok(renderTutorDiagram(reference.spec, 680).width <= 680);
 });
 
 test('C02 attention depths and the deep comparison satisfy schema, content and the 680-pixel width budget', () => {
