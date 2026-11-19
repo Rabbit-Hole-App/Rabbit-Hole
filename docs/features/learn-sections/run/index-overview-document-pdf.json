@@ -1,0 +1,89 @@
+{
+  "source": {
+    "kind": "pdf",
+    "name": "intake-once-spec.pdf",
+    "pages": 2,
+    "characters": 3593
+  },
+  "summary": "A design spec for how the Tutor opens a conversation once a source (a repository now, other document types later) has been read. It describes one arrival event, a Tutor-written opening question with topic rows, a fallback sentence, saving the opening in the chat thread, and the tests that cover it.",
+  "options": [
+    {
+      "id": "one-arrival-event",
+      "label": "One event for any source",
+      "what": "How a single arrival event carries the kind, summary, options, cannot and run ability, so any source type can use the same call.",
+      "anchors": [
+        "p.1"
+      ],
+      "kind": "interface"
+    },
+    {
+      "id": "tutor-written-opening",
+      "label": "How the Tutor writes the opening",
+      "what": "How a metered server action turns the arrival facts into two or three plain sentences ending in a question, without reading the source itself.",
+      "anchors": [
+        "p.1"
+      ],
+      "kind": "algorithm"
+    },
+    {
+      "id": "opening-in-thread",
+      "label": "Opening joins the chat thread",
+      "what": "How the opening and its topic rows become a message, fall back to a fixed sentence on failure, and go grey once a topic is chosen.",
+      "anchors": [
+        "p.1"
+      ],
+      "kind": "structure"
+    },
+    {
+      "id": "run-it-flag",
+      "label": "The Run it option and flag",
+      "what": "How a default-off flag adds a Run it row when the source can run.",
+      "anchors": [
+        "p.1"
+      ],
+      "kind": "practice"
+    },
+    {
+      "id": "saved-openings",
+      "label": "Saving and restoring openings",
+      "what": "How each opening is stored as a Tutor entry so a reload brings it back with live rows and no second call.",
+      "anchors": [
+        "p.1",
+        "p.2"
+      ],
+      "kind": "data"
+    },
+    {
+      "id": "tests-covering-it",
+      "label": "What the tests check",
+      "what": "Which tests cover asking once, the fallback, the exact prompt and the flag.",
+      "anchors": [
+        "p.1"
+      ],
+      "kind": "practice"
+    }
+  ],
+  "cannot": [
+    {
+      "thing": "The actual code behind the mechanism",
+      "why": "It names files and functions but shows no code, so behaviour beyond the description cannot be checked here."
+    },
+    {
+      "thing": "Worked examples of an opening",
+      "why": "No sample opening text or event payload with real values is given."
+    },
+    {
+      "thing": "How non-repository sources are read",
+      "why": "Only the event shape is built now; Markdown, PDF and slides are mentioned as future."
+    }
+  ],
+  "meta": {
+    "layer": "overview",
+    "scope": "",
+    "usd": 0.011288,
+    "seconds": 5.8,
+    "calls": 1,
+    "model": "claude-sonnet-5-5",
+    "builtAt": "2026-11-19T20:04:33.166Z"
+  }
+}

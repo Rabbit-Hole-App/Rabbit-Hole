@@ -14,7 +14,7 @@ export async function sha256(text) {
 // What is hashed and stored: markdown its text; a pdf its pages' text in order, one form feed between pages.
 export const fullText = ({ kind, text, pages }) => (kind === 'pdf' ? (pages || []).join('\f') : String(text ?? ''));
 
-const slugOf = title => String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'section';
+const slugOf = title => String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '') || 'section';
 export function sectionsOf({ kind, name = 'document', text = '', pages = [] }) {
   if (kind === 'pdf') return pages.map((page, i) => ({ key: `p.${i + 1}`, title: `Page ${i + 1}`, text: String(page || '') })).filter(s => s.text.trim());
   const sections = [], seen = new Map();

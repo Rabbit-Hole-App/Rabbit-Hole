@@ -40,6 +40,7 @@ test('markdown is cut at its headings (a fenced # is not one, a repeated heading
   assert.match(sections[1].text, /not a heading/, 'a fenced line stays in its section');
   assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: 'Just words.\nNo headings.' }).map(s => s.key), ['#document']);
   assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: 'Intro words\n# Title\nbody' }).map(s => s.key), ['#start', '#title']);
+  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: '# Learn mode (owner 2026-11-18 15:19 to 15:38) the walk is a layout\nbody' }).map(s => s.key), ['#learn-mode-owner-2026-11-18-15-19-to-15'], 'a long heading is cut with no trailing dash');
   assert.deepEqual(sectionsOf({ kind: 'pdf', name: 'p.pdf', pages: ['one', '   ', 'three'] }).map(s => [s.key, s.title]), [['p.1', 'Page 1'], ['p.3', 'Page 3']]);
 });
 

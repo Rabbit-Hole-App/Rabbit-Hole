@@ -1,0 +1,75 @@
+{
+  "source": {
+    "kind": "markdown",
+    "name": "learn-mode-spec.md",
+    "pages": null,
+    "characters": 5606
+  },
+  "summary": "This spec describes \"Learn mode\", a layout that replaces a camera walk through a canvas's sections. It sets out a guide text on the left, tabbed views on the right, one shared composer, and how entering and leaving work.",
+  "options": [
+    {
+      "id": "mode-lifecycle",
+      "label": "When Learn mode starts and ends",
+      "what": "You will see that Learn mode is on exactly while a walk runs, how it is entered and left, and what is hidden and restored.",
+      "anchors": [
+        "#learn-mode-owner-2026-11-18-15-19-to-15"
+      ],
+      "kind": "structure"
+    },
+    {
+      "id": "page-layout",
+      "label": "Top row and guide split",
+      "what": "You will understand the top row with the walk pill and Learn|Canvas toggle, plus the left guide showing the section heading, lead and follow text.",
+      "anchors": [
+        "#learn-mode-owner-2026-11-18-15-19-to-15"
+      ],
+      "kind": "interface"
+    },
+    {
+      "id": "right-tabs",
+      "label": "Cards, Canvas, TOC and Chat tabs",
+      "what": "You will learn what each right-hand tab shows, including how a card is scaled to fit and why notebooks are a special case.",
+      "anchors": [
+        "#learn-mode-owner-2026-11-18-15-19-to-15"
+      ],
+      "kind": "interface"
+    },
+    {
+      "id": "single-composer-no-focus",
+      "label": "One composer and no Focus",
+      "what": "You will see why Focus entry points are removed and how a single composer serves every tab and routes answers to Chat.",
+      "anchors": [
+        "#learn-mode-owner-2026-11-18-15-19-to-15"
+      ],
+      "kind": "practice"
+    },
+    {
+      "id": "kept-and-tests",
+      "label": "What is kept, and the tests",
+      "what": "You will see which walk behaviours remain, which are dropped, and which tests cover enter/leave, tabs and the green bar.",
+      "anchors": [
+        "#learn-mode-owner-2026-11-18-15-19-to-15"
+      ],
+      "kind": "practice"
+    }
+  ],
+  "cannot": [
+    {
+      "thing": "The implementation details",
+      "why": "It is a spec that names components and tests but contains no code."
+    },
+    {
+      "thing": "Why the earlier camera walk was designed as it was",
+      "why": "It only says the card was too small to read."
+    }
+  ],
+  "meta": {
+    "layer": "overview",
+    "scope": "",
+    "usd": 0.027838,
+    "seconds": 9.7,
+    "calls": 2,
+    "model": "claude-sonnet-5-5",
+    "builtAt": "2026-11-19T20:04:25.063Z"
+  }
+}
