@@ -8,7 +8,7 @@ import { codebaseRoute } from '../src/learn-codebase-source-map.js';
 import { canvasApp } from '../src/canvases.js';
 import { SUBMIT_OVERVIEW_TOOL } from '../src/learn-index.js';
 import { canvasDocument, documentDigest, documentSnapshot, loadDocumentSnapshot, runDocumentIndex, sectionsOf, sha256 } from '../src/learn-document.js';
-import { repositoryAnchors } from '../src/learn-section-brief.js';
+import { anchorExcerpt, repositoryAnchors } from '../src/learn-section-brief.js';
 import { repositoryTool } from '../src/repository-context.js';
 import { composeTutorPrompt } from '../src/tutor-prompt.js';
 import { fileRole } from '../../web/src/learn-codebase-goals.js';
@@ -138,4 +138,13 @@ test('the route: a drop starts the Tutor, a reload finds it, and the Learn actio
   const started = await (await call('POST', { action: 'start', goal: 'learn_concept', learn: OVERVIEW.options[0], actionId: 'start-doc-0001', expectedRevision: 0 })).json();
   assert.equal(started.route, 'started', JSON.stringify(started).slice(0, 200));
   assert.ok(started.map.nodes.length > 0 && started.map.nodes.some(n => n.path === 's/the-step'));
+});
+
+test('a passage of a document is captioned by the file, never by a commit (a repository keeps its commit)', async () => {
+  const sha = await sha256(MD), snapshot = documentSnapshot({ sha, name: 'notes.md', kind: 'markdown', sections: sectionsOf({ kind: 'markdown', name: 'notes.md', text: MD }) });
+  const shown = anchorExcerpt(snapshot, ['s/learning-rate']);
+  assert.match(shown, /### s\/learning-rate  lines 1-\d+   \(notes\.md\)/);
+  assert.doesNotMatch(shown, /commit/);
+  const repo = { ...snapshot, version: 'graphifyy-1', repo: 'example/notes', commit: 'a'.repeat(40) };
+  assert.match(anchorExcerpt(repo, ['s/learning-rate']), /\(commit aaaaaaa\)/);
 });

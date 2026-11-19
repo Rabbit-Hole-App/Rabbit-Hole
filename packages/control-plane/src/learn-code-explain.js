@@ -10,6 +10,7 @@ import SCHEMA from './code-explain.schema.json' with { type: 'json' };
 import { CODE_EXPLAIN_MAX_CARDS, validateCodeExplain } from './code-explain-contract.js';
 import { codebaseUseId, composeTutorPrompt, logTutorCall, tutorRecord } from './tutor-prompt.js';
 import { parseCodeRef, repositoryTool } from './repository-context.js';
+import { isDocumentSnapshot } from './learn-document-text.js';
 import { symbolEnd } from './learn-codebase-source-map.js';
 import { selectForAuthor } from './explanation-references.js';
 import { referenceLibraryReady } from './reference-library-lazy.js';
@@ -101,7 +102,7 @@ export function gatherCode(snapshot, refs, { budget = CODE_EXPLAIN_LIMITS.codeLi
         out.push(...read.content.split('\n'));
       }
       const got = Math.min(out.length, end - start + 1); // read_source clips a very long chunk; only what was returned counts as shown
-      if (got) { shown.push({ path, start, end: start + got - 1 }); blocks.push(`### ${path}  lines ${start}-${start + got - 1}   (commit ${snapshot.commit.slice(0, 7)})\n${out.slice(0, got).join('\n')}`); }
+      if (got) { shown.push({ path, start, end: start + got - 1 }); blocks.push(`### ${path}  lines ${start}-${start + got - 1}   (${isDocumentSnapshot(snapshot) ? snapshot.name || 'the document' : `commit ${snapshot.commit.slice(0, 7)}`})\n${out.slice(0, got).join('\n')}`); } // a dropped document is named by its file, never by a commit
       i = j + 1;
     }
   }

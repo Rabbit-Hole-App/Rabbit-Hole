@@ -5,6 +5,7 @@
 // lines are cut from the end of the last block first, every header kept, the cut recorded. The prompt itself stays free of paths.
 import { codeNameError } from '../learn-section-brief.js';
 import { validDepth } from '../chat-depth.js';
+import { isDocumentSnapshot } from '../learn-document-text.js';
 
 export const PROMPT_MAX = 600, CONTEXT_LINES = 300, CONTEXT_CHARS = 8000;
 export const fields = {
@@ -52,7 +53,7 @@ export async function validate(input, ctx) {
   for (const anchor of ctx.beat?.anchors || []) {
     const a = anchorOf(anchor), read = a && ctx.readSource(a.path, a.start ?? 1, a.end ?? a.start ?? Infinity);
     if (!read) continue;
-    blocks.push({ header: `${read.path}:${read.start}-${read.end} @ ${ctx.commit}`, lines: read.lines.map((line, i) => `${read.start + i}: ${line}`) });
+    blocks.push({ header: `${read.path}:${read.start}-${read.end} @ ${isDocumentSnapshot(ctx.snapshot) ? ctx.snapshot.name || 'the document' : ctx.commit}`, lines: read.lines.map((line, i) => `${read.start + i}: ${line}`) });
   }
   const wrong = codeNameError(prompt); // the one rule (Reviewer 20:35): only a path, a file name or a flag is refused
   if (wrong) return { error: `prompt ${wrong}: the source lines travel with it separately` };
