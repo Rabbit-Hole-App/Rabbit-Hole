@@ -1,0 +1,76 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 942,
+  "groups": [
+    {
+      "kind": "layers",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-hilltop-park-map-layers",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 382
+            }
+          ],
+          "bottom": 537
+        },
+        {
+          "id": "pool-raspberry-cocoa-slice-layers",
+          "top": 533,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 557,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 292
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 557,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 557,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            }
+          ],
+          "bottom": 932
+        }
+      ],
+      "bottom": 932
+    }
+  ]
+}

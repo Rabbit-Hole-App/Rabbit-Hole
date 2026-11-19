@@ -1,0 +1,141 @@
+{
+  "sha": "cdeefcb58f6ba44ec54920d49acd4d2776ec7c03",
+  "records": [
+    {
+      "id": "pool-hilltop-park-map-layers",
+      "kind": "layers",
+      "depths": {
+        "overview": {
+          "tokens": 108,
+          "parsedTokens": 108,
+          "nativeWidth": 408,
+          "height": 360,
+          "ownPicks": [
+            {
+              "prompt": "Show the drawing order of the layers in the Hilltop Park map artwork.",
+              "kind": "layers",
+              "picked": [
+                "pool-hilltop-park-map-layers"
+              ],
+              "steer": "pool-hilltop-park-map-layers",
+              "score": 60
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 106,
+          "parsedTokens": 106,
+          "nativeWidth": 408,
+          "height": 360,
+          "ownPicks": [
+            {
+              "prompt": "Show the drawing order of the layers in the Hilltop Park map artwork.",
+              "kind": "layers",
+              "picked": [
+                "pool-hilltop-park-map-layers"
+              ],
+              "steer": "pool-hilltop-park-map-layers",
+              "score": 60
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 129,
+          "parsedTokens": 129,
+          "nativeWidth": 408,
+          "height": 382,
+          "ownPicks": [
+            {
+              "prompt": "Show the drawing order of the layers in the Hilltop Park map artwork.",
+              "kind": "layers",
+              "picked": [
+                "pool-hilltop-park-map-layers"
+              ],
+              "steer": "pool-hilltop-park-map-layers",
+              "score": 60
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-raspberry-cocoa-slice-layers",
+      "kind": "layers",
+      "depths": {
+        "overview": {
+          "tokens": 77,
+          "parsedTokens": 77,
+          "nativeWidth": 408,
+          "height": 292,
+          "ownPicks": [
+            {
+              "prompt": "Show the layer order and thicknesses in a raspberry cocoa slice.",
+              "kind": "layers",
+              "picked": [
+                "pool-raspberry-cocoa-slice-layers"
+              ],
+              "steer": "pool-raspberry-cocoa-slice-layers",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 103,
+          "parsedTokens": 103,
+          "nativeWidth": 408,
+          "height": 360,
+          "ownPicks": [
+            {
+              "prompt": "Show the layer order and thicknesses in a raspberry cocoa slice.",
+              "kind": "layers",
+              "picked": [
+                "pool-raspberry-cocoa-slice-layers"
+              ],
+              "steer": "pool-raspberry-cocoa-slice-layers",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 143,
+          "parsedTokens": 143,
+          "nativeWidth": 408,
+          "height": 360,
+          "ownPicks": [
+            {
+              "prompt": "Show the layer order and thicknesses in a raspberry cocoa slice.",
+              "kind": "layers",
+              "picked": [
+                "pool-raspberry-cocoa-slice-layers"
+              ],
+              "steer": "pool-raspberry-cocoa-slice-layers",
+              "score": 58
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "replay": {
+    "existingPromptDepthCases": 3096,
+    "savedPlannerCases": 474,
+    "overlap": 0,
+    "moves": []
+  },
+  "pool": {
+    "overview": {
+      "before": 1,
+      "after": 3
+    },
+    "standard": {
+      "before": 1,
+      "after": 3
+    },
+    "deep": {
+      "before": 1,
+      "after": 3
+    }
+  },
+  "publishedTip": "d327924c29688324f8af3dcfc93c657475724a29",
+  "publishedTree": "a5fb29d58412e20677f0591cdfec1f422cf883a7"
+}
