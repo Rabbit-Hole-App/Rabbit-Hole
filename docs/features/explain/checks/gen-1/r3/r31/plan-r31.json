@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "items": 6,
+  "runs": 6
+ },
+ "items": [
+  {
+   "idx": 900,
+   "set": "r31",
+   "tag": "R31",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "rep": 1,
+   "profile": "google-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 901,
+   "set": "r31",
+   "tag": "R31",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "rep": 2,
+   "profile": "google-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 902,
+   "set": "r31",
+   "tag": "R31",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "balanced",
+   "rep": 3,
+   "profile": "google-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 903,
+   "set": "r31",
+   "tag": "R31",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "rep": 1,
+   "profile": "google-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 904,
+   "set": "r31",
+   "tag": "R31",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "rep": 2,
+   "profile": "google-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 905,
+   "set": "r31",
+   "tag": "R31",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "depth": "detailed",
+   "rep": 3,
+   "profile": "google-low",
+   "arms": [
+    "after"
+   ]
+  }
+ ]
+}

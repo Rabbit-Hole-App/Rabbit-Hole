@@ -101,7 +101,7 @@ if (a['dry-run']) {
   // No provider call: validates the plan, that both trees import, that the harness helpers (ledger, diagram parser, card checks) work, the BENCH-1 regex, and the offline variation check.
   const bad = plan.items.filter(it => !it.prompt || !['brief', 'balanced', 'detailed'].includes(it.depth) || !Number.isInteger(it.idx));
   const numeric = plan.items, vary = [];
-  if (bad.length || new Set(plan.items.map(it => it.idx)).size !== plan.items.length || numeric.length !== 95 || !['google-low', 'fireworks-low'].includes(plan.items[0].profile)) { console.error('plan is not 95 items (161 runs)', plan.items.length, bad.length); process.exit(2); }
+  if (bad.length || new Set(plan.items.map(it => it.idx)).size !== plan.items.length || numeric.length !== (plan.meta?.items ?? 95) || !['google-low', 'fireworks-low'].includes(plan.items[0].profile)) { console.error('plan is not its own meta.items long (95 for the full plan)', plan.items.length, bad.length); process.exit(2); }
   assertRegex();
   for (const arm of ARMS) {
     const T = trees[arm], { sqlite } = ledger(arm);
@@ -130,7 +130,7 @@ if (a['dry-run']) {
   }
   const runs = plan.items.reduce((n, i) => n + (i.arms ? i.arms.length : ARMS.length), 0), PER_RUN_UPPER = 0.0036;
   console.log(`sets: ${['ontopic', 'numeric', 'r3pre'].map(t => `${t} ${plan.items.filter(i => i.set === t).length} items`).join(', ')}; profiles: google-low ${plan.items.filter(i => i.profile === 'google-low').length}, fireworks-low ${plan.items.filter(i => i.profile === 'fireworks-low').length}`);
-  console.log(`ESTIMATE US$0.58 (161 runs x US$0.0036); STOP LINE US$${a.cap} settled (estimate + 20 %), failed calls at their settled cost, three consecutive Gemini provider errors stop the run`);
+  console.log(`ESTIMATE US$${(runs * PER_RUN_UPPER).toFixed(2)} (${runs} runs x US$0.0036); STOP LINE US$${a.cap} settled (estimate + 20 %), failed calls at their settled cost, three consecutive Gemini provider errors stop the run`);
   console.log(`plan ok: ${numeric.length} numeric items x ${ARMS.length} arms + ${vary.length} variation runs = ${runs} runs; est. US$${(runs * PER_RUN_UPPER).toFixed(2)} at US$${PER_RUN_UPPER} a run vs stop line US$${a.cap}; key names present: ${NAMES.join(', ')}; NO provider call made`);
   process.exit(0);
 }
