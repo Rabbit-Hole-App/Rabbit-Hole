@@ -55,7 +55,8 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
-import { ARTIFACT_SYSTEM, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
+import { ARTIFACT_SYSTEM, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
+import { capExamples, exampleReferences } from './explanation-examples.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
 // the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
@@ -142,13 +143,19 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
     asked, planned: input.planned, depth: input.depth, plan: input.plan, seed: requestSeed, // VAR-1 step 3: a reference with `vary` is drawn from this request's seed
   }).references : [];
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
-  const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
+  // GEN-1 G1 (R2): a SEEDED request with a planned kind and no topical reference gets up to three seeded library examples of that kind (explanation-examples.js, the block capped at EXAMPLES_CAP_CHARS) in place of the one gallery example; no seed, no plan or a topical reference (R3): unchanged.
+  const planKind = input.plan && visualKinds(resolved)[0];
+  const seeded = requestSeed && planKind && !topicalReferences.length && ready.includes('explanation') ? capExamples(exampleReferences(planKind, input.depth, requestSeed).examples).map(example => ({ ...example, seededExample: true })) : [];
+  const shape = planKind ? planShape({ kind: planKind }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = seeded.length ? seeded : shape ? [shape, ...topicalReferences] : topicalReferences;
+  // GEN-1 G2 (R2): the seeded examples come with the inputs sentence right after the number rule (agents/learn-artifact.js INPUTS_RULE); every other request is untouched.
+  const withInputsRule = text => (seeded.length ? text.replace(NUMBER_RULE, () => `${NUMBER_RULE} ${INPUTS_RULE}`) : text);
+  if (seeded.length) { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.description = withInputsRule(t.description); }
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
   if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds, plannedKinds: input.plan ? plannedBundleKinds(resolved) : [] })); }
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
-  const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
+  const system = withInputsRule((input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '')) + diagramReferenceContext(diagramReferences);
   return { request, ready, messages, diagramReferences, requestSeed, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
