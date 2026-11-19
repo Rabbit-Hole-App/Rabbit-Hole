@@ -66,8 +66,9 @@ export function boxStats(values) {
   const inside = s.filter(value => value >= lower - 1e-9 && value <= upper + 1e-9);
   return { median: medianOf(s), q1, q3, lower, upper, whiskerLow: inside[0], whiskerHigh: inside.at(-1), outliers: s.filter(value => !inside.includes(value)) };
 }
-// The outliers a valued box draws: the values outside the fences, each with the label the author gave that value, else "Outlier" (a filled outlier is never labelled with its own number).
-const valueOutliers = (box, s) => s.outliers.map(value => ({ label: (box.outliers ?? []).find(point => Math.abs(point.value - value) < 1e-9)?.label ?? 'Outlier', value }));
+// The outliers a valued box draws: the values outside the fences, each with the label the author gave that value, else "Outlier" (a filled outlier is never labelled with its own number, and an author label that is only a number, "40" or "40: 40", is not a label).
+const hasWords = label => /\p{L}/u.test(String(label ?? ''));
+const valueOutliers = (box, s) => s.outliers.map(value => { const written = (box.outliers ?? []).find(point => Math.abs(point.value - value) < 1e-9)?.label; return { label: hasWords(written) ? written : 'Outlier', value }; });
 // The box with the statistics its values give (rounded as they are filled), or the box itself: what the shape checks read, so a typed statistic that the code overwrites is never validated.
 export function withValueStats(box) {
   if (!box.values) return box;

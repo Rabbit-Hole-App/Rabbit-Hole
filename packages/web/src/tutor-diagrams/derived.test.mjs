@@ -198,3 +198,9 @@ test('box values: an author-written label on a value that really is outside the 
   assert.deepEqual(filled(valued({ outliers: [{ label: 'Spike', value: 12 }] })).boxes[0].outliers, [{ label: 'Outlier', value: 40 }], 'the label of a value that is not an outlier goes with it');
   assert.deepEqual(filled(valued()).boxes[0].outliers, [{ label: 'Outlier', value: 40 }]);
 });
+
+test('box values: an author outlier label that is only its value ("40", "40: 40", a bare number) becomes Outlier; a label with words stays (the v3 idx 2 card)', () => {
+  for (const label of ['40', '40: 40', '40.0', ' 40 ', '(40)']) assert.deepEqual(filled(valued({ outliers: [{ label, value: 40 }] })).boxes[0].outliers, [{ label: 'Outlier', value: 40 }], label);
+  assert.deepEqual(filled(valued({ outliers: [{ label: 'Spike', value: 40 }] })).boxes[0].outliers, [{ label: 'Spike', value: 40 }]);
+  assert.deepEqual(filled(valued({ outliers: [{ label: 'Spike 40', value: 40 }] })).boxes[0].outliers, [{ label: 'Spike 40', value: 40 }]);
+});
