@@ -1506,6 +1506,51 @@
       "width": 720,
       "height": 414
     },
+    "ml-language-training-prefix-target-alignment/320": {
+      "sha256": "69d183dc9f39897dd6f4883c1bd83dbaacb8dc91d5895d681f335dd7741d34ae",
+      "width": 320,
+      "height": 532
+    },
+    "ml-language-training-prefix-target-alignment/408": {
+      "sha256": "2204cb9d662a8166f9abf6ffd07587efd244599ed9bf3971d1f74fc7b0edc830",
+      "width": 408,
+      "height": 460
+    },
+    "ml-language-training-prefix-target-alignment/720": {
+      "sha256": "24a5360da047242ddf80e86e5a05525b5f4b4541d288b78ecb4df6abed4f1730",
+      "width": 720,
+      "height": 335
+    },
+    "ml-language-training-target-probability-and-loss/320": {
+      "sha256": "bf12b3d70251261a96ab8f42a3edbff9de20ce74e0f3ec879ff8c971d112c101",
+      "width": 408,
+      "height": 453
+    },
+    "ml-language-training-target-probability-and-loss/408": {
+      "sha256": "bf12b3d70251261a96ab8f42a3edbff9de20ce74e0f3ec879ff8c971d112c101",
+      "width": 408,
+      "height": 453
+    },
+    "ml-language-training-target-probability-and-loss/720": {
+      "sha256": "03ac9f315603e1c1ca50b4abb13e0b406bee9a7fd6e4e52480090215af9b3b6e",
+      "width": 720,
+      "height": 414
+    },
+    "ml-language-training-vocabulary-target-slots/320": {
+      "sha256": "e5193cd5a4f69c5331d0d57a7adc274e6f97a8afc4c39cfedf98702778e1fe05",
+      "width": 320,
+      "height": 512
+    },
+    "ml-language-training-vocabulary-target-slots/408": {
+      "sha256": "9acc29198e0ea79b9a9414ab268ccecaaf32673721e6699d55fbe2dabb8824a1",
+      "width": 408,
+      "height": 495
+    },
+    "ml-language-training-vocabulary-target-slots/720": {
+      "sha256": "175b093cb350bbf91798b6837e5bfad2bc450781ce1208f8ddfb387d3dd3e1be",
+      "width": 720,
+      "height": 456
+    },
     "ml-learning-taxonomy/320": {
       "sha256": "1381c4ed413031c112f41da3eae028e7a12a423c5779320a9259fbea61875737",
       "width": 613,
@@ -2435,6 +2480,21 @@
       "sha256": "4e738c0d054bf917fa4a42ed60523addd9e93e0c97ce6a3739c17882d8d67e59",
       "width": 720,
       "height": 448
+    },
+    "ml-summarization-supervised-summary-pair/320": {
+      "sha256": "b55d753a816f6433157a2c51d748208652b20f75f21a0617796839ffe32c79a8",
+      "width": 381,
+      "height": 489
+    },
+    "ml-summarization-supervised-summary-pair/408": {
+      "sha256": "021d224318e33cf2dc922b57841bfe737fd4e5892a23974103f05424f0486e72",
+      "width": 408,
+      "height": 472
+    },
+    "ml-summarization-supervised-summary-pair/720": {
+      "sha256": "6bfa03098b15c32b115bd28a2dfea1d90ec795d694347beb1a8ce025abb2389d",
+      "width": 720,
+      "height": 303
     },
     "ml-time-series-additive-residuals/320": {
       "sha256": "bec5180b68aca03ab1134b8d3800245a17966d05b3b8be6fc04c146bdd8fad65",

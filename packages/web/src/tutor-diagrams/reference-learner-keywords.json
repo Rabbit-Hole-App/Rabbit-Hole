@@ -1642,5 +1642,21 @@
   "ml-recurrent-networks-recurrent-next-token-training": [
     "recurrent prefix supervision",
     "teacher forced states"
+  ],
+  "ml-language-training-vocabulary-target-slots": [
+    "indexed output slots",
+    "observed token indicator"
+  ],
+  "ml-language-training-target-probability-and-loss": [
+    "paired token distributions",
+    "illustrative distribution losses"
+  ],
+  "ml-language-training-prefix-target-alignment": [
+    "observed prefix labels",
+    "training continuation rows"
+  ],
+  "ml-summarization-supervised-summary-pair": [
+    "raw summarization pairs",
+    "body lead supervision"
   ]
 }

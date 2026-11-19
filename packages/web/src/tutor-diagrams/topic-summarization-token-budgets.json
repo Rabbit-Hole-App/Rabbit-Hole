@@ -1,0 +1,29 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-summarization-supervised-summary-pair": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 105,
+          "sha256": "c7d166de2dbb2adbc7067cef5d75f518bf8e3c6e0361080ae2771044a424614b"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 130,
+          "sha256": "ac1c9a36b828b7576b90603b6d82571c4795dc14086768b213c488fd411da62b"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 138,
+          "sha256": "6991b1087eb92bb6ce7440601f005266cf5a28894eccc1b47f3b01cdd539a624"
+        }
+      ]
+    }
+  }
+}

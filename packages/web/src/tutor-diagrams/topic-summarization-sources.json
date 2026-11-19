@@ -1,0 +1,166 @@
+{
+  "batch": "C06",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "5634db2168d177e966357cc69c2d2a298fd3dcf0",
+  "references": [
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "mode": "NEW",
+      "topic": "language-training",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "32",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-32",
+        "summary": "The output vocabulary defines a fixed ordering of slots in the prediction vector.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "33",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-33",
+          "summary": "A one-hot target identifies the observed next token by marking only its vocabulary slot.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 2",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive views of one stable vocabulary-to-one-hot-target mapping, including a stop slot when used."
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "mode": "NEW",
+      "topic": "language-training",
+      "lessons": [
+        "03",
+        "09"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "34",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-34",
+        "summary": "Training compares the model's next-token distribution with the observed target token.",
+        "lessons": [
+          "03",
+          "09"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "36",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-36",
+          "summary": "Assigning greater probability to observed next tokens reduces their cross-entropy loss.",
+          "kinds": [
+            "comparison",
+            "bar-chart"
+          ],
+          "lessons": [
+            "03",
+            "09"
+          ],
+          "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 5",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same target probability and negative-log loss comparison; keep illustrative distributions and true target aligned."
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "mode": "NEW",
+      "topic": "language-training",
+      "lessons": [
+        "01",
+        "03",
+        "15"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "35",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-35",
+        "summary": "A target sentence supplies a different next-token label at each prefix position during training.",
+        "lessons": [
+          "01",
+          "03"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "36",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-36",
+          "summary": "A next-token training example aligns each prefix with its immediate continuation.",
+          "kinds": [
+            "matrix",
+            "timeline"
+          ],
+          "lessons": [
+            "01",
+            "15"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 8",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-bert",
+          "figure": "20",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-20",
+          "summary": "A causal language model learns by predicting each next token from earlier tokens.",
+          "kinds": [
+            "matrix",
+            "flow"
+          ],
+          "lessons": [
+            "01",
+            "15"
+          ],
+          "sequence": "Illustrated BERT \u00b7 Decoder pretraining and task adaptation \u00b7 step 2",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same causal prefix-to-immediate-continuation training table; pretraining labels stay distinct from downstream labels."
+    },
+    {
+      "queueId": "ml-summarization-supervised-summary-pair",
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "mode": "NEW",
+      "topic": "summarization",
+      "lessons": [
+        "01"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "60",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-60",
+        "summary": "A document and its lead summary can provide a paired example for supervised summarization.",
+        "lessons": [
+          "01"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "A document paired with its independently written lead summary; distinct from a class-label pair."
+    }
+  ]
+}
