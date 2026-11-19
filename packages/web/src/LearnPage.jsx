@@ -96,6 +96,7 @@ import { studyPill } from './study-work.js';
 import LearnPane from './LearnPane.jsx';
 import { LEARN_TOP, learnEnter, learnLeave, learnSection, learnView } from './learn-mode.js';
 import { CONNECTED_EVENT, takeConnected } from './connect-open.js';
+import { documentArrived } from './document-arrived.js';
 import { walkButton, walkSections } from './learn-walk.js';
 import { SWITCH_ROW } from './study-ref.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
@@ -809,12 +810,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     let pdf;
     try { pdf = await readPdf(await file.arrayBuffer()); } catch { toast(`${file.name || 'That file'}: could not be read as a PDF.`); return; }
     if (pdf.numPages > PDF_PAGE_MAX) { toast(`That PDF has ${pdf.numPages.toLocaleString('en-US')} pages. A PDF can have at most ${PDF_PAGE_MAX.toLocaleString('en-US')} pages.`); return; }
-    let stored = null; // uploaded once: Add again after a failed draw reuses it
+    let stored = null, pageTexts = null; // uploaded once: Add again after a failed draw reuses it; pageTexts: what the Tutor reads (document-arrived.js)
     await askPdf({ name: file.name, total: pdf.numPages, place: async (choice, progress) => {
       if (!stored) {
         const body = new FormData();
         body.append('file', file, file.name);
-        try { body.append('pages', JSON.stringify(await readPageTexts(pdf, { onPage: (done, total) => progress(`Reading page ${done} of ${total}`) }))); }
+        try { pageTexts = await readPageTexts(pdf, { onPage: (done, total) => progress(`Reading page ${done} of ${total}`) }); body.append('pages', JSON.stringify(pageTexts)); }
         catch (error) { if (pdf.numPages > 100 || file.size > 5 * 1024 * 1024) throw new Error(`${error.message} Nothing was uploaded; try again.`); }
         progress('Uploading');
         const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
@@ -836,6 +837,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       setWikiContext(null); setWikiOpen(false);
       setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
       }
+      if (pageTexts?.length) { panels.openChat(); documentArrived(app.name, { kind: 'pdf', name: stored.title || file.name, pages: pageTexts, assetKey: `pdf:${stored.id}` }); } // a dropped PDF starts the Tutor (the flow takes it once)
       registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
     } });
   };
@@ -909,6 +911,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       for (const { file, assetKey, block } of made) {
         await cacheAsset(assetKey, file);
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
+        // A dropped Markdown file starts the Tutor like a connected repository (document-arrived.js, roadmap-unplug-spec.md section B; the flow takes it once and only on a canvas with no plan or source).
+        if (block.type === 'file' && block.kind === 'markdown') documentArrived(app.name, { kind: 'markdown', name: file.name, text: await file.text(), blockId: block.id, assetKey });
         if (block.type === 'file' && block.kind === 'markdown') { roadmap.expectInvitation(); droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
       }
       if (made.length) panels.openChat(); // UI.01 (the provider's panels: chatWorkspace.current is null while the Chat panel is unmounted): the drop reveals Chat once; focus, draft and camera stay
