@@ -34,6 +34,8 @@ export function textBoxes(frame) {
 export const traceObjects = (objects = []) => objects.filter(o => ['text', 'circle', 'box', 'arrow', 'line', 'axis', 'plot'].includes(o.kind)).slice(0, 80).map(o => ({
   id: o.id, kind: o.kind, x: o.x, y: o.y, ...(o.w != null ? { w: o.w } : {}), ...(o.h != null ? { h: o.h } : {}), ...(o.from ? { from: o.from, to: o.to } : {}), ...(o.opacity === 0 ? { opacity: 0 } : {}),
   ...(o.kind === 'text' ? { text: (o.text ?? (o.runs || []).map(run => run.text ?? run.tex ?? '').join('')).slice(0, 160), align: o.align } : {}),
+  // brief 36: a text object's runs travel too, so a math run is estimated by what it draws (textBoxes reads runs when there are any) and not by its TeX source flattened into `text`
+  ...(o.kind === 'text' && o.runs ? { runs: o.runs.map(run => (run.kind === 'math' ? { kind: 'math', tex: String(run.tex).slice(0, 160) } : { kind: 'text', text: String(run.text ?? '').slice(0, 160) })) } : {}),
   ...(o.kind === 'axis' ? { length: o.length, orientation: o.orientation, min: o.min, max: o.max, ...(o.ticks ? { ticks: o.ticks } : {}), label: o.label, ...(o.unit ? { unit: o.unit } : {}) } : {}),
   ...(o.kind === 'plot' ? { axes: o.axes, series: (o.series || []).map(series => ({ label: series.label })) } : {}) }));
 // The frame size the text-outside-frame rule needs; the capture seam puts it in the trace beside `objects`: layoutProblems({ objects, ...traceFrame(frame) }).

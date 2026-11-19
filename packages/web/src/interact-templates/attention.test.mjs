@@ -69,6 +69,9 @@ test('the real program in the frozen SDK-8 sandbox gives a frame the host accept
     assert.equal(out.ok, true, out.detail);
     assert.equal(parseFrame(out.value.frame).ok, true, `pick ${step}`); assert.equal(normalizeFrame(out.value.frame).ok, true);
     assert.deepEqual(frameOverlaps(out.value.frame), [], `pick ${step}`); assert.deepEqual(layoutProblems(out.value.frame), []);
+    // the capture trace the build check reads (control-plane interact-checks.js): the same frame as trace objects, with the layout's body size
+    const { traceObjects, traceFrame } = await import('../explain-program/frame-overlap.js');
+    assert.deepEqual(frameOverlaps({ objects: traceObjects(out.value.frame.objects), ...traceFrame(out.value.frame), bodySize: 14 }), [], `trace, pick ${step}`);
     assert.ok(out.value.frame.objects.length < CONTRACT_LIMITS.objects);
   }
 });
