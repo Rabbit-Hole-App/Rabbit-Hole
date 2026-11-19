@@ -32,7 +32,7 @@ The camera walk is dropped because the card was too small to read. The walk beco
      - It sits over the canvas surface and under the composer.
      - It is a second instance of the card: edits save through the canvas's `changeBlock`, and the canvas's copy never moves or resizes.
      - It is shown whole (owner 2026-11-18): drawn at its canvas size and scaled down to fit the pane above the composer, never above 100 % (`LearnCardView.jsx`, `fitScale`). Zoom out, the percentage (back to fit) and zoom in sit at the pane's bottom right; 56 px over the card keep its row of actions in view; the pane scrolls when zoomed in. A text card counts at its full height.
-     - Prev and Next show the next card from its top.
+     - Prev and Next show the next card from its top. It has no Ask a follow-up + under it (owner 2026-11-18): the one composer asks.
    - **Canvas:** the free canvas, with the stop centred at zoom 1 (`walk.centre`), nothing selected (owner 2026-11-18).
    - The contents' Start, Continue or Start again (also from Learn mode's TOC tab) goes to the Cards tab.
    - **TOC and Chat:** the right panel's own tabs. The panel is widened to the split (ResizableSidePanel `fill`) and starts under the rows. Nothing is selected in TOC or Chat (owner 2026-11-18). The TOC and the conversation end above the composer's dock (owner 2026-11-18).

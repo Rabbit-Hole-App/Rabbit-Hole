@@ -1102,6 +1102,8 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-learn-card-view] [data-block]:has(> [data-scroll]) { height: auto !important; max-height: none !important; }
 [data-learn-card-view] [data-block] > [data-scroll] { max-height: none !important; flex: none !important; }
 [data-learn-card-view] [data-block] > :is([data-drag-handle], [data-node-tool]) { display: none; }
+/* No Ask a follow-up + under a card in the Cards tab (owner 2026-11-18): the one composer asks. */
+[data-learn-card-view] :is([data-follow-up-toggle], [data-follow-up]) { display: none !important; }
 /* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
    the height. Play, the scrubber and the inputs keep their 32 px targets; Interact's label sits beside its inputs. The Slash
    Commands window's /explain example (data-slash-card) closes up the same way. */
