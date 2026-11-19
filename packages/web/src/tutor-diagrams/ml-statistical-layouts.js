@@ -1,7 +1,7 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
-import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
+import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, itemCount, sampleMemberships } from './ml-statistical-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
@@ -158,7 +158,7 @@ function sampleSet(d, requested) {
   d.groups.forEach(group => {
     y += 10;
     y = textBlock(elements, group.label, PAD, y, width - PAD * 2, { weight: 700 }) + 4;
-    const count = group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws · ${new Set(group.members).size} unique${group.replacement ? ' · with replacement' : ''}`;
+    const count = group.outOfBagFor ? `${group.members.length} not drawn` : group.replacement ? `${group.members.length} draws · ${new Set(group.members).size} unique · with replacement` : itemCount(group);
     y = textBlock(elements, count, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
     if (group.outOfBagFor) y = textBlock(elements, `Out of bag for ${d.groups.find(source => source.id === group.outOfBagFor).label}`, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
     const memberships = sampleMemberships(group);
