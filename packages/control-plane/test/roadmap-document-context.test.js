@@ -187,8 +187,8 @@ test('CORE.05: an allowance of exactly the quoted bound admits the card; one mic
   const bound = snapshotOf(probe).boundMicros;
   // Phase 02 diagram library (2026-11-08): the whole diagram schema raised this plan-model bound from 304,195 to 685,300 micro-USD. Owner C: the limit stays;
   // the roadmap gets the same schema-bundle logic as the fast chain (learn-artifact.js bundledAuthorSchema) when it is turned back on.
-  // GEN-1 G6: the quote now bounds the WORST dispatch body (room for a full 14,000-character examples block and the plan's kind bundle, quoteRoadmapCard), so the plan-model bound is 1,156,810 micro-USD,
-  // up from 797,395 for the bare body; still far under the four-call envelope this test guards against.
+  // GEN-1 G6: the quote bounds the WORST dispatch body: the bare body plus room for a 4,500-character examples block at 2 bytes and a 26,000-byte plan delta (35,000 bytes; 5 micro-USD a byte on the plan model,
+  // 175,000 micro-USD over the bare body), up from 797,395 for the bare body; still far under the four-call envelope this test guards against.
   assert.ok(bound > 797395 && bound < 1200000, `a worst-case-body bound: ${bound}`);
   for (const [allowance, status] of [[bound - 1, 429], [bound, 202]]) {
     const h = await loop(t, { plans: [claimed(1)], script: [CARD_1], md: MD, allowanceMicros: allowance });

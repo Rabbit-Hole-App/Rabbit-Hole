@@ -16,6 +16,7 @@ import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { depthOf } from '../chat-depth.js';
 import { ROADMAP_FORMATS } from './roadmap-tools.js';
 import { figuresBoundMicros } from '../explanation-figures.js';
+import { EXAMPLES_CAP_CHARS, PLAN_DELTA_BYTES, QUOTE_ROOM_BYTES } from '../explanation-example-cap.js';
 import { validateAccess } from './roadmap-contract.js';
 
 const fail = (failure_class, code, extra = {}) => ({ outcome: 'failed', failure_class, code, ...extra });
@@ -64,17 +65,16 @@ export function authorInput(rec, limits = ROADMAP_LIMITS, env = {}) {
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
   // GEN-1 G6: no `planned` flag any more. Its reason (the quote hashed a body without a plan, so a planned dispatch never matched: owner 2026-11-14) went with the equality check, so
   // generateArtifact runs the planner once for the card as the typed route does (one TypeSafe call, 1.2 s timeout, outside the card's hold and meter) and the roadmap gets the same kind draw.
-  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
+  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, planContext: null, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
     format,
     options: { only: [format], systemSuffix: roadmapCardSuffix({ ...rec, format }), repairs: 0, title: rec.stepTitle, profile: resolveExplanationProfile(cardProfileId(env)) } };
 }
 
 // GEN-1 G6: the dispatch body is not the quoted body: it carries the card's own seed (other numbers in a varied example), the planner's statement and kind bundle, and (R2 and later) a block of
-// up to EXAMPLES_BLOCK_MAX_CHARS of examples. So the quote bounds the worst such body: the quoted one with room for a full examples block and the plan's delta added to its system text.
-// '一' is three UTF-8 bytes, the dearest character the byte-priced bound (learn-spend.js requestSpendBound) can see, so the room holds whatever the examples and the plan write.
-export const EXAMPLES_BLOCK_MAX_CHARS = 14_000; // = MAX_CONTEXT of explanation-references.js (a test pins both)
-export const PLAN_DELTA_MAX_CHARS = 10_000; // the most the plan's statement, shape example and kind bundle add over an unplanned body, in 3-byte characters: measured 24,356 bytes (roadmap-gemini) over the library prompts x 24 kinds, rounded up to 30,000 bytes; a test re-measures
-const worstCaseBody = body => (typeof body.system === 'string' ? { ...body, system: body.system + '一'.repeat(EXAMPLES_BLOCK_MAX_CHARS + PLAN_DELTA_MAX_CHARS) } : body);
+// examples capped at EXAMPLES_CAP_CHARS (explanation-example-cap.js capExamples). So the quote bounds the worst such body: the quoted one with QUOTE_ROOM_BYTES added to its system text =
+// EXAMPLES_CAP_CHARS x 2 bytes + PLAN_DELTA_BYTES (Reviewer 2026-11-18). '一' is three UTF-8 bytes, so the room is rounded up to whole characters of it (the byte-priced bound, learn-spend.js requestSpendBound).
+export { EXAMPLES_CAP_CHARS, PLAN_DELTA_BYTES };
+const worstCaseBody = body => (typeof body.system === 'string' ? { ...body, system: body.system + '一'.repeat(Math.ceil(QUOTE_ROOM_BYTES / 3)) } : body);
 
 // CORE.05: the quote of the actual full first author request of an accepted record. Zero model calls.
 // -> { outcome: 'quoted', boundMicros, requestFingerprint, provider, model } | a failure

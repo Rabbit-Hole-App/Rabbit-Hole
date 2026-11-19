@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
-import { EXAMPLES_BLOCK_MAX_CHARS, PLAN_DELTA_MAX_CHARS, authorInput, authorRoute, generateRoadmapCard, quoteRoadmapCard, requestFingerprint } from '../src/roadmap/roadmap-generate.js';
+import { EXAMPLES_CAP_CHARS, PLAN_DELTA_BYTES, authorInput, authorRoute, generateRoadmapCard, quoteRoadmapCard, requestFingerprint } from '../src/roadmap/roadmap-generate.js';
 import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
+import { BYTES_PER_CHAR, QUOTE_ROOM_BYTES, capExamples } from '../src/explanation-example-cap.js';
 import { planFromAnswers } from '../src/explanation-planner.js';
-import { diagramReferenceContext } from '../src/explanation-references.js';
 import { figuresBoundMicros } from '../src/explanation-figures.js';
 import { requestSpendBound } from '../src/learn-spend.js';
 import { toMicros } from '../src/learn-usage.js';
@@ -79,13 +78,20 @@ test('why the quote bounds the worst case: a seed changes the body (a varied ref
   assert.notEqual(body({ ...built.input, requestSeed: 'seed-a' }), body(built.input), 'a seed changes the body');
 });
 
-test('EXAMPLES_BLOCK_MAX_CHARS is the cap of the examples block (explanation-references.js MAX_CONTEXT, which no export carries: read from the source)', () => {
-  const source = readFileSync(new URL('../src/explanation-references.js', import.meta.url), 'utf8');
-  assert.equal(Number(source.match(/const MAX_CONTEXT = ([0-9_]+);/)[1].replaceAll('_', '')), EXAMPLES_BLOCK_MAX_CHARS);
-  assert.ok(diagramReferenceContext(diagramReferences.slice(0, 60)).length <= EXAMPLES_BLOCK_MAX_CHARS, 'a block never exceeds it');
+test('the limits of the quote (Reviewer 2026-11-18): examples capped at 4,500 characters at 2 bytes, a plan delta of 26,000 bytes; capExamples enforces the cap and a capped library block stays inside its bytes', () => {
+  assert.deepEqual([EXAMPLES_CAP_CHARS, BYTES_PER_CHAR, PLAN_DELTA_BYTES, QUOTE_ROOM_BYTES], [4500, 2, 26000, 35000]);
+  const bytes = s => new TextEncoder().encode(s).length;
+  const block = diagramReferences.slice(0, 60).map(r => JSON.stringify({ id: r.id, spec: r.spec })).join('\n'); // one example per line, as the author sees them
+  assert.ok(block.length > EXAMPLES_CAP_CHARS, 'the uncapped block is longer than the cap (so the cap does something)');
+  const capped = capExamples(block);
+  assert.ok(capped.length <= EXAMPLES_CAP_CHARS && block.startsWith(capped), 'cut to the cap, a prefix of the block');
+  assert.ok(capped.length === EXAMPLES_CAP_CHARS || block[capped.length] === '\n', 'at a line end when the block has one');
+  assert.ok(bytes(JSON.stringify(capped)) <= EXAMPLES_CAP_CHARS * BYTES_PER_CHAR, 'the capped block, JSON-escaped in the body, stays inside 2 bytes a character');
+  assert.equal(capExamples('short'), 'short');
+  assert.equal(capExamples('x'.repeat(5000)).length, EXAMPLES_CAP_CHARS, 'one long line is cut at the cap');
 });
 
-test('the quote bounds every planned, seeded dispatch body: the examples headroom and PLAN_DELTA_MAX_CHARS cover the library prompts x 24 kinds on the roadmap Gemini profile', async () => {
+test('the quote bounds every planned, seeded dispatch body: the examples headroom and PLAN_DELTA_BYTES cover the library prompts x 24 kinds on the roadmap Gemini profile', async () => {
   const geminiEnv = { EXPLANATION_INTERACTIONS: 'true', GEMINI_API_KEY: 'k', FIREWORKS_API_KEY: 'k' };
   const kinds = ['flow', 'comparison', 'tree', 'sequence', 'cycle', 'relationship', 'transformation', 'layers', 'timeline', 'matrix', 'coordinate-plot', 'bar-chart', 'histogram', 'box-plot', 'heatmap', 'number-line', 'sample-set', 't-account', 'waterfall', 'argument', 'figure', 'tensor', 'token-links', 'block-stack'];
   const answers = k => ({ visualType: { choice: 'diagram', confidence: 0.95, probabilities: { diagram: 0.95, picture: 0.03, both: 0.02 } }, kind: { choice: k, confidence: 0.9, probabilities: { [k]: 0.9, flow: 0.1 } }, depthTreatment: { choice: 'mechanism', confidence: 0.8, probabilities: {} }, needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 } });
@@ -102,7 +108,7 @@ test('the quote bounds every planned, seeded dispatch body: the examples headroo
       if (d.result) continue;
       pairs++;
       assert.ok(bodyBound(d.body, authorRoute(geminiEnv, d.model)) <= authorOnlyBound(geminiEnv, quote), `${kind} on "${prompt.slice(0, 30)}": the dispatch body is under the quoted author bound`);
-      assert.ok(bytes(JSON.stringify(d.body)) - bytes(JSON.stringify(q.body)) <= PLAN_DELTA_MAX_CHARS * 3, `${kind}: the plan's growth fits the constant`);
+      assert.ok(bytes(JSON.stringify(d.body)) - bytes(JSON.stringify(q.body)) <= PLAN_DELTA_BYTES, `${kind}: the plan's growth fits the constant`);
     }
   }
   assert.ok(pairs >= 100, `${pairs} pairs checked`);
