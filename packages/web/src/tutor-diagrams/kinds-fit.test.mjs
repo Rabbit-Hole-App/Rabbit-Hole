@@ -262,3 +262,36 @@ for (const kind of FITTED) {
     }
   });
 }
+
+// Batch 3: the top-down tree (decision trees: binary and hierarchy layouts with metadata) is fitted; the library's own decision-tree references are the examples.
+const { diagramReferences } = await import('./reference-library.js');
+const treeRef = pick => diagramReferences.find(ref => ref.spec?.diagram?.kind === 'tree' && pick(ref.spec.diagram))?.spec;
+const TREES = { binary: treeRef(d => d.layout === 'binary' && d.nodes.some(n => n.count !== undefined || n.detail) && d.nodes.every(n => n.label !== undefined)), hierarchy: treeRef(d => d.layout === 'hierarchy') };
+for (const [name, spec] of Object.entries(TREES)) {
+  test(`tree (${name}): the library example in every box at sizes 14, 12 and 16 equals the box when it is at least min, else min; every text is the size asked; nodes and links lie inside the picture`, () => {
+    assert.ok(spec, `a ${name} tree reference exists`);
+    for (const [boxWidth, boxHeight] of BOXES) for (const size of SIZES) {
+      const where = `tree ${name} ${boxWidth}x${boxHeight} at ${size}`;
+      const rendered = renderTutorDiagram(spec, boxWidth, { box: { width: boxWidth, height: boxHeight }, sizes: all(size), parts: { title: false, caption: false } });
+      const { min } = rendered;
+      assert.ok(Math.abs(rendered.width - Math.max(boxWidth, min.width)) < 0.5, `${where}: width ${rendered.width} vs box ${boxWidth} and min ${min.width}`);
+      assert.ok(Math.abs(rendered.height - Math.max(boxHeight, min.height)) < 1, `${where}: height ${rendered.height} vs box ${boxHeight} and min ${min.height}`);
+      const sizes = fontSizes(markup(rendered));
+      assert.ok(Math.min(...sizes) >= size - 0.01 && Math.max(...sizes) <= size + 0.01, `${where}: font sizes ${sizes.join(', ')}`);
+      assert.ok(rendered.geometry && rendered.geometry.nodes.length === spec.diagram.nodes.length && rendered.geometry.links.length === spec.diagram.nodes.length - 1, `${where}: geometry`);
+      insidePicture(rendered.geometry, rendered, where);
+      const sum = axis => min.parts.filter(part => part.axis === axis).reduce((all2, part) => all2 + part.px, 0);
+      assert.ok(Math.abs(sum('height') - min.height) < 0.5 && Math.abs(sum('width') - min.width) < 0.5, `${where}: min.parts sum`);
+    }
+  });
+  test(`tree (${name}): with no options the picture is the one drawn today; a box below min draws min; long words widen the nodes instead of shrinking the text`, () => {
+    for (const width of [320, 408, 720]) assert.equal(markup(renderTutorDiagram(spec, width, {})), markup(renderTutorDiagram(spec, width)));
+    const small = renderTutorDiagram(spec, 20, { box: { width: 20, height: 20 }, sizes: all(14), parts: { title: false, caption: false } });
+    assert.ok(Math.abs(small.width - small.min.width) < 0.5 && Math.abs(small.height - small.min.height) < 1);
+    const long = structuredClone(spec);
+    let count = 0;
+    for (const node of long.diagram.nodes) node.label = `${LONG}${count++}`;
+    const rendered = renderTutorDiagram(long, 632, { box: { width: 632, height: 312 }, sizes: all(14), parts: { title: false, caption: false } });
+    assert.ok(Math.min(...fontSizes(markup(rendered))) >= 13.99, `long words: ${fontSizes(markup(rendered))}`);
+  });
+}

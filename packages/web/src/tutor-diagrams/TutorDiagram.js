@@ -1,6 +1,6 @@
 import { TEACHING, TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
 import { LINES } from './theme/palette.js';
-import { isDotTree } from './ml-topology-spec.js';
+import { extendedTree, isDotTree } from './ml-topology-spec.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
 import { isExtendedPlot } from './ml-plot-spec.js';
@@ -18,9 +18,11 @@ const TITLE_STYLE = { size: 17, weight: 700 }; // the written card draws its tit
 // kinds-fit: the kinds that take a box, sizes and legend/parts switches; every other kind ignores them and is drawn as always (its `min` is its drawn size).
 const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
 // A bar chart is fitted in its plain and grouped forms (vertical bars) and a matrix in its plain layout; a stacked bar chart (a stacked series chart or one stacked bar) and a matrix with layout teaching are drawn as always: min is their drawn size, geometry null.
-const isFitted = diagram => FITTED_KINDS.has(diagram.kind) && !(diagram.kind === 'bar-chart' && diagram.variant === 'stacked') && !(diagram.kind === 'matrix' && diagram.layout === 'teaching');
+const isFitted = diagram => (FITTED_KINDS.has(diagram.kind) || isTopDownTree(diagram)) && !(diagram.kind === 'bar-chart' && diagram.variant === 'stacked') && !(diagram.kind === 'matrix' && diagram.layout === 'teaching');
 // The kinds whose layout reports positions: `geometry` is an object for these (in the picture's coordinates, the title block counted) and null for every other kind.
 const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
+// A decision tree drawn top down (binary or hierarchy layout, with metadata or a path; the dot trees, the plain trees and the outline and dendrogram layouts keep today's drawing) is fitted and reports geometry.
+const isTopDownTree = diagram => diagram.kind === 'tree' && !isDotTree(diagram) && extendedTree(diagram) && (diagram.layout === 'binary' || diagram.layout === 'hierarchy');
 
 // Moves every y of a geometry (a box, a point pair, a plot area) down by the title block.
 function shiftGeometry(node, dy) {
@@ -104,7 +106,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
     return min;
   } });
   Object.defineProperty(result, 'geometry', { enumerable: true, configurable: true, get() {
-    return GEOMETRY_KINDS.has(diagram.kind) && layout.geometry ? shiftGeometry(layout.geometry, titleHeight) : null;
+    return (GEOMETRY_KINDS.has(diagram.kind) || isTopDownTree(diagram)) && layout.geometry ? shiftGeometry(layout.geometry, titleHeight) : null;
   } });
   return result;
 }
