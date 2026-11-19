@@ -4,7 +4,7 @@
 // plan and the author prompt as today: the card is never blocked on the planner. The questions are the bench's (scripts/explain-bench/planner.mjs on explain/quality-bench).
 // Mapping (owner 2026-11-08): no plot override; the kind is FIXED when its top probability is >= 0.6, otherwise the top two kinds are offered and the author chooses.
 import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
-import { VISUAL_COMPLETE } from './learn-primitives.js';
+import { VISUAL_COMPLETE, VISUAL_COMPLETE_BASE } from './learn-primitives.js';
 import galleryDepths from '../../web/src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
@@ -19,7 +19,7 @@ const KIND = {
   timeline: 'Events ordered by dates, years or eras. Also a short numbered derivation or recipe of 3 to 6 stages in a fixed order with no branches, written with times "1" to "N".',
   tree: 'A hierarchy, parts of one thing, splits, recursive calls; binary trees, BSTs, heaps, decision trees as structures.',
   relationship: 'Named things linked by labelled relations, including feedback and cycles between them; causes and effects.',
-  transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing. Never for a function, wave or encoding over position or time.',
+  transformation: 'The same thing before and after an operation: reshape, encode, differencing. Never for a function, wave or encoding over position or time. Numbers turned into other numbers (softmax, normalise, top-k, temperature, scaling to shares) are a bar-chart or panels, never a transformation.',
   comparison: 'Two to four separate things set side by side on shared attributes.',
   layers: 'A real ordered stack: network layers, atmosphere, software tiers, a transformer block. A stack: frames or levels pushed and popped (a call stack, a protocol stack), even when the question mentions recursion.',
   matrix: 'A grid of values with row and column headings: truth table, confusion matrix.',
@@ -106,7 +106,7 @@ export const visualKinds = ({ visuals }) => { const d = visuals.find(v => v.type
 export function visualsStatement(plan, { source, visuals }) {
   if (source === 'rules') return null;
   const parts = visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? 'a picture' : v.kind ? `a ${v.kind} diagram` : v.choose ? `a diagram of one of these kinds, the one that teaches the answer: ${v.choose.join(' or ')}` : 'a diagram'}`);
-  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.secondVisual && source === 'plan' ? ' The question names two things: draw each one on its own, one visual per thing.' : ''}${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''} ${VISUAL_COMPLETE}`;
+  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.secondVisual && source === 'plan' ? ' The question names two things: draw each one on its own, one visual per thing.' : ''}${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''} ${visuals.some(v => v.type !== 'picture') ? VISUAL_COMPLETE : VISUAL_COMPLETE_BASE}`; // the token sentence only when the card has a diagram
 }
 
 // The gallery example for the planned diagram (owner 2026-11-08): the kind-gallery-depths.json spec of its kind at the card's depth (Standard when the depth is
