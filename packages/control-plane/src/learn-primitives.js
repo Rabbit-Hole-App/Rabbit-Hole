@@ -451,101 +451,24 @@ function fenceProblem(error) {
   const issues = issuesText(error);
   return arithmeticOf(error).length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
 }
-// NUM-2 (Reviewer 2026-11-18, after the VAR-1 bench): two more numbers the server recomputes, arithmetic-tagged like the 154 rules (never dropped or simplified: one repair, then the step fails).
-// (1) A prose equation `a op b ... = c` whose whole left side is numbers and operators (+ - x * / and brackets, in $...$ or plain text): the stated result must be the computed one within one full
-// unit of the decimals written (half a unit when the computed value fits those digits exactly) (a result written with %, also as a fraction). A left side with a letter, a power or a function is skipped: no recompute guesses.
-const PROSE_OPS = [[/\\times|\\cdot|×|·|⋅|\*/g, '*'], [/\\div|÷/g, '/'], [/[−–‑]/g, '-'], [/\\left|\\right|\\,|\\;|\\!|~/g, ' ']];
-function arithmeticValue(source) { // a tiny + - * / ( ) evaluator over digits only; null on anything else or a division by zero
-  const t = source.replace(/\s+/g, '').replace(/(\d|\))(?=\()/g, '$1*').replace(/\)(?=\d)/g, ')*');
-  if (!/^[\d.+\-*/()]+$/.test(t)) return null;
-  let i = 0;
-  const num = () => { const m = /^\d+(?:\.\d+)?/.exec(t.slice(i)); if (!m) return null; i += m[0].length; return Number(m[0]); };
-  const factor = () => {
-    if (t[i] === '-') { i++; const v = factor(); return v === null ? null : -v; }
-    if (t[i] === '(') { i++; const v = expr(); if (t[i] !== ')') return null; i++; return v; }
-    return num();
-  };
-  const term = () => { let v = factor(); while (v !== null && (t[i] === '*' || t[i] === '/')) { const op = t[i++], w = factor(); if (w === null || (op === '/' && w === 0)) return null; v = op === '*' ? v * w : v / w; } return v; };
-  const expr = () => { let v = term(); while (v !== null && (t[i] === '+' || t[i] === '-')) { const op = t[i++], w = term(); if (w === null) return null; v = op === '+' ? v + w : v - w; } return v; };
-  const v = expr();
-  return v !== null && i === t.length && Number.isFinite(v) ? v : null;
-}
-export function proseArithmetic(text) {
-  const flags = [], seen = new Set(), segments = [];
-  const plain = String(text ?? '').replace(/\$([^$]+)\$/g, (_, math) => { segments.push(math); return ' § '; });
-  segments.push(plain);
-  for (const raw of segments) {
-    let s = raw;
-    for (const [re, to] of PROSE_OPS) s = s.replace(re, to);
-    s = s.replace(/\\text\{[^}]*\}/g, ' § ').replace(/(?<=[\d)])\s*x\s*(?=[\d(-])/g, '*'); // a \text{name} is not a number; "3 x 4" is a product
-    for (const m of s.matchAll(/=/g)) {
-      const eq = m.index;
-      let lo = eq;
-      while (lo > 0 && /[\d.+\-*/() ]/.test(s[lo - 1])) lo--;
-      const run = s.slice(lo, eq), left = run.trim(), start = lo + run.length - run.trimStart().length, prev = s[start - 1], before = s.slice(0, start).trimEnd().slice(-1);
-      const glued = prev !== undefined && !/\s/.test(prev) && (/[A-Za-z0-9_}\\^.]/.test(prev) || (prev === ',' && /\d/.test(s[start - 2] ?? ''))); // a name, a power or a thousands comma touches the number
-      if (!left || glued || !/^[\d(.]|^-(?=[\d(])/.test(left) || !/[\d)]$/.test(left)) continue;
-      if (/^-/.test(left) && /[A-Za-z0-9_}\\^)]/.test(before)) continue; // "n - 2 * 3": the minus is a subtraction from a name, not a sign
-      if (!/[+*/]|[\d)]\s*-\s*[\d(]/.test(left)) continue; // an operator between two numbers
-      const rhs = /^\s*(-?\d+(?:\.\d+)?)(\s*\\?%)?(?!\d)/.exec(s.slice(eq + 1));
-      if (!rhs) continue;
-      const after = s.slice(eq + 1 + rhs[0].length).trimStart();
-      if (/^[+*/^(]|^-\s*\d|^x\s*[\d(]|^,\d{3}/.test(after)) continue; // the right side is itself an expression, or a number with thousands commas
-      const value = arithmeticValue(left);
-      if (value === null) continue;
-      const stated = Number(rhs[1]), decimals = (rhs[1].split('.')[1] || '').length, scaled = value * 10 ** decimals;
-      // One full unit when the computed value has more digits than the result is written with (a truncated 1/3 = 0.33 or 7/9 = 0.77 passes; 0.34 for 0.15 does not);
-      // a value that fits the written digits exactly (2 + 2) keeps half a unit, so 2 + 2 = 5 is still wrong.
-      const tol = (Math.abs(scaled - Math.round(scaled)) < 1e-9 ? 0.5 : 1) * 10 ** -decimals * (1 + 1e-9);
-      const ok = Math.abs(value - stated) <= tol || (rhs[2] && Math.abs(value * 100 - stated) <= tol);
-      const written = `${left} = ${rhs[1]}${rhs[2] ? '%' : ''}`;
-      if (!ok && !seen.has(written)) { seen.add(written); flags.push({ text: written, computed: value, stated, decimals }); }
-    }
-  }
-  return flags;
-}
-// (2) A bar-chart whose own title, caption or unit calls its values a distribution, probabilities, softmax or normalised: values between 0 and 1 sum to 1, within half a unit of the decimals
-// written per value. Plain bars, or each series of a grouped chart; a stacked chart is not a distribution across its bars. "proportion", "share" and "attention weights" are left out: measured on the saved cards they
-// name one number per bar (a rate or a per-head weight), not a distribution across the bars.
-const DISTRIBUTION_WORDS = /\b(?:probabilit(?:y|ies)|distribution|softmax|normali[sz]ed)\b/i;
-export function distributionBarIssues(diagram) {
-  if (diagram?.kind !== 'bar-chart' || diagram.variant === 'stacked') return [];
-  const word = DISTRIBUTION_WORDS.exec(`${diagram.title ?? ''} ${diagram.caption ?? ''} ${diagram.unit ?? ''}`)?.[0];
-  if (!word) return [];
-  const groups = diagram.bars ? [{ label: null, values: diagram.bars.map(b => b.value) }] : (diagram.series || []).map(s => ({ label: s.label, values: s.values }));
-  const out = [];
-  for (const { label, values } of groups) {
-    if (values.length < 2 || !values.every(v => typeof v === 'number' && v >= 0 && v <= 1)) continue;
-    const sum = values.reduce((a, b) => a + b, 0), d = Math.max(...values.map(v => (String(v).split('.')[1] || '').length));
-    if (Math.abs(sum - 1) > values.length * 0.5 * 10 ** -d * (1 + 1e-9)) out.push({ word, label, values, sum: Number(sum.toFixed(6)) });
-  }
-  return out;
-}
-const proseOfMarkdown = md => split(md).prose.filter(line => typeof line === 'string').join('\n');
 // -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
 // such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
 // "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
 export function numbersIssue(block) {
-  const hits = [], extra = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }
+  const hits = [];
   let n = 0;
-  const texts = [block?.body, ...(block?.more || []).map(s => s?.text)];
-  for (const md of texts) for (const f of split(md).fences) {
+  for (const md of [block?.body, ...(block?.more || []).map(s => s?.text)]) for (const f of split(md).fences) {
     if (f.lang !== DIAGRAM || !f.closed) continue;
     n++;
-    try {
-      const { diagram } = parseTutorDiagram(f.lines.join('\n'));
-      for (const bad of distributionBarIssues(diagram)) extra.push({ kind: 'bar-chart', message: `the bar-chart "${String(diagram.title).slice(0, 60)}" is called a ${bad.word} but its ${bad.label ? `"${bad.label}" ` : ''}values (${bad.values.join(', ')}) sum to ${bad.sum}: values that form a distribution sum to 1, so change the values to sum to 1 and every sentence that states them` });
-    } catch (error) {
+    try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
       const [first] = arithmeticOf(error);
       if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
     }
   }
-  for (const md of texts) for (const bad of proseArithmetic(proseOfMarkdown(md))) extra.push({ kind: null, message: `the text states "${bad.text}" but the left side computes to ${Number(bad.computed.toFixed(Math.min(8, bad.decimals + 2)))}: state the computed result, or fix the numbers it uses, everywhere the card states them` });
-  if (!hits.length && !extra.length) return null;
-  const fence = !hits.length ? '' : hits.length === 1 ? fenceProblem(hits[0].error)
+  if (!hits.length) return null;
+  const problem = hits.length === 1 ? fenceProblem(hits[0].error)
     : `explanation_bad_numbers: the rh-diagram specs state wrong numbers. ${hits.map(h => `Diagram ${h.n}: ${issuesText(h.error).slice(0, 280)}`).join(' | ')}`;
-  const more = extra.length ? `explanation_bad_numbers: the card states wrong numbers (${extra.slice(0, 3).map(e => e.message).join('; ').slice(0, 480)})` : '';
-  return { problem: [fence, more].filter(Boolean).join(' '), issue: hits[0]?.issue ?? extra[0].message, kind: hits[0]?.kind ?? extra[0].kind, kinds: [...hits.map(h => h.kind), ...extra.map(e => e.kind).filter(Boolean)] };
+  return { problem, issue: hits[0].issue, kind: hits[0].kind, kinds: hits.map(h => h.kind) };
 }
 
 // -> { ok: true, spec: { version, id, prompt, alt, caption } } | { ok: false, problem }. The renderer and the server read the same parse.

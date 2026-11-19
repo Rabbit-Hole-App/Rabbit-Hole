@@ -191,6 +191,6 @@ function matrix(d, requestedWidth) {
 export function createLayouts({ legacy }) {
   return {
     timeline: (diagram, width) => diagram.layout === 'scaled-lanes' ? timeline(diagram, width) : legacy.timeline(diagram, width),
-    matrix: (diagram, width, options) => diagram.layout === 'teaching' ? matrix(diagram, width) : legacy.matrix(diagram, width, options),
+    matrix: (diagram, width) => diagram.layout === 'teaching' ? matrix(diagram, width) : legacy.matrix(diagram, width),
   };
 }

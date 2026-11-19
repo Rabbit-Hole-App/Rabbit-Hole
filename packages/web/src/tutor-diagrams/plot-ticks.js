@@ -18,8 +18,8 @@ function sample({ min, max }, fraction) {
   return Number.isFinite(span) ? min + fraction * span : (1 - fraction) * min + fraction * max;
 }
 
-function fits(ticks, horizontal, gap = GAP, size = SIZE) {
-  const sizes = ticks.map(({ lines }) => horizontal ? Math.max(...lines.map(line => textWidth(line, size))) : lines.length * lineHeight(size));
+function fits(ticks, horizontal, gap = GAP) {
+  const sizes = ticks.map(({ lines }) => horizontal ? Math.max(...lines.map(line => textWidth(line, SIZE))) : lines.length * lineHeight(SIZE));
   return ticks.every(({ at }, i) => {
     if (i === 0) return true;
     const before = sizes[i - 1] / (horizontal && i === 1 ? 1 : 2);
@@ -28,14 +28,13 @@ function fits(ticks, horizontal, gap = GAP, size = SIZE) {
   });
 }
 
-export function plotTicks(axis, position, { horizontal = false, labelWidth = Infinity, size = SIZE } = {}) {
-  const fitsAt = (ticks, isHorizontal, gap) => fits(ticks, isHorizontal, gap, size);
+export function plotTicks(axis, position, { horizontal = false, labelWidth = Infinity } = {}) {
   const { min, max } = axis;
   const tick = value => ({ at: position(value), text: String(value) });
   const start = tick(min), end = tick(max);
   const span = Math.abs(end.at - start.at);
   const format = (entries, width = labelWidth) => entries.map(({ at, text }, i) => ({
-    at, lines: wrap(text, width, size),
+    at, lines: wrap(text, width, SIZE),
     anchor: !horizontal || i === entries.length - 1 ? 'end' : i === 0 ? 'start' : 'middle',
   }));
   const withEndpoints = values => {
@@ -58,7 +57,7 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
     if (withEndpoints(pool).length >= 3) {
       for (let step = 1; step <= pool.length; step *= 2) {
         const labels = format(withEndpoints(pool.filter((_, i) => i % step === 0)));
-        if (fitsAt(labels, horizontal, horizontal ? 0 : GAP)) return labels;
+        if (fits(labels, horizontal, horizontal ? 0 : GAP)) return labels;
       }
       return format([start, end]);
     }
@@ -68,7 +67,7 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
     for (let step = Math.max(1, Math.ceil(range / 7)); step < range; step *= 2) {
       const values = Array.from({ length: Math.ceil(range / step) - 1 }, (_, i) => min + (i + 1) * step);
       const labels = format(withEndpoints(values));
-      if (fitsAt(labels, horizontal)) return labels;
+      if (fits(labels, horizontal)) return labels;
     }
     return format([start, end]);
   }
@@ -84,7 +83,7 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
   for (const entries of [...regular, ...sampled]) {
     if (entries.length < 3 || entries.length > 5) continue;
     const ticks = format(entries);
-    if (!fitsAt(ticks, horizontal)) continue;
+    if (!fits(ticks, horizontal)) continue;
     if (ticks.every(({ lines }) => lines.length === 1)) return ticks;
     wrapped ??= ticks;
   }

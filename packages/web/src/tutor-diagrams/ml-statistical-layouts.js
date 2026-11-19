@@ -1,5 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
 import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
 
@@ -8,7 +8,7 @@ const SMALL = 12;
 const NOTE = 13, TICK = 15; // readouts and counts 13 px muted; tick labels 15 px / 500 muted (the coordinate plot's sizes)
 const scale = (min, max, start, end) => value => start + (value - min) / (max - min) * (end - start);
 const axisName = (label, unit) => unit ? `${label} (${unit})` : label;
-const formulaWidth = (values, size) => Math.max(0, ...values.filter(Boolean).map(value => widestFormula(value, size)));
+const formulaWidth = values => Math.max(0, ...values.filter(Boolean).map(value => widestFormula(value)));
 
 function textBlock(elements, text, x, top, width, options = {}) {
   const size = options.size ?? 14;
@@ -25,94 +25,67 @@ function heatColor(value, range) {
   return { fill: TEACHING.blueFill, opacity: (value - min) / (max - min) };
 }
 
-// kinds-fit: a heatmap takes a box (the rows share the height that is left), sizes (heading: the column title, 14 today; body: headings and cells, 15; small: the range note and the scale ticks, 12)
-// and parts.scale (false leaves out the range line and the colour scale; every other value keeps them, as today). It reports its cells; min is its natural size (rows at their text height).
-function heatmap(d, requested, options) {
-  const { box, sizes, parts, contentHeight, floor } = options ?? {};
-  const body = sizes?.body ?? 15, small = sizes?.small ?? SMALL, showScale = parts?.scale !== false, formulaSize = sizes?.body ?? 14; // a formula is measured at 14 px today (widestFormula's default)
-  // A fitted call (a box or sizes): no text is drawn smaller than asked, so a column is at least as wide as its longest word at that size; with no options the picture stays as it is today.
-  const fitted = Boolean(box || sizes), word = (values, at) => (fitted ? Math.ceil(Math.max(0, ...values.filter(Boolean).map(value => longestWordWidth(String(value), at)))) : 0);
-  const build = rowExtra => {
-    const rowWidth = Math.max(100, formulaWidth([d.rowLabel, ...d.rows.map(row => row.label)], formulaSize) + 16, word([d.rowLabel, ...d.rows.map(row => row.label)], body) + 16);
-    const minimumCell = Math.max(80, formulaWidth(d.columns, formulaSize) + 14, word(d.columns, body) + 14, word(d.rows.flatMap(row => row.cells.map(value => (value === null ? 'Masked' : value))), body) + 12);
-    const columnsWidth = Math.max(d.columns.length * minimumCell, formulaWidth([d.columnLabel], formulaSize), word([d.columnLabel], sizes?.heading ?? 14));
-    const width = Math.max(requested, PAD * 2 + rowWidth + columnsWidth);
-    const cellWidth = (width - PAD * 2 - rowWidth) / d.columns.length;
-    const left = PAD + rowWidth;
-    const elements = [];
-    const geometry = { cells: [], rowHeadings: [], columnHeadings: [], range: { min: d.range.min, max: d.range.max } };
-    let top = PAD;
-    if (d.columnLabel) top = textBlock(elements, d.columnLabel, left, top, width - left - PAD, { weight: 700, ...(sizes?.heading ? { size: sizes.heading } : {}) }) + 8; // today the title is wrapped at 14 and drawn at the label default 15: kept when no size is asked
-    const titleBlock = top - PAD;
-    const heads = d.columns.map(text => wrap(text, cellWidth - 14, body));
-    const rowHeading = d.rowLabel ? wrap(d.rowLabel, rowWidth - 16, body) : [];
-    const headHeight = Math.max(34, ...[...heads, rowHeading].map(lines => lines.length * lineHeight(body) + 12));
-    if (d.rowLabel) elements.push(label(rowHeading, PAD + 6, top + headHeight / 2, { anchor: 'start', weight: 700, size: body }));
-    d.columns.forEach((_, column) => {
-      elements.push(teachingBox(left + column * cellWidth, top, cellWidth, headHeight, { role: 'process' }));
-      elements.push(label(heads[column], left + (column + 0.5) * cellWidth, top + headHeight / 2, { weight: 700, size: body }));
-      geometry.columnHeadings.push({ col: column, x: left + column * cellWidth, y: top, width: cellWidth, height: headHeight });
+function heatmap(d, requested) {
+  const rowWidth = Math.max(100, formulaWidth([d.rowLabel, ...d.rows.map(row => row.label)]) + 16);
+  const minimumCell = Math.max(80, formulaWidth(d.columns) + 14);
+  const width = Math.max(requested, PAD * 2 + rowWidth + Math.max(d.columns.length * minimumCell, formulaWidth([d.columnLabel])));
+  const cellWidth = (width - PAD * 2 - rowWidth) / d.columns.length;
+  const left = PAD + rowWidth;
+  const elements = [];
+  let top = PAD;
+  if (d.columnLabel) top = textBlock(elements, d.columnLabel, left, top, width - left - PAD, { weight: 700 }) + 8;
+  const heads = d.columns.map(text => wrap(text, cellWidth - 14));
+  const rowHeading = d.rowLabel ? wrap(d.rowLabel, rowWidth - 16) : [];
+  const headHeight = Math.max(34, ...[...heads, rowHeading].map(lines => lines.length * lineHeight() + 12));
+  if (d.rowLabel) elements.push(label(rowHeading, PAD + 6, top + headHeight / 2, { anchor: 'start', weight: 700 }));
+  d.columns.forEach((_, column) => {
+    elements.push(teachingBox(left + column * cellWidth, top, cellWidth, headHeight, { role: 'process' }));
+    elements.push(label(heads[column], left + (column + 0.5) * cellWidth, top + headHeight / 2, { weight: 700 }));
+  });
+  top += headHeight + 4;
+  const highlighted = new Set((d.highlights ?? []).map(cell => `${cell.row}:${cell.column}`));
+  d.rows.forEach((row, rowIndex) => {
+    const rowLines = wrap(row.label, rowWidth - 16);
+    const cellLines = row.cells.map(value => wrap(value === null ? 'Masked' : String(value), cellWidth - 12));
+    const height = Math.max(44, rowLines.length * lineHeight() + 12, ...cellLines.map(lines => lines.length * lineHeight() + 12));
+    elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700 }));
+    row.cells.forEach((value, column) => {
+      const x = left + column * cellWidth;
+      const { fill, opacity } = value === null ? { fill: 'none', opacity: 1 } : heatColor(value, d.range);
+      const active = highlighted.has(`${rowIndex}:${column}`);
+      elements.push(h('rect', { x, y: top, width: cellWidth, height, fill: TEACHING.surface }));
+      elements.push(h('rect', {
+        x, y: top, width: cellWidth, height, fill, fillOpacity: opacity,
+        stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 1.5,
+        strokeDasharray: value === null ? '4 3' : undefined,
+        'data-tutor-heatmap-cell': `${rowIndex}:${column}`, 'data-tutor-masked': value === null ? 'true' : undefined,
+      }));
+      const ink = TEACHING.outline;
+      elements.push(cloneElement(label(cellLines[column], x + cellWidth / 2, top + height / 2, { weight: active ? 700 : 400 }), { fill: ink }));
     });
-    top += headHeight + 4;
-    const highlighted = new Set((d.highlights ?? []).map(cell => `${cell.row}:${cell.column}`));
-    let rowsHeight = 0;
-    d.rows.forEach((row, rowIndex) => {
-      const rowLines = wrap(row.label, rowWidth - 16, body);
-      const cellLines = row.cells.map(value => wrap(value === null ? 'Masked' : String(value), cellWidth - 12, body));
-      const height = Math.max(44, rowLines.length * lineHeight(body) + 12, ...cellLines.map(lines => lines.length * lineHeight(body) + 12)) + rowExtra(rowIndex);
-      elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700, size: body }));
-      geometry.rowHeadings.push({ row: rowIndex, x: PAD, y: top, width: rowWidth, height });
-      row.cells.forEach((value, column) => {
-        const x = left + column * cellWidth;
-        const { fill, opacity } = value === null ? { fill: 'none', opacity: 1 } : heatColor(value, d.range);
-        const active = highlighted.has(`${rowIndex}:${column}`);
-        elements.push(h('rect', { x, y: top, width: cellWidth, height, fill: TEACHING.surface }));
-        elements.push(h('rect', {
-          x, y: top, width: cellWidth, height, fill, fillOpacity: opacity,
-          stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 1.5,
-          strokeDasharray: value === null ? '4 3' : undefined,
-          'data-tutor-heatmap-cell': `${rowIndex}:${column}`, 'data-tutor-masked': value === null ? 'true' : undefined,
-        }));
-        const ink = TEACHING.outline;
-        elements.push(cloneElement(label(cellLines[column], x + cellWidth / 2, top + height / 2, { weight: active ? 700 : 400, size: body }), { fill: ink }));
-        geometry.cells.push({ row: rowIndex, col: column, x, y: top, width: cellWidth, height, value });
-      });
-      top += height;
-      rowsHeight += height;
-    });
-    const parts = [{ part: 'top margin', px: PAD }, ...(titleBlock ? [{ part: 'column title', px: titleBlock }] : []), { part: 'column headings', px: headHeight + 4 }, { part: 'rows', px: rowsHeight }];
-    const widthCore = [{ part: 'margins', px: 2 * PAD }, { part: 'row label column', px: rowWidth }, { part: 'columns (the widest heading, at least 80 each)', px: columnsWidth }];
-    const widthSpare = width - widthCore.reduce((all, item) => all + item.px, 0);
-    const widthParts = [...widthCore, ...(widthSpare > 1e-9 ? [{ part: 'spare width', px: widthSpare }] : [])];
-    if (!showScale) return { width, height: top + PAD, parts: [...parts, { part: 'bottom margin', px: PAD }], widthParts, elements, geometry };
-    const rowsEnd = top;
-    top += 16;
-    top = textBlock(elements, `Range: ${d.range.min} to ${d.range.max}`, PAD, top, width - PAD * 2, { size: small }) + 8;
-    const legendWidth = Math.min(240, width - PAD * 2), segments = 32;
-    for (let i = 0; i < segments; i++) {
-      const value = d.range.min + (d.range.max - d.range.min) * i / (segments - 1);
-      const color = heatColor(value, d.range);
-      elements.push(h('rect', { x: PAD + i * legendWidth / segments, y: top, width: legendWidth / segments, height: 10, fill: TEACHING.surface }));
-      elements.push(h('rect', { x: PAD + i * legendWidth / segments, y: top, width: legendWidth / segments, height: 10, fill: color.fill, fillOpacity: color.opacity }));
-    }
-    top += 16;
-    const tickLines = [d.range.min, d.range.max].map(value => wrap(String(value), legendWidth / 2 - 12, small));
-    const tickHeight = Math.max(...tickLines.map(lines => lines.length)) * lineHeight(small);
-    elements.push(label(tickLines[0], PAD, top + tickHeight / 2, { size: small, anchor: 'start' }));
-    elements.push(label(tickLines[1], PAD + legendWidth, top + tickHeight / 2, { size: small, anchor: 'end' }));
-    if (d.range.min < 0 && d.range.max > 0) {
-      const zero = scale(d.range.min, d.range.max, PAD, PAD + legendWidth)(0);
-      const startLabel = Math.max(...tickLines[0].map(line => textWidth(line, small)));
-      const endLabel = Math.max(...tickLines[1].map(line => textWidth(line, small)));
-      if (zero - PAD > startLabel + 16 && PAD + legendWidth - zero > endLabel + 16) elements.push(label('0', zero, top + tickHeight / 2, { size: small }));
-    }
-    const height = top + tickHeight + PAD;
-    return { width, height, parts: [...parts, { part: 'range line and colour scale', px: top + tickHeight - rowsEnd }, { part: 'bottom margin', px: PAD }], widthParts, elements, geometry };
-  };
-  const first = build(() => 0);
-  if (!box || floor || contentHeight === undefined) return first;
-  const extra = Math.floor(contentHeight - first.height), n = d.rows.length;
-  return extra > 0 ? build(i => Math.floor(extra / n) + (i < extra % n ? 1 : 0)) : first;
+    top += height;
+  });
+  top += 16;
+  top = textBlock(elements, `Range: ${d.range.min} to ${d.range.max}`, PAD, top, width - PAD * 2, { size: SMALL }) + 8;
+  const legendWidth = Math.min(240, width - PAD * 2), segments = 32;
+  for (let i = 0; i < segments; i++) {
+    const value = d.range.min + (d.range.max - d.range.min) * i / (segments - 1);
+    const color = heatColor(value, d.range);
+    elements.push(h('rect', { x: PAD + i * legendWidth / segments, y: top, width: legendWidth / segments, height: 10, fill: TEACHING.surface }));
+    elements.push(h('rect', { x: PAD + i * legendWidth / segments, y: top, width: legendWidth / segments, height: 10, fill: color.fill, fillOpacity: color.opacity }));
+  }
+  top += 16;
+  const tickLines = [d.range.min, d.range.max].map(value => wrap(String(value), legendWidth / 2 - 12, SMALL));
+  const tickHeight = Math.max(...tickLines.map(lines => lines.length)) * lineHeight(SMALL);
+  elements.push(label(tickLines[0], PAD, top + tickHeight / 2, { size: SMALL, anchor: 'start' }));
+  elements.push(label(tickLines[1], PAD + legendWidth, top + tickHeight / 2, { size: SMALL, anchor: 'end' }));
+  if (d.range.min < 0 && d.range.max > 0) {
+    const zero = scale(d.range.min, d.range.max, PAD, PAD + legendWidth)(0);
+    const startLabel = Math.max(...tickLines[0].map(line => textWidth(line, SMALL)));
+    const endLabel = Math.max(...tickLines[1].map(line => textWidth(line, SMALL)));
+    if (zero - PAD > startLabel + 16 && PAD + legendWidth - zero > endLabel + 16) elements.push(label('0', zero, top + tickHeight / 2, { size: SMALL }));
+  }
+  return { width, height: top + tickHeight + PAD, elements };
 }
 
 function sampleSet(d, requested) {

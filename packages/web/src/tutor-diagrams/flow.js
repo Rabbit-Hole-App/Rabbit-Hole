@@ -11,16 +11,17 @@ const SPLIT_GAP = 24; // between the nodes of a tier wrapped onto two rows (a wi
 const SPLIT_VGAP = 22; // between its two rows
 const NODE_MIN_ROW = 120; // the node minimum of a row of four or more nodes that would pass the width budget
 const NODE_MAX = 220;
-const T = { body: 15, word: 14, edge: 13, wrap: 158, edgeWord: 0, strict: false }; // text sizes: today's constants unless a fitted call gives sizes (kinds-fit); read by every measure and draw below
+const EDGE_TEXT = 13;
+const EDGE_WRAP = 158;
 const PARALLEL_WIDTH = 960;
 const TENSOR_PAD = 10;
 const DECISION_BAND = 2 / 3;
 
 // The narrowest wrap width at which a label takes two lines (from its longest word up).
-const twoLineWidth = (text, from) => { let width = Math.ceil(from); while (wrap(text, width, T.body).length > 2 && width < 600) width += 2; return width; };
+const twoLineWidth = (text, from) => { let width = Math.ceil(from); while (wrap(text, width).length > 2 && width < 600) width += 2; return width; };
 
 // A decision on two lines is wide enough that its diamond is no taller than about on three (the widest line plus 40 px stays within 74% of the width).
-const twoLineMinimum = (text, word) => Math.ceil((Math.max(...wrap(text, twoLineWidth(text, word), T.body).map(line => textWidth(line, T.body))) + 40) / 0.74);
+const twoLineMinimum = (text, word) => Math.ceil((Math.max(...wrap(text, twoLineWidth(text, word)).map(line => textWidth(line))) + 40) / 0.74);
 
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
 
@@ -61,7 +62,7 @@ function port(node, edges, edge, bottom, move = 0) {
 
 // RD-4c: the corner radius of an outcome capsule: half the shorter side (a pill) when every line of its text lies inside the rounded ends, else the largest smaller radius that keeps them inside.
 function capsuleRadius({ width, height, lines }) {
-  const size = lines.fontSize ?? T.body, step = lineHeight(size), pill = Math.min(width, height) / 2;
+  const size = lines.fontSize ?? 15, step = lineHeight(size), pill = Math.min(width, height) / 2;
   const fits = radius => lines.every((line, index) => {
     const dx = textWidth(line, size) / 2 - (width / 2 - radius);
     const dy = Math.abs(index - (lines.length - 1) / 2) * step + size / 2 - (height / 2 - radius);
@@ -72,13 +73,13 @@ function capsuleRadius({ width, height, lines }) {
 }
 
 // The width of a decision that holds its whole label on one line: the diamond keeps about 68% of its width at the label's height.
-const oneLineDecision = text => Math.ceil((textWidth(text, T.body) + 40) / 0.72);
+const oneLineDecision = text => Math.ceil((textWidth(text) + 40) / 0.72);
 
 function measureDecision(lines, width) {
   // The width available at y falls linearly away from the center of a diamond.
   const bands = lines.map((line, index) => ({
-    y: (index - (lines.length - 1) / 2) * lineHeight(T.body),
-    ratio: 1 - (textWidth(line, T.body) + 40) / width,
+    y: (index - (lines.length - 1) / 2) * lineHeight(),
+    ratio: 1 - (textWidth(line) + 40) / width,
   }));
   const heightAt = offset => Math.ceil(Math.max(74, ...bands.map(({ y, ratio }) => 2 * (Math.abs(y + offset) + 10) / ratio)));
   const centered = heightAt(0);
@@ -90,15 +91,15 @@ function measureDecision(lines, width) {
 function measureTensorNode(node, width) {
   const decision = node.role === 'decision';
   const contentWidth = width * (decision ? DECISION_BAND : 1) - 2 * TENSOR_PAD;
-  const lines = wrap(node.label ?? '', contentWidth, T.body);
-  const labelHeight = lines.length * lineHeight(T.body);
+  const lines = wrap(node.label ?? '', contentWidth);
+  const labelHeight = lines.length * lineHeight();
   const strip = layoutTensorStrip(node.tensor, decision ? 0 : contentWidth);
   const stripOffset = labelHeight ? labelHeight + 6 : 0;
   const contentHeight = stripOffset + strip.height;
   let height = contentHeight + 2 * TENSOR_PAD;
   if (decision) {
     // Keep the entire content band inside the diamond's sloped sides.
-    const bandWidth = Math.max(strip.width, ...lines.map(line => textWidth(line, T.body))) + 2 * TENSOR_PAD;
+    const bandWidth = Math.max(strip.width, ...lines.map(line => textWidth(line))) + 2 * TENSOR_PAD;
     height = Math.ceil(height / (1 - bandWidth / width));
   }
   return { height, lines, strip, stripOffset, labelHeight, contentHeight };
@@ -149,8 +150,8 @@ function labelBounds(route, others, width, placed = []) {
   const { words, side, dir, lift = 0, labelLane, points: [[from, fromY], turn, end] } = route;
   const [to, runY] = side ? [turn[0], fromY] : end;
   const y = labelLane ? labelLane.y : runY;
-  const w = Math.ceil(Math.max(...words.map(word => textWidth(word, T.edge))) + 12);
-  const h = words.length * lineHeight(T.edge) + 4;
+  const w = Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
+  const h = words.length * lineHeight(EDGE_TEXT) + 4;
   const center = labelLane ? to : (from + to) / 2; // RD-4a: on the wire's last vertical leg, in the lane the node's branches share
   const straight = !side && !labelLane && Math.abs(from - to) < 35;
   // RD-2b: beside a short drop the label stands outside the vertex; on a run it is centred on it.
@@ -171,7 +172,7 @@ function labelBounds(route, others, width, placed = []) {
 // the canvas edge) gets null: it goes to the key under the graph, the last resort.
 function besideDrops(routes, others, placed, width) {
   const inside = box => box.x >= 4 && box.x + box.width <= width - 4;
-  const sizes = routes.map(route => ({ w: Math.ceil(Math.max(...route.words.map(word => textWidth(word, T.edge))) + 12), h: route.words.length * lineHeight(T.edge) + 4 }));
+  const sizes = routes.map(route => ({ w: Math.ceil(Math.max(...route.words.map(word => textWidth(word, EDGE_TEXT))) + 12), h: route.words.length * lineHeight(EDGE_TEXT) + 4 }));
   const legs = routes.map(route => route.points.slice(-2));
   const room = Math.min(...legs.map(([[, y1], [, y2]], i) => Math.max(0, (Math.abs(y2 - y1) - sizes[i].h) / 2)));
   // One height for every label of the node (rule a): the middle of the shortest drop, the most constrained one.
@@ -205,16 +206,16 @@ function besideDrops(routes, others, placed, width) {
 }
 
 // RD-4a: a node whose shared label lane finds no room (a label would touch a wire that passes through the lane) is laid out again with its branches on their own lanes, as before.
-export function layoutFlow(diagram, requestedWidth, paintNode, gapExtra = () => 0) {
+export function layoutFlow(diagram, requestedWidth, paintNode) {
   const unshared = new Set();
   for (;;) {
-    const { failed, ...layout } = layoutPass(diagram, requestedWidth, paintNode, unshared, gapExtra);
+    const { failed, ...layout } = layoutPass(diagram, requestedWidth, paintNode, unshared);
     if (!failed.length) return layout;
     for (const id of failed) unshared.add(id);
   }
 }
 
-function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, unshared, gapExtra) {
+function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, unshared) {
   const paths = flowPaths(highlightPath);
   const onPath = new Set(paths.flat());
   const pathEdge = ({ from, to }) => paths.some(path => path.some((id, index) => id === from && path[index + 1] === to));
@@ -238,13 +239,13 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     const build = base => row.map(node => {
       const floor = Math.min(base, wordLimit);
       const text = node.label ?? '';
-      const word = longestWordWidth(text, T.word);
+      const word = longestWordWidth(text);
       const decision = node.role === 'decision';
       const pad = decision ? 32 : 48;
       const required = Math.ceil(word + pad);
       // A long word wraps by characters. Unbreakable formulas and tensors can widen their node.
-      let min = Math.max(floor, required <= wordLimit || T.strict ? required : Math.ceil(widestFormula(text) + pad));
-      if (base < NODE_MIN && !decision && !node.tensor) while (wrap(text, min - pad, T.body).length > 3 && min < NODE_MAX) min += 2;
+      let min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
+      if (base < NODE_MIN && !decision && !node.tensor) while (wrap(text, min - pad).length > 3 && min < NODE_MAX) min += 2;
       // A decision is wide enough for its label on one line (the diamond narrows away from its middle), when that stays within 360 px.
       const oneLine = decision && !node.tensor ? oneLineDecision(text) : 0;
       if (!node.tensor) return { word, min: oneLine && oneLine <= 360 ? Math.max(min, oneLine) : min, plain: min, text };
@@ -280,8 +281,8 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   const gaps = rows.map(() => []);
   const routes = edges.map(edge => {
     const from = ranks.get(edge.from), to = ranks.get(edge.to);
-    const words = edge.label ? wrap(edge.label, T.wrap, T.edge) : [];
-    const depart = { height: words.length ? words.length * lineHeight(T.edge) + 8 : 12 };
+    const words = edge.label ? wrap(edge.label, EDGE_WRAP, EDGE_TEXT) : [];
+    const depart = { height: words.length ? words.length * lineHeight(EDGE_TEXT) + 8 : 12 };
     const arrive = to > from + 1 ? { height: 12 } : null;
     gaps[from].push(depart);
     return { edge, depart, arrive, words };
@@ -309,9 +310,9 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
       const isDecision = node.role === 'decision';
       const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].twoLine ? twoLineWidth(node.label ?? '', metrics[rank][index].word) : metrics[rank][index].word))) : paths.length === 2 ? Math.max(w - 48, Math.min(metrics[rank][index].word, w - 16)) : w - 48; // under the highlight cap a node gets narrower, never its type: a long word takes the room of the padding
-      const lines = wrap(node.label, wrapWidth, T.body);
+      const lines = wrap(node.label, wrapWidth);
       const { height, offset } = isDecision ? measureDecision(lines, w)
-        : { height: 40 + Math.ceil(T.body * 16 / 15) * Math.max(1, lines.length), offset: 0 }; // 56 for one line, 72 for two at 15 px
+        : { height: 40 + 16 * Math.max(1, lines.length), offset: 0 }; // 56 for one line, 72 for two
       return { ...node, width: w, height, cx, lines, offset, start: previous.length === 0 };
     });
     if (split) rowNodes.forEach((node, index) => { node.sub = index >= split.a ? 1 : 0; });
@@ -342,9 +343,9 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const vertexX = node.cx + sign * node.width / 2;
       const target = placements.get(edge.to);
       const turnX = port(target, incoming.get(edge.to), edge, false)[0];
-      const words = edge.label ? wrap(edge.label, T.wrap, T.edge) : [];
-      const labelWidth = words.length ? Math.ceil(Math.max(...words.map(word => textWidth(word, T.edge))) + 12) : 0;
-      const labelHeight = words.length ? words.length * lineHeight(T.edge) + 4 : 0;
+      const words = edge.label ? wrap(edge.label, EDGE_WRAP, EDGE_TEXT) : [];
+      const labelWidth = words.length ? Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12) : 0;
+      const labelHeight = words.length ? words.length * lineHeight(EDGE_TEXT) + 4 : 0;
       const clearOf = (a, b) => placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= Math.min(a, b) - 2 || other.cx - other.width / 2 >= Math.max(a, b) + 2);
       if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign, labelWidth, labelHeight, vertexX, turnX };
       // The drop lands on the top edge of the target away from its rounded corners, which only a lone arrival may move.
@@ -451,7 +452,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   // apart), the branches share one lane and each label stands on its run. (2) Otherwise the wires keep their own 12 px lanes and the labels share one more lane below them, each label on its
   // wire's last vertical leg; the labels must fit side by side (the default wrap, else a narrower one), and if they do not, none of the node's branches is labelled inline (the key under the graph).
   const labelGroups = [];
-  const labelWidth = words => Math.ceil(Math.max(...words.map(word => textWidth(word, T.edge))) + 12);
+  const labelWidth = words => Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
   const apartX = (a, b, margin) => a[1] + margin <= b[0] || b[1] + margin <= a[0];
   for (const node of placements.values()) {
     const group = outgoing.get(node.id).map(edge => routeByEdge.get(edge)).filter(route => !sideEdges.has(route.edge) && !route.arrive && route.words.length);
@@ -482,32 +483,29 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       });
     };
     const narrow = Math.floor((width - 2 * PAD) / group.length) - 16;
-    const lists = [group.map(route => route.words), ...(narrow < T.wrap && narrow >= T.edgeWord ? [group.map(route => wrap(route.edge.label, narrow, T.edge))] : [])].find(fits);
+    const lists = [group.map(route => route.words), ...(narrow < EDGE_WRAP ? [group.map(route => wrap(route.edge.label, narrow, EDGE_TEXT))] : [])].find(fits);
     if (!lists) continue;
-    const lane = { height: Math.max(...lists.map(words => words.length)) * lineHeight(T.edge) + 4 + 8 };
+    const lane = { height: Math.max(...lists.map(words => words.length)) * lineHeight(EDGE_TEXT) + 4 + 8 };
     group.forEach((route, index) => { route.words = lists[index]; route.depart.height = 12; route.labelLane = lane; });
     gaps[ranks.get(node.id)].push(lane);
     labelGroups.push({ id: node.id, group });
   }
 
-  let y = PAD, tiersPx = 0, gapsPx = 0;
+  let y = PAD;
   placedRows.forEach((row, rank) => {
     const upper = splits.has(rank) ? row.filter(node => !node.sub) : row, lower = splits.has(rank) ? row.filter(node => node.sub) : [];
     const heightOf = nodes => Math.max(0, ...nodes.map(node => node.height));
     const height = heightOf(upper);
     for (const node of upper) node.y = y + (height - node.height) / 2;
     for (const node of lower) node.y = y + height + SPLIT_VGAP + (heightOf(lower) - node.height) / 2;
-    const tier = height + (lower.length ? SPLIT_VGAP + heightOf(lower) : 0);
-    y += tier; tiersPx += tier;
+    y += height + (lower.length ? SPLIT_VGAP + heightOf(lower) : 0);
     if (rank === placedRows.length - 1) return;
-    const gapStart = y;
     y += 6;
     for (const lane of gaps[rank]) {
       lane.y = y + lane.height / 2;
       y += lane.height;
     }
-    y += 26 + gapExtra(rank);
-    gapsPx += y - gapStart;
+    y += 26;
   });
 
   // RD-4b: a port may be moved along its node edge (moves: edge -> { from, to }) when its vertical leg would run closer than MIN_WIRE_GAP to another edge's vertical.
@@ -574,18 +572,18 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       labelBoxes.set(edge, bounds);
       annotations.push(h('g', null,
         h('rect', { ...bounds, fill: SURFACE }),
-        label(words, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { size: T.edge })));
+        label(words, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { size: EDGE_TEXT })));
       continue;
     }
     // In a dense tier there may be no room on the edge or beside its drop. Keep the
     // directed relationship readable below the graph without masking any wire.
     const key = `${nodeName(placements.get(edge.from))} → ${nodeName(placements.get(edge.to))}: ${edge.label}`;
-    const lines = wrap(key, width - 2 * PAD - 20, T.edge);
-    const height = lines.length * lineHeight(T.edge) + 12;
+    const lines = wrap(key, width - 2 * PAD - 20, EDGE_TEXT);
+    const height = lines.length * lineHeight(EDGE_TEXT) + 12;
     bottom += 8;
     annotations.push(h('g', null,
       box(PAD, bottom, width - 2 * PAD, height),
-      label(lines, PAD + 10, bottom + height / 2, { size: T.edge, anchor: 'start' })));
+      label(lines, PAD + 10, bottom + height / 2, { size: EDGE_TEXT, anchor: 'start' })));
     bottom += height;
   }
 
@@ -600,22 +598,20 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
     const props = { 'data-tutor-node': id, ...(active ? { 'data-tutor-path': '' } : {}) };
     const tooltip = title ? [h('title', null, title)] : [];
-    if (!strip) return h('g', props, ...tooltip, shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill', size: T.body }));
+    if (!strip) return h('g', props, ...tooltip, shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
     const top = y + (height - contentHeight) / 2;
     return h('g', { ...props, 'aria-label': nodeName(node) }, ...tooltip, shape,
-      ...(labelHeight ? [label(lines, cx, top + labelHeight / 2, { tone: 'onFill', size: T.body })] : []),
+      ...(labelHeight ? [label(lines, cx, top + labelHeight / 2, { tone: 'onFill' })] : []),
       h('g', { 'data-tutor-node-tensor': '', transform: `translate(${cx - strip.width / 2} ${top + stripOffset})` }, ...strip.elements));
   });
-  const parts = [{ part: 'top margin', px: PAD }, { part: 'node tiers', px: tiersPx }, ...(gapsPx ? [{ part: 'gaps between the tiers (wires and labels)', px: gapsPx }] : []), { part: 'edge-label key and bottom margin', px: bottom - tiersPx - gapsPx }];
-  const widest = Math.max(...rowMinimums) + 2 * PAD + outer, widthParts = [{ part: 'margins and wire lanes', px: 2 * PAD + outer }, { part: 'widest tier at its node minimums', px: Math.max(...rowMinimums) }, ...(width - widest > 1e-9 ? [{ part: 'spare width', px: width - widest }] : [])];
-  return { width, height: bottom + PAD, rankCount: rows.length, parts, widthParts, elements: [...wires, ...annotations, ...shapes], geometry: flowGeometry(width, bottom + PAD, placements, routed, labelBoxes), failed: [] };
+  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes], geometry: flowGeometry(width, bottom + PAD, placements, routed, labelBoxes), failed: [] };
 }
 
 // The layout as numbers, for geometry-lint.js (RD-3): node shapes with their text boxes, routed wires, inline edge-label boxes. Read-only; nothing here is drawn.
 function flowGeometry(width, height, placements, routed, labelBoxes) {
   const nodes = Array.from(placements.values(), node => {
     const { id, cx, y, width: w, height: h2, role, lines, offset, strip, labelHeight, contentHeight } = node;
-    const size = lines?.fontSize ?? T.body, step = lineHeight(size);
+    const size = lines?.fontSize ?? 15, step = lineHeight(size);
     const centerY = strip ? y + (h2 - contentHeight) / 2 + (labelHeight ?? 0) / 2 : y + h2 / 2 + offset;
     const text = (strip && !labelHeight ? [] : lines ?? []).map((line, index, all) => {
       const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
@@ -625,21 +621,4 @@ function flowGeometry(width, height, placements, routed, labelBoxes) {
   });
   const edges = routed.map(({ edge, points }) => ({ from: edge.from, to: edge.to, points: points.map(point => [...point]), label: labelBoxes.get(edge) ? { ...labelBoxes.get(edge) } : null }));
   return { width, height, nodes, edges };
-}
-
-// kinds-fit: a flow takes sizes.body (node labels, 15 today) and sizes.small (edge labels, 13 today), a box (the tiers' gaps share the height that is left) and reports nodes and edges (geometry, as layoutFlow always had it) and the parts of its height.
-export function fittedFlow(diagram, requested, options) {
-  const { box, sizes, contentHeight, floor } = options ?? {};
-  const saved = { ...T };
-  try {
-    if (sizes?.body) { T.body = sizes.body; T.word = sizes.body; }
-    if (sizes?.small) T.edge = sizes.small;
-    // No text is drawn smaller than asked: an edge label's longest word sets the width labels wrap at (158 px otherwise), and a narrower wrap is never tried.
-    T.strict = Boolean(sizes); // a node is as wide as its longest word needs, even past the 220 px node maximum (today such a word takes a smaller font)
-    if (sizes) { T.edgeWord = Math.ceil(Math.max(0, ...diagram.edges.filter(edge => edge.label).map(edge => longestWordWidth(edge.label, T.edge)))); T.wrap = Math.max(T.wrap, T.edgeWord); }
-    const first = layoutFlow(diagram, requested);
-    if (!box || floor || contentHeight === undefined || first.rankCount < 2) return first;
-    const extra = Math.floor(contentHeight - first.height), gaps = first.rankCount - 1;
-    return extra > 0 ? layoutFlow(diagram, requested, undefined, rank => Math.floor(extra / gaps) + (rank < extra % gaps ? 1 : 0)) : first;
-  } finally { Object.assign(T, saved); }
 }
