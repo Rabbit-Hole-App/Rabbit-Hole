@@ -1,0 +1,1124 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "a2287d506eaab2904378827b535b6aacba48a78a",
+    "tree": "879a8e1af9a21b2e7ba91b7cc588f59499e94ddc",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "2a1888cdd4153eaa065b0f46d79cf12e90e9bd33",
+    "tree": "56cfe01dfddebd5650335c551862c4e7b6d419cd",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3603,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 93,
+    "newOwnPromptFirstPicks": 93,
+    "newOwnExactPromptFirstPicks": 93
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3805,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3805,
+    "computedCandidateCaseInputs": 3805
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "02e8c9ce56f0de7e1fc29722010c976e3c0fbbd5",
+  "publishedTree": "56cfe01dfddebd5650335c551862c4e7b6d419cd",
+  "publishedBaseline": "8c3235710019f258e5cdf196dbf8f4169f341d0e",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "prompt": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "prompt": "Show computed residual moments after adding a supplied update.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "prompt": "Normalize residual sums with the declared population variance.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "prompt": "Keep the supplied update fixed in a computed residual moments shift probe.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "prompt": "Which mean and variance normalize residual sums?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "prompt": "Show the unchanged normalized result after shifting inputs in computed residual moments.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-normalization-residual-then-normalize",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-normalization-residual-then-normalize",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Adding a position vector to each token embedding makes order available to attention.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "GPT-2 learns a separate table of position vectors indexed by position.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "A decoder adds the token lookup vector and its position vector before entering the first block.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Token and position embeddings are model-level tables used before the block stack.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Show repeated token addition with separate token and position ids.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Keep model lookup inputs outside the repeated decoder group.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Which learned rows change repeated token addition at another position?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Compare named fixed and learned model lookup inputs.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "prompt": "Change one learned position row in repeated token addition.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "transformation",
+          "afterPlannerKind": "transformation"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-token-plus-position",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-token-plus-position",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Interleaving each sine channel with its cosine partner keeps the positional signals paired by frequency.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "cosine-vector-directions",
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": "cosine-vector-directions",
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "cosine-vector-directions",
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": "cosine-vector-directions",
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Show paired position frequencies and their matching selected row.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Keep numeric values attached during a channel display permutation.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Compare both sine and cosine in paired position frequencies.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "cosine-vector-directions",
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": "cosine-vector-directions",
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "cosine-vector-directions",
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": "cosine-vector-directions",
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Why is channel display permutation different from changing the model basis?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Match all four paired position frequencies at the selected sampled position.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-positional-encoding-sinusoidal-positions",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "An embedding lookup selects a single learned row for an input token.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "An embedding lookup replaces each word ID with the vector in its corresponding table row.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "A learned embedding table assigns different vectors to different words through the same lookup operation.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "Each pair retrieves its input and context vectors before scoring.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "Show indexed vector retrieval with stable vocabulary ids.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "Select a center and two context rows from independent lookup tables.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "Why do independent lookup tables give different vectors for the same id?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "Keep selected outputs fixed when unselected rows change in indexed vector retrieval.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "prompt": "Show several returned strips through shared indexed vector retrieval.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-embeddings-embedding-table-lookups",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-embeddings-embedding-table-lookups",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "added": [
+    "ml-embeddings-embedding-table-lookups/320",
+    "ml-embeddings-embedding-table-lookups/408",
+    "ml-embeddings-embedding-table-lookups/720",
+    "ml-normalization-residual-then-normalize/320",
+    "ml-normalization-residual-then-normalize/408",
+    "ml-normalization-residual-then-normalize/720",
+    "ml-positional-encoding-sinusoidal-positions/320",
+    "ml-positional-encoding-sinusoidal-positions/408",
+    "ml-positional-encoding-sinusoidal-positions/720",
+    "ml-positional-encoding-token-plus-position/320",
+    "ml-positional-encoding-token-plus-position/408",
+    "ml-positional-encoding-token-plus-position/720"
+  ],
+  "changed": [],
+  "removed": [],
+  "publishedCommit": "02e8c9ce56f0de7e1fc29722010c976e3c0fbbd5",
+  "publishedTree": "56cfe01dfddebd5650335c551862c4e7b6d419cd"
+}
