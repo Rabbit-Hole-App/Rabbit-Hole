@@ -1,0 +1,221 @@
+{
+  "xhigh": {
+    "controlQuantities": [
+      "length",
+      "gravity",
+      "mass",
+      "start_angle"
+    ],
+    "n": 4,
+    "picks": {
+      "1": {
+        "ids": [
+          "mass"
+        ],
+        "k": 1,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "2": {
+        "ids": [
+          "gravity",
+          "start_angle"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "3": {
+        "ids": [
+          "length",
+          "gravity",
+          "start_angle"
+        ],
+        "k": 3,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "4": {
+        "ids": [
+          "mass",
+          "start_angle"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "5": {
+        "ids": [
+          "gravity"
+        ],
+        "k": 1,
+        "rerolls": 1,
+        "repeat": false
+      }
+    }
+  },
+  "high": {
+    "controlQuantities": [
+      "L",
+      "m",
+      "theta0",
+      "g"
+    ],
+    "n": 4,
+    "picks": {
+      "1": {
+        "ids": [
+          "theta0"
+        ],
+        "k": 1,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "2": {
+        "ids": [
+          "m",
+          "g"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "3": {
+        "ids": [
+          "L",
+          "m",
+          "g"
+        ],
+        "k": 3,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "4": {
+        "ids": [
+          "theta0",
+          "g"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "5": {
+        "ids": [
+          "m"
+        ],
+        "k": 1,
+        "rerolls": 1,
+        "repeat": false
+      }
+    }
+  },
+  "medium": {
+    "controlQuantities": [
+      "length",
+      "gravity",
+      "mass",
+      "angle0"
+    ],
+    "n": 4,
+    "picks": {
+      "1": {
+        "ids": [
+          "mass"
+        ],
+        "k": 1,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "2": {
+        "ids": [
+          "gravity",
+          "angle0"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "3": {
+        "ids": [
+          "length",
+          "gravity",
+          "angle0"
+        ],
+        "k": 3,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "4": {
+        "ids": [
+          "mass",
+          "angle0"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "5": {
+        "ids": [
+          "gravity"
+        ],
+        "k": 1,
+        "rerolls": 1,
+        "repeat": false
+      }
+    }
+  },
+  "low": {
+    "controlQuantities": [
+      "L",
+      "m",
+      "theta0"
+    ],
+    "n": 3,
+    "picks": {
+      "1": {
+        "ids": [
+          "theta0"
+        ],
+        "k": 1,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "2": {
+        "ids": [
+          "L",
+          "m"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "3": {
+        "ids": [
+          "L",
+          "m",
+          "theta0"
+        ],
+        "k": 3,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "4": {
+        "ids": [
+          "m",
+          "theta0"
+        ],
+        "k": 2,
+        "rerolls": 0,
+        "repeat": false
+      },
+      "5": {
+        "ids": [
+          "m"
+        ],
+        "k": 1,
+        "rerolls": 4,
+        "repeat": false
+      }
+    }
+  }
+}

@@ -1,0 +1,513 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A pendulum's swing period grows as the square root of string length and shrinks with stronger gravity, while bob mass cancels out. Release angle sets swing width and peak speed, and slightly lengthens the period once swings are no longer small.",
+      "formula": "T = 2\\pi\\sqrt{L/g}",
+      "assumptions": [
+        "Air drag, pivot friction, and string mass are neglected.",
+        "The pendulum bob acts as a point mass on a taut, inextensible line.",
+        "Small swing angles (sin θ ≈ θ) are assumed for the simple period law."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "String length",
+        "unit": "m",
+        "role": "control",
+        "meaning": "Distance from the fixed pivot point to the bob's center of mass."
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s²",
+        "role": "control",
+        "meaning": "Downward gravitational acceleration pulling the bob toward equilibrium."
+      },
+      {
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "fixed",
+        "meaning": "Mass of the pendulum bob; increases weight and inertia equally."
+      },
+      {
+        "id": "start_angle",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "control",
+        "meaning": "Starting angle measured from straight down where the bob is released."
+      },
+      {
+        "id": "period",
+        "label": "Swing period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Exact time for one complete back-and-forth swing at any release angle."
+      },
+      {
+        "id": "small_angle_period",
+        "label": "Small-angle period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Ideal period 2π√(L/g) when sin θ ≈ θ, ignoring release angle."
+      },
+      {
+        "id": "max_speed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Speed of the bob as it passes through the lowest vertical point."
+      },
+      {
+        "id": "restoring_force",
+        "label": "Restoring force",
+        "unit": "N",
+        "role": "result",
+        "meaning": "Tangential force m·g·sin(θ₀) pulling the bob back at release."
+      },
+      {
+        "id": "restoring_accel",
+        "label": "Restoring accel.",
+        "unit": "m/s²",
+        "role": "result",
+        "meaning": "Tangential acceleration g·sin(θ₀) at release; bob mass cancels out."
+      }
+    ],
+    "things": [
+      {
+        "id": "pendulum",
+        "label": "Actual pendulum"
+      },
+      {
+        "id": "ideal",
+        "label": "Small-angle ref"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "String length",
+        "unit": "m",
+        "min": 0.6,
+        "max": 2.4,
+        "default": 1,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s²",
+        "min": 1.6,
+        "max": 16,
+        "default": 9.8,
+        "step": 0.2
+      },
+      {
+        "type": "number",
+        "id": "start_angle",
+        "label": "Release angle",
+        "unit": "deg",
+        "min": 10,
+        "max": 80,
+        "default": 50,
+        "step": 1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { const L = inputs.length; const g = inputs.gravity; const deg = inputs.start_angle; const mass = 2; const theta0 = deg * Math.PI / 180; const omega0 = Math.sqrt(g / L); const small_angle_period = 2 * Math.PI / omega0; const k = Math.sin(0.5 * theta0); const kp = Math.cos(0.5 * theta0); let a = 1; let b = kp; const aArr = [1, 0, 0, 0, 0, 0]; const cArr = [k, 0, 0, 0, 0, 0]; for (let i = 1; i <= 5; i++) { const nextA = 0.5 * (a + b); const nextB = Math.sqrt(a * b); cArr[i] = 0.5 * (a - b); aArr[i] = nextA; a = nextA; b = nextB; } const period = small_angle_period / aArr[5]; const K = 0.5 * Math.PI / aArr[5]; const w = K - omega0 * t; let phi = 32 * aArr[5] * w; for (let i = 5; i >= 1; i--) { phi = 0.5 * (phi + Math.asin((cArr[i] / aArr[i]) * Math.sin(phi))); } const theta = 2 * Math.asin(k * Math.sin(phi)); const ideal_theta = theta0 * Math.cos(omega0 * t); const bob_x = L * Math.sin(theta); const bob_y = -L * Math.cos(theta); const ideal_x = L * Math.sin(ideal_theta); const ideal_y = -L * Math.cos(ideal_theta); const release_x = L * Math.sin(theta0); const release_y = -L * Math.cos(theta0); const max_speed = Math.sqrt(2 * g * L * (1 - Math.cos(theta0))); const restoring_accel = g * Math.sin(theta0); const restoring_force = mass * restoring_accel; const forceLen = 0.018 * restoring_force; const force_tip_x = release_x - forceLen * Math.cos(theta0); const force_tip_y = release_y - forceLen * Math.sin(theta0); const angle_deg = theta * 180 / Math.PI; const ideal_angle_deg = ideal_theta * 180 / Math.PI; return { period: period, small_angle_period: small_angle_period, max_speed: max_speed, restoring_force: restoring_force, restoring_accel: restoring_accel, angle_deg: angle_deg, ideal_angle_deg: ideal_angle_deg, bob_x: bob_x, bob_y: bob_y, ideal_x: ideal_x, ideal_y: ideal_y, release_x: release_x, release_y: release_y, force_tip_x: force_tip_x, force_tip_y: force_tip_y, neg_length: -L, is_small_angle: deg <= 20, is_large_angle: deg >= 55, is_fast_swing: period < 1.7, is_slow_swing: period > 3.2 }; }",
+      "outputs": [
+        {
+          "id": "period",
+          "unit": "s",
+          "meaning": "Exact time for one full back-and-forth swing at the chosen angle.",
+          "kind": "number"
+        },
+        {
+          "id": "small_angle_period",
+          "unit": "s",
+          "meaning": "Ideal period 2π√(L/g) assuming small swing angles.",
+          "kind": "number"
+        },
+        {
+          "id": "max_speed",
+          "unit": "m/s",
+          "meaning": "Maximum speed of the bob at the lowest point of the swing.",
+          "kind": "number"
+        },
+        {
+          "id": "restoring_force",
+          "unit": "N",
+          "meaning": "Tangential gravitational force pulling the bob at release.",
+          "kind": "number"
+        },
+        {
+          "id": "restoring_accel",
+          "unit": "m/s²",
+          "meaning": "Tangential acceleration g·sin(θ₀) at release; mass cancels.",
+          "kind": "number"
+        },
+        {
+          "id": "angle_deg",
+          "unit": "deg",
+          "meaning": "Instantaneous angle of the actual pendulum from vertical.",
+          "kind": "number"
+        },
+        {
+          "id": "ideal_angle_deg",
+          "unit": "deg",
+          "meaning": "Instantaneous angle predicted by the small-angle law.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the actual pendulum bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_y",
+          "unit": "m",
+          "meaning": "Vertical position of the actual pendulum bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ideal_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the small-angle reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ideal_y",
+          "unit": "m",
+          "meaning": "Vertical position of the small-angle reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "release_x",
+          "unit": "m",
+          "meaning": "Horizontal release coordinate of the pendulum bob.",
+          "kind": "number"
+        },
+        {
+          "id": "release_y",
+          "unit": "m",
+          "meaning": "Vertical release coordinate of the pendulum bob.",
+          "kind": "number"
+        },
+        {
+          "id": "force_tip_x",
+          "unit": "m",
+          "meaning": "Horizontal tip of the restoring force arrow at release.",
+          "kind": "number"
+        },
+        {
+          "id": "force_tip_y",
+          "unit": "m",
+          "meaning": "Vertical tip of the restoring force arrow at release.",
+          "kind": "number"
+        },
+        {
+          "id": "neg_length",
+          "unit": "m",
+          "meaning": "Vertical coordinate of the lowest point below the pivot.",
+          "kind": "number"
+        },
+        {
+          "id": "is_small_angle",
+          "unit": "",
+          "meaning": "True when the release angle is 20 deg or smaller.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_large_angle",
+          "unit": "",
+          "meaning": "True when the release angle is 55 deg or larger.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_fast_swing",
+          "unit": "",
+          "meaning": "True when the swing period is shorter than 1.7 seconds.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_slow_swing",
+          "unit": "",
+          "meaning": "True when the swing period is longer than 3.2 seconds.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "ceiling",
+            "from": [
+              -0.25,
+              0
+            ],
+            "to": [
+              0.25,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "vertical_ref",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              0,
+              "neg_length"
+            ]
+          },
+          {
+            "type": "dot",
+            "id": "pivot_dot",
+            "at": [
+              0,
+              0
+            ],
+            "size": "small"
+          },
+          {
+            "type": "dot",
+            "id": "release_dot",
+            "at": [
+              "release_x",
+              "release_y"
+            ],
+            "size": "small",
+            "of": "pendulum"
+          },
+          {
+            "type": "arrow",
+            "id": "restoring_arrow",
+            "from": [
+              "release_x",
+              "release_y"
+            ],
+            "to": [
+              "force_tip_x",
+              "force_tip_y"
+            ],
+            "label": "F0",
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "ideal_rod",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              "ideal_x",
+              "ideal_y"
+            ],
+            "of": "ideal"
+          },
+          {
+            "type": "dot",
+            "id": "ideal_bob",
+            "at": [
+              "ideal_x",
+              "ideal_y"
+            ],
+            "size": "large",
+            "of": "ideal"
+          },
+          {
+            "type": "trace",
+            "id": "bob_trace",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "bob_rod",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "bob_dot",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "size": "medium",
+            "of": "pendulum"
+          },
+          {
+            "type": "label",
+            "id": "fixed_mass_tag",
+            "at": [
+              0,
+              0.14
+            ],
+            "text": "Bob mass fixed: 2 kg"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Angle: actual vs ideal",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Angle",
+          "unit": "deg"
+        },
+        "series": [
+          {
+            "value": "angle_deg",
+            "label": "Actual",
+            "of": "pendulum",
+            "style": "line"
+          },
+          {
+            "value": "ideal_angle_deg",
+            "label": "Ideal",
+            "of": "ideal",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "period",
+        "label": "Swing period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "small_angle_period",
+        "label": "Ideal period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "ideal"
+      },
+      {
+        "value": "max_speed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "restoring_accel",
+        "label": "Init accel",
+        "unit": "m/s²",
+        "decimals": 2,
+        "of": "pendulum"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Mass 2 kg cancels out of period.",
+        "Longer L and weaker g lengthen T."
+      ],
+      "cases": [
+        {
+          "when": "is_small_angle",
+          "text": "Small angle: simple T law holds."
+        },
+        {
+          "when": "is_large_angle",
+          "text": "Wide swing: exact bob lags ideal."
+        },
+        {
+          "when": "is_fast_swing",
+          "text": "Short L or strong g: rapid swings."
+        },
+        {
+          "when": "is_slow_swing",
+          "text": "Long L or weak g: slow swings."
+        }
+      ],
+      "otherwise": "Moderate angle: slight period lag."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "period",
+        "with": "length"
+      },
+      {
+        "type": "decreases",
+        "value": "period",
+        "with": "gravity"
+      },
+      {
+        "type": "increases",
+        "value": "period",
+        "with": "start_angle"
+      },
+      {
+        "type": "unchanged",
+        "value": "small_angle_period",
+        "when": "start_angle"
+      },
+      {
+        "type": "increases",
+        "value": "max_speed",
+        "with": "start_angle"
+      },
+      {
+        "type": "unchanged",
+        "value": "restoring_accel",
+        "when": "length"
+      }
+    ],
+    "lesson": {
+      "title": "What Changes a Pendulum's Swing?",
+      "description": "Compare an exact pendulum against the small-angle law as you vary string length, gravity, and release angle. Watch how period, peak speed, and phase lag respond.",
+      "instructions": "Adjust string length and gravity to see both bobs speed up or slow down while keeping bob mass fixed at 2 kg. Sweep release angle from 10 to 80 degrees to compare the true swing against the small-angle curve and watch the restoring force arrow F0 at release.",
+      "goal": "Period scales as √(L/g), independent of bob mass, while wider release angles increase swing width, peak speed, and slightly lengthen the exact period beyond the small-angle law."
+    }
+  }
+}

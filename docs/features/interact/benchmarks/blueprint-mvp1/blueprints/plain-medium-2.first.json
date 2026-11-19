@@ -1,0 +1,334 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's period increases with the square root of its length and is independent of its bob mass and small release angle.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "Gravity is fixed at Earth surface value (9.81 m/s^2).",
+      "Small-angle approximation: release angle is at most 30 degrees.",
+      "Point mass on a massless rigid rod with no air resistance."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "Length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot to the center of the bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the pendulum bob."
+    },
+    {
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "control",
+      "meaning": "Starting angle from the vertical."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "fixed",
+      "meaning": "Gravitational acceleration fixed at 9.81 m/s^2."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time for one full back-and-forth swing."
+    },
+    {
+      "id": "angleDeg",
+      "label": "Angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Current angle from the vertical."
+    },
+    {
+      "id": "speed",
+      "label": "Speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Current speed of the pendulum bob."
+    },
+    {
+      "id": "maxSpeed",
+      "label": "Max speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Peak speed at the bottom of the swing."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Length",
+      "unit": "m",
+      "min": 0.5,
+      "max": 2.5,
+      "default": 1.0,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 5.0,
+      "default": 1.0,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "min": 10,
+      "max": 30,
+      "default": 20,
+      "step": 5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 5,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var g = 9.81; var L = inputs.length; var m = inputs.mass; var a0Deg = inputs.angle0; var a0 = a0Deg * Math.PI / 180; var omega = Math.sqrt(g / L); var period = 2 * Math.PI / omega; var theta = a0 * Math.cos(omega * t); var dtheta = -a0 * omega * Math.sin(omega * t); var angleDeg = theta * 180 / Math.PI; var bobX = L * Math.sin(theta); var bobY = -L * Math.cos(theta); var vx = L * Math.cos(theta) * dtheta; var vy = L * Math.sin(theta) * dtheta; var speed = Math.abs(L * dtheta); var maxSpeed = L * omega * a0; var velTipX = bobX + 0.3 * vx; var velTipY = bobY + 0.3 * vy; var bobSize = 0.2 + 0.7 * ((m - 0.5) / 4.5); return { period: period, angleDeg: angleDeg, speed: speed, maxSpeed: maxSpeed, bobX: bobX, bobY: bobY, velTipX: velTipX, velTipY: velTipY, bobSize: bobSize, isShort: L <= 0.8, isLong: L >= 1.8 }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one full swing.",
+        "kind": "number"
+      },
+      {
+        "id": "angleDeg",
+        "unit": "deg",
+        "meaning": "Current angle from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "speed",
+        "unit": "m/s",
+        "meaning": "Current speed of the bob.",
+        "kind": "number"
+      },
+      {
+        "id": "maxSpeed",
+        "unit": "m/s",
+        "meaning": "Peak speed at the bottom of the swing.",
+        "kind": "number"
+      },
+      {
+        "id": "bobX",
+        "unit": "m",
+        "meaning": "Horizontal position of the bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bobY",
+        "unit": "m",
+        "meaning": "Vertical position of the bob.",
+        "kind": "number"
+      },
+      {
+        "id": "velTipX",
+        "unit": "m",
+        "meaning": "Horizontal tip of velocity arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "velTipY",
+        "unit": "m",
+        "meaning": "Vertical tip of velocity arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "bobSize",
+        "unit": "",
+        "meaning": "Normalized visual size of the bob.",
+        "kind": "number"
+      },
+      {
+        "id": "isShort",
+        "unit": "",
+        "meaning": "True when the rod is short.",
+        "kind": "flag"
+      },
+      {
+        "id": "isLong",
+        "unit": "",
+        "meaning": "True when the rod is long.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "refAxis",
+          "from": [0, 0],
+          "to": [0, -2.6]
+        },
+        {
+          "type": "trace",
+          "id": "bobTrace",
+          "at": ["bobX", "bobY"],
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "rod",
+          "from": [0, 0],
+          "to": ["bobX", "bobY"],
+          "of": "pendulum"
+        },
+        {
+          "type": "dot",
+          "id": "pivot",
+          "at": [0, 0],
+          "size": "small"
+        },
+        {
+          "type": "dot",
+          "id": "bob",
+          "at": ["bobX", "bobY"],
+          "size": "bobSize",
+          "of": "pendulum"
+        },
+        {
+          "type": "arrow",
+          "id": "velArrow",
+          "from": ["bobX", "bobY"],
+          "to": ["velTipX", "velTipY"],
+          "label": "v",
+          "of": "pendulum"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Angle over time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angleDeg",
+          "label": "Angle",
+          "of": "pendulum",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "angleDeg",
+      "label": "Angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "pendulum"
+    },
+    {
+      "value": "speed",
+      "label": "Speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "maxSpeed",
+      "label": "Max speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Period depends on length, not mass."
+    ],
+    "cases": [
+      {
+        "when": "isShort",
+        "text": "Short rod: swings fast (short T)."
+      },
+      {
+        "when": "isLong",
+        "text": "Long rod: swings slow (long T)."
+      }
+    ],
+    "otherwise": "Medium rod: moderate swing period."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "mass"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "angle0"
+    },
+    {
+      "type": "increases",
+      "value": "maxSpeed",
+      "with": "angle0"
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum's Swing?",
+    "description": "Adjust the rod length, bob mass, and release angle of a swinging pendulum. Watch the motion and angle graph to see which changes alter the swing period.",
+    "instructions": "Use the sliders to change length, mass, and release angle. Scrub or pause time to compare the swing period and maximum speed.",
+    "goal": "Discover that only length changes a pendulum's period, while mass and small release angles leave the period unchanged."
+  }
+}

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const DIR = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs/features/interact/benchmarks/blueprint-mvp1'));
 const LEVELS = ['xhigh', 'high', 'medium', 'low'], ARMS = ['plain', 'seeded'];
 const readJson = path => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return undefined; } };
-const rows = existsSync(join(DIR, 'rows.jsonl')) ? readFileSync(join(DIR, 'rows.jsonl'), 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
+const rows = existsSync(join(DIR, 'rows.jsonl')) ? readFileSync(join(DIR, 'rows.jsonl'), 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).map(row => ({ ...row, kind: row.kind === 'blueprint' ? 'first' : row.kind === 'correction' ? 'corrected' : row.kind, cost: row.cost ?? row.costUsd ?? 0 })) : []; // bench-blueprint.mjs writes kind blueprint|correction|quantities|probe and costUsd
 const files = name => (existsSync(join(DIR, name)) ? readdirSync(join(DIR, name)) : []);
 const stemOf = (arm, level, n) => `${arm}-${level}-${n}`;
 const number = value => (typeof value === 'number' && Number.isFinite(value) ? value : 0);

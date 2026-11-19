@@ -1,0 +1,13 @@
+{
+  "parsed": false,
+  "ok": false,
+  "failed": 1,
+  "problems": [
+    {
+      "check": 1,
+      "path": "",
+      "message": "The answer is not valid JSON (Unexpected end of JSON input)."
+    }
+  ],
+  "measured": null
+}

@@ -1,0 +1,477 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A pendulum's swing period grows as the square root of string length and shrinks with stronger gravity, while bob mass cancels out. Release angle sets swing width and peak speed, and slightly lengthens the period once swings are no longer small.",
+      "formula": "T = 2\\pi\\sqrt{L/g}",
+      "assumptions": [
+        "Air drag, pivot friction, and string mass are neglected.",
+        "The pendulum bob acts as a point mass on a taut, inextensible line.",
+        "Small swing angles (sin θ ≈ θ) are assumed for the simple period law."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "String length",
+        "unit": "m",
+        "role": "fixed",
+        "meaning": "Distance from the fixed pivot point to the bob's center of mass."
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s²",
+        "role": "fixed",
+        "meaning": "Downward gravitational acceleration pulling the bob toward equilibrium."
+      },
+      {
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "control",
+        "meaning": "Mass of the pendulum bob; increases weight and inertia equally."
+      },
+      {
+        "id": "start_angle",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "fixed",
+        "meaning": "Starting angle measured from straight down where the bob is released."
+      },
+      {
+        "id": "period",
+        "label": "Swing period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Exact time for one complete back-and-forth swing at any release angle."
+      },
+      {
+        "id": "small_angle_period",
+        "label": "Small-angle period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Ideal period 2π√(L/g) when sin θ ≈ θ, ignoring release angle."
+      },
+      {
+        "id": "max_speed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Speed of the bob as it passes through the lowest vertical point."
+      },
+      {
+        "id": "restoring_force",
+        "label": "Restoring force",
+        "unit": "N",
+        "role": "result",
+        "meaning": "Tangential force m·g·sin(θ₀) pulling the bob back at release."
+      },
+      {
+        "id": "restoring_accel",
+        "label": "Restoring accel.",
+        "unit": "m/s²",
+        "role": "result",
+        "meaning": "Tangential acceleration g·sin(θ₀) at release; bob mass cancels out."
+      }
+    ],
+    "things": [
+      {
+        "id": "bob",
+        "label": "Your bob"
+      },
+      {
+        "id": "ref_bob",
+        "label": "1 kg reference"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "min": 0.5,
+        "max": 4,
+        "default": 2,
+        "step": 0.5
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var L = 1.0; var g = 9.81; var theta0 = 45 * Math.PI / 180; var refMass = 1.0; var mass = inputs.mass; var small_angle_period = 2 * Math.PI * Math.sqrt(L / g); var k = Math.sin(0.5 * theta0); var kp = Math.cos(0.5 * theta0); var a = [1, 0, 0, 0, 0, 0, 0]; var c = [k, 0, 0, 0, 0, 0, 0]; var an = 1; var bn = kp; for (var i = 0; i < 6; i++) { var nextA = 0.5 * (an + bn); var nextB = Math.sqrt(an * bn); var nextC = 0.5 * (an - bn); an = nextA; bn = nextB; a[i + 1] = an; c[i + 1] = nextC; } var period = small_angle_period / an; var K = 0.5 * Math.PI / an; var omega0 = Math.sqrt(g / L); var u = omega0 * t + K; var phi = 64 * an * u; for (var n = 6; n >= 1; n--) { phi = 0.5 * (phi + Math.asin((c[n] / a[n]) * Math.sin(phi))); } var sn = Math.sin(phi); var theta = 2 * Math.asin(k * sn); var max_speed = 2 * k * Math.sqrt(g * L); var restoring_accel = g * Math.sin(theta0); var restoring_force = mass * restoring_accel; var inst_accel = -g * Math.sin(theta); var inst_force = mass * inst_accel; var ref_force = refMass * inst_accel; var sinT = Math.sin(theta); var cosT = Math.cos(theta); var ref_x = -0.85 + L * sinT; var ref_y = -L * cosT; var bob_x = 0.85 + L * sinT; var bob_y = -L * cosT; var fScale = 0.025; var ref_fx = ref_x + fScale * ref_force * cosT; var ref_fy = ref_y + fScale * ref_force * sinT; var bob_fx = bob_x + fScale * inst_force * cosT; var bob_fy = bob_y + fScale * inst_force * sinT; var bob_size = 0.15 + 0.8 * (mass - 0.5) / 3.5; var ref_size = 0.15 + 0.8 * (refMass - 0.5) / 3.5; return { period: period, small_angle_period: small_angle_period, max_speed: max_speed, restoring_force: restoring_force, restoring_accel: restoring_accel, inst_force: inst_force, ref_force: ref_force, ref_x: ref_x, ref_y: ref_y, bob_x: bob_x, bob_y: bob_y, ref_fx: ref_fx, ref_fy: ref_fy, bob_fx: bob_fx, bob_fy: bob_fy, bob_size: bob_size, ref_size: ref_size, is_lighter: mass < 1.0 - 1e-6, is_equal: Math.abs(mass - 1.0) <= 1e-6 }; }",
+      "outputs": [
+        {
+          "id": "period",
+          "unit": "s",
+          "meaning": "Exact time for one complete back-and-forth swing at any release angle.",
+          "kind": "number"
+        },
+        {
+          "id": "small_angle_period",
+          "unit": "s",
+          "meaning": "Ideal period 2π√(L/g) when sin θ ≈ θ, ignoring release angle.",
+          "kind": "number"
+        },
+        {
+          "id": "max_speed",
+          "unit": "m/s",
+          "meaning": "Speed of the bob as it passes through the lowest vertical point.",
+          "kind": "number"
+        },
+        {
+          "id": "restoring_force",
+          "unit": "N",
+          "meaning": "Tangential force m·g·sin(θ₀) pulling the bob back at release.",
+          "kind": "number"
+        },
+        {
+          "id": "restoring_accel",
+          "unit": "m/s²",
+          "meaning": "Tangential acceleration g·sin(θ₀) at release; bob mass cancels out.",
+          "kind": "number"
+        },
+        {
+          "id": "inst_force",
+          "unit": "N",
+          "meaning": "Instantaneous tangential restoring force on the controlled bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_force",
+          "unit": "N",
+          "meaning": "Instantaneous tangential restoring force on the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_y",
+          "unit": "m",
+          "meaning": "Vertical position of the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the controlled bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_y",
+          "unit": "m",
+          "meaning": "Vertical position of the controlled bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_fx",
+          "unit": "m",
+          "meaning": "Tip horizontal coordinate of the reference restoring force arrow.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_fy",
+          "unit": "m",
+          "meaning": "Tip vertical coordinate of the reference restoring force arrow.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_fx",
+          "unit": "m",
+          "meaning": "Tip horizontal coordinate of the controlled restoring force arrow.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_fy",
+          "unit": "m",
+          "meaning": "Tip vertical coordinate of the controlled restoring force arrow.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_size",
+          "unit": "",
+          "meaning": "Normalized visual size between 0 and 1 for the controlled bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_size",
+          "unit": "",
+          "meaning": "Normalized visual size between 0 and 1 for the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "is_lighter",
+          "unit": "",
+          "meaning": "True when the controlled bob is lighter than the 1 kg reference.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_equal",
+          "unit": "",
+          "meaning": "True when the controlled bob matches the 1 kg reference mass.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "support_bar",
+            "from": [
+              -1.55,
+              0
+            ],
+            "to": [
+              1.55,
+              0
+            ]
+          },
+          {
+            "type": "trace",
+            "id": "ref_trace",
+            "at": [
+              "ref_x",
+              "ref_y"
+            ],
+            "of": "ref_bob"
+          },
+          {
+            "type": "trace",
+            "id": "bob_trace",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "bob"
+          },
+          {
+            "type": "line",
+            "id": "ref_string",
+            "from": [
+              -0.85,
+              0
+            ],
+            "to": [
+              "ref_x",
+              "ref_y"
+            ],
+            "of": "ref_bob"
+          },
+          {
+            "type": "line",
+            "id": "bob_string",
+            "from": [
+              0.85,
+              0
+            ],
+            "to": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "bob"
+          },
+          {
+            "type": "dot",
+            "id": "ref_dot",
+            "at": [
+              "ref_x",
+              "ref_y"
+            ],
+            "size": "ref_size",
+            "of": "ref_bob"
+          },
+          {
+            "type": "dot",
+            "id": "bob_dot",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "size": "bob_size",
+            "of": "bob"
+          },
+          {
+            "type": "arrow",
+            "id": "ref_force_vec",
+            "from": [
+              "ref_x",
+              "ref_y"
+            ],
+            "to": [
+              "ref_fx",
+              "ref_fy"
+            ],
+            "label": "F",
+            "of": "ref_bob"
+          },
+          {
+            "type": "arrow",
+            "id": "bob_force_vec",
+            "from": [
+              "bob_x",
+              "bob_y"
+            ],
+            "to": [
+              "bob_fx",
+              "bob_fy"
+            ],
+            "label": "F",
+            "of": "bob"
+          },
+          {
+            "type": "label",
+            "id": "ref_label",
+            "at": [
+              -0.85,
+              0.16
+            ],
+            "text": "1 kg reference",
+            "of": "ref_bob"
+          },
+          {
+            "type": "label",
+            "id": "bob_label",
+            "at": [
+              0.85,
+              0.16
+            ],
+            "text": "Your bob",
+            "of": "bob"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Restoring force over time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Restoring force",
+          "unit": "N"
+        },
+        "series": [
+          {
+            "value": "inst_force",
+            "label": "Your bob",
+            "of": "bob",
+            "style": "line"
+          },
+          {
+            "value": "ref_force",
+            "label": "1 kg ref",
+            "of": "ref_bob",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "period",
+        "label": "Swing period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "bob"
+      },
+      {
+        "value": "restoring_force",
+        "label": "Max force",
+        "unit": "N",
+        "decimals": 1,
+        "of": "bob"
+      },
+      {
+        "value": "restoring_accel",
+        "label": "Max accel.",
+        "unit": "m/s²",
+        "decimals": 2,
+        "of": "bob"
+      },
+      {
+        "value": "max_speed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "decimals": 2,
+        "of": "bob"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Mass changes force, not accel.",
+        "Both bobs keep the same period."
+      ],
+      "cases": [
+        {
+          "when": "is_lighter",
+          "text": "Lighter bob: less force, same swing"
+        },
+        {
+          "when": "is_equal",
+          "text": "Matches 1 kg ref: identical force"
+        }
+      ],
+      "otherwise": "Heavier bob: more force, same swing"
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "unchanged",
+        "value": "period",
+        "when": "mass"
+      },
+      {
+        "type": "unchanged",
+        "value": "small_angle_period",
+        "when": "mass"
+      },
+      {
+        "type": "unchanged",
+        "value": "max_speed",
+        "when": "mass"
+      },
+      {
+        "type": "unchanged",
+        "value": "restoring_accel",
+        "when": "mass"
+      },
+      {
+        "type": "increases",
+        "value": "restoring_force",
+        "with": "mass"
+      }
+    ],
+    "lesson": {
+      "title": "Does Bob Mass Change a Pendulum Swing?",
+      "description": "Compare a controlled bob against a 1 kg reference pendulum swinging from the same length and angle. Adjust bob mass to see restoring force grow while period and acceleration stay fixed.",
+      "instructions": "Drag the Bob mass slider to make your pendulum lighter or heavier than the 1 kg reference. Watch the force arrows, the live values, and the restoring-force graph as both pendulums swing together, and scrub the time bar to inspect any moment.",
+      "goal": "Adding bob mass boosts the restoring force and inertia equally, so acceleration, peak speed, and swing period remain unchanged."
+    }
+  }
+}

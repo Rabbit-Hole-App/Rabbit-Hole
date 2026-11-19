@@ -1,0 +1,449 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum swings slower when its string is longer or its release angle is wide, where sin(theta) drops below theta. Changing the bob mass scales the restoring force and inertia together, leaving the swing angle and period unchanged.",
+    "formula": "T \\approx 2\\pi \\sqrt{L / g}",
+    "assumptions": [
+      "Earth gravity is held fixed at 9.81 m/s^2.",
+      "The rod is rigid and massless with no air drag or pivot friction.",
+      "Reference pendulum is fixed at 1.0 m length, 1.0 kg mass, and 15 deg start angle."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot to the center of the test pendulum bob."
+    },
+    {
+      "id": "start_angle",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "control",
+      "meaning": "Initial angle from vertical where the test pendulum is released from rest."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the test pendulum bob."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "fixed",
+      "meaning": "Gravitational acceleration held constant at 9.81 m/s^2."
+    },
+    {
+      "id": "period",
+      "label": "Test period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time for one full back-and-forth swing of the test pendulum."
+    },
+    {
+      "id": "ref_period",
+      "label": "Reference period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time for one full swing of the fixed 1.0 m, 1.0 kg, 15 deg reference pendulum."
+    },
+    {
+      "id": "max_force",
+      "label": "Peak restoring force",
+      "unit": "N",
+      "role": "result",
+      "meaning": "Largest tangential pull m*g*sin(theta_0) acting on the test bob at release."
+    },
+    {
+      "id": "max_accel",
+      "label": "Peak acceleration",
+      "unit": "m/s^2",
+      "role": "result",
+      "meaning": "Largest tangential acceleration g*sin(theta_0) of the test bob, independent of mass."
+    },
+    {
+      "id": "test_angle",
+      "label": "Test swing angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Angle of the test pendulum from straight down at time t."
+    },
+    {
+      "id": "ref_angle",
+      "label": "Reference angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Angle of the reference pendulum from straight down at time t."
+    }
+  ],
+  "things": [
+    {
+      "id": "test",
+      "label": "Test pendulum"
+    },
+    {
+      "id": "ref",
+      "label": "Reference"
+    },
+    {
+      "id": "force",
+      "label": "Restoring force"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "min": 0.6,
+      "max": 2.0,
+      "default": 1.6,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "start_angle",
+      "label": "Release angle",
+      "unit": "deg",
+      "min": 15,
+      "max": 75,
+      "default": 35,
+      "step": 5
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 3.0,
+      "default": 2.0,
+      "step": 0.5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var g = 9.81; var L = inputs.length; var m = inputs.mass; var degToRad = Math.PI / 180; var theta0 = inputs.start_angle * degToRad; function solvePendulum(len, th0, time) { var k = Math.sin(th0 * 0.5); var a = [1, 0, 0, 0, 0, 0]; var b = [Math.cos(th0 * 0.5), 0, 0, 0, 0, 0]; var c = [k, 0, 0, 0, 0, 0]; var i; for (i = 0; i < 5; i++) { a[i + 1] = 0.5 * (a[i] + b[i]); b[i + 1] = Math.sqrt(a[i] * b[i]); c[i + 1] = 0.5 * (a[i] - b[i]); } var aN = a[5]; var K = Math.PI / (2 * aN); var omega0 = Math.sqrt(g / len); var period = (4 * K) / omega0; var w = K - omega0 * time; var phi = 32 * aN * w; for (i = 5; i >= 1; i--) { var ratio = c[i] / a[i]; phi = 0.5 * (phi + Math.asin(ratio * Math.sin(phi))); } var theta = 2 * Math.asin(k * Math.sin(phi)); return { theta: theta, period: period }; } var testState = solvePendulum(L, theta0, t); var refL = 1.0; var refTheta0 = 15 * degToRad; var refState = solvePendulum(refL, refTheta0, t); var testTheta = testState.theta; var refTheta = refState.theta; var test_x = L * Math.sin(testTheta); var test_y = -L * Math.cos(testTheta); var ref_x = refL * Math.sin(refTheta); var ref_y = -refL * Math.cos(refTheta); var forceTangential = -m * g * Math.sin(testTheta); var arrowScale = 0.03; var force_x = test_x + forceTangential * arrowScale * Math.cos(testTheta); var force_y = test_y + forceTangential * arrowScale * Math.sin(testTheta); var bob_size = 0.2 + 0.65 * (m - 0.5) / 2.5; var max_force = m * g * Math.sin(theta0); var max_accel = g * Math.sin(theta0); return { test_x: test_x, test_y: test_y, ref_x: ref_x, ref_y: ref_y, force_x: force_x, force_y: force_y, bob_size: bob_size, test_angle: testTheta / degToRad, ref_angle: refTheta / degToRad, period: testState.period, ref_period: refState.period, max_force: max_force, max_accel: max_accel, matches_ref: Math.abs(L - 1.0) < 0.05 && inputs.start_angle <= 15.1, is_wide_angle: inputs.start_angle >= 45, is_longer_than_ref: L > 1.05, is_shorter_than_ref: L < 0.95 }; }",
+    "outputs": [
+      {
+        "id": "test_x",
+        "unit": "m",
+        "meaning": "Horizontal position of the test pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "test_y",
+        "unit": "m",
+        "meaning": "Vertical position of the test pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "ref_x",
+        "unit": "m",
+        "meaning": "Horizontal position of the reference pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "ref_y",
+        "unit": "m",
+        "meaning": "Vertical position of the reference pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "force_x",
+        "unit": "m",
+        "meaning": "Horizontal tip coordinate of the restoring force arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "force_y",
+        "unit": "m",
+        "meaning": "Vertical tip coordinate of the restoring force arrow.",
+        "kind": "number"
+      },
+      {
+        "id": "bob_size",
+        "unit": "",
+        "meaning": "Normalized display size of the test bob based on mass.",
+        "kind": "number"
+      },
+      {
+        "id": "test_angle",
+        "unit": "deg",
+        "meaning": "Instantaneous angle of the test pendulum from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "ref_angle",
+        "unit": "deg",
+        "meaning": "Instantaneous angle of the reference pendulum from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Exact oscillation period of the test pendulum.",
+        "kind": "number"
+      },
+      {
+        "id": "ref_period",
+        "unit": "s",
+        "meaning": "Exact oscillation period of the reference pendulum.",
+        "kind": "number"
+      },
+      {
+        "id": "max_force",
+        "unit": "N",
+        "meaning": "Peak tangential restoring force at the release angle.",
+        "kind": "number"
+      },
+      {
+        "id": "max_accel",
+        "unit": "m/s^2",
+        "meaning": "Peak tangential acceleration at the release angle.",
+        "kind": "number"
+      },
+      {
+        "id": "matches_ref",
+        "unit": "",
+        "meaning": "True when test length and release angle match the reference.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_wide_angle",
+        "unit": "",
+        "meaning": "True when release angle is 45 deg or wider.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_longer_than_ref",
+        "unit": "",
+        "meaning": "True when test string is longer than the 1.0 m reference.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_shorter_than_ref",
+        "unit": "",
+        "meaning": "True when test string is shorter than the 1.0 m reference.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "vertical_ref",
+          "from": [0, 0],
+          "to": [0, -2.15]
+        },
+        {
+          "type": "trace",
+          "id": "test_arc",
+          "at": ["test_x", "test_y"],
+          "of": "test"
+        },
+        {
+          "type": "line",
+          "id": "test_rod",
+          "from": [0, 0],
+          "to": ["test_x", "test_y"],
+          "of": "test"
+        },
+        {
+          "type": "line",
+          "id": "ref_rod",
+          "from": [0, 0],
+          "to": ["ref_x", "ref_y"],
+          "of": "ref"
+        },
+        {
+          "type": "arrow",
+          "id": "force_vec",
+          "from": ["test_x", "test_y"],
+          "to": ["force_x", "force_y"],
+          "label": "F",
+          "of": "force"
+        },
+        {
+          "type": "dot",
+          "id": "test_bob",
+          "at": ["test_x", "test_y"],
+          "size": "bob_size",
+          "of": "test"
+        },
+        {
+          "type": "dot",
+          "id": "ref_bob",
+          "at": ["ref_x", "ref_y"],
+          "size": "small",
+          "of": "ref"
+        },
+        {
+          "type": "dot",
+          "id": "pivot_dot",
+          "at": [0, 0],
+          "size": "small"
+        },
+        {
+          "type": "label",
+          "id": "pivot_label",
+          "at": [0, 0.18],
+          "text": "Pivot (g = 9.81 m/s^2)"
+        },
+        {
+          "type": "label",
+          "id": "ref_note",
+          "at": [0, -2.28],
+          "text": "Ref: 1 m, 1 kg, 15 deg",
+          "of": "ref"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing angle over time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle from vertical",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "test_angle",
+          "label": "Test",
+          "of": "test",
+          "style": "line"
+        },
+        {
+          "value": "ref_angle",
+          "label": "Reference",
+          "of": "ref",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Test period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "test"
+    },
+    {
+      "value": "ref_period",
+      "label": "Ref period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "ref"
+    },
+    {
+      "value": "max_force",
+      "label": "Peak force",
+      "unit": "N",
+      "decimals": 1,
+      "of": "force"
+    },
+    {
+      "value": "max_accel",
+      "label": "Peak accel",
+      "unit": "m/s^2",
+      "decimals": 2,
+      "of": "test"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Period rises with string length",
+      "Mass scales force, not acceleration"
+    ],
+    "cases": [
+      {
+        "when": "matches_ref",
+        "text": "Same L and angle: syncs with ref"
+      },
+      {
+        "when": "is_wide_angle",
+        "text": "Wide angle slows swing (sin < rad)"
+      },
+      {
+        "when": "is_longer_than_ref",
+        "text": "Longer string makes swing slower"
+      },
+      {
+        "when": "is_shorter_than_ref",
+        "text": "Shorter string makes swing faster"
+      }
+    ],
+    "otherwise": "Small angle tracks 2pi*sqrt(L/g)"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "start_angle"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "mass"
+    },
+    {
+      "type": "increases",
+      "value": "max_force",
+      "with": "mass"
+    },
+    {
+      "type": "unchanged",
+      "value": "max_accel",
+      "when": "mass",
+      "at": [
+        {
+          "input": "length",
+          "value": 1.0
+        },
+        {
+          "input": "start_angle",
+          "value": 15
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum Swing?",
+    "description": "Compare a test pendulum with a 1.0 m reference as you adjust string length, release angle, and bob mass. Watch the swing path, force arrow, and angle plot to discover what sets the period.",
+    "instructions": "Adjust String length, Release angle, and Bob mass to test each factor. Match the reference at 1.0 m and 15 deg, then raise mass or release angle to see what alters the period versus only the force or swing width.",
+    "goal": "Know that a pendulum's period depends strongly on length and slightly on wide release angles, while mass scales force and inertia equally so timing stays fixed."
+  }
+}

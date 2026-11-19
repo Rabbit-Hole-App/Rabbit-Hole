@@ -1,0 +1,394 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's swing period increases with string length and decreases with stronger gravity, while bob mass has no effect. Release angle sets swing width and max speed, and only slightly lengthens period at large angles.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "The string is massless and inextensible, with all bob mass at a single point.",
+      "Air drag and pivot friction are zero, so total mechanical energy stays constant.",
+      "The period formula uses the small-angle approximation (release angles under 15 deg)."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "L",
+      "label": "String length",
+      "unit": "m",
+      "role": "fixed",
+      "meaning": "Distance from the fixed pivot point to the center of the pendulum bob."
+    },
+    {
+      "id": "m",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the bob; scales gravitational force and inertia equally so period is unchanged."
+    },
+    {
+      "id": "theta0",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "fixed",
+      "meaning": "Starting angle measured from straight down where the bob is released from rest."
+    },
+    {
+      "id": "g",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "control",
+      "meaning": "Downward gravitational acceleration acting on the pendulum bob."
+    },
+    {
+      "id": "damping",
+      "label": "Air drag",
+      "unit": "N*s/m",
+      "role": "fixed",
+      "meaning": "Friction and air resistance opposing motion, fixed at zero in this ideal model."
+    },
+    {
+      "id": "T",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time required for one complete back-and-forth swing cycle."
+    },
+    {
+      "id": "f",
+      "label": "Frequency",
+      "unit": "Hz",
+      "role": "result",
+      "meaning": "Number of complete swing cycles completed per second (1/T)."
+    },
+    {
+      "id": "theta",
+      "label": "Swing angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Instantaneous angle of the string from the vertical equilibrium line."
+    },
+    {
+      "id": "v_max",
+      "label": "Max speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Peak speed of the bob as it passes through the lowest point."
+    },
+    {
+      "id": "E_total",
+      "label": "Total energy",
+      "unit": "J",
+      "role": "result",
+      "meaning": "Conserved mechanical energy of the swing, proportional to bob mass."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    },
+    {
+      "id": "weight",
+      "label": "Weight force"
+    },
+    {
+      "id": "velocity",
+      "label": "Velocity"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "m",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 2.5,
+      "default": 1.0,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "g",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "min": 2.0,
+      "max": 20.0,
+      "default": 9.8,
+      "step": 0.2
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var L = 1.5; var theta0 = 14; var theta0_rad = theta0 * Math.PI / 180; var m = inputs.m; var g = inputs.g; var T = 2 * Math.PI * Math.sqrt(L / g); var f = 1 / T; var omega = 2 * Math.PI / T; var theta = theta0 * Math.cos(omega * t); var theta_rad = theta * Math.PI / 180; var v_max = Math.sqrt(2 * g * L * (1 - Math.cos(theta0_rad))); var E_total = m * g * L * (1 - Math.cos(theta0_rad)); var bob_x = L * Math.sin(theta_rad); var bob_y = L - L * Math.cos(theta_rad); var bob_size = 0.25 + 0.7 * (m - 0.5) / 2.0; var fg_tip_y = bob_y - 0.009 * m * g; var v_signed = -L * theta0_rad * omega * Math.sin(omega * t); var vel_scale = 0.35; var vel_tip_x = bob_x + vel_scale * v_signed * Math.cos(theta_rad); var vel_tip_y = bob_y + vel_scale * v_signed * Math.sin(theta_rad); var is_low_g = g < 5.0; var is_earth_g = g >= 8.5 && g <= 11.0; var is_high_g = g > 13.0; return { T: T, f: f, theta: theta, v_max: v_max, E_total: E_total, bob_x: bob_x, bob_y: bob_y, bob_size: bob_size, fg_tip_y: fg_tip_y, vel_tip_x: vel_tip_x, vel_tip_y: vel_tip_y, is_low_g: is_low_g, is_earth_g: is_earth_g, is_high_g: is_high_g }; }",
+    "outputs": [
+      {
+        "id": "T",
+        "unit": "s",
+        "meaning": "Time required for one complete back-and-forth swing cycle.",
+        "kind": "number"
+      },
+      {
+        "id": "f",
+        "unit": "Hz",
+        "meaning": "Number of complete swing cycles completed per second.",
+        "kind": "number"
+      },
+      {
+        "id": "theta",
+        "unit": "deg",
+        "meaning": "Instantaneous swing angle from the vertical equilibrium line.",
+        "kind": "number"
+      },
+      {
+        "id": "v_max",
+        "unit": "m/s",
+        "meaning": "Peak speed of the bob at the lowest point of the swing.",
+        "kind": "number"
+      },
+      {
+        "id": "E_total",
+        "unit": "J",
+        "meaning": "Conserved total mechanical energy of the oscillating bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bob_x",
+        "unit": "m",
+        "meaning": "Horizontal position of the pendulum bob relative to the pivot.",
+        "kind": "number"
+      },
+      {
+        "id": "bob_y",
+        "unit": "m",
+        "meaning": "Vertical height of the pendulum bob above its lowest point.",
+        "kind": "number"
+      },
+      {
+        "id": "bob_size",
+        "unit": "",
+        "meaning": "Normalized display size representing the bob mass.",
+        "kind": "number"
+      },
+      {
+        "id": "fg_tip_y",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the downward weight force arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "vel_tip_x",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the tangential velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "vel_tip_y",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the tangential velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "is_low_g",
+        "unit": "",
+        "meaning": "True when gravity is weak (below 5.0 m/s^2).",
+        "kind": "flag"
+      },
+      {
+        "id": "is_earth_g",
+        "unit": "",
+        "meaning": "True when gravity is close to Earth surface value.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_high_g",
+        "unit": "",
+        "meaning": "True when gravity is strong (above 13.0 m/s^2).",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "vertical_ref",
+          "from": [0, 1.5],
+          "to": [0, -0.1]
+        },
+        {
+          "type": "label",
+          "id": "pivot_label",
+          "at": [0, 1.62],
+          "text": "Pivot (L = 1.5 m)"
+        },
+        {
+          "type": "trace",
+          "id": "swing_trace",
+          "at": ["bob_x", "bob_y"],
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "string_line",
+          "from": [0, 1.5],
+          "to": ["bob_x", "bob_y"],
+          "of": "pendulum"
+        },
+        {
+          "type": "dot",
+          "id": "pivot_dot",
+          "at": [0, 1.5],
+          "size": "small"
+        },
+        {
+          "type": "arrow",
+          "id": "weight_arrow",
+          "from": ["bob_x", "bob_y"],
+          "to": ["bob_x", "fg_tip_y"],
+          "label": "Fg",
+          "of": "weight"
+        },
+        {
+          "type": "arrow",
+          "id": "velocity_arrow",
+          "from": ["bob_x", "bob_y"],
+          "to": ["vel_tip_x", "vel_tip_y"],
+          "label": "v",
+          "of": "velocity"
+        },
+        {
+          "type": "dot",
+          "id": "bob_dot",
+          "at": ["bob_x", "bob_y"],
+          "size": "bob_size",
+          "of": "pendulum"
+        },
+        {
+          "type": "label",
+          "id": "ref_label",
+          "at": [0, -0.52],
+          "text": "0 deg line"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing angle over time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Swing angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "theta",
+          "label": "Angle",
+          "of": "pendulum",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "T",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "v_max",
+      "label": "Max speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "velocity"
+    },
+    {
+      "value": "E_total",
+      "label": "Total energy",
+      "unit": "J",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "f",
+      "label": "Frequency",
+      "unit": "Hz",
+      "decimals": 2,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Length L = 1.5 m, release 14 deg",
+      "Mass scales Fg and E, not period T"
+    ],
+    "cases": [
+      {
+        "when": "is_low_g",
+        "text": "Weak gravity: slow swing, long T"
+      },
+      {
+        "when": "is_earth_g",
+        "text": "Near Earth gravity: T is ~2.5 s"
+      },
+      {
+        "when": "is_high_g",
+        "text": "Strong gravity: fast swing, short T"
+      }
+    ],
+    "otherwise": "Moderate gravity: mid-speed swing"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "T",
+      "when": "m"
+    },
+    {
+      "type": "unchanged",
+      "value": "v_max",
+      "when": "m"
+    },
+    {
+      "type": "increases",
+      "value": "E_total",
+      "with": "m"
+    },
+    {
+      "type": "decreases",
+      "value": "T",
+      "with": "g"
+    },
+    {
+      "type": "increases",
+      "value": "v_max",
+      "with": "g"
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum's Swing?",
+    "description": "Watch a 1.5 m pendulum swing from 14 deg while an angle plot records each cycle. Adjust bob mass and gravity to see what alters period, speed, and energy.",
+    "instructions": "Drag Bob mass from 0.5 to 2.5 kg and watch the weight arrow, bob size, and energy change while the swing angle curve stays identical. Then vary Gravity from 2 to 20 m/s^2 to see period shrink and speed rise. Use play, pause, or scrub to inspect velocity at the bottom.",
+    "goal": "Stronger gravity shortens a pendulum's period and raises its peak speed, whereas changing bob mass scales force and energy equally and leaves the swing timing unchanged."
+  }
+}

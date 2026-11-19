@@ -1,0 +1,445 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A simple pendulum's period depends only on its length and gravity, not on the bob's mass or small release angle. Longer rods swing slower because the bob travels a longer arc with the same restoring gravity.",
+      "formula": "T = 2\\pi\\sqrt{L/g}",
+      "assumptions": [
+        "Small release angles (5 to 20 deg) keep the period independent of amplitude.",
+        "Earth gravity is fixed at 9.81 m/s^2 with no air drag or pivot friction.",
+        "The rod is massless and rigid, and the bob acts as a point mass."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "Test length",
+        "unit": "m",
+        "role": "control",
+        "meaning": "Length of the test pendulum rod from pivot to bob."
+      },
+      {
+        "id": "mass",
+        "label": "Test mass",
+        "unit": "kg",
+        "role": "control",
+        "meaning": "Mass of the test pendulum bob."
+      },
+      {
+        "id": "angle0",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "control",
+        "meaning": "Starting angle of the test pendulum from vertical."
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "role": "fixed",
+        "meaning": "Gravitational acceleration fixed at Earth standard 9.81 m/s^2."
+      },
+      {
+        "id": "period",
+        "label": "Test period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Time for one full back-and-forth swing of the test pendulum."
+      },
+      {
+        "id": "refPeriod",
+        "label": "Ref period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Fixed 2.01 s period of the 1.0 m reference pendulum."
+      },
+      {
+        "id": "testAngle",
+        "label": "Test angle",
+        "unit": "deg",
+        "role": "result",
+        "meaning": "Current angle of the test pendulum from vertical."
+      },
+      {
+        "id": "refAngle",
+        "label": "Ref angle",
+        "unit": "deg",
+        "role": "result",
+        "meaning": "Current angle of the reference pendulum from vertical."
+      }
+    ],
+    "things": [
+      {
+        "id": "test",
+        "label": "Test pendulum"
+      },
+      {
+        "id": "ref",
+        "label": "Reference (1 m)"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "Test length",
+        "unit": "m",
+        "min": 0.4,
+        "max": 2.2,
+        "default": 1.4,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "mass",
+        "label": "Test mass",
+        "unit": "kg",
+        "min": 0.5,
+        "max": 5,
+        "default": 1,
+        "step": 0.5
+      },
+      {
+        "type": "number",
+        "id": "angle0",
+        "label": "Release angle",
+        "unit": "deg",
+        "min": 5,
+        "max": 20,
+        "default": 15,
+        "step": 1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { const g = 9.81; const refL = 1.0; const refA0 = 15; const pivotY = 2.4; const testPivotX = 1.1; const refPivotX = -1.1; const L = inputs.length; const m = inputs.mass; const a0 = inputs.angle0; const period = 2 * Math.PI * Math.sqrt(L / g); const refPeriod = 2 * Math.PI * Math.sqrt(refL / g); const omega = (2 * Math.PI) / period; const refOmega = (2 * Math.PI) / refPeriod; const testAngle = a0 * Math.cos(omega * t); const refAngle = refA0 * Math.cos(refOmega * t); const testRad = (testAngle * Math.PI) / 180; const refRad = (refAngle * Math.PI) / 180; const testX = testPivotX + L * Math.sin(testRad); const testY = pivotY - L * Math.cos(testRad); const refX = refPivotX + refL * Math.sin(refRad); const refY = pivotY - refL * Math.cos(refRad); const bobSize = 0.15 + 0.75 * ((m - 0.5) / 4.5); return { period: period, refPeriod: refPeriod, testAngle: testAngle, refAngle: refAngle, testX: testX, testY: testY, refX: refX, refY: refY, bobSize: bobSize, isLonger: L > refL + 0.05, isShorter: L < refL - 0.05, isSameLen: Math.abs(L - refL) <= 0.05 }; }",
+      "outputs": [
+        {
+          "id": "period",
+          "unit": "s",
+          "meaning": "Period of the test pendulum.",
+          "kind": "number"
+        },
+        {
+          "id": "refPeriod",
+          "unit": "s",
+          "meaning": "Period of the reference pendulum.",
+          "kind": "number"
+        },
+        {
+          "id": "testAngle",
+          "unit": "deg",
+          "meaning": "Angle of the test pendulum.",
+          "kind": "number"
+        },
+        {
+          "id": "refAngle",
+          "unit": "deg",
+          "meaning": "Angle of the reference pendulum.",
+          "kind": "number"
+        },
+        {
+          "id": "testX",
+          "unit": "m",
+          "meaning": "Horizontal position of the test bob.",
+          "kind": "number"
+        },
+        {
+          "id": "testY",
+          "unit": "m",
+          "meaning": "Vertical position of the test bob.",
+          "kind": "number"
+        },
+        {
+          "id": "refX",
+          "unit": "m",
+          "meaning": "Horizontal position of the reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "refY",
+          "unit": "m",
+          "meaning": "Vertical position of the reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bobSize",
+          "unit": "",
+          "meaning": "Visual size of the test bob scaled by mass.",
+          "kind": "number"
+        },
+        {
+          "id": "isLonger",
+          "unit": "",
+          "meaning": "True when the test rod is longer than the reference rod.",
+          "kind": "flag"
+        },
+        {
+          "id": "isShorter",
+          "unit": "",
+          "meaning": "True when the test rod is shorter than the reference rod.",
+          "kind": "flag"
+        },
+        {
+          "id": "isSameLen",
+          "unit": "",
+          "meaning": "True when both rods have the same length.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "support",
+            "from": [
+              -1.8,
+              2.4
+            ],
+            "to": [
+              1.8,
+              2.4
+            ]
+          },
+          {
+            "type": "line",
+            "id": "refRod",
+            "from": [
+              -1.1,
+              2.4
+            ],
+            "to": [
+              "refX",
+              "refY"
+            ],
+            "of": "ref"
+          },
+          {
+            "type": "dot",
+            "id": "refPivot",
+            "at": [
+              -1.1,
+              2.4
+            ],
+            "size": "small",
+            "of": "ref"
+          },
+          {
+            "type": "dot",
+            "id": "refBob",
+            "at": [
+              "refX",
+              "refY"
+            ],
+            "size": "medium",
+            "of": "ref"
+          },
+          {
+            "type": "trace",
+            "id": "refTrace",
+            "at": [
+              "refX",
+              "refY"
+            ],
+            "of": "ref"
+          },
+          {
+            "type": "line",
+            "id": "testRod",
+            "from": [
+              1.1,
+              2.4
+            ],
+            "to": [
+              "testX",
+              "testY"
+            ],
+            "of": "test"
+          },
+          {
+            "type": "dot",
+            "id": "testPivot",
+            "at": [
+              1.1,
+              2.4
+            ],
+            "size": "small",
+            "of": "test"
+          },
+          {
+            "type": "dot",
+            "id": "testBob",
+            "at": [
+              "testX",
+              "testY"
+            ],
+            "size": "bobSize",
+            "of": "test"
+          },
+          {
+            "type": "trace",
+            "id": "testTrace",
+            "at": [
+              "testX",
+              "testY"
+            ],
+            "of": "test"
+          },
+          {
+            "type": "label",
+            "id": "refLbl",
+            "at": [
+              -1.1,
+              2.55
+            ],
+            "text": "Ref (1.0 m, 1.0 kg)",
+            "of": "ref"
+          },
+          {
+            "type": "label",
+            "id": "testLbl",
+            "at": [
+              1.1,
+              2.55
+            ],
+            "text": "Test",
+            "of": "test"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Swing Angle Over Time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Angle",
+          "unit": "deg"
+        },
+        "series": [
+          {
+            "value": "testAngle",
+            "label": "Test",
+            "of": "test",
+            "style": "line"
+          },
+          {
+            "value": "refAngle",
+            "label": "Reference",
+            "of": "ref",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "period",
+        "label": "Test period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "test"
+      },
+      {
+        "value": "refPeriod",
+        "label": "Ref period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "ref"
+      },
+      {
+        "value": "testAngle",
+        "label": "Test angle",
+        "unit": "deg",
+        "decimals": 1,
+        "of": "test"
+      },
+      {
+        "value": "refAngle",
+        "label": "Ref angle",
+        "unit": "deg",
+        "decimals": 1,
+        "of": "ref"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Longer rods have longer periods.",
+        "Mass and small angles do not."
+      ],
+      "cases": [
+        {
+          "when": "isLonger",
+          "text": "Test is longer, so it swings slower."
+        },
+        {
+          "when": "isShorter",
+          "text": "Shorter test rod swings faster."
+        },
+        {
+          "when": "isSameLen",
+          "text": "Same length means identical period."
+        }
+      ],
+      "otherwise": "Compare test and reference swings."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "left-to-right",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "period",
+        "with": "length"
+      },
+      {
+        "type": "unchanged",
+        "value": "period",
+        "when": "mass"
+      },
+      {
+        "type": "unchanged",
+        "value": "period",
+        "when": "angle0"
+      },
+      {
+        "type": "equal",
+        "value": "period",
+        "to": "refPeriod",
+        "at": [
+          {
+            "input": "length",
+            "value": 1
+          }
+        ]
+      }
+    ],
+    "lesson": {
+      "title": "What Changes a Pendulum Swing?",
+      "description": "Compare a test pendulum against a fixed reference as you change its length, bob mass, and release angle. Watch both pendulums and the angle graph to see what alters the period.",
+      "instructions": "Adjust length, mass, and release angle with the sliders. Compare the test pendulum's timing and graph curve against the fixed 1.0 m reference.",
+      "goal": "Discover that only length (and gravity) changes a simple pendulum's period, while mass and small release angles leave the timing unchanged."
+    }
+  }
+}

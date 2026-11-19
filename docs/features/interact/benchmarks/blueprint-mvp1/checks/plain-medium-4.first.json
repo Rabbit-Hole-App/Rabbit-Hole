@@ -1,0 +1,367 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "For small swings, a pendulum's period depends only on its length and gravity, not on its mass or starting angle. Longer pendulums swing more slowly, while heavier bobs and wider small-angle swings take the same time per cycle.",
+      "formula": "T = 2\\pi\\sqrt{L / g}",
+      "assumptions": [
+        "Gravity is fixed at 9.81 m/s^2 on Earth.",
+        "The swing angle stays small (20 deg or less) so sin(theta) approx theta.",
+        "Air resistance and pivot friction are ignored, and the rod is massless."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "Length",
+        "unit": "m",
+        "role": "control",
+        "meaning": "Distance from the pivot to the centre of the bob."
+      },
+      {
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "control",
+        "meaning": "Mass of the pendulum bob."
+      },
+      {
+        "id": "amplitude",
+        "label": "Start angle",
+        "unit": "deg",
+        "role": "control",
+        "meaning": "Initial release angle from vertical."
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "role": "fixed",
+        "meaning": "Gravitational acceleration held constant at 9.81 m/s^2."
+      },
+      {
+        "id": "period",
+        "label": "Period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Time required for one complete back-and-forth swing."
+      },
+      {
+        "id": "angle",
+        "label": "Angle",
+        "unit": "deg",
+        "role": "result",
+        "meaning": "Current angle of the pendulum from vertical."
+      },
+      {
+        "id": "speed",
+        "label": "Speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Current linear speed of the pendulum bob."
+      }
+    ],
+    "things": [
+      {
+        "id": "pendulum",
+        "label": "Pendulum"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "Length",
+        "unit": "m",
+        "min": 0.5,
+        "max": 2.5,
+        "default": 1,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "min": 0.5,
+        "max": 3,
+        "default": 1,
+        "step": 0.5
+      },
+      {
+        "type": "number",
+        "id": "amplitude",
+        "label": "Start angle",
+        "unit": "deg",
+        "min": 5,
+        "max": 20,
+        "default": 15,
+        "step": 1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 6,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var g = 9.81; var L = inputs.length; var m = inputs.mass; var ampDeg = inputs.amplitude; var ampRad = ampDeg * Math.PI / 180; var omega = Math.sqrt(g / L); var period = 2 * Math.PI / omega; var theta = ampRad * Math.cos(omega * t); var thetaDot = -ampRad * omega * Math.sin(omega * t); var angle = theta * 180 / Math.PI; var bobX = L * Math.sin(theta); var bobY = -L * Math.cos(theta); var vx = L * thetaDot * Math.cos(theta); var vy = L * thetaDot * Math.sin(theta); var speed = Math.abs(L * thetaDot); var velTipX = bobX + 0.4 * vx; var velTipY = bobY + 0.4 * vy; var eqY = -L; var bobSize = 0.25 + ((m - 0.5) / 2.5) * 0.7; var isLong = L > 1.5; var isShort = L < 0.9; return { period: period, angle: angle, speed: speed, bobX: bobX, bobY: bobY, velTipX: velTipX, velTipY: velTipY, eqY: eqY, bobSize: bobSize, isLong: isLong, isShort: isShort }; }",
+      "outputs": [
+        {
+          "id": "period",
+          "unit": "s",
+          "meaning": "Time for one full back-and-forth swing.",
+          "kind": "number"
+        },
+        {
+          "id": "angle",
+          "unit": "deg",
+          "meaning": "Current angle from vertical in degrees.",
+          "kind": "number"
+        },
+        {
+          "id": "speed",
+          "unit": "m/s",
+          "meaning": "Current linear speed of the bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bobX",
+          "unit": "m",
+          "meaning": "Horizontal position of the bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bobY",
+          "unit": "m",
+          "meaning": "Vertical position of the bob.",
+          "kind": "number"
+        },
+        {
+          "id": "velTipX",
+          "unit": "m",
+          "meaning": "Horizontal coordinate of velocity arrow tip.",
+          "kind": "number"
+        },
+        {
+          "id": "velTipY",
+          "unit": "m",
+          "meaning": "Vertical coordinate of velocity arrow tip.",
+          "kind": "number"
+        },
+        {
+          "id": "eqY",
+          "unit": "m",
+          "meaning": "Vertical position of the equilibrium point.",
+          "kind": "number"
+        },
+        {
+          "id": "bobSize",
+          "unit": "",
+          "meaning": "Visual size of the bob proportional to mass.",
+          "kind": "number"
+        },
+        {
+          "id": "isLong",
+          "unit": "",
+          "meaning": "True when the pendulum length is over 1.5 m.",
+          "kind": "flag"
+        },
+        {
+          "id": "isShort",
+          "unit": "",
+          "meaning": "True when the pendulum length is under 0.9 m.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "support",
+            "from": [
+              -0.8,
+              0
+            ],
+            "to": [
+              0.8,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "equilibrium",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              0,
+              "eqY"
+            ]
+          },
+          {
+            "type": "trace",
+            "id": "arc",
+            "at": [
+              "bobX",
+              "bobY"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "rod",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              "bobX",
+              "bobY"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "pivot",
+            "at": [
+              0,
+              0
+            ],
+            "size": "small"
+          },
+          {
+            "type": "dot",
+            "id": "bob",
+            "at": [
+              "bobX",
+              "bobY"
+            ],
+            "size": "bobSize",
+            "of": "pendulum"
+          },
+          {
+            "type": "arrow",
+            "id": "velocity",
+            "from": [
+              "bobX",
+              "bobY"
+            ],
+            "to": [
+              "velTipX",
+              "velTipY"
+            ],
+            "label": "v",
+            "of": "pendulum"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Swing angle over time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Angle",
+          "unit": "deg"
+        },
+        "series": [
+          {
+            "value": "angle",
+            "label": "Angle",
+            "of": "pendulum",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "period",
+        "label": "Period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "angle",
+        "label": "Angle",
+        "unit": "deg",
+        "decimals": 1,
+        "of": "pendulum"
+      },
+      {
+        "value": "speed",
+        "label": "Speed",
+        "unit": "m/s",
+        "decimals": 2,
+        "of": "pendulum"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Only length sets the swing period."
+      ],
+      "cases": [
+        {
+          "when": "isLong",
+          "text": "Long rod: slow swing, large period."
+        },
+        {
+          "when": "isShort",
+          "text": "Short rod: fast swing, small period."
+        }
+      ],
+      "otherwise": "Medium rod: ~2 s per full swing."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "top-to-bottom",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "period",
+        "with": "length"
+      },
+      {
+        "type": "unchanged",
+        "value": "period",
+        "when": "mass"
+      },
+      {
+        "type": "unchanged",
+        "value": "period",
+        "when": "amplitude"
+      },
+      {
+        "type": "unchanged",
+        "value": "angle",
+        "when": "mass"
+      }
+    ],
+    "lesson": {
+      "title": "What changes a pendulum's swing?",
+      "description": "Watch a simple pendulum swing while its angle is plotted over time. Adjust its length, mass, and release angle to see which ones change the period.",
+      "instructions": "Use the sliders to change length, bob mass, and start angle. Watch the swing, the velocity arrow, the live period readout, and the angle-time graph as you test each variable.",
+      "goal": "Discover that only length changes a small-angle pendulum's period, while mass and starting angle leave the timing unchanged."
+    }
+  }
+}

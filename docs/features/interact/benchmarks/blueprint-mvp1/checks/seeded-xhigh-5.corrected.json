@@ -1,0 +1,485 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A pendulum's swing period grows as the square root of string length and shrinks with stronger gravity, while bob mass cancels out. Release angle sets swing width and peak speed, and slightly lengthens the period once swings are no longer small.",
+      "formula": "T = 2\\pi\\sqrt{L/g}",
+      "assumptions": [
+        "Air drag, pivot friction, and string mass are neglected.",
+        "The pendulum bob acts as a point mass on a taut, inextensible line.",
+        "Small swing angles (sin θ ≈ θ) are assumed for the simple period law."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "String length",
+        "unit": "m",
+        "role": "fixed",
+        "meaning": "Distance from the fixed pivot point to the bob's center of mass."
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s²",
+        "role": "control",
+        "meaning": "Downward gravitational acceleration pulling the bob toward equilibrium."
+      },
+      {
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "fixed",
+        "meaning": "Mass of the pendulum bob; increases weight and inertia equally."
+      },
+      {
+        "id": "start_angle",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "fixed",
+        "meaning": "Starting angle measured from straight down where the bob is released."
+      },
+      {
+        "id": "period",
+        "label": "Swing period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Exact time for one complete back-and-forth swing at any release angle."
+      },
+      {
+        "id": "small_angle_period",
+        "label": "Small-angle period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Ideal period 2π√(L/g) when sin θ ≈ θ, ignoring release angle."
+      },
+      {
+        "id": "max_speed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Speed of the bob as it passes through the lowest vertical point."
+      },
+      {
+        "id": "restoring_force",
+        "label": "Restoring force",
+        "unit": "N",
+        "role": "result",
+        "meaning": "Tangential force m·g·sin(θ₀) pulling the bob back at release."
+      },
+      {
+        "id": "restoring_accel",
+        "label": "Restoring accel.",
+        "unit": "m/s²",
+        "role": "result",
+        "meaning": "Tangential acceleration g·sin(θ₀) at release; bob mass cancels out."
+      }
+    ],
+    "things": [
+      {
+        "id": "pendulum",
+        "label": "Real pendulum"
+      },
+      {
+        "id": "ideal_model",
+        "label": "Small-angle"
+      },
+      {
+        "id": "restoring",
+        "label": "Restoring pull"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s²",
+        "min": 1.6,
+        "max": 24.8,
+        "default": 9.8,
+        "step": 0.2
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 7,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var L = 1.6; var m = 2.0; var theta0Deg = 50.0; var theta0 = theta0Deg * Math.PI / 180.0; var g = inputs.gravity; var omega0 = Math.sqrt(g / L); var small_angle_period = 2.0 * Math.PI / omega0; var kp = Math.cos(theta0 * 0.5); var a = 1.0; var b = kp; for (var i = 0; i < 5; i++) { var nextA = 0.5 * (a + b); var nextB = Math.sqrt(a * b); a = nextA; b = nextB; } var period = small_angle_period / a; var sqrtKp = Math.sqrt(kp); var l = (1.0 - sqrtKp) / (2.0 * (1.0 + sqrtKp)); var q = l + 2.0 * Math.pow(l, 5); var q1 = Math.sqrt(q); var q2 = q * q; var q3 = q2 * q; var q5 = q3 * q2; var q7 = q5 * q2; var c1 = 8.0 * (q1 / (1.0 + q)); var c3 = (8.0 / 3.0) * (q1 * q / (1.0 + q3)); var c5 = (8.0 / 5.0) * (q1 * q2 / (1.0 + q5)); var c7 = (8.0 / 7.0) * (q1 * q3 / (1.0 + q7)); var tau = 2.0 * Math.PI * t / period; var theta = c1 * Math.cos(tau) - c3 * Math.cos(3.0 * tau) + c5 * Math.cos(5.0 * tau) - c7 * Math.cos(7.0 * tau); var idealTheta = theta0 * Math.cos(omega0 * t); var angle = theta * 180.0 / Math.PI; var ideal_angle = idealTheta * 180.0 / Math.PI; var bob_x = L * Math.sin(theta); var bob_y = -L * Math.cos(theta); var ideal_x = L * Math.sin(idealTheta); var ideal_y = -L * Math.cos(idealTheta); var max_speed = Math.sqrt(2.0 * g * L * (1.0 - Math.cos(theta0))); var restoring_accel = g * Math.sin(theta0); var restoring_force = m * restoring_accel; var startX = L * Math.sin(theta0); var startY = -L * Math.cos(theta0); var fLen = 0.024 * restoring_force; var f_tip_x = startX - fLen * Math.cos(theta0); var f_tip_y = startY - fLen * Math.sin(theta0); var g_tip_y = -0.15 - 0.045 * g; var swing_width = 2.0 * startX; var is_weak_g = g < 5.0; var is_strong_g = g > 15.0; return { period: period, small_angle_period: small_angle_period, max_speed: max_speed, restoring_force: restoring_force, restoring_accel: restoring_accel, angle: angle, ideal_angle: ideal_angle, bob_x: bob_x, bob_y: bob_y, ideal_x: ideal_x, ideal_y: ideal_y, f_tip_x: f_tip_x, f_tip_y: f_tip_y, g_tip_y: g_tip_y, swing_width: swing_width, is_weak_g: is_weak_g, is_strong_g: is_strong_g }; }",
+      "outputs": [
+        {
+          "id": "period",
+          "unit": "s",
+          "meaning": "Exact time for one complete back-and-forth swing at any release angle.",
+          "kind": "number"
+        },
+        {
+          "id": "small_angle_period",
+          "unit": "s",
+          "meaning": "Ideal period 2π√(L/g) when sin θ ≈ θ, ignoring release angle.",
+          "kind": "number"
+        },
+        {
+          "id": "max_speed",
+          "unit": "m/s",
+          "meaning": "Speed of the bob as it passes through the lowest vertical point.",
+          "kind": "number"
+        },
+        {
+          "id": "restoring_force",
+          "unit": "N",
+          "meaning": "Tangential force m·g·sin(θ₀) pulling the bob back at release.",
+          "kind": "number"
+        },
+        {
+          "id": "restoring_accel",
+          "unit": "m/s²",
+          "meaning": "Tangential acceleration g·sin(θ₀) at release; bob mass cancels out.",
+          "kind": "number"
+        },
+        {
+          "id": "angle",
+          "unit": "deg",
+          "meaning": "Instantaneous swing angle of the real pendulum from vertical.",
+          "kind": "number"
+        },
+        {
+          "id": "ideal_angle",
+          "unit": "deg",
+          "meaning": "Instantaneous angle predicted by the small-angle model.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the real pendulum bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_y",
+          "unit": "m",
+          "meaning": "Vertical position of the real pendulum bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ideal_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the small-angle model bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ideal_y",
+          "unit": "m",
+          "meaning": "Vertical position of the small-angle model bob.",
+          "kind": "number"
+        },
+        {
+          "id": "f_tip_x",
+          "unit": "m",
+          "meaning": "Horizontal tip coordinate of the release restoring force arrow.",
+          "kind": "number"
+        },
+        {
+          "id": "f_tip_y",
+          "unit": "m",
+          "meaning": "Vertical tip coordinate of the release restoring force arrow.",
+          "kind": "number"
+        },
+        {
+          "id": "g_tip_y",
+          "unit": "m",
+          "meaning": "Vertical tip coordinate of the gravity vector indicator.",
+          "kind": "number"
+        },
+        {
+          "id": "swing_width",
+          "unit": "m",
+          "meaning": "Total horizontal span between the two endpoints of the swing.",
+          "kind": "number"
+        },
+        {
+          "id": "is_weak_g",
+          "unit": "",
+          "meaning": "True when gravity is well below Earth gravity.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_strong_g",
+          "unit": "",
+          "meaning": "True when gravity is well above Earth gravity.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "ceiling",
+            "from": [
+              -0.5,
+              0
+            ],
+            "to": [
+              0.5,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "plumb_line",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              0,
+              -1.75
+            ]
+          },
+          {
+            "type": "dot",
+            "id": "pivot",
+            "at": [
+              0,
+              0
+            ],
+            "size": "small"
+          },
+          {
+            "type": "line",
+            "id": "ideal_rod",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              "ideal_x",
+              "ideal_y"
+            ],
+            "of": "ideal_model"
+          },
+          {
+            "type": "dot",
+            "id": "ideal_bob",
+            "at": [
+              "ideal_x",
+              "ideal_y"
+            ],
+            "size": "small",
+            "of": "ideal_model"
+          },
+          {
+            "type": "trace",
+            "id": "bob_trace",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "rod",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "bob",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "size": "large",
+            "of": "pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "release_mark",
+            "at": [
+              1.22567,
+              -1.02846
+            ],
+            "size": "small",
+            "of": "restoring"
+          },
+          {
+            "type": "arrow",
+            "id": "force_vec",
+            "from": [
+              1.22567,
+              -1.02846
+            ],
+            "to": [
+              "f_tip_x",
+              "f_tip_y"
+            ],
+            "label": "F0",
+            "of": "restoring"
+          },
+          {
+            "type": "arrow",
+            "id": "grav_vec",
+            "from": [
+              1.55,
+              -0.15
+            ],
+            "to": [
+              1.55,
+              "g_tip_y"
+            ],
+            "label": "g",
+            "of": "restoring"
+          },
+          {
+            "type": "label",
+            "id": "fixed_note",
+            "at": [
+              0,
+              0.14
+            ],
+            "text": "L=1.6m, m=2kg, 50 deg"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Swing Angle Over Time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Angle",
+          "unit": "deg"
+        },
+        "series": [
+          {
+            "value": "angle",
+            "label": "Real swing",
+            "of": "pendulum",
+            "style": "line"
+          },
+          {
+            "value": "ideal_angle",
+            "label": "Small-angle",
+            "of": "ideal_model",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "period",
+        "label": "Period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "small_angle_period",
+        "label": "Ideal T",
+        "unit": "s",
+        "decimals": 2,
+        "of": "ideal_model"
+      },
+      {
+        "value": "max_speed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "restoring_force",
+        "label": "Release F",
+        "unit": "N",
+        "decimals": 1,
+        "of": "restoring"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Fixed: L=1.6m, m=2kg, 50 deg",
+        "Real swing lags small-angle model"
+      ],
+      "cases": [
+        {
+          "when": "is_weak_g",
+          "text": "Low g: small force, slow swing"
+        },
+        {
+          "when": "is_strong_g",
+          "text": "High g: strong force, fast swing"
+        }
+      ],
+      "otherwise": "Mid g: Earth-like swing speed"
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "decreases",
+        "value": "period",
+        "with": "gravity"
+      },
+      {
+        "type": "decreases",
+        "value": "small_angle_period",
+        "with": "gravity"
+      },
+      {
+        "type": "increases",
+        "value": "max_speed",
+        "with": "gravity"
+      },
+      {
+        "type": "increases",
+        "value": "restoring_force",
+        "with": "gravity"
+      },
+      {
+        "type": "increases",
+        "value": "restoring_accel",
+        "with": "gravity"
+      },
+      {
+        "type": "unchanged",
+        "value": "swing_width",
+        "when": "gravity"
+      }
+    ],
+    "lesson": {
+      "title": "What Changes a Pendulum Swing?",
+      "description": "Watch a 2 kg pendulum on a 1.6 m string swing from 50 degrees beside a small-angle model. Slide gravity up or down to test how period, peak speed, and restoring pull change.",
+      "instructions": "Drag the Gravity slider from Moon-like (1.6 m/s²) to Jupiter-like (24.8 m/s²) strength while keeping length, mass, and the 50 degree release fixed. Play or scrub time to compare the real pendulum with the small-angle curve.",
+      "goal": "Stronger gravity raises restoring pull and peak speed to shorten the period without changing swing width, while wide angles slightly slow the real swing."
+    }
+  }
+}

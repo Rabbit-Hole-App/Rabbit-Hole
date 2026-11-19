@@ -1,0 +1,15 @@
+{
+  "parsed": true,
+  "ok": false,
+  "failed": 2,
+  "problems": [
+    {
+      "code": "names",
+      "path": "relationship",
+      "message": "`relationship` is not the one you were given; use it exactly as given.",
+      "check": 2
+    }
+  ],
+  "notes": [],
+  "measured": null
+}

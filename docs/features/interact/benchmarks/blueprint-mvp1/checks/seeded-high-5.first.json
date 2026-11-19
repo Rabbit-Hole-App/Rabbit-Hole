@@ -1,0 +1,487 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A pendulum's swing period increases with string length and decreases with stronger gravity, while bob mass has no effect. Release angle sets swing width and max speed, and only slightly lengthens period at large angles.",
+      "formula": "T = 2\\pi\\sqrt{L/g}",
+      "assumptions": [
+        "The string is massless and inextensible, with all bob mass at a single point.",
+        "Air drag and pivot friction are zero, so total mechanical energy stays constant.",
+        "The period formula uses the small-angle approximation (release angles under 15 deg)."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "L",
+        "label": "String length",
+        "unit": "m",
+        "role": "fixed",
+        "meaning": "Distance from the fixed pivot point to the center of the pendulum bob."
+      },
+      {
+        "id": "m",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "control",
+        "meaning": "Mass of the bob; scales gravitational force and inertia equally so period is unchanged."
+      },
+      {
+        "id": "theta0",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "fixed",
+        "meaning": "Starting angle measured from straight down where the bob is released from rest."
+      },
+      {
+        "id": "g",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "role": "fixed",
+        "meaning": "Downward gravitational acceleration acting on the pendulum bob."
+      },
+      {
+        "id": "damping",
+        "label": "Air drag",
+        "unit": "N*s/m",
+        "role": "fixed",
+        "meaning": "Friction and air resistance opposing motion, fixed at zero in this ideal model."
+      },
+      {
+        "id": "T",
+        "label": "Period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Time required for one complete back-and-forth swing cycle."
+      },
+      {
+        "id": "f",
+        "label": "Frequency",
+        "unit": "Hz",
+        "role": "result",
+        "meaning": "Number of complete swing cycles completed per second (1/T)."
+      },
+      {
+        "id": "theta",
+        "label": "Swing angle",
+        "unit": "deg",
+        "role": "result",
+        "meaning": "Instantaneous angle of the string from the vertical equilibrium line."
+      },
+      {
+        "id": "v_max",
+        "label": "Max speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Peak speed of the bob as it passes through the lowest point."
+      },
+      {
+        "id": "E_total",
+        "label": "Total energy",
+        "unit": "J",
+        "role": "result",
+        "meaning": "Conserved mechanical energy of the swing, proportional to bob mass."
+      }
+    ],
+    "things": [
+      {
+        "id": "pendulum",
+        "label": "Test bob"
+      },
+      {
+        "id": "ref",
+        "label": "1 kg reference"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "m",
+        "label": "Bob mass",
+        "unit": "kg",
+        "min": 0.5,
+        "max": 5,
+        "default": 2,
+        "step": 0.5
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 5,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var m = inputs.m; var L = 1.5; var g = 9.81; var theta0Deg = 14; var theta0 = theta0Deg * Math.PI / 180; var mRef = 1.0; var T = 2 * Math.PI * Math.sqrt(L / g); var f = 1 / T; var omega = 2 * Math.PI / T; var phase = omega * t; var thetaRad = theta0 * Math.cos(phase); var theta = theta0Deg * Math.cos(phase); var drop = 1 - Math.cos(theta0); var v_max = Math.sqrt(2 * g * L * drop); var E_total = m * g * L * drop; var E_ref = mRef * g * L * drop; var sinSq = Math.sin(phase) * Math.sin(phase); var KE = E_total * sinSq; var KE_ref = E_ref * sinSq; var dx = L * Math.sin(thetaRad); var dy = -L * Math.cos(thetaRad); var ref_x = -0.65 + dx; var ref_y = dy; var bob_x = 0.65 + dx; var bob_y = dy; var arrowScale = 0.015; var ref_force_y = ref_y - arrowScale * mRef * g; var bob_force_y = bob_y - arrowScale * m * g; var bob_size = 0.15 + 0.8 * (m - 0.5) / 4.5; var ref_size = 0.15 + 0.8 * (mRef - 0.5) / 4.5; var is_heavier = m > 1.0001; var is_lighter = m < 0.9999; return { T: T, f: f, theta: theta, v_max: v_max, E_total: E_total, KE: KE, KE_ref: KE_ref, ref_x: ref_x, ref_y: ref_y, bob_x: bob_x, bob_y: bob_y, ref_force_y: ref_force_y, bob_force_y: bob_force_y, bob_size: bob_size, ref_size: ref_size, is_heavier: is_heavier, is_lighter: is_lighter }; }",
+      "outputs": [
+        {
+          "id": "T",
+          "unit": "s",
+          "meaning": "Time required for one complete back-and-forth swing cycle.",
+          "kind": "number"
+        },
+        {
+          "id": "f",
+          "unit": "Hz",
+          "meaning": "Number of complete swing cycles completed per second.",
+          "kind": "number"
+        },
+        {
+          "id": "theta",
+          "unit": "deg",
+          "meaning": "Instantaneous angle of the string from the vertical equilibrium line.",
+          "kind": "number"
+        },
+        {
+          "id": "v_max",
+          "unit": "m/s",
+          "meaning": "Peak speed of the bob as it passes through the lowest point.",
+          "kind": "number"
+        },
+        {
+          "id": "E_total",
+          "unit": "J",
+          "meaning": "Conserved mechanical energy of the test bob swing.",
+          "kind": "number"
+        },
+        {
+          "id": "KE",
+          "unit": "J",
+          "meaning": "Instantaneous kinetic energy of the test bob.",
+          "kind": "number"
+        },
+        {
+          "id": "KE_ref",
+          "unit": "J",
+          "meaning": "Instantaneous kinetic energy of the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_y",
+          "unit": "m",
+          "meaning": "Vertical position of the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_x",
+          "unit": "m",
+          "meaning": "Horizontal position of the test bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_y",
+          "unit": "m",
+          "meaning": "Vertical position of the test bob.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_force_y",
+          "unit": "m",
+          "meaning": "Tip y-coordinate of the gravity force arrow on the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_force_y",
+          "unit": "m",
+          "meaning": "Tip y-coordinate of the gravity force arrow on the test bob.",
+          "kind": "number"
+        },
+        {
+          "id": "bob_size",
+          "unit": "",
+          "meaning": "Normalized display size of the test bob proportional to mass.",
+          "kind": "number"
+        },
+        {
+          "id": "ref_size",
+          "unit": "",
+          "meaning": "Normalized display size of the 1 kg reference bob.",
+          "kind": "number"
+        },
+        {
+          "id": "is_heavier",
+          "unit": "",
+          "meaning": "True when the test bob is heavier than the 1 kg reference.",
+          "kind": "flag"
+        },
+        {
+          "id": "is_lighter",
+          "unit": "",
+          "meaning": "True when the test bob is lighter than the 1 kg reference.",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "support_bar",
+            "from": [
+              -1.1,
+              0
+            ],
+            "to": [
+              1.1,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "ref_plumb",
+            "from": [
+              -0.65,
+              0
+            ],
+            "to": [
+              -0.65,
+              -1.55
+            ]
+          },
+          {
+            "type": "line",
+            "id": "bob_plumb",
+            "from": [
+              0.65,
+              0
+            ],
+            "to": [
+              0.65,
+              -1.55
+            ]
+          },
+          {
+            "type": "trace",
+            "id": "bob_trace",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "ref_string",
+            "from": [
+              -0.65,
+              0
+            ],
+            "to": [
+              "ref_x",
+              "ref_y"
+            ],
+            "of": "ref"
+          },
+          {
+            "type": "line",
+            "id": "bob_string",
+            "from": [
+              0.65,
+              0
+            ],
+            "to": [
+              "bob_x",
+              "bob_y"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "arrow",
+            "id": "ref_force",
+            "from": [
+              "ref_x",
+              "ref_y"
+            ],
+            "to": [
+              "ref_x",
+              "ref_force_y"
+            ],
+            "label": "Fg",
+            "of": "ref"
+          },
+          {
+            "type": "arrow",
+            "id": "bob_force",
+            "from": [
+              "bob_x",
+              "bob_y"
+            ],
+            "to": [
+              "bob_x",
+              "bob_force_y"
+            ],
+            "label": "Fg",
+            "of": "pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "ref_bob",
+            "at": [
+              "ref_x",
+              "ref_y"
+            ],
+            "size": "ref_size",
+            "of": "ref"
+          },
+          {
+            "type": "dot",
+            "id": "test_bob",
+            "at": [
+              "bob_x",
+              "bob_y"
+            ],
+            "size": "bob_size",
+            "of": "pendulum"
+          },
+          {
+            "type": "label",
+            "id": "ref_label",
+            "at": [
+              -0.65,
+              0.14
+            ],
+            "text": "1 kg reference",
+            "of": "ref"
+          },
+          {
+            "type": "label",
+            "id": "bob_label",
+            "at": [
+              0.65,
+              0.14
+            ],
+            "text": "Test bob",
+            "of": "pendulum"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Kinetic energy over time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Kinetic energy",
+          "unit": "J"
+        },
+        "series": [
+          {
+            "value": "KE",
+            "label": "Test bob",
+            "of": "pendulum",
+            "style": "line"
+          },
+          {
+            "value": "KE_ref",
+            "label": "1 kg ref",
+            "of": "ref",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "T",
+        "label": "Period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "E_total",
+        "label": "Total energy",
+        "unit": "J",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "theta",
+        "label": "Swing angle",
+        "unit": "deg",
+        "decimals": 1,
+        "of": "pendulum"
+      },
+      {
+        "value": "v_max",
+        "label": "Max speed",
+        "unit": "m/s",
+        "decimals": 2,
+        "of": "pendulum"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "L = 1.5 m, g = 9.81 m/s^2, 14 deg.",
+        "Gravity and inertia scale with m."
+      ],
+      "cases": [
+        {
+          "when": "is_heavier",
+          "text": "Heavier bob: more energy, same T."
+        },
+        {
+          "when": "is_lighter",
+          "text": "Lighter bob: less energy, same T."
+        }
+      ],
+      "otherwise": "Same 1 kg mass: identical swings."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "unchanged",
+        "value": "T",
+        "when": "m"
+      },
+      {
+        "type": "unchanged",
+        "value": "f",
+        "when": "m"
+      },
+      {
+        "type": "unchanged",
+        "value": "v_max",
+        "when": "m"
+      },
+      {
+        "type": "increases",
+        "value": "E_total",
+        "with": "m"
+      },
+      {
+        "type": "unchanged",
+        "value": "theta",
+        "when": "m"
+      }
+    ],
+    "lesson": {
+      "title": "Does bob mass change a pendulum swing?",
+      "description": "Compare a test bob against a 1 kg reference swinging from the same 1.5 m string at 14 degrees. Change the bob mass to see what changes and what stays the same.",
+      "instructions": "Move the Bob mass slider between 0.5 kg and 5 kg while watching both pendulums and the kinetic energy graph. Pause or scrub Time to check whether the two bobs ever drift out of sync.",
+      "goal": "Bob mass increases weight and mechanical energy proportionally, while swing period, frequency, angle, and peak speed stay unchanged because inertia scales equally with mass."
+    }
+  }
+}

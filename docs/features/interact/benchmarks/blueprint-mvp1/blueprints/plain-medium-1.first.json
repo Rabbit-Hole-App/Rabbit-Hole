@@ -1,0 +1,397 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's swing period depends on its length and gravity, not on its bob mass or small starting angle. Longer strings take more time per swing, while larger starting angles only make the swing wider.",
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "assumptions": [
+      "Gravity is fixed at 9.81 m/s^2.",
+      "Air resistance and friction are neglected.",
+      "Small-angle approximation holds up to 25 degrees."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "Length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Length of the test pendulum string from pivot to bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the test pendulum bob."
+    },
+    {
+      "id": "startAngle",
+      "label": "Start angle",
+      "unit": "deg",
+      "role": "control",
+      "meaning": "Initial release angle of the test pendulum."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "fixed",
+      "meaning": "Gravitational acceleration held constant at 9.81 m/s^2."
+    },
+    {
+      "id": "period",
+      "label": "Test period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time for one complete back-and-forth swing of the test pendulum."
+    },
+    {
+      "id": "refPeriod",
+      "label": "Ref period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time for one complete swing of the 1.0 m reference pendulum."
+    },
+    {
+      "id": "angle",
+      "label": "Test angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Current angle of the test pendulum from vertical."
+    },
+    {
+      "id": "refAngle",
+      "label": "Ref angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Current angle of the reference pendulum from vertical."
+    }
+  ],
+  "things": [
+    {
+      "id": "test",
+      "label": "Test pendulum"
+    },
+    {
+      "id": "ref",
+      "label": "Reference"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Length",
+      "unit": "m",
+      "min": 0.5,
+      "max": 2.0,
+      "default": 1.5,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 5.0,
+      "default": 1.0,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "startAngle",
+      "label": "Start angle",
+      "unit": "deg",
+      "min": 5,
+      "max": 25,
+      "default": 15,
+      "step": 5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 5,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var g = 9.81; var L = inputs.length; var mass = inputs.mass; var startAngle = inputs.startAngle; var refL = 1.0; var refStart = 15; var omegaTest = Math.sqrt(g / L); var omegaRef = Math.sqrt(g / refL); var period = 2 * Math.PI * Math.sqrt(L / g); var refPeriod = 2 * Math.PI * Math.sqrt(refL / g); var angle = startAngle * Math.cos(omegaTest * t); var refAngle = refStart * Math.cos(omegaRef * t); var testRad = angle * Math.PI / 180; var refRad = refAngle * Math.PI / 180; var testX = 1.2 + L * Math.sin(testRad); var testY = 2.2 - L * Math.cos(testRad); var refX = -1.2 + refL * Math.sin(refRad); var refY = 2.2 - refL * Math.cos(refRad); var bobSize = 0.25 + 0.7 * ((mass - 0.5) / 4.5); return { period: period, refPeriod: refPeriod, angle: angle, refAngle: refAngle, testX: testX, testY: testY, refX: refX, refY: refY, bobSize: bobSize, isSlower: L > 1.05, isFaster: L < 0.95, isMatched: Math.abs(L - 1.0) <= 0.05 }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one complete swing of the test pendulum.",
+        "kind": "number"
+      },
+      {
+        "id": "refPeriod",
+        "unit": "s",
+        "meaning": "Time for one complete swing of the reference pendulum.",
+        "kind": "number"
+      },
+      {
+        "id": "angle",
+        "unit": "deg",
+        "meaning": "Current angle of the test pendulum from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "refAngle",
+        "unit": "deg",
+        "meaning": "Current angle of the reference pendulum from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "testX",
+        "unit": "m",
+        "meaning": "Horizontal position of the test pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "testY",
+        "unit": "m",
+        "meaning": "Vertical position of the test pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "refX",
+        "unit": "m",
+        "meaning": "Horizontal position of the reference pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "refY",
+        "unit": "m",
+        "meaning": "Vertical position of the reference pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bobSize",
+        "unit": "",
+        "meaning": "Visual size of the test bob reflecting its mass.",
+        "kind": "number"
+      },
+      {
+        "id": "isSlower",
+        "unit": "",
+        "meaning": "True when the test pendulum is longer than the reference.",
+        "kind": "flag"
+      },
+      {
+        "id": "isFaster",
+        "unit": "",
+        "meaning": "True when the test pendulum is shorter than the reference.",
+        "kind": "flag"
+      },
+      {
+        "id": "isMatched",
+        "unit": "",
+        "meaning": "True when both pendulums have the same length.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "support",
+          "from": [-2.0, 2.2],
+          "to": [2.0, 2.2]
+        },
+        {
+          "type": "label",
+          "id": "refLabel",
+          "at": [-1.2, 2.35],
+          "text": "Reference (1.0 m)",
+          "of": "ref"
+        },
+        {
+          "type": "label",
+          "id": "testLabel",
+          "at": [1.2, 2.35],
+          "text": "Test pendulum",
+          "of": "test"
+        },
+        {
+          "type": "line",
+          "id": "refVertical",
+          "from": [-1.2, 2.2],
+          "to": [-1.2, 1.2]
+        },
+        {
+          "type": "line",
+          "id": "testVertical",
+          "from": [1.2, 2.2],
+          "to": [1.2, 0.2]
+        },
+        {
+          "type": "trace",
+          "id": "refTrace",
+          "at": ["refX", "refY"],
+          "of": "ref"
+        },
+        {
+          "type": "trace",
+          "id": "testTrace",
+          "at": ["testX", "testY"],
+          "of": "test"
+        },
+        {
+          "type": "line",
+          "id": "refRod",
+          "from": [-1.2, 2.2],
+          "to": ["refX", "refY"],
+          "of": "ref"
+        },
+        {
+          "type": "line",
+          "id": "testRod",
+          "from": [1.2, 2.2],
+          "to": ["testX", "testY"],
+          "of": "test"
+        },
+        {
+          "type": "dot",
+          "id": "refBob",
+          "at": ["refX", "refY"],
+          "size": "medium",
+          "of": "ref"
+        },
+        {
+          "type": "dot",
+          "id": "testBob",
+          "at": ["testX", "testY"],
+          "size": "bobSize",
+          "of": "test"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing Angle Over Time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angle",
+          "label": "Test",
+          "of": "test",
+          "style": "line"
+        },
+        {
+          "value": "refAngle",
+          "label": "Reference",
+          "of": "ref",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Test period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "test"
+    },
+    {
+      "value": "refPeriod",
+      "label": "Ref period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "ref"
+    },
+    {
+      "value": "angle",
+      "label": "Test angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "test"
+    },
+    {
+      "value": "refAngle",
+      "label": "Ref angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "ref"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Only string length changes period."
+    ],
+    "cases": [
+      {
+        "when": "isSlower",
+        "text": "Longer string: slower swing."
+      },
+      {
+        "when": "isFaster",
+        "text": "Shorter string: faster swing."
+      },
+      {
+        "when": "isMatched",
+        "text": "Same length: periods match."
+      }
+    ],
+    "otherwise": "Compare test and reference swings."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "left-to-right",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "mass"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "startAngle"
+    },
+    {
+      "type": "unchanged",
+      "value": "angle",
+      "when": "mass"
+    },
+    {
+      "type": "equal",
+      "value": "period",
+      "to": "refPeriod",
+      "at": [
+        {
+          "input": "length",
+          "value": 1.0
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum's Swing?",
+    "description": "Adjust string length, bob mass, and start angle on the test pendulum while comparing it against a fixed reference pendulum and live angle plot.",
+    "instructions": "Move the Length, Bob mass, and Start angle sliders. Watch how each change affects the swing motion, period readout, and angle-versus-time graph.",
+    "goal": "Discover that string length controls a pendulum's period, whereas bob mass and small start angles do not."
+  }
+}

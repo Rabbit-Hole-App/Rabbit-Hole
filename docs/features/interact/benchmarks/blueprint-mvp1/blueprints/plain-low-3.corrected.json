@@ -1,0 +1,262 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's period depends only on its length and gravity. Changing the bob's mass or release angle (for small angles) does not change how long one swing takes.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "Gravity is fixed at 9.81 m/s^2.",
+      "Air resistance and pivot friction are ignored.",
+      "Release angles are small enough for simple harmonic motion."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot to the center of the bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the swinging weight at the end of the string."
+    },
+    {
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "control",
+      "meaning": "Starting angle from vertical when released."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time taken for one complete back-and-forth swing."
+    },
+    {
+      "id": "angleDeg",
+      "label": "Angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Current angle of the pendulum from vertical."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "min": 0.5,
+      "max": 2.5,
+      "default": 1.0,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 5.0,
+      "default": 1.0,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "min": 5,
+      "max": 25,
+      "default": 15,
+      "step": 5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const g = 9.81; const L = inputs.length; const m = inputs.mass; const theta0 = inputs.angle0 * Math.PI / 180; const period = 2 * Math.PI * Math.sqrt(L / g); const omega = 2 * Math.PI / period; const angleRad = theta0 * Math.cos(omega * t); const angleDeg = angleRad * 180 / Math.PI; const bobX = L * Math.sin(angleRad); const bobY = -L * Math.cos(angleRad); const bobSize = 0.25 + 0.15 * m; return { period: period, angleDeg: angleDeg, bobX: bobX, bobY: bobY, bobSize: bobSize, isLong: L >= 1.5, isShort: L <= 0.8 }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one full swing.",
+        "kind": "number"
+      },
+      {
+        "id": "angleDeg",
+        "unit": "deg",
+        "meaning": "Current angle from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "bobX",
+        "unit": "m",
+        "meaning": "Horizontal position of the bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bobY",
+        "unit": "m",
+        "meaning": "Vertical position of the bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bobSize",
+        "unit": "",
+        "meaning": "Visual size of the bob based on mass.",
+        "kind": "number"
+      },
+      {
+        "id": "isLong",
+        "unit": "",
+        "meaning": "True when the string is long.",
+        "kind": "flag"
+      },
+      {
+        "id": "isShort",
+        "unit": "",
+        "meaning": "True when the string is short.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "vertical_ref",
+          "from": [0, 0],
+          "to": [0, -2.6]
+        },
+        {
+          "type": "dot",
+          "id": "pivot",
+          "at": [0, 0],
+          "size": "small"
+        },
+        {
+          "type": "trace",
+          "id": "bob_trace",
+          "at": ["bobX", "bobY"],
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "string",
+          "from": [0, 0],
+          "to": ["bobX", "bobY"],
+          "of": "pendulum"
+        },
+        {
+          "type": "dot",
+          "id": "bob",
+          "at": ["bobX", "bobY"],
+          "size": "bobSize",
+          "of": "pendulum"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing Angle Over Time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angleDeg",
+          "label": "Angle",
+          "of": "pendulum",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "angleDeg",
+      "label": "Angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Only length sets the period."
+    ],
+    "cases": [
+      {
+        "when": "isLong",
+        "text": "Long string: slow, longer swings."
+      },
+      {
+        "when": "isShort",
+        "text": "Short string: fast, quick swings."
+      }
+    ],
+    "otherwise": "Medium string: moderate swing rate."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "mass"
+    },
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "angle0"
+    }
+  ],
+  "lesson": {
+    "title": "What changes a pendulum swing?",
+    "description": "Watch a pendulum swing and see how its angle changes over time. Adjust the string length, bob mass, and release angle to test what changes the period.",
+    "instructions": "Move the sliders for string length, bob mass, and release angle. Watch the period readout and the angle-time graph to see which control changes the timing.",
+    "goal": "Discover that a pendulum's period depends on its length, not on its mass or small release angle."
+  }
+}

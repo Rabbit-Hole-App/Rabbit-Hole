@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's period depends only on its length and gravity, not on the bob's mass. Longer pendulums swing slower, while stronger gravity makes them swing faster.",
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "assumptions": [
+      "The release angle is small (15 degrees), so the small-angle approximation holds.",
+      "The rod is massless and rigid, and there is no air resistance or friction."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "Rod length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot to the center of the pendulum bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the hanging pendulum bob."
+    },
+    {
+      "id": "gravity",
+      "label": "Planet gravity",
+      "unit": "",
+      "role": "control",
+      "meaning": "Gravitational environment (Earth, Moon, or Jupiter)."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time required for one complete back-and-forth swing."
+    },
+    {
+      "id": "angleDeg",
+      "label": "Angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Current angle of the pendulum from vertical."
+    },
+    {
+      "id": "gravityVal",
+      "label": "Gravity",
+      "unit": "m/s2",
+      "role": "result",
+      "meaning": "Acceleration due to gravity in the chosen environment."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    },
+    {
+      "id": "environment",
+      "label": "Gravity"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Rod length",
+      "unit": "m",
+      "min": 1.0,
+      "max": 4.0,
+      "default": 2.0,
+      "step": 0.25
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 5.0,
+      "default": 1.5,
+      "step": 0.5
+    },
+    {
+      "type": "select",
+      "id": "gravity",
+      "label": "Gravity",
+      "options": [
+        { "value": "earth", "label": "Earth" },
+        { "value": "moon", "label": "Moon" },
+        { "value": "jupiter", "label": "Jupiter" }
+      ],
+      "default": "earth"
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var g = 9.81; if (inputs.gravity === 'moon') g = 1.62; else if (inputs.gravity === 'jupiter') g = 24.79; var L = inputs.length; var period = 2 * Math.PI * Math.sqrt(L / g); var maxAngleDeg = 15; var angleDeg = maxAngleDeg * Math.cos((2 * Math.PI / period) * t); var angleRad = angleDeg * Math.PI / 180; var pivotY = 4.2; var bobX = L * Math.sin(angleRad); var bobY = pivotY - L * Math.cos(angleRad); var bobSize = 0.2 + (inputs.mass - 0.5) / 4.5 * 0.7; return { period: period, angleDeg: angleDeg, gravityVal: g, bobX: bobX, bobY: bobY, bobSize: bobSize, isMoon: inputs.gravity === 'moon', isJupiter: inputs.gravity === 'jupiter' }; }",
+    "outputs": [
+      { "id": "period", "unit": "s", "meaning": "Time for one full swing", "kind": "number" },
+      { "id": "angleDeg", "unit": "deg", "meaning": "Swing angle in degrees", "kind": "number" },
+      { "id": "gravityVal", "unit": "m/s2", "meaning": "Gravitational acceleration", "kind": "number" },
+      { "id": "bobX", "unit": "m", "meaning": "Horizontal position of bob", "kind": "number" },
+      { "id": "bobY", "unit": "m", "meaning": "Vertical position of bob", "kind": "number" },
+      { "id": "bobSize", "unit": "", "meaning": "Visual size of the bob", "kind": "number" },
+      { "id": "isMoon", "unit": "", "meaning": "True when Moon gravity is selected", "kind": "flag" },
+      { "id": "isJupiter", "unit": "", "meaning": "True when Jupiter gravity is selected", "kind": "flag" }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        { "type": "line", "id": "verticalRef", "from": [0, 4.2], "to": [0, 0.0] },
+        { "type": "trace", "id": "bobTrace", "at": ["bobX", "bobY"], "of": "pendulum" },
+        { "type": "line", "id": "rod", "from": [0, 4.2], "to": ["bobX", "bobY"], "of": "pendulum" },
+        { "type": "dot", "id": "pivot", "at": [0, 4.2], "size": "small" },
+        { "type": "dot", "id": "bob", "at": ["bobX", "bobY"], "size": "bobSize", "of": "pendulum" }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing angle over time",
+      "x": { "over": "time", "label": "Time", "unit": "s" },
+      "y": { "label": "Angle", "unit": "deg" },
+      "series": [
+        { "value": "angleDeg", "label": "Angle", "of": "pendulum", "style": "line" }
+      ]
+    }
+  },
+  "values": [
+    { "value": "period", "label": "Period", "unit": "s", "decimals": 2, "of": "pendulum" },
+    { "value": "angleDeg", "label": "Angle", "unit": "deg", "decimals": 1, "of": "pendulum" },
+    { "value": "gravityVal", "label": "Gravity", "unit": "m/s2", "decimals": 2, "of": "environment" }
+  ],
+  "explanation": {
+    "always": [
+      "Mass changes bob size, not period."
+    ],
+    "cases": [
+      { "when": "isMoon", "text": "Weak Moon gravity slows the swing." },
+      { "when": "isJupiter", "text": "Strong Jupiter gravity speeds it up." }
+    ],
+    "otherwise": "Longer rods take more time to swing."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "top-to-bottom",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    { "type": "increases", "value": "period", "with": "length" },
+    { "type": "unchanged", "value": "period", "when": "mass" }
+  ],
+  "lesson": {
+    "title": "What changes a pendulum swing?",
+    "description": "Watch a pendulum swing back and forth while its angle is plotted over time. Test how rod length, bob mass, and gravity affect the period of each swing.",
+    "instructions": "Adjust the rod length, bob mass, and planet gravity sliders. Watch the period readout and the angle-versus-time graph to see which changes alter the swing time.",
+    "goal": "Discover that a pendulum's period depends on its length and gravity, but not on its mass."
+  }
+}

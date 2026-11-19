@@ -1,0 +1,15 @@
+{
+  "parsed": true,
+  "ok": false,
+  "failed": 2,
+  "problems": [
+    {
+      "code": "names",
+      "path": "inputs[2].options",
+      "message": "`inputs[2].options`: the option labels need about 577 px in one row; a row has 560 px. Shorten the labels or use fewer options.",
+      "check": 2
+    }
+  ],
+  "notes": [],
+  "measured": null
+}

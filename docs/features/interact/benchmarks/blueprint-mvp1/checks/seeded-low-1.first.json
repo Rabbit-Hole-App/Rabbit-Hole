@@ -1,0 +1,15 @@
+{
+  "parsed": true,
+  "ok": false,
+  "failed": 1,
+  "problems": [
+    {
+      "code": "form",
+      "path": "explanation.always[1]",
+      "message": "`explanation.always[1]` is 37 characters; at most 36.",
+      "check": 1
+    }
+  ],
+  "notes": [],
+  "measured": null
+}

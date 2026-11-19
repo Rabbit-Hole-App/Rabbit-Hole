@@ -1,0 +1,486 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A simple pendulum's swing period increases with the square root of its length and decreases with gravity, while bob mass has no effect.",
+      "formula": "T = 2\\pi \\sqrt{L / g}",
+      "assumptions": [
+        "Both pendulums start from a small 20 degree angle.",
+        "Air resistance, pivot friction, and rod mass are neglected.",
+        "The reference pendulum stays fixed at 1.0 m on Earth."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "Rod length",
+        "unit": "m",
+        "role": "control",
+        "meaning": "Distance from the pivot to the test pendulum bob"
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "role": "control",
+        "meaning": "Gravitational acceleration pulling the bob downward"
+      },
+      {
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "control",
+        "meaning": "Mass of the test pendulum bob"
+      },
+      {
+        "id": "releaseAngle",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "fixed",
+        "meaning": "Starting angle from vertical for both pendulums, fixed at 20 deg"
+      },
+      {
+        "id": "refLength",
+        "label": "Reference length",
+        "unit": "m",
+        "role": "fixed",
+        "meaning": "Rod length of the fixed reference pendulum, 1.0 m"
+      },
+      {
+        "id": "period",
+        "label": "Test period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Time for one full back-and-forth swing of the test pendulum"
+      },
+      {
+        "id": "refPeriod",
+        "label": "Reference period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Fixed period of the 1.0 m Earth reference pendulum"
+      },
+      {
+        "id": "angleDeg",
+        "label": "Test angle",
+        "unit": "deg",
+        "role": "result",
+        "meaning": "Current angle of the test pendulum from vertical"
+      },
+      {
+        "id": "speed",
+        "label": "Test speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Current speed of the test pendulum bob"
+      },
+      {
+        "id": "maxSpeed",
+        "label": "Peak speed",
+        "unit": "m/s",
+        "role": "result",
+        "meaning": "Maximum speed of the test bob at the bottom of its swing"
+      }
+    ],
+    "things": [
+      {
+        "id": "pendulum",
+        "label": "Test pendulum"
+      },
+      {
+        "id": "reference",
+        "label": "Reference (1 m)"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "Rod length",
+        "unit": "m",
+        "min": 0.6,
+        "max": 2.4,
+        "default": 1.2,
+        "step": 0.2
+      },
+      {
+        "type": "number",
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "min": 2,
+        "max": 14,
+        "default": 9.8,
+        "step": 0.2
+      },
+      {
+        "type": "number",
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "min": 0.5,
+        "max": 5,
+        "default": 1.5,
+        "step": 0.5
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 5,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var L = inputs.length; var g = inputs.gravity; var m = inputs.mass; var theta0 = 20 * Math.PI / 180; var omega = Math.sqrt(g / L); var period = 2 * Math.PI / omega; var theta = theta0 * Math.cos(omega * t); var dtheta = -theta0 * omega * Math.sin(omega * t); var bobX = 1.0 + L * Math.sin(theta); var bobY = -L * Math.cos(theta); var speed = Math.abs(L * dtheta); var maxSpeed = L * theta0 * omega; var vScale = 0.35; var vx = L * dtheta * Math.cos(theta); var vy = L * dtheta * Math.sin(theta); var velTipX = bobX + vScale * vx; var velTipY = bobY + vScale * vy; var angleDeg = theta * 180 / Math.PI; var bobSize = 0.2 + 0.8 * ((m - 0.5) / 4.5); var refL = 1.0; var refG = 9.8; var refOmega = Math.sqrt(refG / refL); var refPeriod = 2 * Math.PI / refOmega; var refTheta = theta0 * Math.cos(refOmega * t); var refX = -1.0 + refL * Math.sin(refTheta); var refY = -refL * Math.cos(refTheta); var refAngleDeg = refTheta * 180 / Math.PI; var isSlower = period > refPeriod + 0.05; var isFaster = period < refPeriod - 0.05; return { bobX: bobX, bobY: bobY, velTipX: velTipX, velTipY: velTipY, bobSize: bobSize, period: period, angleDeg: angleDeg, speed: speed, maxSpeed: maxSpeed, refX: refX, refY: refY, refPeriod: refPeriod, refAngleDeg: refAngleDeg, isSlower: isSlower, isFaster: isFaster }; }",
+      "outputs": [
+        {
+          "id": "bobX",
+          "unit": "m",
+          "meaning": "Horizontal position of the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "bobY",
+          "unit": "m",
+          "meaning": "Vertical position of the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "velTipX",
+          "unit": "m",
+          "meaning": "Horizontal tip of the test bob velocity arrow",
+          "kind": "number"
+        },
+        {
+          "id": "velTipY",
+          "unit": "m",
+          "meaning": "Vertical tip of the test bob velocity arrow",
+          "kind": "number"
+        },
+        {
+          "id": "bobSize",
+          "unit": "",
+          "meaning": "Normalized display size of the test bob based on mass",
+          "kind": "number"
+        },
+        {
+          "id": "period",
+          "unit": "s",
+          "meaning": "Period of the test pendulum",
+          "kind": "number"
+        },
+        {
+          "id": "angleDeg",
+          "unit": "deg",
+          "meaning": "Angle of the test pendulum from vertical in degrees",
+          "kind": "number"
+        },
+        {
+          "id": "speed",
+          "unit": "m/s",
+          "meaning": "Instantaneous speed of the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "maxSpeed",
+          "unit": "m/s",
+          "meaning": "Peak speed of the test bob at the lowest point",
+          "kind": "number"
+        },
+        {
+          "id": "refX",
+          "unit": "m",
+          "meaning": "Horizontal position of the reference bob",
+          "kind": "number"
+        },
+        {
+          "id": "refY",
+          "unit": "m",
+          "meaning": "Vertical position of the reference bob",
+          "kind": "number"
+        },
+        {
+          "id": "refPeriod",
+          "unit": "s",
+          "meaning": "Period of the fixed reference pendulum",
+          "kind": "number"
+        },
+        {
+          "id": "refAngleDeg",
+          "unit": "deg",
+          "meaning": "Angle of the reference pendulum from vertical in degrees",
+          "kind": "number"
+        },
+        {
+          "id": "isSlower",
+          "unit": "",
+          "meaning": "True when test period exceeds reference period",
+          "kind": "flag"
+        },
+        {
+          "id": "isFaster",
+          "unit": "",
+          "meaning": "True when test period is shorter than reference period",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "supportBar",
+            "from": [
+              -1.5,
+              0
+            ],
+            "to": [
+              1.5,
+              0
+            ]
+          },
+          {
+            "type": "label",
+            "id": "refLabel",
+            "at": [
+              -1,
+              0.18
+            ],
+            "text": "Reference (1 m, Earth)"
+          },
+          {
+            "type": "label",
+            "id": "testLabel",
+            "at": [
+              1,
+              0.18
+            ],
+            "text": "Test pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "refPivot",
+            "at": [
+              -1,
+              0
+            ],
+            "size": "small",
+            "of": "reference"
+          },
+          {
+            "type": "dot",
+            "id": "testPivot",
+            "at": [
+              1,
+              0
+            ],
+            "size": "small",
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "refRod",
+            "from": [
+              -1,
+              0
+            ],
+            "to": [
+              "refX",
+              "refY"
+            ],
+            "of": "reference"
+          },
+          {
+            "type": "dot",
+            "id": "refBob",
+            "at": [
+              "refX",
+              "refY"
+            ],
+            "size": "medium",
+            "of": "reference"
+          },
+          {
+            "type": "trace",
+            "id": "testArc",
+            "at": [
+              "bobX",
+              "bobY"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "line",
+            "id": "testRod",
+            "from": [
+              1,
+              0
+            ],
+            "to": [
+              "bobX",
+              "bobY"
+            ],
+            "of": "pendulum"
+          },
+          {
+            "type": "dot",
+            "id": "testBob",
+            "at": [
+              "bobX",
+              "bobY"
+            ],
+            "size": "bobSize",
+            "of": "pendulum"
+          },
+          {
+            "type": "arrow",
+            "id": "velArrow",
+            "from": [
+              "bobX",
+              "bobY"
+            ],
+            "to": [
+              "velTipX",
+              "velTipY"
+            ],
+            "label": "v",
+            "of": "pendulum"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Swing angle over time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Angle",
+          "unit": "deg"
+        },
+        "series": [
+          {
+            "value": "angleDeg",
+            "label": "Test",
+            "of": "pendulum",
+            "style": "line"
+          },
+          {
+            "value": "refAngleDeg",
+            "label": "Reference",
+            "of": "reference",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "period",
+        "label": "Period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "pendulum"
+      },
+      {
+        "value": "refPeriod",
+        "label": "Ref period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "reference"
+      },
+      {
+        "value": "angleDeg",
+        "label": "Angle",
+        "unit": "deg",
+        "decimals": 1,
+        "of": "pendulum"
+      },
+      {
+        "value": "speed",
+        "label": "Speed",
+        "unit": "m/s",
+        "decimals": 2,
+        "of": "pendulum"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Longer rod slows the swing down.",
+        "Stronger gravity speeds it up.",
+        "Bob mass does not change period."
+      ],
+      "cases": [
+        {
+          "when": "isSlower",
+          "text": "Test swings slower than reference."
+        },
+        {
+          "when": "isFaster",
+          "text": "Test swings faster than reference."
+        }
+      ],
+      "otherwise": "Test matches the reference period."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "period",
+        "with": "length"
+      },
+      {
+        "type": "decreases",
+        "value": "period",
+        "with": "gravity"
+      },
+      {
+        "type": "unchanged",
+        "value": "period",
+        "when": "mass"
+      },
+      {
+        "type": "increases",
+        "value": "maxSpeed",
+        "with": "gravity"
+      },
+      {
+        "type": "equal",
+        "value": "period",
+        "to": "refPeriod",
+        "at": [
+          {
+            "input": "length",
+            "value": 1
+          },
+          {
+            "input": "gravity",
+            "value": 9.8
+          }
+        ]
+      }
+    ],
+    "lesson": {
+      "title": "What changes how a pendulum swings?",
+      "description": "Compare a test pendulum against a fixed Earth reference as you vary rod length, gravity, and bob mass. Watch both the side-by-side swing and the angle plot.",
+      "instructions": "Adjust rod length, gravity, and bob mass with the sliders. Compare the test pendulum's motion and wave against the fixed 1.0 m Earth reference, and pause or scrub time to inspect any moment.",
+      "goal": "Learn that pendulum period depends only on rod length and gravity, not on the mass of the bob."
+    }
+  }
+}

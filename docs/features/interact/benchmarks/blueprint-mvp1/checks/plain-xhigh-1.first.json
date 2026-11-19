@@ -1,0 +1,544 @@
+{
+  "parsed": true,
+  "ok": true,
+  "failed": 0,
+  "problems": [],
+  "notes": [],
+  "measured": null,
+  "blueprint": {
+    "version": 1,
+    "relationship": {
+      "statement": "A simple pendulum's swing period increases with the square root of length and decreases with gravity, while mass has no effect because force and inertia both scale with mass.",
+      "formula": "T = 2\\pi\\sqrt{L/g}",
+      "assumptions": [
+        "Release angle stays fixed at 25 deg in the small-angle regime.",
+        "Air resistance and pivot friction are neglected.",
+        "The rod is massless and rigid; the bob acts as a point mass."
+      ]
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "label": "Rod length",
+        "unit": "m",
+        "role": "control",
+        "meaning": "Distance from the test pivot to the center of the pendulum bob"
+      },
+      {
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "role": "control",
+        "meaning": "Mass of the test pendulum bob, affecting both weight and inertia"
+      },
+      {
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "role": "control",
+        "meaning": "Gravitational acceleration pulling the test pendulum downward"
+      },
+      {
+        "id": "releaseAngle",
+        "label": "Release angle",
+        "unit": "deg",
+        "role": "fixed",
+        "meaning": "Initial angle from vertical, held at 25 deg for small-angle motion"
+      },
+      {
+        "id": "refLength",
+        "label": "Reference length",
+        "unit": "m",
+        "role": "fixed",
+        "meaning": "Length of the reference pendulum, fixed at 1.0 m"
+      },
+      {
+        "id": "refGravity",
+        "label": "Reference gravity",
+        "unit": "m/s^2",
+        "role": "fixed",
+        "meaning": "Gravity for the reference pendulum, fixed at 9.8 m/s^2 on Earth"
+      },
+      {
+        "id": "testPeriod",
+        "label": "Test period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Time for one complete back-and-forth swing of the test pendulum"
+      },
+      {
+        "id": "refPeriod",
+        "label": "Reference period",
+        "unit": "s",
+        "role": "result",
+        "meaning": "Time for one complete back-and-forth swing of the reference pendulum"
+      },
+      {
+        "id": "testWeight",
+        "label": "Test weight",
+        "unit": "N",
+        "role": "result",
+        "meaning": "Downward gravitational force on the test bob (mass times gravity)"
+      },
+      {
+        "id": "testPeakAccel",
+        "label": "Peak restoring accel",
+        "unit": "m/s^2",
+        "role": "result",
+        "meaning": "Maximum tangential acceleration along the arc at the turning points"
+      }
+    ],
+    "things": [
+      {
+        "id": "test",
+        "label": "Test pendulum"
+      },
+      {
+        "id": "ref",
+        "label": "Ref pendulum"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "Rod length",
+        "unit": "m",
+        "min": 0.5,
+        "max": 2,
+        "default": 1,
+        "step": 0.1
+      },
+      {
+        "type": "number",
+        "id": "mass",
+        "label": "Bob mass",
+        "unit": "kg",
+        "min": 0.5,
+        "max": 2.5,
+        "default": 1,
+        "step": 0.5
+      },
+      {
+        "type": "number",
+        "id": "gravity",
+        "label": "Gravity",
+        "unit": "m/s^2",
+        "min": 3,
+        "max": 15,
+        "default": 9.8,
+        "step": 0.1
+      }
+    ],
+    "time": {
+      "mode": "continuous",
+      "duration": 5,
+      "label": "Time",
+      "unit": "s"
+    },
+    "math": {
+      "code": "function compute(inputs, t) { var L = inputs.length; var m = inputs.mass; var g = inputs.gravity; var refL = 1.0; var refM = 1.0; var refG = 9.8; var theta0Deg = 25; var theta0Rad = theta0Deg * Math.PI / 180; var omega = Math.sqrt(g / L); var refOmega = Math.sqrt(refG / refL); var testPeriod = 2 * Math.PI / omega; var refPeriod = 2 * Math.PI / refOmega; var testTheta = theta0Rad * Math.cos(omega * t); var refTheta = theta0Rad * Math.cos(refOmega * t); var testAngle = testTheta * 180 / Math.PI; var refAngle = refTheta * 180 / Math.PI; var testX = 1.0 + L * Math.sin(testTheta); var testY = -L * Math.cos(testTheta); var refX = -1.0 + refL * Math.sin(refTheta); var refY = -refL * Math.cos(refTheta); var testWeight = m * g; var refWeight = refM * refG; var testPeakAccel = g * Math.sin(theta0Rad); var arrowScale = 0.025; var testForceTipY = testY - arrowScale * testWeight; var refForceTipY = refY - arrowScale * refWeight; var testPlumbY = -L - 0.12; var testBobSize = 0.15 + 0.3 * m; var refBobSize = 0.15 + 0.3 * refM; var diffPeriod = testPeriod - refPeriod; var sameLg = Math.abs(L - refL) < 0.05 && Math.abs(g - refG) < 0.05; var isMassOnlyDiff = sameLg && Math.abs(m - refM) > 0.05; var isFaster = diffPeriod < -0.02; var isSlower = diffPeriod > 0.02; var isBalancedMatch = Math.abs(diffPeriod) < 0.02 && (Math.abs(L - refL) > 0.05 || Math.abs(g - refG) > 0.05); return { testPeriod: testPeriod, refPeriod: refPeriod, testWeight: testWeight, refWeight: refWeight, testPeakAccel: testPeakAccel, testAngle: testAngle, refAngle: refAngle, testX: testX, testY: testY, refX: refX, refY: refY, testForceTipY: testForceTipY, refForceTipY: refForceTipY, testPlumbY: testPlumbY, testBobSize: testBobSize, refBobSize: refBobSize, isMassOnlyDiff: isMassOnlyDiff, isFaster: isFaster, isSlower: isSlower, isBalancedMatch: isBalancedMatch }; }",
+      "outputs": [
+        {
+          "id": "testPeriod",
+          "unit": "s",
+          "meaning": "Time for one full swing of the test pendulum",
+          "kind": "number"
+        },
+        {
+          "id": "refPeriod",
+          "unit": "s",
+          "meaning": "Time for one full swing of the reference pendulum",
+          "kind": "number"
+        },
+        {
+          "id": "testWeight",
+          "unit": "N",
+          "meaning": "Downward gravitational force on the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "refWeight",
+          "unit": "N",
+          "meaning": "Downward gravitational force on the reference bob",
+          "kind": "number"
+        },
+        {
+          "id": "testPeakAccel",
+          "unit": "m/s^2",
+          "meaning": "Maximum tangential acceleration of the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "testAngle",
+          "unit": "deg",
+          "meaning": "Angle of the test pendulum from vertical",
+          "kind": "number"
+        },
+        {
+          "id": "refAngle",
+          "unit": "deg",
+          "meaning": "Angle of the reference pendulum from vertical",
+          "kind": "number"
+        },
+        {
+          "id": "testX",
+          "unit": "m",
+          "meaning": "Horizontal position of the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "testY",
+          "unit": "m",
+          "meaning": "Vertical position of the test bob",
+          "kind": "number"
+        },
+        {
+          "id": "refX",
+          "unit": "m",
+          "meaning": "Horizontal position of the reference bob",
+          "kind": "number"
+        },
+        {
+          "id": "refY",
+          "unit": "m",
+          "meaning": "Vertical position of the reference bob",
+          "kind": "number"
+        },
+        {
+          "id": "testForceTipY",
+          "unit": "m",
+          "meaning": "Vertical tip coordinate of the test weight arrow",
+          "kind": "number"
+        },
+        {
+          "id": "refForceTipY",
+          "unit": "m",
+          "meaning": "Vertical tip coordinate of the reference weight arrow",
+          "kind": "number"
+        },
+        {
+          "id": "testPlumbY",
+          "unit": "m",
+          "meaning": "Bottom vertical coordinate of the test plumb line",
+          "kind": "number"
+        },
+        {
+          "id": "testBobSize",
+          "unit": "",
+          "meaning": "Normalized dot size for the test pendulum bob",
+          "kind": "number"
+        },
+        {
+          "id": "refBobSize",
+          "unit": "",
+          "meaning": "Normalized dot size for the reference pendulum bob",
+          "kind": "number"
+        },
+        {
+          "id": "isMassOnlyDiff",
+          "unit": "",
+          "meaning": "True when only bob mass differs from reference",
+          "kind": "flag"
+        },
+        {
+          "id": "isFaster",
+          "unit": "",
+          "meaning": "True when test pendulum swings faster than reference",
+          "kind": "flag"
+        },
+        {
+          "id": "isSlower",
+          "unit": "",
+          "meaning": "True when test pendulum swings slower than reference",
+          "kind": "flag"
+        },
+        {
+          "id": "isBalancedMatch",
+          "unit": "",
+          "meaning": "True when L and g change in matching proportion",
+          "kind": "flag"
+        }
+      ]
+    },
+    "pictures": {
+      "main": {
+        "type": "parts",
+        "unit": "m",
+        "parts": [
+          {
+            "type": "line",
+            "id": "ceiling",
+            "from": [
+              -1.45,
+              0
+            ],
+            "to": [
+              1.45,
+              0
+            ]
+          },
+          {
+            "type": "line",
+            "id": "ref_plumb",
+            "from": [
+              -1,
+              0
+            ],
+            "to": [
+              -1,
+              -1.12
+            ]
+          },
+          {
+            "type": "line",
+            "id": "test_plumb",
+            "from": [
+              1,
+              0
+            ],
+            "to": [
+              1,
+              "testPlumbY"
+            ]
+          },
+          {
+            "type": "line",
+            "id": "ref_rod",
+            "from": [
+              -1,
+              0
+            ],
+            "to": [
+              "refX",
+              "refY"
+            ],
+            "of": "ref"
+          },
+          {
+            "type": "line",
+            "id": "test_rod",
+            "from": [
+              1,
+              0
+            ],
+            "to": [
+              "testX",
+              "testY"
+            ],
+            "of": "test"
+          },
+          {
+            "type": "trace",
+            "id": "test_trace",
+            "at": [
+              "testX",
+              "testY"
+            ],
+            "of": "test"
+          },
+          {
+            "type": "dot",
+            "id": "ref_bob",
+            "at": [
+              "refX",
+              "refY"
+            ],
+            "size": "refBobSize",
+            "of": "ref"
+          },
+          {
+            "type": "dot",
+            "id": "test_bob",
+            "at": [
+              "testX",
+              "testY"
+            ],
+            "size": "testBobSize",
+            "of": "test"
+          },
+          {
+            "type": "arrow",
+            "id": "ref_weight_arrow",
+            "from": [
+              "refX",
+              "refY"
+            ],
+            "to": [
+              "refX",
+              "refForceTipY"
+            ],
+            "label": "Fg",
+            "of": "ref"
+          },
+          {
+            "type": "arrow",
+            "id": "test_weight_arrow",
+            "from": [
+              "testX",
+              "testY"
+            ],
+            "to": [
+              "testX",
+              "testForceTipY"
+            ],
+            "label": "Fg",
+            "of": "test"
+          },
+          {
+            "type": "label",
+            "id": "ref_label",
+            "at": [
+              -1,
+              0.18
+            ],
+            "text": "Ref (1m, 1kg, Earth)",
+            "of": "ref"
+          },
+          {
+            "type": "label",
+            "id": "test_label",
+            "at": [
+              1,
+              0.18
+            ],
+            "text": "Test pendulum",
+            "of": "test"
+          }
+        ]
+      },
+      "panel": {
+        "type": "kind",
+        "kind": "coordinate-plot",
+        "title": "Swing angle over time",
+        "x": {
+          "over": "time",
+          "label": "Time",
+          "unit": "s"
+        },
+        "y": {
+          "label": "Angle",
+          "unit": "deg"
+        },
+        "series": [
+          {
+            "value": "testAngle",
+            "label": "Test",
+            "of": "test",
+            "style": "line"
+          },
+          {
+            "value": "refAngle",
+            "label": "Reference",
+            "of": "ref",
+            "style": "line"
+          }
+        ]
+      }
+    },
+    "values": [
+      {
+        "value": "testPeriod",
+        "label": "Test period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "test"
+      },
+      {
+        "value": "refPeriod",
+        "label": "Ref period",
+        "unit": "s",
+        "decimals": 2,
+        "of": "ref"
+      },
+      {
+        "value": "testWeight",
+        "label": "Test weight",
+        "unit": "N",
+        "decimals": 1,
+        "of": "test"
+      },
+      {
+        "value": "testPeakAccel",
+        "label": "Peak accel",
+        "unit": "m/s^2",
+        "decimals": 2,
+        "of": "test"
+      }
+    ],
+    "explanation": {
+      "always": [
+        "Longer rod or weaker g slows swing.",
+        "Mass adds weight & inertia equally."
+      ],
+      "cases": [
+        {
+          "when": "isMassOnlyDiff",
+          "text": "Mass changed weight, not the swing!"
+        },
+        {
+          "when": "isFaster",
+          "text": "Test swings faster (smaller L/g)."
+        },
+        {
+          "when": "isSlower",
+          "text": "Test swings slower (larger L/g)."
+        },
+        {
+          "when": "isBalancedMatch",
+          "text": "L/g matches Ref, so T matches Ref!"
+        }
+      ],
+      "otherwise": "Same L, m, g: both swing in unison."
+    },
+    "layout": {
+      "pictureCount": "two",
+      "runs": "compact",
+      "panelRole": "records-main"
+    },
+    "claims": [
+      {
+        "type": "increases",
+        "value": "testPeriod",
+        "with": "length"
+      },
+      {
+        "type": "decreases",
+        "value": "testPeriod",
+        "with": "gravity"
+      },
+      {
+        "type": "unchanged",
+        "value": "testPeriod",
+        "when": "mass"
+      },
+      {
+        "type": "increases",
+        "value": "testWeight",
+        "with": "mass"
+      },
+      {
+        "type": "unchanged",
+        "value": "testPeakAccel",
+        "when": "mass"
+      },
+      {
+        "type": "equal",
+        "value": "testAngle",
+        "to": "refAngle",
+        "at": [
+          {
+            "input": "mass",
+            "value": 2.5
+          }
+        ]
+      }
+    ],
+    "lesson": {
+      "title": "What Changes a Pendulum's Swing?",
+      "description": "Compare a test pendulum to a fixed Earth reference (1 m, 1 kg) as you vary length, mass, and gravity. Watch the diagram and angle plot reveal what actually changes the swing period.",
+      "instructions": "Adjust Rod length, Bob mass, and Gravity one at a time while keeping the others at defaults (1.0 m, 1.0 kg, 9.8 m/s^2). Compare the test wave against the reference wave and check the weight force and peak acceleration readouts.",
+      "goal": "See that pendulum period depends only on length and gravity, not mass, because extra mass increases weight and inertia equally."
+    }
+  }
+}
