@@ -142,6 +142,23 @@ test('rejects missing sequence actors, duplicate actor IDs, and ragged matrices'
   assert.throws(() => parseTutorDiagram(versioned(matrix)), /cells.*columns/i);
 });
 
+// MAT-E: a column whose every cell is empty or a dash.
+test('matrix: a column with no value in any row is rejected; the R2 bench fraud card (values one column left) fails on Proportion', () => {
+  const fraud = { kind: 'matrix', title: 'Class Imbalance in Transactions', caption: 'Legitimate transactions vastly outnumber fraudulent ones in typical datasets.', columns: ['Class', 'Count', 'Proportion'],
+    rows: [{ heading: 'Legitimate', cells: ['999,000', '99.9%', '\u2014'] }, { heading: 'Fraudulent', cells: ['1,000', '0.1%', '\u2014'] }] };
+  assert.throws(() => parseTutorDiagram(versioned(fraud)), /Proportion\\" has no value in any row/);
+  const fixed = structuredClone(fraud); fixed.columns = ['Count', 'Proportion', 'Note']; fixed.rows[0].cells = ['999,000', '99.9%', 'Majority']; fixed.rows[1].cells = ['1,000', '0.1%', 'Rare'];
+  assert.doesNotThrow(() => parseTutorDiagram(versioned(fixed)));
+  for (const blank of ['', ' ', '-', '\u2013', '\u2212', '--']) {
+    const m = structuredClone(fraud); m.rows.forEach(r => { r.cells[2] = blank; });
+    assert.throws(() => parseTutorDiagram(versioned(m)), /no value in any row/, JSON.stringify(blank));
+  }
+  const some = structuredClone(fraud); some.rows[1].cells[2] = '0.1%';
+  assert.doesNotThrow(() => parseTutorDiagram(versioned(some)), 'one value in the column is enough');
+  const na = structuredClone(fraud); na.rows.forEach(r => { r.cells[2] = 'n/a'; });
+  assert.doesNotThrow(() => parseTutorDiagram(versioned(na)), 'n/a is a value');
+});
+
 test('accepts an explicit binary tree with a lone right child', () => {
   assert.deepEqual(parseTutorDiagram(JSON.stringify(binaryTree)), binaryTree);
 });
