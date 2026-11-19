@@ -525,7 +525,27 @@ const proseOfMarkdown = md => split(md).prose.filter(line => typeof line === 'st
 // -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
 // such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
 // "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
-export function numbersIssue(block) {
+// BOX-1 (b): the learner's question lists five or more numbers (comma or semicolon separated, "and" allowed) and the card draws a box plot: its boxes carry `values`, and every list the
+// learner wrote is the values of one box (as a multiset: the order is free). The statistics are then computed from them (derived.js), never typed. shortcut: numbers separated by spaces only,
+// or a list inside a table or sentence of words, are not read; a box plot inside a comparison panel is not checked; upgrade on the Reviewer's word.
+const DATA_NUMBER = '[-−]?\\d+(?:\\.\\d+)?';
+const DATA_LIST = new RegExp(`(?<![\\w.])${DATA_NUMBER}(?:\\s*[,;]\\s*(?:(?:and|or)\\s+)?${DATA_NUMBER}|\\s+(?:and|or)\\s+${DATA_NUMBER})+(?!\\w|\\.\\d)`, 'g');
+export function learnerDatasets(question) {
+  return [...String(question ?? '').matchAll(DATA_LIST)].filter(m => !/,\d{3}(?!\d)/.test(m[0])) // "1,000" is a thousand, not two numbers
+    .map(m => m[0].match(new RegExp(DATA_NUMBER, 'g')).map(s => Number(s.replace('−', '-')))).filter(list => list.length >= 5);
+}
+const sortedNumbers = list => [...list].sort((a, b) => a - b);
+const sameData = (a, b) => a.length === b.length && sortedNumbers(a).every((value, i) => Math.abs(value - sortedNumbers(b)[i]) < 1e-9);
+const shortList = list => (list.length > 14 ? `${list.slice(0, 14).join(', ')}, and ${list.length - 14} more` : list.join(', '));
+export function boxDataIssues(diagram, question) {
+  const sets = diagram?.kind === 'box-plot' ? learnerDatasets(question) : [];
+  if (!sets.length) return [];
+  const bare = diagram.boxes.filter(box => !box.values), title = String(diagram.title).slice(0, 60);
+  if (bare.length) return [`the box-plot "${title}" must carry the learner's data: the question lists ${sets.map(shortList).map(s => `(${s})`).join(' and ')}, so give ${bare.map(box => `the box "${box.label}"`).join(' and ')} values equal to those numbers (the code then computes the median, quartiles, whiskers and outliers), never typed statistics`];
+  return sets.filter(set => !diagram.boxes.some(box => sameData(box.values, set)))
+    .map(set => `the box-plot "${title}" holds ${diagram.boxes.map(box => `values (${shortList(box.values)})`).join(' and ')}, but the learner's data is (${shortList(set)}): set the values of the box that shows it to exactly those numbers`);
+}
+export function numbersIssue(block, question = '') {
   const hits = [], extra = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }
   let n = 0;
   const texts = [block?.body, ...(block?.more || []).map(s => s?.text)];
@@ -535,6 +555,7 @@ export function numbersIssue(block) {
     try {
       const { diagram } = parseTutorDiagram(f.lines.join('\n'));
       for (const bad of distributionBarIssues(diagram)) extra.push({ kind: 'bar-chart', message: `the bar-chart "${String(diagram.title).slice(0, 60)}" is called a ${bad.word} but its ${bad.label ? `"${bad.label}" ` : ''}values (${bad.values.join(', ')}) sum to ${bad.sum}: values that form a distribution sum to 1, so change the values to sum to 1 and every sentence that states them` });
+      for (const message of boxDataIssues(diagram, question)) extra.push({ kind: 'box-plot', message });
     } catch (error) {
       const [first] = arithmeticOf(error);
       if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
@@ -1292,7 +1313,7 @@ export function explanationLayoutProblem(block, question = '') {
 export function explanationProblem(block, depth, question = '') {
   const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
   // Every wrong-numbers diagram in ONE message (numbersIssue), so the single repair fixes them together; diagramProblem alone names only the first failing fence of each section.
-  const numbers = numbersIssue(block);
+  const numbers = numbersIssue(block, question);
   const diagrams = [...(numbers ? [numbers.problem] : []), ...[block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(p => p && !(numbers && p.startsWith('explanation_bad_numbers')))];
   const pictures = markdownIllustrations(block?.body), ids = pictures.filter(p => p.ok).map(p => p.spec.id);
   const problems = [];

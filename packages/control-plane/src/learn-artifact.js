@@ -301,7 +301,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         { const tokens = fillTokens(block); if (tokens.problem) throw new Error(tokens.problem); block = tokens.block; if (trace) Object.assign(trace, { tokensFilled: tokens.filled, bodyWithTokens: tokens.authored }); }
         if (attempt >= limit) {
           // An arithmetic-tagged issue is never dropped or simplified away, and the prose is never delivered with the wrong number: the step fails (explanation_bad_numbers) and the chain's next provider runs.
-          const numbers = numbersIssue(block); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
+          const numbers = numbersIssue(block, input.args); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
           let trimmed = dropInvalidDiagrams(block), fallback = null;
           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
