@@ -326,6 +326,7 @@ test('GEN-1 G6: with planned: true gone the planner runs once per card, outside 
   assert.ok(calls.every(row => row.provider === 'google'), 'the call rows are the author calls only (no planner row)');
   assert.equal(h.rows("SELECT COUNT(*) AS n FROM usage_attempts WHERE provider NOT IN ('google','anthropic','openai','fireworks')")[0].n, 0, 'the planner is in no usage row: it is a bounded side call (1.2 s timeout, at most 4,000 characters in), not a metered author call');
   assert.ok(planner[0].state.question.length <= 2000 && (planner[0].state.context ?? '').length <= 2000, 'what leaves for the planner is capped at 2,000 + 2,000 characters');
+  assert.ok(planner.every(p => p.state.context === null) && planner.every(p => /: /.test(p.state.question)), 'the roadmap planner gets the step title and goal only: context null, no document text to the third party');
   assert.ok(JSON.stringify(sent[0]).length > 0 && /Based on the rules above, this card:/.test(JSON.stringify(sent[0])), 'the author request was built (with the plan: its statement replaces the rules block)');
 });
 
