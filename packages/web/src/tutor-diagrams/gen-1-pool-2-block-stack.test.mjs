@@ -53,7 +53,21 @@ test('parcel positions and end-to-end distance agree with the measured stretches
   assert.deepEqual(displayedNumbers(caption(reference)), [middle, parcelStretches.length, route]);
 });
 
-test('all three depths render the ordered blocks at 408 px without residuals or joins', () => {
+test('all three depths render the ordered blocks and stage roles at 408 px without residuals or joins', () => {
+  const roles = {
+    'pool-pop-up-toaster-stages': {
+      overview: { chamber: 'changed', lift: 'output' },
+      standard: { browning: 'changed', lift: 'output' },
+    },
+    'pool-mesh-and-paper-water-filter': {
+      overview: { screens: 'changed', cup: 'output' },
+      standard: { mesh: 'changed', paper: 'changed', cup: 'output' },
+    },
+    'pool-parcel-sorting-line': {
+      overview: { sorting: 'changed', cart: 'output' },
+      standard: { chute: 'changed', cart: 'output' },
+    },
+  };
   for (const reference of references) {
     for (const [depth, { spec }] of Object.entries(reference.depths)) {
       const key = `${reference.id}/${depth}`;
@@ -61,6 +75,8 @@ test('all three depths render the ordered blocks at 408 px without residuals or 
       assert.equal(diagram.kind, 'block-stack', key);
       assert.equal(diagram.edges, undefined, key);
       assert.ok(diagram.blocks.every(item => !item.merge && !item.inputs && !item.diagram), key);
+      assert.deepEqual(Object.fromEntries(diagram.blocks.filter(block => block.role).map(block => [block.id, block.role])),
+        roles[reference.id][depth === 'deep' ? 'standard' : depth], key);
       assert.deepEqual(lintDiagramContent(spec), [], key);
       const { element, width } = renderTutorDiagram(spec, 408);
       const markup = renderToStaticMarkup(element);
