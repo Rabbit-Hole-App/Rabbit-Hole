@@ -148,6 +148,8 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
 // panel's keywords, so selection and its bench are unchanged: the swap happens after the pick. A leaf excerpt (sourceId) is never swapped.
 let singleMap;
 const singleByPanel = { get: id => (singleMap ??= new Map(referenceLibrary().singleDiagramReferences.map(single => [single.panelReferenceId, single]))).get(id) };
+// The ids a steered reference can be sent under: its own, and its one-diagram variant's (the steer carries the panel reference's id, the request the variant's).
+export const shownReferenceIds = id => [id, singleByPanel.get(id)?.id].filter(Boolean);
 export function preferSingleVariants(references, { plannedKind = null, requiredKinds = [], seed = null } = {}) {
   const whole = plannedKind === 'comparison' || plannedKind === 'transformation';
   return references.map(ref => {

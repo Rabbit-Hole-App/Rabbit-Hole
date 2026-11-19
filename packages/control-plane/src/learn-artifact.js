@@ -1,6 +1,6 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
 import { referenceLibraryReady } from './reference-library-lazy.js';
-import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle, plannedBundleKinds } from './explanation-references.js';
+import { selectWithSteer, selectForAuthor, diagramReferenceContext, shownReferenceIds, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle, plannedBundleKinds } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -148,7 +148,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // GEN-1 G1 (R2): a SEEDED request with a planned kind and no topical reference gets up to three seeded library examples of that kind (explanation-examples.js, the block capped at EXAMPLES_CAP_CHARS) in place of the one gallery example; no seed, no plan or a topical reference (R3): unchanged.
   const planKind = input.plan && visualKinds(resolved)[0];
   // GEN-1 R3 (G3): when the kind was drawn (or fixed by an exact reference) and it is the reference's kind, that reference is the FIRST example, marked closest, plus two from the pool; a drawn kind that is not the reference's: the reference is not shown.
-  const decided = ['draw', 'reference-exact'].includes(input.plan?.kindSource), closest = decided && input.plan.closestId ? topicalReferences.find(r => r.id === input.plan.closestId) ?? null : null;
+  const decided = ['draw', 'reference-exact'].includes(input.plan?.kindSource), closest = decided && input.plan.closestId ? topicalReferences.find(r => shownReferenceIds(input.plan.closestId).includes(r.id)) ?? null : null; // the steer carries the panel reference's id; a two-panel reference is shown as its -single variant
   const seeded = requestSeed && planKind && ready.includes('explanation') && (decided || !topicalReferences.length)
     ? capExampleList([...(closest ? [{ id: closest.id, spec: closest.spec, closest: true }] : []), ...exampleReferences(planKind, input.depth, requestSeed).examples.filter(e => e.id !== closest?.id).slice(0, closest ? 2 : 3)]).map(example => ({ ...example, seededExample: true })) : [];
   const shape = planKind ? planShape({ kind: planKind }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = seeded.length ? seeded : shape ? [shape, ...topicalReferences] : topicalReferences;

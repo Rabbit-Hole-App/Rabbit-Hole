@@ -95,3 +95,28 @@ test('the archive trace names the draw: kindSource, kindDraw, plannerKind, the e
   assert.equal(trace.kindSource, 'reference-exact'); assert.equal(trace.plannerKind, 'tree'); assert.equal(trace.kindDraw.drawn, EXACT_KIND);
   assert.equal(trace.closest, EXACT_ID); assert.equal(trace.examples[0], EXACT_ID); assert.equal(trace.examples.length, 3);
 });
+
+test('R3-1: every reference with an exact documented prompt (single-diagram variants included): reference-exact implies the reference is the FIRST example, marked closest, under its own or its -single id', async () => {
+  const { referenceLibraryReady } = await import('../src/reference-library-lazy.js');
+  await referenceLibraryReady();
+  const { referenceLibrary } = await import('../src/reference-library-lazy.js');
+  const { shownReferenceIds } = await import('../src/explanation-references.js');
+  const lib = referenceLibrary(), singles = new Map(lib.singleDiagramReferences.map(s => [s.panelReferenceId, s]));
+  let exact = 0, viaSingle = 0; const misses = [];
+  for (const ref of lib.diagramReferences) for (const prompt of ref.prompts ?? []) {
+    const plan = planOf(prompt, { flow: 0.5, matrix: 0.3, tree: 0.2 }, 'request-r31');
+    if (plan.kindSource !== 'reference-exact') continue;
+    exact++;
+    const p = prep(prompt, { flow: 0.5, matrix: 0.3, tree: 0.2 }, 'request-r31'), first = p.diagramReferences[0];
+    if (singles.has(plan.closestId)) viaSingle++;
+    if (!first?.closest || !shownReferenceIds(plan.closestId).includes(first.id) || !first.seededExample) misses.push(`${ref.id} :: ${prompt.slice(0, 60)} -> ${first?.id ?? 'none'} (closestId ${plan.closestId})`);
+  }
+  assert.ok(exact > 100 && viaSingle > 0, `exact ${exact}, via single ${viaSingle}`);
+  assert.deepEqual(misses, []);
+});
+
+test('R3-1: why does a transformer use more than one attention head: the exact hit is shown (as its single-diagram variant), first, marked closest', () => {
+  const p = prep('Why does a transformer use more than one attention head?', { flow: 0.5, matrix: 0.3, tree: 0.2 }, 'request-r31');
+  assert.equal(p.diagramReferences[0].id, 'ml-transformer-parallel-attention-heads-single');
+  assert.ok(p.diagramReferences[0].closest);
+});
