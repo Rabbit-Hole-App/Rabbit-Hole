@@ -374,6 +374,40 @@ test('bootstrap draw count: m-out-of-n and subsample cards, cards that never say
   assert.equal(schema.safeParse(oob).success, true, 'the out-of-bag group is not a draw');
 });
 
+// SAMP-1: rows the text says repeat appear at least twice, rows it says are omitted do not appear.
+const sampleCard = (caption, members, extra = {}) => ({ kind: 'sample-set', title: 'Bootstrap draws with replacement', caption,
+  samples: ['A', 'B', 'C', 'D', 'E'].map(i => ({ id: i, class: i < 'D' ? '0' : '1' })), groups: [{ id: 'draw1', label: 'Sample Draw', replacement: true, members, ...extra }] });
+
+test('sample-set text: "rows A and C repeat" with C drawn once is rejected with the counts, tagged arithmetic (the two bench bootstrap cards)', () => {
+  const [one] = arithmeticOf(sampleCard('Worked example. Notice how rows A and C repeat while B is omitted.', ['A', 'A', 'C', 'D', 'E']));
+  assert.equal(one.message, 'The text says C repeats, but C is drawn 1 time in "Sample Draw" (A, A, C, D, E); a repeated sample appears at least twice.');
+  assert.deepEqual(one.path, ['caption']);
+  assert.equal(arithmeticOf(sampleCard('Worked example. Notice how rows A and C repeat while other rows are omitted.', ['A', 'A', 'C', 'D', 'E'])).length, 1, 'only C is wrong');
+  assert.equal(arithmeticOf(sampleCard('Notice how rows A and C repeat.', ['A', 'A', 'B', 'D', 'E'])).length, 1, 'C is not drawn at all');
+});
+
+test('sample-set text: repeated rows drawn twice or more, omitted rows absent, and wording that names no row all pass', () => {
+  assert.deepEqual(arithmeticOf(sampleCard('Rows A and C repeat while B is omitted.', ['A', 'A', 'C', 'C', 'D'])), []);
+  assert.deepEqual(arithmeticOf(sampleCard('A and C repeat; E is left out.', ['A', 'A', 'C', 'C', 'D'])), []);
+  assert.deepEqual(arithmeticOf(sampleCard('A row can repeat while other rows are omitted.', ['A', 'B', 'C', 'D', 'E'])), [], 'a row can repeat names no row');
+  assert.deepEqual(arithmeticOf(sampleCard('Rows A to E are drawn with replacement.', ['A', 'B', 'C', 'D', 'E'])), []);
+  assert.deepEqual(arithmeticOf(sampleCard('Repeats are common.', ['A', 'B', 'C', 'D', 'E'])), []);
+});
+
+test('sample-set text: an omitted row that is drawn is rejected; the title counts; the claim need hold in only one of several groups; labels name rows', () => {
+  const [drawn] = arithmeticOf(sampleCard('Row B is omitted.', ['A', 'B', 'C', 'D', 'D']));
+  assert.equal(drawn.message, 'The text says B is omitted, but B is drawn in "Sample Draw" (A, B, C, D, D); an omitted sample is absent from the draw.');
+  const titled = sampleCard('Worked example.', ['A', 'B', 'C', 'D', 'E']); titled.title = 'Bootstrap draw where A repeats';
+  assert.deepEqual(arithmeticOf(titled).map(i => i.path), [['caption']]);
+  const noCaption = { ...titled, caption: undefined };
+  assert.deepEqual(arithmeticOf(noCaption).map(i => i.path), [['title']]);
+  const two = sampleCard('Rows A repeat in the first draw.', ['A', 'A', 'C', 'D', 'E']); two.groups.push({ id: 'draw2', label: 'Second', replacement: true, members: ['A', 'B', 'C', 'D', 'E'] });
+  assert.deepEqual(arithmeticOf(two), [], 'A repeats in one of the draws');
+  const labelled = { ...sampleCard('Row A and Row C repeat.', ['A', 'A', 'C', 'D', 'E']), samples: ['A', 'B', 'C', 'D', 'E'].map(i => ({ id: i.toLowerCase(), label: 'Row ' + i })) };
+  labelled.groups[0].members = ['a', 'a', 'c', 'd', 'e'];
+  assert.equal(arithmeticOf(labelled).length, 1, 'labels map to ids');
+});
+
 // Item 5: a whisker beyond the (validated) fences names both numbers, tagged arithmetic, half a unit of the decimals written.
 test('box plot: a whisker beyond a correct fence is an arithmetic issue naming the whiskers and the fences; whiskers on the fence or inside pass', () => {
   const card = box => fenceCard({ q1: 6, median: 9, q3: 12, fences: { lower: -3, upper: 21 }, whiskerLow: 4, whiskerHigh: 14, ...box }, { label: 'Reading', min: -5, max: 25 });
