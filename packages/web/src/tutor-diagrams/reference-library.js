@@ -58,6 +58,7 @@ import { references as gen1BoxPlot } from './gen-1-box-plot-references.js';
 import { references as gen1NumberLine } from './gen-1-number-line-references.js';
 import { references as gen1Tensor } from './gen-1-tensor-references.js';
 import { references as gen1Layers } from './gen-1-layers-references.js';
+import { references as gen1Transformation } from './gen-1-transformation-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -113,6 +114,7 @@ export const diagramReferences = Object.freeze([
   ...gen1NumberLine,
   ...gen1Tensor,
   ...gen1Layers,
+  ...gen1Transformation,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];
