@@ -24,9 +24,20 @@ const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', '
 // A decision tree drawn top down (binary or hierarchy layout, with metadata or a path; the dot trees, the plain trees and the outline and dendrogram layouts keep today's drawing) is fitted and reports geometry.
 const isTopDownTree = diagram => diagram.kind === 'tree' && !isDotTree(diagram) && extendedTree(diagram) && (diagram.layout === 'binary' || diagram.layout === 'hierarchy');
 
-// parts.frame: false leaves out the outer card and the layout's own outer padding (every layout keeps PAD around its content: 12 px, the flow 14 px).
-const FRAME_PAD = { flow: 14, tensor: 6 }; // the tensor strip keeps 6 px (STRIP_PAD) around its cells
-const framePad = diagram => FRAME_PAD[diagram.kind] ?? 12;
+// parts.frame: false leaves out the outer card and the layout's own outer padding less 1 px (every layout keeps PAD around its content: 12 px, the flow 14 px, the tensor strip 6 px),
+// so the first and last blocks keep their full stroke (1.5 px, half of it outside the block's edge).
+const FRAME_PAD = { flow: 13, tensor: 5 };
+const framePad = diagram => FRAME_PAD[diagram.kind] ?? 11;
+// frame: false: takes the cropped px out of the parts that held the outer padding (a part named margin first, then any other), from the end of the list or from its start; no part goes below 0.
+function shrinkParts(list, amount, fromEnd) {
+  const out = list.map(item => ({ ...item })), order = fromEnd ? [...out].reverse() : out;
+  let left = amount;
+  for (const pick of [item => /margin/.test(item.part), () => true]) for (const item of order) {
+    const take = left > 0 && pick(item) ? Math.min(item.px, left) : 0;
+    item.px -= take; left -= take;
+  }
+  return out;
+}
 
 // Moves every y of a geometry (a box, a point pair, a plot area) down by dy (the title block) and every x by dx (the padding left out by frame: false).
 function shiftGeometry(node, dy, dx = 0) {
@@ -109,9 +120,9 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
     min = { width: narrowest, height: Math.ceil(total) };
     // min.parts: what each px of min is made of, per axis (the parts of an axis add up to min.width / min.height). A layout lists its own parts; the title block, the caption block and the rounding up are added here.
     const sum = list => list.reduce((all, item) => all + item.px, 0);
-    // frame: false: the padding left out is a negative part, so the parts still add up to min.
-    const heights = [...(atDrawn.titleHeight ? [{ part: 'title', px: atDrawn.titleHeight }] : []), ...(atWidth.parts ?? []), ...(atDrawn.captionHeight ? [{ part: 'caption', px: atDrawn.captionHeight }] : []), ...(crops ? [{ part: 'outer padding left out (frame: false)', px: -crops }] : [])];
-    const widths = [...(captionMin > narrow.width ? [{ part: 'caption (its widest formula)', px: captionMin }] : (narrow.widthParts ?? [])), ...(fp ? [{ part: 'outer padding left out (frame: false)', px: -2 * fp }] : [])];
+    // frame: false: the parts that held the outer padding shrink by what is cropped (none goes negative), so the parts still add up to min.
+    const heights = [...(atDrawn.titleHeight ? [{ part: 'title', px: atDrawn.titleHeight }] : []), ...shrinkParts(shrinkParts(atWidth.parts ?? [], cropTop, false), cropBottom, true), ...(atDrawn.captionHeight ? [{ part: 'caption', px: atDrawn.captionHeight }] : [])];
+    const widths = shrinkParts(shrinkParts(captionMin > narrow.width ? [{ part: 'caption (its widest formula)', px: captionMin }] : (narrow.widthParts ?? []), fp, false), fp, true);
     const round = (list, wanted) => (wanted - sum(list) > 1e-9 ? [...list, { part: 'rounding up', px: wanted - sum(list) }] : list);
     min.parts = [...round(heights, min.height).map(item => ({ axis: 'height', ...item })), ...round(widths, min.width).map(item => ({ axis: 'width', ...item }))];
     return min;
