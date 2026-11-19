@@ -1,0 +1,1369 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "4de17635d24a46512f4d43464d8be43a7047506f",
+    "tree": "2eb87a0ab2bfa39afa3cdf40ed127bd13c0cc370",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "9098bc2ea3ab517f07285de7261125d1c92966a0",
+    "tree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3771,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 114,
+    "newOwnPromptFirstPicks": 114,
+    "newOwnExactPromptFirstPicks": 114
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3994,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3994,
+    "computedCandidateCaseInputs": 3994
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "144c094d16a59fb56241d68bb0cb6bcf81c3271f",
+  "publishedTree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c",
+  "publishedBaseline": "a8785bbed34dcc32ffad3bba1e18f20f2e49d2c3",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Deeper BERT configurations repeat the same encoder block type more times.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "A compact decoder can shrink its layer stack while keeping grouped-query attention and a dense token update.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Small decoder capacity can be allocated to more narrow layers instead of fewer wide layers.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Matching depth and attention grouping does not imply matching token-state or feed-forward widths.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Compare matched recipe depth widths without sharing layers' learned weights.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Show independent layer stack allocation for two encoder depths.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "How do matched recipe depth widths differ for narrow and wide grouped decoders?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Hold grouped heads fixed while changing matched recipe depth widths.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "prompt": "Separate temporary FFN width from token-state width in independent layer stack allocation.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-depth-width-allocation",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-depth-width-allocation",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "The same model architecture can be trained at substantially different parameter counts.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "Increasing a model's depth and width increases its parameter count.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "BERT has base and large configurations that share an encoder design but differ in capacity.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "Show same recipe parameter magnitudes with the counted scope named.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "Compare depth width count profiles for the declared four toy decoders.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "How does one extra layer change same recipe parameter magnitudes?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "Contrast reported BERT size bars with computed depth width count profiles.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "prompt": "Which same recipe parameter magnitudes are rounded paper totals?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-capacity-profiles",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-capacity-profiles",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "A GPT-2 block uses separate learned matrices for attention and the positionwise feed-forward network.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "A model's total parameter count sums the sizes of lookup tables and the independently learned matrices in each layer.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "Show projection shape accounting for QKV, attention output, expansion and restoration.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "Build the lookup block sum from the declared toy matrix dimensions.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "Why must projection shape accounting include biases and both normalization stages?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "What changes in the lookup block sum when the output table is untied?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "prompt": "Check the lookup block sum after adding an independent layer.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-model-capacity-block-parameter-accounting",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-model-capacity-block-parameter-accounting",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "The original GPT wraps different task inputs in token sequences that share one pretrained decoder.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "A decoder-only model can learn translation by reading source and target in one delimited sequence.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "A decoder can generate a summary after a prompt containing the document and a delimiter.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "Show serialized task wrapper fields for single texts and sentence pairs.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "Compare observed versus chosen prefixes for translation labels and summary choices.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "Serialize both similarity orders and combine their independent readouts.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "Keep each candidate separate in the serialized task wrapper fields.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-task-input-format",
+      "prompt": "Append an illustrative summary token while preserving observed versus chosen prefixes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-task-input-format",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-task-input-format",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "prompt": "An architecture overview intentionally leaves out lower-level details like residuals and normalization.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "prompt": "Open collapsed decoder detail without changing the underlying block recipe.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "prompt": "Show omitted normalization shortcuts in a pre-LayerNorm GPT-2-style cell.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "prompt": "Where are the two residual joins hidden by collapsed decoder detail?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "prompt": "Keep causal full attention distinct from omitted normalization shortcuts.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "prompt": "Why does opening collapsed decoder detail leave the model definition unchanged?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-gpt2-overview-and-expanded-block",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-gpt2-overview-and-expanded-block",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    }
+  ]
+}

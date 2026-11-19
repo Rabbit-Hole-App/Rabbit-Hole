@@ -1,0 +1,14 @@
+{
+  "commit": "9098bc2ea3ab517f07285de7261125d1c92966a0",
+  "tree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c",
+  "viewsRead": 30,
+  "noteExceptions": [],
+  "observations": [
+    "C10 now uses semantic roles on attention, feedforward, and output stages. The current palette keeps the authored normalization roles visually neutral.",
+    "`ml-gpt2-task-input-format` puts spaces between displayed structural markers and words. The original token sequences and order are unchanged.",
+    "`ml-model-capacity-depth-width-allocation` still shows the repeat bracket crossing the ×2 and ×3 badges in the grouped decoder stacks. The badges remain readable and the view needs the renderer fix.",
+    "`ml-model-capacity-capacity-profiles` Standard and Detailed use axis ticks and labelled bars. The 408 px renderer leaves off their exact above-bar number labels."
+  ],
+  "publishedCommit": "144c094d16a59fb56241d68bb0cb6bcf81c3271f",
+  "publishedTree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c"
+}

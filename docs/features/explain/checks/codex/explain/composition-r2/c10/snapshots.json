@@ -1,0 +1,23 @@
+{
+  "added": [
+    "ml-gpt2-overview-and-expanded-block/320",
+    "ml-gpt2-overview-and-expanded-block/408",
+    "ml-gpt2-overview-and-expanded-block/720",
+    "ml-gpt2-task-input-format/320",
+    "ml-gpt2-task-input-format/408",
+    "ml-gpt2-task-input-format/720",
+    "ml-model-capacity-block-parameter-accounting/320",
+    "ml-model-capacity-block-parameter-accounting/408",
+    "ml-model-capacity-block-parameter-accounting/720",
+    "ml-model-capacity-capacity-profiles/320",
+    "ml-model-capacity-capacity-profiles/408",
+    "ml-model-capacity-capacity-profiles/720",
+    "ml-model-capacity-depth-width-allocation/320",
+    "ml-model-capacity-depth-width-allocation/408",
+    "ml-model-capacity-depth-width-allocation/720"
+  ],
+  "changed": [],
+  "removed": [],
+  "publishedCommit": "144c094d16a59fb56241d68bb0cb6bcf81c3271f",
+  "publishedTree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c"
+}

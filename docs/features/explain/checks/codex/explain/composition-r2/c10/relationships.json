@@ -1,0 +1,17 @@
+{
+  "commit": "9098bc2ea3ab517f07285de7261125d1c92966a0",
+  "tree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-model-capacity-depth-width-allocation",
+    "ml-model-capacity-capacity-profiles",
+    "ml-model-capacity-block-parameter-accounting",
+    "ml-gpt2-task-input-format",
+    "ml-gpt2-overview-and-expanded-block"
+  ],
+  "additionalReusedIds": [],
+  "references": [],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "publishedCommit": "144c094d16a59fb56241d68bb0cb6bcf81c3271f",
+  "publishedTree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c"
+}

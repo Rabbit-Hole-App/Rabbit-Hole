@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-gpt2-references.js",
+    "packages/web/src/tutor-diagrams/composition-model-capacity-references.js",
+    "packages/web/src/tutor-diagrams/topic-gpt2-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-gpt2-data.js",
+    "packages/web/src/tutor-diagrams/topic-gpt2-sources.json",
+    "packages/web/src/tutor-diagrams/topic-model-capacity-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-model-capacity-data.js"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-gpt2-references.js",
+      "ids": [
+        "ml-gpt2-task-input-format",
+        "ml-gpt2-overview-and-expanded-block"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-model-capacity-references.js",
+      "ids": [
+        "ml-model-capacity-depth-width-allocation",
+        "ml-model-capacity-capacity-profiles",
+        "ml-model-capacity-block-parameter-accounting"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "144c094d16a59fb56241d68bb0cb6bcf81c3271f",
+  "publishedTree": "3ab4ae022c6b920149148f42f3bb42278acf4a8c"
+}
