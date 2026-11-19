@@ -117,6 +117,7 @@ const READERS = {
   'web/src/tutor-diagrams/content-contract.js': 'TutorDiagram transformation links (before-item to after-item) in the reference content linter, not board links',
   'web/src/tutor-diagrams/bert-figure-references.js': 'before-item to after-item links in a BERT teaching diagram',
   'web/src/tutor-diagrams/illustration-tensor-reference.js': 'the QKV example’s transformation links',
+  'web/src/tutor-diagrams/token-links-layout.js': 'kinds-fit R1: the token-links geometry lists the links between a query source token and its targets, not board links',
   'web/src/tutor-diagrams/tensor-layout.js': 'renderer-local transformation links',
   'web/src/tutor-diagrams/token-links-spec.js': 'weighted links between tokens inside a diagram',
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
