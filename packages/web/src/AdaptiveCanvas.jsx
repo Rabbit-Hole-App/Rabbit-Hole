@@ -122,6 +122,7 @@ import CodeCard from './CodeCard.jsx';
 import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
 import { SPACING, assumedHeight, assumedTextHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { walkNext, walkPrev, walkStart } from './learn-walk.js';
+import LearnCardView from './LearnCardView.jsx';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -7110,12 +7111,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
       {/* Learn mode's Cards tab (learn-mode-spec.md section 4, owner 2026-11-18 16:13): the stop's own card component, drawn here at the pane's width over the surface and
-          under the composer, with no Focus. A second instance of the card: edits go through changeBlock like the canvas's; nothing moves or resizes the canvas's copy. */}
+          under the composer, with no Focus, shown whole and zoomable (LearnCardView). A second instance of the card: edits go through changeBlock like the canvas's; nothing moves or resizes the canvas's copy. */}
       {learnTab === 'cards' && walk && (() => {
         const block = blocks.find(entry => entry.id === walk.stops[walk.at]);
-        return block && <div key={block.id} data-learn-card-view={block.id} className="absolute inset-0 z-[25] overflow-y-auto overscroll-contain bg-white px-6 pt-4 pb-48">
+        return block && <LearnCardView key={block.id} id={block.id}>
           <LessonBlockCard block={block} zoom={1} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={noop} onConnect={noop} onSnap={noop} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} />
-        </div>;
+        </LearnCardView>;
       })()}
       {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(min-content,1fr)_minmax(200px,780px)_minmax(min-content,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
         <div className="flex items-end gap-2 md:col-start-1">

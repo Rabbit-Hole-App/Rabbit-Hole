@@ -6,7 +6,7 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronRight, Play, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, Undo2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Play, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, Undo2 } from 'lucide-react';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { cardLink } from './canvas-refs-model.js';
 import { moveTargets } from './toc-move.js';
@@ -181,17 +181,16 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
               return (
                 <div data-toc-links className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {shown.map(card => {
-                    // One button per chip (owner 2026-11-17 15:40): the card type's icon, its type in words, its title. The unlink X only where the contents are editable.
+                    // One button per chip (owner 2026-11-17 15:40): the card type's icon, its type in words, its title. No unlink x on a chip (owner 2026-11-18).
                     const Icon = cardIconOf({ type: card.type }), label = cardLabelOf(card.type, card.role);
                     return (
                       <span key={card.id} data-toc-linked-card={card.id} data-walk-current={card.id === walk?.cardId || undefined} data-card-done={card.done || undefined} className={`group/chip inline-flex max-w-full min-w-0 items-center rounded-md border border-line bg-hover/60 text-xs text-ink hover:border-line-strong hover:bg-hover ${card.id === walk?.cardId ? 'ring-2 ring-accent' : ''}`}>
-                        <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className={`inline-flex min-w-0 items-center gap-1 rounded-md py-0.5 pl-1.5 text-left ${readOnly ? 'pr-1.5' : 'pr-0.5'}`}>
+                        <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className={`inline-flex min-w-0 items-center gap-1 rounded-md py-0.5 pl-1.5 text-left pr-1.5`}>
                           <Icon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-2" />
                           {label && <span data-toc-card-type className="shrink-0 text-[11px] text-ink-3">{label} ·</span>}
                           <span className="max-w-44 min-w-0 truncate group-hover/chip:underline">{card.title}</span>
                           {card.done && <Check size={12} strokeWidth={2.5} aria-label="Done" className="shrink-0 text-accent" />}
                         </button>
-                        {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="mr-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
                       </span>
                     );
                   })}

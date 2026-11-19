@@ -58,14 +58,14 @@ test('a view-only board shows the link but no way to remove it; a page without a
 const outline = [{ id: 'h1', level: 1, label: 'Intro', done: false, description: '' }, { id: 'h2', level: 2, label: 'Slopes', done: false, description: '' }];
 const toc = props => html(lib.createElement(lib.TableOfContents, { outline, canvasApi: { current: null }, tocLinks: [], ...props }));
 
-test('a contents row lists its linked cards (derived from the cards), with Go to the card and an unlink, and has the Add a link icon', () => {
+test('a contents row lists its linked cards (derived from the cards), with Go to the card and no unlink x (owner 2026-11-18), and has the Add a link icon', () => {
   const markup = toc({ onAddLink() {}, tocLinks: [['c1', 'Gradients', ['h2']], ['c2', 'Loss', ['h2']]] });
   const rows = markup.split('data-toc-entry=').slice(1);
   const slopes = rows.find(row => row.includes('Slopes') && row.includes('data-toc-linked-card'));
   assert.ok(slopes, 'the linked cards sit in their section row');
   assert.equal(count(slopes, 'data-toc-linked-card="'), 2);
   assert.match(slopes, /data-toc-linked-card="c1"/);
-  assert.match(slopes, /data-toc-unlink/);
+  assert.doesNotMatch(slopes, /data-toc-unlink/);
   assert.equal(count(markup, 'data-toc-add-link'), 2, 'Add a link on every manual section row (Intro and Slopes)');
   assert.match(markup, /title="Add a link \(a card\)"/);
   const intro = rows.find(row => row.startsWith('"h1"'));

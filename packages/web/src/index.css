@@ -1095,9 +1095,9 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-study-card] [data-canvas-world] { visibility: hidden; }
 [data-study-card] [data-canvas-world] [data-focus-host] { visibility: visible; }
 [data-focus-host]:has([data-program-viewport]) { overflow: auto !important; overscroll-behavior: contain; }
-/* Learn mode's Cards tab (learn-mode-spec.md section 4, AdaptiveCanvas data-learn-card-view): the stop's own card component, drawn in the pane at its width, never
-   moved or resized on the canvas. A card whose body is a [data-scroll] runs to its full height and the pane scrolls; a framed card (notebook, PDF, video) keeps its height. */
-[data-learn-card-view] [data-block] { transform: none !important; position: relative !important; left: auto !important; top: auto !important; margin: 0 auto !important; width: 100% !important; max-width: 1200px; }
+/* Learn mode's Cards tab (learn-mode-spec.md section 4, LearnCardView.jsx): the stop's own card component at its canvas size, shown whole (scaled to fit, zoomable),
+   never moved or resized on the canvas. A card whose body is a [data-scroll] runs to its full height; a framed card (notebook, PDF, video) keeps its height. */
+[data-learn-card-view] [data-block] { transform: none !important; position: relative !important; left: auto !important; top: auto !important; margin: 0 !important; }
 [data-learn-card-view] [data-card-slot] { width: 100% !important; height: auto !important; margin: 0 !important; }
 [data-learn-card-view] [data-block]:has(> [data-scroll]) { height: auto !important; max-height: none !important; }
 [data-learn-card-view] [data-block] > [data-scroll] { max-height: none !important; flex: none !important; }

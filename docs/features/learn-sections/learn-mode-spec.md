@@ -31,7 +31,7 @@ The camera walk is dropped because the card was too small to read. The walk beco
    - **Cards:** the stop's own card component, drawn directly in the pane at its width (AdaptiveCanvas `learnTab`, `data-learn-card-view`), with no Focus (owner 2026-11-18 16:13).
      - It sits over the canvas surface and under the composer.
      - It is a second instance of the card: edits save through the canvas's `changeBlock`, and the canvas's copy never moves or resizes.
-     - A text card runs to its full height and the pane scrolls. A framed card (notebook, PDF, video) keeps its own height.
+     - It is shown whole (owner 2026-11-18): drawn at its canvas size and scaled down to fit the pane above the composer, never above 100 % (`LearnCardView.jsx`, `fitScale`). Zoom out, the percentage (back to fit) and zoom in sit at the pane's top right; the pane scrolls when zoomed in. A text card counts at its full height.
      - Prev and Next show the next card from its top.
    - **Canvas:** the free canvas, with the stop centred at zoom 1 (`walk.centre`), nothing selected (owner 2026-11-18). Leaving Learn mode clears the Chat tab's selection.
    - The contents' Start, Continue or Start again (also from Learn mode's TOC tab) goes to the Cards tab.

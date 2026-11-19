@@ -29,6 +29,15 @@ export function learnView(tab) {
 }
 export const learnTab = tab => (LEARN_TABS.some(entry => entry.id === tab) ? tab : 'cards');
 
+// Cards tab zoom (owner 2026-11-18: the card shown whole, zoom in and out from there; LearnCardView.jsx).
+export const ZOOM_STEPS = Object.freeze([0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2]);
+// The pane's room around the card: side padding, the top gap, and the composer's dock at the bottom (LearnPane data-learn-dock).
+export const CARD_ROOM = Object.freeze({ side: 24, top: 16, dock: 150 });
+// The scale that shows a card of size `card` whole in a pane of size `pane`: at most 1, at least the smallest step.
+export const fitScale = (card, pane) => (card.w > 0 && card.h > 0 ? Math.max(ZOOM_STEPS[0], Math.min(1, (pane.w - 2 * CARD_ROOM.side) / card.w, (pane.h - CARD_ROOM.top - CARD_ROOM.dock) / card.h)) : 1);
+// The next zoom step from `scale` (dir 1: in, -1: out), staying inside the steps.
+export const zoomStep = (scale, dir) => (dir > 0 ? ZOOM_STEPS.find(step => step > scale + 0.001) ?? ZOOM_STEPS.at(-1) : [...ZOOM_STEPS].reverse().find(step => step < scale - 0.001) ?? ZOOM_STEPS[0]);
+
 // The section the Learn side of the pill starts: the first with cards not all done (Start or Continue), else the first.
 export function learnSection(sections, labelOf) {
   return (sections || []).find(id => labelOf(id) !== 'Start again') ?? sections?.[0] ?? null;
