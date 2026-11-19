@@ -1,0 +1,487 @@
+{
+  "batch": "C08",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "81fcde0848c61147eed993985be62567668d267c",
+  "families": [
+    {
+      "rank": 42,
+      "source": "illustrated-transformer",
+      "figure": "27",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-27",
+      "summary": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+      "kinds": [
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-normalization-residual-then-normalize",
+      "proposedTopicSlug": "normalization",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C08",
+      "sequence": "Illustrated Transformer \u00b7 Residuals and normalization \u00b7 step 2",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "tensor"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-normalization-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Numeric residual addition followed by normalization; not a generic text transformation.",
+      "batchTopic": "embeddings"
+    },
+    {
+      "rank": 43,
+      "source": "illustrated-transformer",
+      "figure": "22",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-22",
+      "summary": "Adding a position vector to each token embedding makes order available to attention.",
+      "kinds": [
+        "block-stack",
+        "matrix",
+        "relationship",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-positional-encoding-token-plus-position",
+      "proposedTopicSlug": "positional-encoding",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C08",
+      "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 1",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "block-stack"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-positional-encoding-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "18",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-18",
+          "summary": "GPT-2 learns a separate table of position vectors indexed by position.",
+          "kinds": [
+            "matrix",
+            "tensor"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "19",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-19",
+          "summary": "A decoder adds the token lookup vector and its position vector before entering the first block.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 5",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "57",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-57",
+          "summary": "Token and position embeddings are model-level tables used before the block stack.",
+          "kinds": [
+            "relationship",
+            "matrix"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Consecutive learned-position lookup and token-plus-position views of the same input pipeline. Position and token IDs/tables stay separate; learned versus fixed positions are named variants, not interchangeable construction rules.",
+      "batchTopic": "embeddings"
+    },
+    {
+      "rank": 44,
+      "source": "illustrated-transformer",
+      "figure": "23",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-23",
+      "summary": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+      "kinds": [
+        "coordinate-plot",
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "proposedTopicSlug": "positional-encoding",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C08",
+      "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 2",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "coordinate-plot",
+        "heatmap"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-positional-encoding-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "25",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-25",
+          "summary": "Interleaving each sine channel with its cosine partner keeps the positional signals paired by frequency.",
+          "kinds": [
+            "heatmap",
+            "matrix"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Two views of the same sine/cosine feature table: curves and the matching interleaved coordinate grid.",
+      "batchTopic": "embeddings"
+    },
+    {
+      "rank": 45,
+      "source": "illustrated-gpt2",
+      "figure": "17",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-17",
+      "summary": "An embedding lookup selects a single learned row for an input token.",
+      "kinds": [
+        "matrix",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-embeddings-embedding-table-lookups",
+      "proposedTopicSlug": "embeddings",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C08",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 3",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "matrix",
+        "tensor"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-embeddings-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-word2vec",
+          "figure": "22",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-22",
+          "summary": "An embedding lookup replaces each word ID with the vector in its corresponding table row.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Predicting text \u00b7 step 6",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-word2vec",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-01",
+          "summary": "A learned embedding table assigns different vectors to different words through the same lookup operation.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Embedding intuition \u00b7 step 1",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-word2vec",
+          "figure": "54",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-54",
+          "summary": "Each pair retrieves its input and context vectors before scoring.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Updating embedding tables \u00b7 step 3",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated indexed embedding-row selection. The pair-scoring form uses separate learned center/context tables and multiple selected rows; do not imply those tables share weights.",
+      "batchTopic": "embeddings"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-normalization-residual-then-normalize",
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "mode": "NEW",
+      "topic": "normalization",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "27",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-27",
+        "summary": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Numeric residual addition followed by normalization; not a generic text transformation."
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "mode": "NEW",
+      "topic": "positional-encoding",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "22",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-22",
+        "summary": "Adding a position vector to each token embedding makes order available to attention.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "18",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-18",
+          "summary": "GPT-2 learns a separate table of position vectors indexed by position.",
+          "kinds": [
+            "matrix",
+            "tensor"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "19",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-19",
+          "summary": "A decoder adds the token lookup vector and its position vector before entering the first block.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 5",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "57",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-57",
+          "summary": "Token and position embeddings are model-level tables used before the block stack.",
+          "kinds": [
+            "relationship",
+            "matrix"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Consecutive learned-position lookup and token-plus-position views of the same input pipeline. Position and token IDs/tables stay separate; learned versus fixed positions are named variants, not interchangeable construction rules."
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "mode": "NEW",
+      "topic": "positional-encoding",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "23",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-23",
+        "summary": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "25",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-25",
+          "summary": "Interleaving each sine channel with its cosine partner keeps the positional signals paired by frequency.",
+          "kinds": [
+            "heatmap",
+            "matrix"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Two views of the same sine/cosine feature table: curves and the matching interleaved coordinate grid."
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "mode": "NEW",
+      "topic": "embeddings",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "17",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-17",
+        "summary": "An embedding lookup selects a single learned row for an input token.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-word2vec",
+          "figure": "22",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-22",
+          "summary": "An embedding lookup replaces each word ID with the vector in its corresponding table row.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Predicting text \u00b7 step 6",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-word2vec",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-01",
+          "summary": "A learned embedding table assigns different vectors to different words through the same lookup operation.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Embedding intuition \u00b7 step 1",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-word2vec",
+          "figure": "54",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-54",
+          "summary": "Each pair retrieves its input and context vectors before scoring.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Updating embedding tables \u00b7 step 3",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated indexed embedding-row selection. The pair-scoring form uses separate learned center/context tables and multiple selected rows; do not imply those tables share weights."
+    }
+  ]
+}

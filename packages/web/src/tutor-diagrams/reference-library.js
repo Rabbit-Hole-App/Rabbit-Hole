@@ -59,6 +59,9 @@ import { references as compositionRecurrentTraining } from './composition-recurr
 import { references as compositionRecurrentNetworks } from './composition-recurrent-networks-references.js';
 import { references as compositionLanguageTraining } from './composition-language-training-references.js';
 import { references as compositionSummarization } from './composition-summarization-references.js';
+import { references as compositionNormalization } from './composition-normalization-references.js';
+import { references as compositionPositionalEncoding } from './composition-positional-encoding-references.js';
+import { references as compositionEmbeddings } from './composition-embeddings-references.js';
 import { overlays as bertOverlays } from './topic-bert-overlays.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
@@ -115,6 +118,7 @@ export const diagramReferences = Object.freeze([
   ...compositionBert, ...compositionTransferLearning,
   ...compositionRecurrentTraining, ...compositionRecurrentNetworks,
   ...compositionLanguageTraining, ...compositionSummarization,
+  ...compositionNormalization, ...compositionPositionalEncoding, ...compositionEmbeddings,
   ...estimationEvaluationReferences,
   samplingTopKReference,
 ].map(ref => {

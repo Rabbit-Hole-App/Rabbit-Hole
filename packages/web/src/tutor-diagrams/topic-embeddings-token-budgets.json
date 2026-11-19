@@ -1,0 +1,44 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-embeddings-embedding-table-lookups": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 130,
+          "sha256": "d606b288b04022183a2b152c3fd2d469151d21e92e0cec4af62ba39aac39484b"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 182,
+          "sha256": "37b3ebcda4afc52ce3bf6f782dee759a015033a9f42d2978cb59caa6f8614854"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 156,
+          "sha256": "38564bbe1e0dbb0c094a7ab590a282c8ab43d37b7759f19134a6aec00fa83dba"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 182,
+          "sha256": "37b3ebcda4afc52ce3bf6f782dee759a015033a9f42d2978cb59caa6f8614854"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 157,
+          "sha256": "80f4a19d73b3b5687d8f3fd014122fa6da1480ebe0cfde053d1eb40f7c71d119"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 185,
+          "sha256": "8e734ef66bec9d2738a39d54e769e15959fd6301c9e16cba52de85ce8a224e6f"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-positional-encoding-token-plus-position": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 207,
+          "sha256": "6db600635b2c605d8badf93ed51af9f5524a7e54194c07fd3b7f30864132914d"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 157,
+          "sha256": "f866b2db0fa3d94505b827e88b588679da98a7b96d7dde2e42d996b4df1be865"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 284,
+          "sha256": "65ee1a464d32b60f68c4a542faa9646f2e398c19c420e6b31fc45160461012a6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 163,
+          "sha256": "d6f746f17511a7088f3f79ad7775dd0cfca8900dad270f2b4d794ad5149b4c1d"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 287,
+          "sha256": "2c1e5a2dc7994dd63613ffd7ab86f0c001e1302c6dc2403ca04f3953ae0c02a3"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 163,
+          "sha256": "201d6b8a126e6e4dd8dd6eebd039d7e5f7660cce981c16ee53a3e995bcbbbaee"
+        }
+      ]
+    },
+    "ml-positional-encoding-sinusoidal-positions": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 194,
+          "sha256": "e65bc906dbd0193d0861ec3dfd794c02b557491e25487dadd8866f9133c50db6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 189,
+          "sha256": "026b961f4f8cba903149df912b9311d4ef16a4b6f67f15cea23b8fb9cc948fc6"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 277,
+          "sha256": "916072e6a52f4d859f84fcc60421ba2e85bf3ecfe19122523332998a69755702"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 189,
+          "sha256": "026b961f4f8cba903149df912b9311d4ef16a4b6f67f15cea23b8fb9cc948fc6"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 195,
+          "sha256": "0c11888e9cea41c12e559a82206653e1467036f7d879b46e529ff62df8b79e07"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 189,
+          "sha256": "026b961f4f8cba903149df912b9311d4ef16a4b6f67f15cea23b8fb9cc948fc6"
+        }
+      ]
+    }
+  }
+}

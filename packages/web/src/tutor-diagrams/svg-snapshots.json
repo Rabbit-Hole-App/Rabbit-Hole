@@ -1461,6 +1461,21 @@
       "width": 720,
       "height": 483
     },
+    "ml-embeddings-embedding-table-lookups/320": {
+      "sha256": "2e47055c8da8e8b7db2e04abca594f6eeb349179d3d779db1720525858df900c",
+      "width": 320,
+      "height": 476
+    },
+    "ml-embeddings-embedding-table-lookups/408": {
+      "sha256": "7930715aabb3d51e1c0e806af30ce52b813f80320b82676645be00bfd89f6ecc",
+      "width": 408,
+      "height": 459
+    },
+    "ml-embeddings-embedding-table-lookups/720": {
+      "sha256": "26a8f8e760f02cf572601bf5e516a070ec940f9dc75c84a48b47d6b2629299ca",
+      "width": 720,
+      "height": 420
+    },
     "ml-feature-interaction/320": {
       "sha256": "506e43f598e352405ec9a6df19a60f4741dbeab25fc9d3d50ecb8765db5a29ea",
       "width": 405,
@@ -2196,6 +2211,21 @@
       "width": 720,
       "height": 279
     },
+    "ml-normalization-residual-then-normalize/320": {
+      "sha256": "a91e13216b5cc8c4c0055ececca24ce996ab39047d5a86878ebc5e4f4b877e96",
+      "width": 320,
+      "height": 582
+    },
+    "ml-normalization-residual-then-normalize/408": {
+      "sha256": "34ed3a944a435fa4e1f0ceee97f341305bdd15fc77b048d33117e7ab70718b29",
+      "width": 408,
+      "height": 565
+    },
+    "ml-normalization-residual-then-normalize/720": {
+      "sha256": "dc2506c4ea1a1a43023c81618abf682e24e3a367b4847bb859073551663fb55d",
+      "width": 720,
+      "height": 543
+    },
     "ml-one-hot-encoding-transformation/320": {
       "sha256": "384d829eedebe5c4373c6089526bae5586697e79e608414f00c5bc271a6bcc5b",
       "width": 405,
@@ -2255,6 +2285,36 @@
       "sha256": "a156d5839973f2ae8ec0904b91e0c6283a5ae7b584ddeb609bbdea521a1a3d30",
       "width": 720,
       "height": 622
+    },
+    "ml-positional-encoding-sinusoidal-positions/320": {
+      "sha256": "f2231578c15b453a06b6acd0896b16cb156cedaf9ac884d928bc56496b448939",
+      "width": 408,
+      "height": 507.5
+    },
+    "ml-positional-encoding-sinusoidal-positions/408": {
+      "sha256": "f2231578c15b453a06b6acd0896b16cb156cedaf9ac884d928bc56496b448939",
+      "width": 408,
+      "height": 507.5
+    },
+    "ml-positional-encoding-sinusoidal-positions/720": {
+      "sha256": "926849dc3d61c312f081a56b9f062f53a3a6f5798aabfe2d3cbdf3a9d5a27bfe",
+      "width": 720,
+      "height": 468.5
+    },
+    "ml-positional-encoding-token-plus-position/320": {
+      "sha256": "31feb76c6a306bd42080cd03697a4cbac0c037f3069e23f872f41934b2022f25",
+      "width": 364,
+      "height": 566
+    },
+    "ml-positional-encoding-token-plus-position/408": {
+      "sha256": "95b84739dc4bd2f6216735eda98b139f5d99b26e0c323e3f02a5a7d10eb7debe",
+      "width": 408,
+      "height": 508
+    },
+    "ml-positional-encoding-token-plus-position/720": {
+      "sha256": "bc58ff3bd8ed587cc60fd03828be87a409bd8402edf210b281e7d1fd87fbbdd0",
+      "width": 720,
+      "height": 492
     },
     "ml-psi-bin-contributions/320": {
       "sha256": "c59d4c02db189bc58f225ddee61eb2fec1ceb5737c20ebd19ff60992ae7d914c",
