@@ -158,7 +158,7 @@ function sampleSet(d, requested) {
   d.groups.forEach(group => {
     y += 10;
     y = textBlock(elements, group.label, PAD, y, width - PAD * 2, { weight: 700 }) + 4;
-    const count = `${group.members.length} draws · ${new Set(group.members).size} unique${group.replacement ? ' · with replacement' : ''}`;
+    const count = group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws · ${new Set(group.members).size} unique${group.replacement ? ' · with replacement' : ''}`;
     y = textBlock(elements, count, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
     if (group.outOfBagFor) y = textBlock(elements, `Out of bag for ${d.groups.find(source => source.id === group.outOfBagFor).label}`, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
     const memberships = sampleMemberships(group);

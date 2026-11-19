@@ -120,6 +120,33 @@ function checkSamples(d, issue) {
       }
     }
   });
+  checkSampleWords(d, issue);
+}
+
+// SAMP-1: the title or caption names the rows that repeat ("rows A and C repeat") or are omitted ("B is omitted"): a repeated row is drawn at least twice, an omitted one not at all.
+// Only the plain list-then-verb wording is read (ids or labels, optionally after "row(s)"), so "A row can repeat" and "other rows are omitted" name nothing. With several groups the claim
+// has to hold in at least one of them (a caption cannot say which draw it means). Tagged arithmetic: the repair names the counts. shortcut: no negations ("C does not repeat"); upgrade if a card needs it.
+const REPEAT_WORDS = '(?:both\\s+|also\\s+|each\\s+)?(?:repeat(?:s|ed)?|(?:appear|appears|occur|occurs)\\s+(?:more than once|twice|multiple times)|(?:is|are)\\s+(?:drawn\\s+)?(?:repeated|duplicated|drawn (?:more than once|twice|multiple times)))';
+const OMIT_WORDS = '(?:(?:is|are)\\s+)?(?:omitted|left out|absent|missing|never drawn|not drawn|not in the (?:sample|draw))';
+function checkSampleWords(d, issue) {
+  const names = new Map(d.samples.flatMap(sample => [[sample.id, sample.id], ...(sample.label ? [[sample.label, sample.id]] : [])]));
+  const token = [...names.keys()].sort((a, b) => b.length - a.length).map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const list = `(?:rows?\\s+|samples?\\s+)?((?:${token})(?:(?:\\s*,\\s*|\\s+and\\s+|\\s*&\\s*)(?:and\\s+)?(?:rows?\\s+|samples?\\s+)?(?:${token}))*)\\s+`;
+  const idsIn = (text, words) => [...text.matchAll(new RegExp(`(?<![\\w-])${list}${words}(?![\\w-])`, 'gi'))].flatMap(m => (m[1].match(new RegExp(`(?<![\\w-])(?:${token})(?![\\w-])`, 'g')) ?? []).map(name => names.get(name)));
+  const prose = [d.title, d.caption].filter(Boolean).join('. ');
+  const groups = d.groups.filter(group => group.members);
+  if (!groups.length) return;
+  const at = [d.caption ? 'caption' : 'title'];
+  const times = (group, id) => group.members.filter(member => member === id).length;
+  const where = group => `"${group.label}" (${group.members.join(', ')})`;
+  for (const id of [...new Set(idsIn(prose, REPEAT_WORDS))]) {
+    if (groups.some(group => times(group, id) >= 2)) continue;
+    issue(at, `The text says ${id} repeats, but ${id} is drawn ${groups.map(group => `${times(group, id)} time${times(group, id) === 1 ? '' : 's'}`).join(' and ')} in ${groups.map(where).join(' and ')}; a repeated sample appears at least twice.`, { code: 'arithmetic' });
+  }
+  for (const id of [...new Set(idsIn(prose, OMIT_WORDS))]) {
+    if (groups.some(group => times(group, id) === 0)) continue;
+    issue(at, `The text says ${id} is omitted, but ${id} is drawn in ${groups.map(where).join(' and ')}; an omitted sample is absent from the draw.`, { code: 'arithmetic' });
+  }
 }
 
 export function histogramHeights(d, series) {
@@ -180,7 +207,9 @@ export function validate(diagram, issue) {
   }
 }
 
+// An out-of-bag group (outOfBagFor) lists the samples that were never drawn: each one is named, with no "× n".
 export function sampleMemberships(group) {
+  if (group.outOfBagFor) return group.members.map(id => ({ id, count: 1, text: id }));
   const counts = new Map();
   for (const id of group.members) counts.set(id, (counts.get(id) || 0) + 1);
   return [...counts].map(([id, count]) => ({ id, count, text: `${id} × ${count}` }));
@@ -200,7 +229,7 @@ export function describe(d) {
     case 'sample-set': return [
       ...d.samples.map(sample => `${sample.id}${sample.label ? `: ${sample.label}` : ''}${sample.class ? `; class ${sample.class}` : ''}${sample.weight !== undefined ? `; weight ${sample.weight}` : ''}`),
       ...d.groups.flatMap(group => [
-        `${group.label} (${group.members.length} draws, ${new Set(group.members).size} unique): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
+        `${group.label} (${group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws, ${new Set(group.members).size} unique`}): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
         ...(group.omitted ? [`Omitted: ${group.omitted.join(', ') || 'none'}`] : []),
         ...(group.outOfBagFor ? [`Out of bag for ${d.groups.find(other => other.id === group.outOfBagFor).label}`] : []),
       ]),

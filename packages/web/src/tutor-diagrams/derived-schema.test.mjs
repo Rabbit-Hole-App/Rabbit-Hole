@@ -12,7 +12,7 @@ const arithmetic = list => list.filter(i => i.code === 'arithmetic');
 const copy = value => structuredClone(value);
 
 // ---- softmax ----
-const logits = (extra = {}, after = ['0.70', '0.26', '0.04']) => ({ kind: 'transformation', title: 'Scores to shares', before: { label: 'Logits', items: ['2.0', '1.0', '0.1'] }, after: { label: 'Shares', items: after }, operation: 'Exponentiate and divide by the total', ...extra });
+const logits = (extra = {}, after = ['0.70', '0.26', '0.04']) => ({ kind: 'transformation', title: 'Scores to shares', before: { label: 'Logits', items: ['2.0', '1.0', '0.1'] }, after: { label: 'Shares', items: after }, operation: 'Turn the scores into shares', ...extra }); // NUM-3d: the old wording 'Exponentiate and divide by the total' is now a softmax word, so this fixture says it differently
 
 test('acceptance 3: op softmax recomputes with no softmax word anywhere; the logits card 0.70 / 0.26 / 0.04 fails naming 0.66 / 0.24 / 0.10', () => {
   assert.deepEqual(issues(logits()), [], 'without op and without the word, nothing is checked (the 154 fallback only fires on the word)');

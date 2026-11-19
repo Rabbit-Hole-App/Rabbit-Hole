@@ -20,13 +20,14 @@ const roleColors = {
 // that wraps at group boundaries onto the next row; the cells keep their natural width (36 px, or the width of their text plus 12).
 export const tensorRowBudget = preferredWidth => Math.min(960, Math.max(720, preferredWidth));
 
-function stripMetrics({ columns, dimensions, name, values }) {
+// `sizes` (kinds-fit): { text (the name, 15 today), small (the dimensions, 13), value (the cell numbers, 15) }; without it every size is today's.
+function stripMetrics({ columns, dimensions, name, values }, { text = TEXT, small = SMALL, value = VALUE } = {}) {
   const numbers = (values ?? []).map(String);
-  const cellWidth = Math.max(36, Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))) + 12));
+  const cellWidth = Math.max(36, Math.ceil(Math.max(0, ...numbers.map(number => textWidth(number, value))) + 12));
   const gridWidth = columns * cellWidth;
-  const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
-  const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;
-  return { width, cellWidth, gridWidth, numbers };
+  const nameWidth = name ? longestWordWidth(name, text) : 0;
+  const widest = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, small)));
+  return { width: widest + 2 * STRIP_PAD, widest, cellWidth, gridWidth, numbers };
 }
 
 export function tensorMinimumWidth(payload) {
@@ -34,37 +35,49 @@ export function tensorMinimumWidth(payload) {
 }
 
 // `reserve`: the least height the name block above the cells takes, so strips of one row whose names wrap differently still start their cells at one height (the name stands at the top of it).
-export function layoutTensorStrip(payload, preferredWidth = 0, reserve = 0) {
+export function layoutTensorStrip(payload, preferredWidth = 0, reserve = 0, fit = {}) {
   const { rows, columns, name, dimensions, role } = payload;
-  const { width: minimumWidth, cellWidth, gridWidth, numbers } = stripMetrics(payload);
+  const { text = TEXT, small = SMALL, value = VALUE, cellHeight = CELL_HEIGHT } = fit;
+  const { width: minimumWidth, widest, cellWidth, gridWidth, numbers } = stripMetrics(payload, { text, small, value });
   const width = Math.max(preferredWidth, minimumWidth);
   const elements = [];
   let top = STRIP_PAD;
   let head = 0;
   if (name || reserve > 0) {
-    const lines = name ? wrap(name, width - 2 * STRIP_PAD, TEXT) : [];
-    const height = lines.length * lineHeight(TEXT);
-    if (name) elements.push(label(lines, width / 2, top + height / 2, { weight: 600 }));
+    const lines = name ? wrap(name, width - 2 * STRIP_PAD, text) : [];
+    const height = lines.length * lineHeight(text);
+    if (name) elements.push(label(lines, width / 2, top + height / 2, { weight: 600, ...(text !== TEXT ? { size: text } : {}) }));
     head = Math.max(height, reserve) + 5;
     top += head;
   }
   const [fill, stroke] = roleColors[role] ?? [TEACHING.blueFill, TEACHING.outline];
   const left = (width - gridWidth) / 2;
+  const geometry = { cells: [] };
   for (let i = 0; i < rows * columns; i++) {
     const x = left + (i % columns) * cellWidth;
-    const y = top + Math.floor(i / columns) * CELL_HEIGHT;
-    elements.push(h('rect', { x, y, width: cellWidth, height: CELL_HEIGHT, rx: 4, fill, stroke, strokeWidth: 1.5,
+    const y = top + Math.floor(i / columns) * cellHeight;
+    elements.push(h('rect', { x, y, width: cellWidth, height: cellHeight, rx: 4, fill, stroke, strokeWidth: 1.5,
       'data-tutor-tensor-cell': i }));
-    if (numbers[i] !== undefined) elements.push(label(numbers[i], x + cellWidth / 2, y + CELL_HEIGHT / 2, { size: VALUE, weight: 600 }));
+    if (numbers[i] !== undefined) elements.push(label(numbers[i], x + cellWidth / 2, y + cellHeight / 2, { size: value, weight: 600 }));
+    geometry.cells.push({ index: i, row: Math.floor(i / columns), col: i % columns, x, y, width: cellWidth, height: cellHeight, ...(numbers[i] !== undefined ? { value: numbers[i] } : {}) });
   }
-  const dimensionsTop = top + rows * CELL_HEIGHT + 5;
-  const height = dimensionsTop + lineHeight(SMALL) + STRIP_PAD;
-  elements.push(label(dimensions, width / 2, dimensionsTop + lineHeight(SMALL) / 2, { size: SMALL, tone: 'muted' }));
-  return { width, height, elements, head, cells: top };
+  const dimensionsTop = top + rows * cellHeight + 5;
+  const height = dimensionsTop + lineHeight(small) + STRIP_PAD;
+  elements.push(label(dimensions, width / 2, dimensionsTop + lineHeight(small) / 2, { size: small, tone: 'muted' }));
+  const parts = [{ part: 'margins (top and bottom)', px: 2 * STRIP_PAD }, ...(head ? [{ part: 'name block', px: head }] : []), { part: 'cell rows', px: rows * cellHeight }, { part: 'gap and dimensions line', px: 5 + lineHeight(small) }];
+  const widthParts = [{ part: 'margins', px: 2 * STRIP_PAD }, { part: 'cell grid, the name\'s longest word or the dimensions (the widest)', px: widest }, ...(width - minimumWidth > 1e-9 ? [{ part: 'spare width', px: width - minimumWidth }] : [])];
+  return { width, height, elements, head, cells: top, geometry, parts, widthParts };
 }
 
-export function layoutTensor(diagram, width) {
-  return layoutTensorStrip(diagram.tensor, width);
+// kinds-fit: a tensor takes a box (the cell rows share the height that is left; the grid stays centred), sizes.body (the name and the cell numbers, 15 today) and sizes.small (the dimensions, 13 today) and reports each cell.
+export function layoutTensor(diagram, width, options) {
+  const { box: boxed, sizes, contentHeight, floor } = options && typeof options === 'object' ? options : {};
+  if (!boxed && !sizes) return layoutTensorStrip(diagram.tensor, width);
+  const fit = { text: sizes?.body ?? TEXT, small: sizes?.small ?? SMALL, value: sizes?.body ?? VALUE };
+  const first = layoutTensorStrip(diagram.tensor, width, 0, fit);
+  if (!boxed || floor || contentHeight === undefined) return first;
+  const extra = Math.floor((contentHeight - first.height) / diagram.tensor.rows);
+  return extra > 0 ? layoutTensorStrip(diagram.tensor, width, 0, { ...fit, cellHeight: CELL_HEIGHT + extra }) : first;
 }
 
 // `rowHead`: the height every item of the row gives above its cells (the item's own label, the strip's name), so the cells of a row are top-aligned; 0 measures the item as it is (`head`).

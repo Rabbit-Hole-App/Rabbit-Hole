@@ -88,7 +88,8 @@ export const pictureId = i => `pic-${i + 1}`;
 export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: withNoTextSuffix(v.p), alt: v.a.trim(), caption: v.c.trim() } : null);
 const visualFence = (v, i) => {
   // an incomplete picture keeps its fence, so the validator names what is missing
-  const made = v?.k === 'diagram' ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
+  // NOVIS-1 (c): Gemini tagged a diagram k:'spec' (R2 bench, thermostat): it carries the spec object, so it is read as the diagram; a k:'spec' with no spec object makes no fence, nothing is invented.
+  const made = v?.k === 'diagram' || (v?.k === 'spec' && isObject(v.spec)) ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
   return made ? '```' + made[0] + '\n' + JSON.stringify(made[1]) + '\n```' : null;
 };
 // The saved body: each first [[visual:N]] marker becomes visual N's fence on its own lines; an unknown or repeated marker is removed; a visual with no marker
@@ -901,8 +902,8 @@ function correctedTimeline(raw) {
   return spec ? { spec, kinds: ['timeline_plain'] } : null;
 }
 // Owner 2026-11-08 (arm E v2: the precision-recall matrix needed a repair at all three depths): a matrix the author wrote with the teaching layout but no row IDs gets
-// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); rows with fewer cells than columns, every row short by the same count, are padded
-// with an em dash; a row with more cells than columns loses its trailing cells; rows that disagree with each other are left for the one repair. Kept only when the
+// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); a row with more cells than columns loses its trailing cells; a row with fewer
+// is left for the one repair (a pad would be a column of dashes, which MAT-E rejects). Kept only when the
 // whole diagram then parses. -> { spec, kinds } or null.
 // Owner 2026-11-09 (figure-chapters 02, demo card 03, the 118 3x): a matrix or heatmap whose columns are objects instead of strings, or a matrix whose rows carry ids without the teaching layout,
 // fails validation for a reason the server can read. Only the fields the parser names are touched, and the result applies only if the whole diagram then validates (else the repair gets the original).
@@ -961,10 +962,8 @@ function correctedMatrix(raw) {
   if (d?.kind !== 'matrix' || !Array.isArray(d.columns) || !Array.isArray(d.rows) || !d.rows.length || !d.rows.every(r => r && typeof r === 'object' && Array.isArray(r.cells))) return null;
   const kinds = [], width = d.columns.length, diffs = d.rows.map(r => width - r.cells.length);
   if (diffs.some(x => x !== 0)) {
-    const short = diffs.filter(x => x > 0), long = diffs.filter(x => x < 0);
-    if (short.length && long.length) return null; // rows disagree with each other: the repair's
-    if (short.length) { if (short.length !== diffs.length || new Set(short).size !== 1) return null; d.rows.forEach(r => { while (r.cells.length < width) r.cells.push('—'); }); kinds.push('matrix_cells_padded'); }
-    else { d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed'); }
+    if (diffs.some(x => x > 0)) return null; // a short row is the repair's
+    d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed');
   }
   if (d.layout === 'teaching' && d.rows.some(r => !r.id || typeof r.id !== 'string') || (d.layout === 'teaching' && new Set(d.rows.map(r => r.id)).size !== d.rows.length)) {
     const used = new Set();
@@ -1333,11 +1332,13 @@ const stem = w => (w.length > 4 && w.endsWith('ies') ? `${w.slice(0, -3)}y` : w.
 export const contentWords = text => new Set((String(text ?? '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(w => !STOP.has(w) && (w.length > 1 || /\d/.test(w))).map(stem));
 
 // -> null, or the one layout problem of a NEW card (the problem words name the repair). question: the learner's own words (direct) or the step's title and goal (Tutor).
-export function explanationLayoutProblem(block, question = '') {
+// diagram: the card's plan names a diagram (learn-artifact.js plannedDiagram); a picture does not stand in for it (NOVIS-1).
+export function explanationLayoutProblem(block, question = '', { diagram = false } = {}) {
   if (block?.more?.length) return 'explanation_layout: a new card has no folded sections; put everything in the body.';
   const parts = explanationParts(block?.body), visuals = parts.filter(p => p.kind === 'visual');
   if (!visuals.length && block?.visualFallback === 'dropped') return null; // the server removed the only visual it could neither draw nor simplify (learn-artifact.js)
   if (!visuals.length) return 'explanation_missing_visual: the card needs one to three visuals, an rh-diagram or an rh-illustration fence, each with prose before and after it; add one that shows what the question asks.';
+  if (diagram && !visuals.some(p => p.visual === 'diagram')) return 'explanation_missing_visual: the card\'s plan asks for a diagram and the card has none; a picture does not stand in for it. Add the planned diagram, an rh-diagram fence with prose before and after it.';
   if (visuals.length > 3) return `explanation_too_many_visuals: the card has ${visuals.length} visuals; keep one to three, each with prose before and after it.`;
   const pictures = visuals.filter(p => p.visual === 'illustration').length;
   if (pictures > 2) return `explanation_too_many_visuals: the card has ${pictures} pictures; keep at most two (diagrams may make up the rest).`;
@@ -1358,7 +1359,7 @@ export function explanationLayoutProblem(block, question = '') {
 // -> null, or the validator's words for a NEW card: over the prose budget, the layout, and each broken diagram or illustration. When several are wrong, ONE message
 // names them all, so the single repair can fix them together. The repair (direct paths) reads the words; the roadmap fails terminally.
 // depth: kept for the callers; EXP-13 has one budget for every Depth (asked for 600, refused above 700).
-export function explanationProblem(block, depth, question = '') {
+export function explanationProblem(block, depth, question = '', plan = {}) {
   const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
   // Every wrong-numbers diagram in ONE message (numbersIssue), so the single repair fixes them together; diagramProblem alone names only the first failing fence of each section.
   const numbers = numbersIssue(block);
@@ -1369,7 +1370,7 @@ export function explanationProblem(block, depth, question = '') {
   problems.push(...diagrams);
   problems.push(...pictures.filter(p => !p.ok).map(p => `explanation_bad_illustration: ${p.problem}.`));
   if (new Set(ids).size !== ids.length) problems.push('explanation_bad_illustration: two rh-illustration fences share an id; give each its own.');
-  const layout = explanationLayoutProblem(block, question); if (layout) problems.push(layout);
+  const layout = explanationLayoutProblem(block, question, plan); if (layout) problems.push(layout);
   return problems.length ? problems.join(' ') : null;
 }
 

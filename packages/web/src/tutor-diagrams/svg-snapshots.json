@@ -187,17 +187,17 @@
       "height": 410
     },
     "bootstrap-replacement-oob/320": {
-      "sha256": "266c53be2e8b1a90319bb197b2c0e0960e468d046dadf0d6a385aa3b3f032194",
+      "sha256": "26c0228b200d6ab0179c67ab5bd02f32e0e9f197f487c2d384532d2be26f38f0",
       "width": 320,
       "height": 627
     },
     "bootstrap-replacement-oob/408": {
-      "sha256": "f4d8d7363fc45d20a6adb63101d03ab3eb2f2480a862248eebc3a89154dce0c7",
+      "sha256": "f911f01b78c15d50d8fb687880dc63e9093b4c014970b24ece9584fc818241fa",
       "width": 408,
       "height": 507
     },
     "bootstrap-replacement-oob/720": {
-      "sha256": "c5e598cde81a1e35ac5529eabcc337631cbea060f23f319abf14e6520f4af5bf",
+      "sha256": "198be455d2300792d630f4b840522cfe7398ccd8e45252e4c12482d3fbe3304f",
       "width": 720,
       "height": 490
     },
@@ -272,22 +272,22 @@
       "height": 452.5
     },
     "clustering-elbow-silhouette/720": {
-      "sha256": "be747d6580c07b5e042fb7a8978754687258fbeffdf92e6fe53694b3ff32bf94",
+      "sha256": "3dfda2e5e59ad475da9e81ad8bc15a8335cfb03f3fb7cce4cdf7e667b070ab20",
       "width": 720,
       "height": 413.5
     },
     "clustering-inertia-elbow/320": {
-      "sha256": "9beb5eb58883b759267fb78c3602873ea9b3f667d492c83f74f303e2477cbe37",
+      "sha256": "dfdc3d8c419c70e0d2164aa8134584c9960c0cdc351efb605c5af7341da3b2fd",
       "width": 408,
       "height": 478.5
     },
     "clustering-inertia-elbow/408": {
-      "sha256": "9beb5eb58883b759267fb78c3602873ea9b3f667d492c83f74f303e2477cbe37",
+      "sha256": "dfdc3d8c419c70e0d2164aa8134584c9960c0cdc351efb605c5af7341da3b2fd",
       "width": 408,
       "height": 478.5
     },
     "clustering-inertia-elbow/720": {
-      "sha256": "88997c47a68c526041029420920e3250167f486e865ccd35857f6884ee170068",
+      "sha256": "fb3acce4d0caf5744c40429b73bd09f286ed296f08126fe970e535301af1d509",
       "width": 720,
       "height": 439.5
     },
@@ -1222,17 +1222,17 @@
       "height": 223
     },
     "ml-differencing-transformation/320": {
-      "sha256": "1070334ef652e981f2a671b4b91c58535186031883af38bef9b4436727ce52cd",
+      "sha256": "45b197fd8423f010e7c13fc0c7dbfe61983ae52a13b9b18d51b27d8a2e189e0e",
       "width": 432,
       "height": 1271
     },
     "ml-differencing-transformation/408": {
-      "sha256": "1070334ef652e981f2a671b4b91c58535186031883af38bef9b4436727ce52cd",
+      "sha256": "45b197fd8423f010e7c13fc0c7dbfe61983ae52a13b9b18d51b27d8a2e189e0e",
       "width": 432,
       "height": 1271
     },
     "ml-differencing-transformation/720": {
-      "sha256": "d17cc4e5c17a9b80b1e245e69896216d0e18d5479b0707d014c495ac95df77e1",
+      "sha256": "05efe42df89c306edb77f5493b7616a16de373ddd2266a8e11b74c0070c40a6c",
       "width": 720,
       "height": 1236
     },
@@ -1507,17 +1507,17 @@
       "height": 413.5
     },
     "ml-linear-regression-feature-scaling-overlay/320": {
-      "sha256": "89a2175b8f6a3e206751935be10d5ac1a92673a620769ce75b221a0e242104d8",
+      "sha256": "57da45a84792f5df9198027e1f23d64133b862a2d6135860a562d2e428716a05",
       "width": 408,
       "height": 439.5
     },
     "ml-linear-regression-feature-scaling-overlay/408": {
-      "sha256": "89a2175b8f6a3e206751935be10d5ac1a92673a620769ce75b221a0e242104d8",
+      "sha256": "57da45a84792f5df9198027e1f23d64133b862a2d6135860a562d2e428716a05",
       "width": 408,
       "height": 439.5
     },
     "ml-linear-regression-feature-scaling-overlay/720": {
-      "sha256": "7a4feb5d35810c65cd54b2be543dbb37687f62e1875faab0013d8ace3256b90b",
+      "sha256": "7dd55501391ca0a7ae95b672b0da28d236526660cdb6a3e7b2bf6cbd46fdbc48",
       "width": 720,
       "height": 439.5
     },
@@ -1862,7 +1862,7 @@
       "height": 430.5
     },
     "ml-logistic-regression-sigmoid-shape/720": {
-      "sha256": "dbc142498fbc4c96283b6f610738383ee1ca6c1f7b0601c1e17596024a8c92e8",
+      "sha256": "ba14f29d72f5614a8467cd99b0fad0ec6b44f1efb26516372d87b33b6f2589fa",
       "width": 720,
       "height": 413.5
     },
@@ -1937,7 +1937,7 @@
       "height": 948
     },
     "ml-model-evaluation-schedule-run-diagnostics/720": {
-      "sha256": "d8524ed6e28aec199995507afb396598139a0fa7053a4aa535e3a1deb16ffa30",
+      "sha256": "aa1c563452bb8848183271776a058e2c3fb886f7d1282c08e0c53a1d518d1405",
       "width": 720,
       "height": 893
     },
@@ -1952,7 +1952,7 @@
       "height": 910
     },
     "ml-model-evaluation-training-diagnostics/720": {
-      "sha256": "da3424c2dc72c362039f1c5165d745cbb952b1d654f44156758b046fc6abc403",
+      "sha256": "98fe709a73799a2c7f7f030d697a0e493cb0da0b25b3dcb0720501623f1c9b66",
       "width": 720,
       "height": 893
     },
@@ -2242,12 +2242,12 @@
       "height": 319
     },
     "ml-sampling-top-k/320": {
-      "sha256": "c4a0f90838e95ab99f19d06b1bdad0c38b2fecb52b8e13307700ffb83b390831",
+      "sha256": "97112473dd48f2c8e62b6c381bc75d7069f262e0c7a14e9525a17fe6f6793f12",
       "width": 408,
       "height": 431
     },
     "ml-sampling-top-k/408": {
-      "sha256": "c4a0f90838e95ab99f19d06b1bdad0c38b2fecb52b8e13307700ffb83b390831",
+      "sha256": "97112473dd48f2c8e62b6c381bc75d7069f262e0c7a14e9525a17fe6f6793f12",
       "width": 408,
       "height": 431
     },
@@ -2722,19 +2722,19 @@
       "height": 276
     },
     "permutation-feature-importance/320": {
-      "sha256": "9a4b8c4c91d8035e1009db6d274537fe5411c807627e19880f1e9794a7dccdfa",
+      "sha256": "1a83a0a42690a1dfdab3ed2fc858ba2126189979c7b2adeded94ec0890ea9cbc",
       "width": 408,
-      "height": 436
+      "height": 446
     },
     "permutation-feature-importance/408": {
-      "sha256": "9a4b8c4c91d8035e1009db6d274537fe5411c807627e19880f1e9794a7dccdfa",
+      "sha256": "1a83a0a42690a1dfdab3ed2fc858ba2126189979c7b2adeded94ec0890ea9cbc",
       "width": 408,
-      "height": 436
+      "height": 446
     },
     "permutation-feature-importance/720": {
-      "sha256": "0c871638dc7f934c1e3a847dd42f47886abdd9896131beb4297140f5e7efe230",
+      "sha256": "93868bcd100e621a8bc4ea1e009bb239edff328a542d2d17ff1ebf6ed184a882",
       "width": 720,
-      "height": 397
+      "height": 407
     },
     "permutation-feature-matrix/320": {
       "sha256": "f052eed1d9d674b4153ff2ab4a5d72f29514da192964e59b511697624fd365f5",
@@ -2752,17 +2752,17 @@
       "height": 333
     },
     "persistent-drift-alerts/320": {
-      "sha256": "7b59c50e64c598085ad699e057a8ebcaa379031a79386ef3492a5065b524d9e1",
+      "sha256": "b065f5363dc14d17f796fa01b3c762dfab24cd7a22604a8bc18e11fbbeed7273",
       "width": 408,
       "height": 466.5
     },
     "persistent-drift-alerts/408": {
-      "sha256": "7b59c50e64c598085ad699e057a8ebcaa379031a79386ef3492a5065b524d9e1",
+      "sha256": "b065f5363dc14d17f796fa01b3c762dfab24cd7a22604a8bc18e11fbbeed7273",
       "width": 408,
       "height": 466.5
     },
     "persistent-drift-alerts/720": {
-      "sha256": "27d0ce505769fcd63fdea86837aca0806b0a4c4299efe3372575ccfcb8469cdb",
+      "sha256": "867ac3f43b621a347d5a58529501fb96b7e22db1b98e861dbe9ffc07918e25a7",
       "width": 720,
       "height": 427.5
     },
@@ -2795,6 +2795,336 @@
       "sha256": "d670da3a7ac5f4261e53fb06e6ef74878ac73455894375550025576ab18795a2",
       "width": 720,
       "height": 451.5
+    },
+    "pool-apron-fabric-stock/320": {
+      "sha256": "3de1409cc873889419b41a76096ad3181d8429680fe780c8f7b4acfee979e6cd",
+      "width": 362,
+      "height": 345
+    },
+    "pool-apron-fabric-stock/408": {
+      "sha256": "a41c20c987e244e522888f3679d3f2c23894524e6cdfdcfb7ae4911661e3fb09",
+      "width": 408,
+      "height": 345
+    },
+    "pool-apron-fabric-stock/720": {
+      "sha256": "5847cac5c3ff427a4178d1494903b27be0274ad19bea442d5dd6f84692547897",
+      "width": 720,
+      "height": 311
+    },
+    "pool-booklet-press-pages/320": {
+      "sha256": "a3c6def24a7ee6a919079ac6264aa230214e50d49412277beaffb96b228e61e1",
+      "width": 320,
+      "height": 328
+    },
+    "pool-booklet-press-pages/408": {
+      "sha256": "36f7e26345682ac757182764d4387daa82e955dabd90030e6b310434c18e6e82",
+      "width": 408,
+      "height": 289
+    },
+    "pool-booklet-press-pages/720": {
+      "sha256": "dfbf0126af955200398e6741ea1d8fd8fa5c488491e0a3bd57e4659416c8b8b3",
+      "width": 720,
+      "height": 289
+    },
+    "pool-club-poster-inks/320": {
+      "sha256": "f879fe9fe0869b9212a6f6e14888f91824006d32a28eaee62575e72102b4e0ad",
+      "width": 320,
+      "height": 475
+    },
+    "pool-club-poster-inks/408": {
+      "sha256": "2905cd7dadca75f710e3e523f5034e9c841a948d45a35e9ac14fd2a79e7ee632",
+      "width": 408,
+      "height": 396
+    },
+    "pool-club-poster-inks/720": {
+      "sha256": "416050c75353f0de255c3824229d2e07112a6340869f53e0c0699c430040fbdb",
+      "width": 720,
+      "height": 339
+    },
+    "pool-double-glazed-window/320": {
+      "sha256": "1557636d9008325103fe9c5b19236e060fac36cf3e3c1509ea03e01c368be4ed",
+      "width": 320,
+      "height": 508
+    },
+    "pool-double-glazed-window/408": {
+      "sha256": "eea5b58ebac60d6cd9a5cee3e0b2fb817fac4f7026c2f7a3ef0bca6b457e5be9",
+      "width": 408,
+      "height": 435
+    },
+    "pool-double-glazed-window/720": {
+      "sha256": "b8a3f3595060db86b865066ffb69329fd53e09d95cfb74e9bc2d1c3115f6d16f",
+      "width": 720,
+      "height": 418
+    },
+    "pool-exhibit-tank-refill/320": {
+      "sha256": "8f65293be0768e98ca22324e6cb9c9ca257797995445bb9423f44e2705cbc0f1",
+      "width": 362,
+      "height": 350
+    },
+    "pool-exhibit-tank-refill/408": {
+      "sha256": "a28eac83b313c6e51c264cf15060871af86e75edf962a24fa05c64cc90fac122",
+      "width": 408,
+      "height": 328
+    },
+    "pool-exhibit-tank-refill/720": {
+      "sha256": "e9fca29794663f6708329b16135512269f4a148c775fe054c4e9f1e1984f3280",
+      "width": 720,
+      "height": 311
+    },
+    "pool-felt-mug-sleeve/320": {
+      "sha256": "5c2170480948aae5764fe526b07c392ad0ca5399e9da97e51dadfff915c31c70",
+      "width": 320,
+      "height": 513
+    },
+    "pool-felt-mug-sleeve/408": {
+      "sha256": "5c780bdab01f3554f13086a893b00df5b03fb23f4223367e0e056208cc6fb669",
+      "width": 408,
+      "height": 418
+    },
+    "pool-felt-mug-sleeve/720": {
+      "sha256": "6bcaa4d46c701b1eb6bc8c39b76a0d7a5659ce255fccddb22b42eaaa25bceb93",
+      "width": 720,
+      "height": 339
+    },
+    "pool-fired-tile-widths/320": {
+      "sha256": "eb05028422c539ee49db03c408d2135cdb2b3b3ebdb91ccb91588ec4c753e462",
+      "width": 360,
+      "height": 471.5
+    },
+    "pool-fired-tile-widths/408": {
+      "sha256": "d84d235e943361f1896853bede01fd45c72d6621a076a830a3f49800e7a9d821",
+      "width": 408,
+      "height": 420.5
+    },
+    "pool-fired-tile-widths/720": {
+      "sha256": "04b29eaf0efd964dc6c6cc6192fab8e682c30ca19183e2989fb0f3dbcddd95d4",
+      "width": 720,
+      "height": 420.5
+    },
+    "pool-fixed-border-thumbnail-crop/320": {
+      "sha256": "67367ac82cb0e806ff14bc83bb02dab851c6ce318c4ada4009516afdb09b2617",
+      "width": 320,
+      "height": 458
+    },
+    "pool-fixed-border-thumbnail-crop/408": {
+      "sha256": "b20cf8c4725afe43148165a054436bc207e85efb43999bd2aff70ee2e4fc28a2",
+      "width": 408,
+      "height": 343
+    },
+    "pool-fixed-border-thumbnail-crop/720": {
+      "sha256": "3835e1e3f67d907b6a9e9be2755b11b64b5e2935010f6ba0729a0688e23b8d7f",
+      "width": 720,
+      "height": 307
+    },
+    "pool-granola-batch-ingredients/320": {
+      "sha256": "ace1030d04d09b0481eab800aa50d6c6281fee635c6a9b6b1c0e5949fab79f27",
+      "width": 320,
+      "height": 292
+    },
+    "pool-granola-batch-ingredients/408": {
+      "sha256": "b75eac036b2442de7a7dc483577aa06c3f01f13f51685e17d4a6c2ee51edab2f",
+      "width": 408,
+      "height": 270
+    },
+    "pool-granola-batch-ingredients/720": {
+      "sha256": "872634299d7ffadeb48c0c94cc6c57fc8c782ff99299e666ee182577accff842",
+      "width": 720,
+      "height": 253
+    },
+    "pool-hanging-shop-sign/320": {
+      "sha256": "433640ce417651c3e0b2604062b3045613437192a410a8547ae41a83cac4a666",
+      "width": 320,
+      "height": 618
+    },
+    "pool-hanging-shop-sign/408": {
+      "sha256": "6c60e4f8d88c9df36e9d9e60e61e6cbb5243c7ddea5af9ee890fb5600af35eb0",
+      "width": 408,
+      "height": 562
+    },
+    "pool-hanging-shop-sign/720": {
+      "sha256": "46d19a69f45fca20266bafbc5966a680c0bf13de9b6bdf4843bd3181e5521d5a",
+      "width": 720,
+      "height": 545
+    },
+    "pool-hilltop-park-map-layers/320": {
+      "sha256": "bb8c1605eded4cf9519880b3ffbf3564f4be039acd385a7c7cf24ef4f9c95583",
+      "width": 320,
+      "height": 382
+    },
+    "pool-hilltop-park-map-layers/408": {
+      "sha256": "dc3fba6a767a3cf01b2607b4db1b1aafab725c33a5ca2eda67f96035be1d68f4",
+      "width": 408,
+      "height": 360
+    },
+    "pool-hilltop-park-map-layers/720": {
+      "sha256": "1e5b869039abfede149013f2f35d44d7de04f4facf305126961c2b5cd17c160a",
+      "width": 720,
+      "height": 343
+    },
+    "pool-late-library-return/320": {
+      "sha256": "dbec4e03436480765558efa301a73fc8905ccde2e1f6fbdb4adbd386948474d6",
+      "width": 320,
+      "height": 513
+    },
+    "pool-late-library-return/408": {
+      "sha256": "0b07b9fa4b1c8a8ac2255c5b481c46bd66bfcacedaf15ff62435caf3f28da624",
+      "width": 408,
+      "height": 456
+    },
+    "pool-late-library-return/720": {
+      "sha256": "86def62017eb1908ae27992172a3c39e847d98daf7bd616ca8891b5e286355d7",
+      "width": 720,
+      "height": 339
+    },
+    "pool-orchard-packing-expense/320": {
+      "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
+      "width": 320,
+      "height": 502
+    },
+    "pool-orchard-packing-expense/408": {
+      "sha256": "d6f8843c4b92276d6ebd9c1995a67d60743264cf9b0f2fb5c9d9a306a3f376ae",
+      "width": 408,
+      "height": 429
+    },
+    "pool-orchard-packing-expense/720": {
+      "sha256": "7ea82210a33bee1038b4ac0cd4aa4f62ee8352fc4fb3c2e53bceafa7fc786eb0",
+      "width": 720,
+      "height": 361
+    },
+    "pool-prepaid-recital-venue/320": {
+      "sha256": "ae2b5797f04767ed730f627fa3310a0cd63fe8e2f86875511050d51a0e482652",
+      "width": 320,
+      "height": 468
+    },
+    "pool-prepaid-recital-venue/408": {
+      "sha256": "6e48cc252898c5750c40cddeaeb42b1748e4043a8347dbaece75086e7df0835a",
+      "width": 408,
+      "height": 378
+    },
+    "pool-prepaid-recital-venue/720": {
+      "sha256": "d08ce58c79320291524fcaa2ff96a5e826629f94fa08037bf62191f010a0311b",
+      "width": 720,
+      "height": 344
+    },
+    "pool-raspberry-cocoa-slice-layers/320": {
+      "sha256": "a20fd0413d588a8a3d9f2a3a6a658235c47f0d620c92789ee855d8965505bc91",
+      "width": 320,
+      "height": 382
+    },
+    "pool-raspberry-cocoa-slice-layers/408": {
+      "sha256": "6c8773bd58e6a6b196da910dac6213a1868ba1c3120c281f196d5b2b34319877",
+      "width": 408,
+      "height": 360
+    },
+    "pool-raspberry-cocoa-slice-layers/720": {
+      "sha256": "d9494941b20d02286d29ba8259d81ef6d5f9b724c6c6621fff249d5d8576c5c9",
+      "width": 720,
+      "height": 343
+    },
+    "pool-robotics-parts-payable/320": {
+      "sha256": "0a99d089f0cdd64037c4fabb0d53ba600784e0b8538c38b4cff8b47e15beea22",
+      "width": 320,
+      "height": 451
+    },
+    "pool-robotics-parts-payable/408": {
+      "sha256": "baaa8deceb0d9a9f069ca091118545dd3a94837f59495803ff23f7c737030ec2",
+      "width": 408,
+      "height": 400
+    },
+    "pool-robotics-parts-payable/720": {
+      "sha256": "f15e8d0cb99edd923748a87478873c5632bc97880821ea1b054849e2512f7126",
+      "width": 720,
+      "height": 344
+    },
+    "pool-sliding-shipping-crate/320": {
+      "sha256": "d261fccc3cf436067d8441ba6ff0d03bd0ec7a8112883d7306ce1af624b212cd",
+      "width": 320,
+      "height": 739
+    },
+    "pool-sliding-shipping-crate/408": {
+      "sha256": "6d49f19db203480131ce379ee57ac8243dbb002105596c3cc5d060adaf04d38b",
+      "width": 408,
+      "height": 649
+    },
+    "pool-sliding-shipping-crate/720": {
+      "sha256": "696f273e2ecea184d3bf6c7790ca2fec96754bbb6e9c4ac500affb5ff41573a0",
+      "width": 720,
+      "height": 649
+    },
+    "pool-soundcheck-time-window/320": {
+      "sha256": "0d4d5151ec33e8696e6973f35dbfb0d4183427d6ff3a8e8a396f4ffc8a711358",
+      "width": 320,
+      "height": 395
+    },
+    "pool-soundcheck-time-window/408": {
+      "sha256": "a3367115a18817e304f2e041f42bc6385a1d48212f731b0ee1a2a441f5a60fce",
+      "width": 408,
+      "height": 356
+    },
+    "pool-soundcheck-time-window/720": {
+      "sha256": "e9cbf72ff6593b806e0d57da76eed319bb650feebb22b5547168fb1f95854d29",
+      "width": 720,
+      "height": 339
+    },
+    "pool-stereo-audio-frame/320": {
+      "sha256": "9d1d05163045ddf570ff94b464af794f8d71f59e1126626394f01ec5363c4db4",
+      "width": 320,
+      "height": 256
+    },
+    "pool-stereo-audio-frame/408": {
+      "sha256": "809ee3259dae0aeef625194922f7286f0d38f4b85bfc364af80a98dd6e77b9c4",
+      "width": 408,
+      "height": 234
+    },
+    "pool-stereo-audio-frame/720": {
+      "sha256": "c1826a6e77e7bc190042d6dee8d8087e3689198f2eece24eee5bed0a66dc7a49",
+      "width": 720,
+      "height": 217
+    },
+    "pool-sunflower-tray-heights/320": {
+      "sha256": "cba2e23f8ac2c32e4f1f8b13cc31ea651e3ad4d01453884c210acd8716db871a",
+      "width": 360,
+      "height": 498.5
+    },
+    "pool-sunflower-tray-heights/408": {
+      "sha256": "1106c6c4d0841fa1bbcd18f6247f05701d061f822baa6325f3201644d2785f26",
+      "width": 408,
+      "height": 464.5
+    },
+    "pool-sunflower-tray-heights/720": {
+      "sha256": "57484da8cb1d1dcd50441fc8bf298d3576f2291405d469638f3fc7860afec43b",
+      "width": 720,
+      "height": 447.5
+    },
+    "pool-trailhead-elevation-offsets/320": {
+      "sha256": "adfdc2c9ab08f953bc9d72b46314fa82c7fe0873a707e212edf2da8c717200ab",
+      "width": 320,
+      "height": 343
+    },
+    "pool-trailhead-elevation-offsets/408": {
+      "sha256": "cd723ee8ccec1728fa0861e211f906db9729427d481ab90bf7e443bb80aa745c",
+      "width": 408,
+      "height": 304
+    },
+    "pool-trailhead-elevation-offsets/720": {
+      "sha256": "5748fa78c49d41828afa2319e7df2152152d5c9b9104eccca4a1f2c8d7c9d315",
+      "width": 720,
+      "height": 287
+    },
+    "pool-trivia-team-score/320": {
+      "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
+      "width": 442,
+      "height": 350
+    },
+    "pool-trivia-team-score/408": {
+      "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
+      "width": 442,
+      "height": 350
+    },
+    "pool-trivia-team-score/720": {
+      "sha256": "96fb36160b3f350ede951e7c8bf330ab436c85ba15cf2f2682612713929f2d9b",
+      "width": 720,
+      "height": 311
     },
     "precision-recall-thresholds/320": {
       "sha256": "48bb4af84aff27699fd568616f766021da53c60cdcb80dc25e59ba99e0aba48f",
@@ -3382,12 +3712,12 @@
       "height": 276
     },
     "svm-hinge-loss/320": {
-      "sha256": "9c0a42feafdc174b908209128d2e496327358b25a844ab3324261dfbe511df27",
+      "sha256": "156e71af3a1be646d10466938a1f0ffd1492639ca67ae11d6314c0303f8e9454",
       "width": 408,
       "height": 452.5
     },
     "svm-hinge-loss/408": {
-      "sha256": "9c0a42feafdc174b908209128d2e496327358b25a844ab3324261dfbe511df27",
+      "sha256": "156e71af3a1be646d10466938a1f0ffd1492639ca67ae11d6314c0303f8e9454",
       "width": 408,
       "height": 452.5
     },
@@ -4442,9 +4772,9 @@
       "height": 380
     },
     "ml-transformer-vocabulary-softmax/960": {
-      "sha256": "9af8362b1d8325d2867bdb5f37658ca5b47de5a181b397e3c0c586129dc040a4",
+      "sha256": "2f266437869c865f791ada607dce4cb9003932b00ee159cd539451a28c75e433",
       "width": 720,
-      "height": 363
+      "height": 373
     },
     "ml-transformer-vocabulary-softmax/natural": {
       "sha256": "6ae7c1af74b92a6b98c85ca3a44848945d6f7d1c7714bdd61abf99c77176c7bb",
@@ -4497,9 +4827,9 @@
       "height": 419
     },
     "ml-transformer-vocabulary-softmax-detailed/960": {
-      "sha256": "19dd526539e49a98ddf4d58acd36d43b43c333f47811ee845f52c5ac55ea2685",
+      "sha256": "b00e6da63f210759b39771facfec690b96cf75f15ee381054e9538ccfd582c9b",
       "width": 720,
-      "height": 380
+      "height": 390
     },
     "ml-transformer-vocabulary-softmax-detailed/natural": {
       "sha256": "c0656bc7c67046946cfdfc1da48c5951f3265ebdadfad63c04829320ba4d3ea2",
@@ -10647,17 +10977,17 @@
       "height": 468.5
     },
     "d2l-cnn-loss-and-accuracy-detail/408": {
-      "sha256": "7a1c718cf5ebdc71343cea1c5cb18befe580978725a17cb434e11b47c5fc8581",
+      "sha256": "78d610fb6fc27ce0938e362206b9d24acf6131b85bd435cde96ff96815fac417",
       "width": 408,
       "height": 430.5
     },
     "d2l-cnn-loss-and-accuracy-detail/960": {
-      "sha256": "d097fb9917adf3f85138fdf2affccb4325074ce688718ed5f99b96d2cd981d26",
+      "sha256": "2f3887387857cd3ab37bb6fe8ef894fc484bc7ce04c7da2f5d47774537dd9353",
       "width": 720,
       "height": 413.5
     },
     "d2l-cnn-loss-and-accuracy-detail/natural": {
-      "sha256": "7a1c718cf5ebdc71343cea1c5cb18befe580978725a17cb434e11b47c5fc8581",
+      "sha256": "78d610fb6fc27ce0938e362206b9d24acf6131b85bd435cde96ff96815fac417",
       "width": 408,
       "height": 430.5
     },
@@ -10692,17 +11022,17 @@
       "height": 468.5
     },
     "d2l-cnn-loss-and-accuracy-detailed-detail/408": {
-      "sha256": "8e5d0498d77ac5a419af19914614e71beb1494390fabb62807a1e531ae3a6adb",
+      "sha256": "5053906b3406717e24621485ae1feeae7b01cc58a57f5ca4b5326d6aa3ebdada",
       "width": 408,
       "height": 430.5
     },
     "d2l-cnn-loss-and-accuracy-detailed-detail/960": {
-      "sha256": "3f376d17275d276087dcb6a9610ae9458cf24f3dab7f4dafd443b63832d619e7",
+      "sha256": "f764bc5d994282ba44f62fe8b65a71e120981a16d3eadad8c18df9500d068b5b",
       "width": 720,
       "height": 413.5
     },
     "d2l-cnn-loss-and-accuracy-detailed-detail/natural": {
-      "sha256": "8e5d0498d77ac5a419af19914614e71beb1494390fabb62807a1e531ae3a6adb",
+      "sha256": "5053906b3406717e24621485ae1feeae7b01cc58a57f5ca4b5326d6aa3ebdada",
       "width": 408,
       "height": 430.5
     },
@@ -15807,47 +16137,47 @@
       "height": 502.5
     },
     "ml-trees-bootstrap-coverage/408": {
-      "sha256": "72db794ce67c72a3a7e0213e5db7fa2da445719acecd652fc943d67a701e9438",
+      "sha256": "8050515b40b348bdb34a67141008aa6945ac5df0536f1361a2267634dd58c463",
       "width": 408,
       "height": 495.5
     },
     "ml-trees-bootstrap-coverage/960": {
-      "sha256": "a11fa21e79cb46ad46c88e9a8bd9396c4f2a0a2bf43c95f3267724cde99e44f3",
+      "sha256": "97f172d497af3773926074e84614ec2798b9acba2bb04254b582eec613ae984b",
       "width": 720,
       "height": 456.5
     },
     "ml-trees-bootstrap-coverage/natural": {
-      "sha256": "72db794ce67c72a3a7e0213e5db7fa2da445719acecd652fc943d67a701e9438",
+      "sha256": "8050515b40b348bdb34a67141008aa6945ac5df0536f1361a2267634dd58c463",
       "width": 408,
       "height": 495.5
     },
     "ml-trees-bootstrap-coverage-brief/408": {
-      "sha256": "3165fd23308b9db1656628aebdf0b09c443bb42fe00913642c1cb844e892bf77",
+      "sha256": "53f4424676262c85d678be305b8947f33a0d99c06934fa68249b12f880e88c30",
       "width": 408,
       "height": 456.5
     },
     "ml-trees-bootstrap-coverage-brief/960": {
-      "sha256": "2c459bb39dfe2078a230f3ae05bfe1503cf88c02226d00823d43bbf95b7cf00b",
+      "sha256": "2ea7f7e9dda615ce6100b5c80bc733d1a7c769bc16d2120f9d492a6aa87798c8",
       "width": 720,
       "height": 439.5
     },
     "ml-trees-bootstrap-coverage-brief/natural": {
-      "sha256": "3165fd23308b9db1656628aebdf0b09c443bb42fe00913642c1cb844e892bf77",
+      "sha256": "53f4424676262c85d678be305b8947f33a0d99c06934fa68249b12f880e88c30",
       "width": 408,
       "height": 456.5
     },
     "ml-trees-bootstrap-coverage-detailed/408": {
-      "sha256": "94f1d46a228a683b65c122655a687fd4e74d5f6aa63330b1d76d2e6659645921",
+      "sha256": "a72f3d0ca8ed743d3e4022ce43306f544652e85bfd1480b6295c3c332689bcb5",
       "width": 408,
       "height": 495.5
     },
     "ml-trees-bootstrap-coverage-detailed/960": {
-      "sha256": "b6e4b401bc69f150bc23d397447aae071c9bd98a803d5a8669a7140debae31ad",
+      "sha256": "3fe46879b6e0e96178d0faade1222d8ee1c9076057bef4f78648097d20eb515d",
       "width": 720,
       "height": 456.5
     },
     "ml-trees-bootstrap-coverage-detailed/natural": {
-      "sha256": "94f1d46a228a683b65c122655a687fd4e74d5f6aa63330b1d76d2e6659645921",
+      "sha256": "a72f3d0ca8ed743d3e4022ce43306f544652e85bfd1480b6295c3c332689bcb5",
       "width": 408,
       "height": 495.5
     },
@@ -15902,7 +16232,7 @@
       "height": 413.5
     },
     "ml-trees-forest-size-accuracy/960": {
-      "sha256": "4987ae1bc4d552771dc69aff9fcd4590f0937ebfcd4d50c20aae3437810a67bb",
+      "sha256": "f26e130b1249c8363850eb4e2001ed83a39de4587ee14710213616c8e5a05d0e",
       "width": 720,
       "height": 413.5
     },
@@ -15917,7 +16247,7 @@
       "height": 413.5
     },
     "ml-trees-forest-size-accuracy-brief/960": {
-      "sha256": "cd51d6c27a6e2a6ceee4c700e1880b27ebba9f6f7ff895067edef90c2bb61bc5",
+      "sha256": "25673bf55a653353475b50bf701ae4f236dce5ebae09527d5dbdeca6b5584341",
       "width": 720,
       "height": 413.5
     },
@@ -15932,7 +16262,7 @@
       "height": 447.5
     },
     "ml-trees-forest-size-accuracy-detailed/960": {
-      "sha256": "92c913e1d6f2acd90813141a9db6474177f80b6e1e57644a3d66a0506740b033",
+      "sha256": "7507edc2dceca375f384a9eaa75462db25007424da1c345676d6b48bf3a387bc",
       "width": 720,
       "height": 430.5
     },
