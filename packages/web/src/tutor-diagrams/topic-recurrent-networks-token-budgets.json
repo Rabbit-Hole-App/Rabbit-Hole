@@ -1,0 +1,72 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-recurrent-networks-recurrent-update": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 103,
+          "sha256": "5449522c174319dc08a8847db698adba84a08fa86df800c5a53461d7202b690c"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 110,
+          "sha256": "44a3ab2fdf5aa848df48beab40048222eb3ddad774074bc41f02ec4378e86a04"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 262,
+          "sha256": "9b6c697fe093d17cf21c1560adb9b7bb4164aab0b4d59684c8fe7d79b90b159f"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 110,
+          "sha256": "44a3ab2fdf5aa848df48beab40048222eb3ddad774074bc41f02ec4378e86a04"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 174,
+          "sha256": "ad67850a0741517350a1053c41b309ab69a3a9aca07e3422343f6bacf67201e6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 81,
+          "sha256": "3ca3ffe3c2b04ad53194bcb29bfe728649107ed10a1d206ea400a3b200715dea"
+        }
+      ]
+    },
+    "ml-recurrent-networks-recurrent-next-token-training": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 98,
+          "sha256": "8d30be8f9e99653f0a8166058f143cd8bb78a9f4e19e24b50675038fe4f72d86"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 280,
+          "sha256": "e8e84532ddc148961ea2cc4fbdd3097d110f78edb6132af68242d8373d51520d"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 120,
+          "sha256": "737ee087d7485d2e1833bd1818f7a81cdb96ac09b764791a65ca59f3ec38e0f2"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 99,
+          "sha256": "8b4835b5f639e1ca789bb5417564b15db8dac049b141a1f7ade76e098b1e1b1e"
+        }
+      ]
+    }
+  }
+}

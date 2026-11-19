@@ -2136,6 +2136,66 @@
       "width": 720,
       "height": 1369
     },
+    "ml-recurrent-networks-recurrent-next-token-training/320": {
+      "sha256": "fdc99a6ff9bd7ab8c58277ff9c40ba760e0ea554f44edca6aca8e20d65a2d9db",
+      "width": 388,
+      "height": 1246
+    },
+    "ml-recurrent-networks-recurrent-next-token-training/408": {
+      "sha256": "0c75a13fd21831d46a018c892bccb208cd69ab45bfc5503bb55b4754330dc2a2",
+      "width": 408,
+      "height": 1246
+    },
+    "ml-recurrent-networks-recurrent-next-token-training/720": {
+      "sha256": "6fc684576ced89f9f2968e598d55442026b1b934bbc4a3a47c3834901de9e276",
+      "width": 720,
+      "height": 1088
+    },
+    "ml-recurrent-networks-recurrent-update/320": {
+      "sha256": "7237a3328c5725b1f6c8af796189005301f1e46aa636459642d4c66ea0bd5911",
+      "width": 368,
+      "height": 1015
+    },
+    "ml-recurrent-networks-recurrent-update/408": {
+      "sha256": "faf80d7c96e02566c4613bf6615aba822c8f0dd063b7db47672f0f50a1eff44e",
+      "width": 408,
+      "height": 998
+    },
+    "ml-recurrent-networks-recurrent-update/720": {
+      "sha256": "7ece32900d0fec1ac4e3634d45ee7d0b6fed942a0719f9e349261821ecaea545",
+      "width": 720,
+      "height": 959
+    },
+    "ml-recurrent-training-gradient-horizons/320": {
+      "sha256": "c01108ba4fd21f0b28da46c011a19dc397c39823048104d021b99c9527649135",
+      "width": 360,
+      "height": 735
+    },
+    "ml-recurrent-training-gradient-horizons/408": {
+      "sha256": "ca26252ed49a7e8d3531727d1e2445852a0c68202c4986a9107c8d8cbfa4cdea",
+      "width": 408,
+      "height": 718
+    },
+    "ml-recurrent-training-gradient-horizons/720": {
+      "sha256": "59f72ea4ec4ab86090faecc54db19db41821979936f2e769f74c1fc27e031a36",
+      "width": 720,
+      "height": 679
+    },
+    "ml-recurrent-training-shared-parameter-gradients/320": {
+      "sha256": "94517b3146feab4c91e5b9e45bc90987382572f77cc55307da9bb2a7d7586433",
+      "width": 416,
+      "height": 1113
+    },
+    "ml-recurrent-training-shared-parameter-gradients/408": {
+      "sha256": "94517b3146feab4c91e5b9e45bc90987382572f77cc55307da9bb2a7d7586433",
+      "width": 416,
+      "height": 1113
+    },
+    "ml-recurrent-training-shared-parameter-gradients/720": {
+      "sha256": "27a9f4df55ac6d069d8cb1a46b87debe7319deb931d0ec17b0f061a01bb32ca7",
+      "width": 720,
+      "height": 1113
+    },
     "ml-recursive-feature-elimination/320": {
       "sha256": "01b7571c3a8c775aa199238e5c5a57d77c39ee3c8843b0e6392ec83648f05a56",
       "width": 320,
