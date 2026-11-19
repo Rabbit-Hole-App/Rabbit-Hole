@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Brief 39: prints the blueprint design phase of one /interactive job on the local interactive stack (8879): the run record the job stored under design:<job>:<rev>:blueprint (control plane, interact-blueprint-design.js).
 //   node scripts/interact/print-blueprint.mjs <run id | latest> [--full | --blueprint] [--log <app.log>]
-// --blueprint prints only the final blueprint: the parsed JSON that passed checks 1 to 9, saved beside the record (design:<job>:<rev>:blueprint-final). A run that did not pass has none.
+// --blueprint prints only the final blueprint: the parsed JSON that passed all ten checks, saved beside the record (design:<job>:<rev>:blueprint-final). A run that did not pass has none.
 // The job also writes its record as one `interact_blueprint` line to the stack's app.log; this reads that log (default: the 8879 stack's), so it needs no sign-in. The same record is in the job's diagnostics
 // (GET /api/learn/explain/jobs/<id>?board=<board>&detail=1 with the job owner's session; EXPLAIN_DIAGNOSTICS=true). Default output: the summary, the dice, the calls, the checker's problems and the final blueprint.
 // --full adds the quantities answer, every blueprint answer exactly as returned and the checker outputs.
@@ -21,12 +21,12 @@ if (!record) { console.log(`no blueprint record ${which === 'latest' ? '' : `for
 
 if (flag('blueprint')) {
   const final = finals.get(record.jobId);
-  if (!final) { console.log(`run ${record.jobId} has no final blueprint (${record.passed ? 'it ran before the final blueprint was saved' : 'it did not pass checks 1 to 9'}; --full shows the answers)`); process.exit(1); }
+  if (!final) { console.log(`run ${record.jobId} has no final blueprint (${record.passed ? 'it ran before the final blueprint was saved' : 'it did not pass the checks'}; --full shows the answers)`); process.exit(1); }
   console.log(JSON.stringify(final, null, 2)); process.exit(0);
 }
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
 const out = (title, value) => console.log(`\n== ${title}\n${typeof value === 'string' ? value : JSON.stringify(value, null, 2)}`);
-console.log(`run ${record.jobId}: ${record.passed ? 'PASSED checks 1 to 9' : 'did NOT pass checks 1 to 9'}`);
+console.log(`run ${record.jobId}: ${record.passed ? 'PASSED the checks' : 'did NOT pass the checks'}`);
 console.log(`prompt: ${record.prompt}\ndepth: ${record.depth}   model: ${record.model} (${record.effort})   seed: ${record.seed}   seconds: ${record.seconds}   cost: $${record.costUsd.toFixed(4)}`);
 out('dice', record.dice ?? 'not reached');
 out('calls', record.calls.map(c => `${c.kind}: ${c.ok ? 'answered' : `FAILED ${c.error}`}, ${c.seconds} s, ${c.tokens ? `${c.tokens.input} in + ${c.tokens.thinking} thinking + ${c.tokens.output} out` : 'no usage'}, ${c.costUsd == null ? 'cost unknown' : `$${c.costUsd.toFixed(4)}`}`).join('\n'));

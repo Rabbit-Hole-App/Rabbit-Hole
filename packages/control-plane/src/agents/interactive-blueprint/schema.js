@@ -46,7 +46,7 @@ pictures
   - dot: { type, id, at: [x, y], size, of }. size is "small", "medium" or "large", or the id of an output between 0 and 1.
   - arrow: { type, id, from: [x, y], to: [x, y], label, of }, for a quantity that has a direction. label is at most ${L.arrowLabel} characters.
   - trace: { type, id, at: [xOutput, yOutput], of }, the path that point has drawn since time 0.
-  - label: { type, id, at: [x, y], text, of }, fixed text of at most ${L.partText} characters.
+  - label: { type, id, near, text, of }, fixed text of at most ${L.partText} characters beside another part. near is that part's id; the program picks the side of it that is clear. A label has no position of its own.
   Everything is drawn at one scale, so keep the parts within a region whose width and height are of similar size.
 - panel: a graph, or null for a scene with one picture.
   { type: "kind", kind: "coordinate-plot", title, x: { over, label, unit }, y: { label, unit }, series: ${range(L.series)} of { value, label, of, style: "line" } }

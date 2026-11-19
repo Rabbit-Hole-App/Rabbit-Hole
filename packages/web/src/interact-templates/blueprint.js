@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { COLUMNS, DRAWN_TEXT_SIZES, LayoutError, arrangeText, pickLayout, roleOf } from '../interact-layout.js';
+import { textWidthPx } from '../interact-description-fit.js';
+import { LAYOUT_BODY_SIZE } from '../scene-style.js';
 import { BUILT_SCHEMA } from '../interact-blueprint.js';
 import { DEFAULT_DECIMALS, STAGE_MIN_HEIGHT, WINDOW_PAD_PX } from '../interact-blueprint-constants.js';
 import { fitWindow, programSource, rolesOf } from '../interact-blueprint-build.js';
@@ -41,9 +43,11 @@ export function place(data) {
   const window = fitWindow(M.reach, stage, WINDOW_PAD_PX);
   if (!window) throw new LayoutError('window_none', 'the parts reach a single point, so there is no scale to draw them at', ['pictures', 'main']);
   const { dropped } = arrangement;
+  // brief 43: the program places each label beside the part it is near; it needs the label's width (the larger of the per-glyph advance and the 0.6 em per character estimate frame-overlap.js uses, and 2 px) and the picture's bounds
+  const labelWidths = Object.fromEntries(B.pictures.main.parts.filter(part => part.type === 'label').map(part => [part.id, Math.ceil(Math.max((part.text ?? '').length * LAYOUT_BODY_SIZE * 0.6, textWidthPx(part.text ?? '', LAYOUT_BODY_SIZE))) + 2]));
   if (dropped.explanationLines || dropped.values) console.log(JSON.stringify({ event: 'interact_layout_dropped', template: 'stepper-blueprint', arrangement: arrangement.arrangement, rowsTall: arrangement.rowsTall, droppedExplanationLines: dropped.explanationLines, droppedValues: dropped.values }));
   return {
-    layout: id, arrangement: arrangement.arrangement, rowsTall: arrangement.rowsTall, stage, window, figure: box ? { at: [box[0], box[1]], w: box[2], h: box[3] } : null, plotGeometry: panel ? M.plot.geometry : null,
+    layout: id, arrangement: arrangement.arrangement, rowsTall: arrangement.rowsTall, stage, stageBounds: [stage[0], stage[1], stage[0] + stage[2], stage[1] + stage[3]], labelWidths, window, figure: box ? { at: [box[0], box[1]], w: box[2], h: box[3] } : null, plotGeometry: panel ? M.plot.geometry : null,
     values: arrangement.values.boxes.map((boxOf, i) => ({ value: B.values[i].value, label: B.values[i].label, unit: B.values[i].unit ?? '', decimals: B.values[i].decimals ?? DEFAULT_DECIMALS, box: boxOf, dot: arrangement.values.dots[i], role: roleOf(B.values[i].of, { shapes: roles.things }) })),
     formula: B.relationship.formula === null ? null : arrangement.formula, explanation: arrangement.explanation, bullet: COLUMNS.bullet,
   };

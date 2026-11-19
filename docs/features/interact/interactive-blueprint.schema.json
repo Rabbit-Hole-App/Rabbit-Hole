@@ -207,11 +207,11 @@
           "properties": {
             "type": {"const": "label"},
             "id": {"$ref": "#/$defs/id"},
-            "at": {"$ref": "#/$defs/point"},
+            "near": {"$ref": "#/$defs/id"},
             "text": {"type": "string", "minLength": 1, "maxLength": 24},
             "of": {"$ref": "#/$defs/id"}
           },
-          "required": ["type", "id", "at", "text"]
+          "required": ["type", "id", "near", "text"]
         },
         {
           "type": "object",
@@ -219,11 +219,11 @@
           "properties": {
             "type": {"const": "label"},
             "id": {"$ref": "#/$defs/id"},
-            "at": {"$ref": "#/$defs/point"},
+            "near": {"$ref": "#/$defs/id"},
             "textFrom": {"$ref": "#/$defs/id"},
             "of": {"$ref": "#/$defs/id"}
           },
-          "required": ["type", "id", "at", "textFrom"]
+          "required": ["type", "id", "near", "textFrom"]
         },
         {
           "type": "object",
@@ -330,11 +330,11 @@
                     "properties": {
                       "type": {"const": "label"},
                       "id": {"$ref": "#/$defs/id"},
-                      "at": {"$ref": "#/$defs/point"},
+                      "near": {"$ref": "#/$defs/id"},
                       "text": {"type": "string", "minLength": 1, "maxLength": 24},
                       "of": {"$ref": "#/$defs/id"}
                     },
-                    "required": ["type", "id", "at", "text"]
+                    "required": ["type", "id", "near", "text"]
                   },
                   {
                     "type": "object",
@@ -342,11 +342,11 @@
                     "properties": {
                       "type": {"const": "label"},
                       "id": {"$ref": "#/$defs/id"},
-                      "at": {"$ref": "#/$defs/point"},
+                      "near": {"$ref": "#/$defs/id"},
                       "textFrom": {"$ref": "#/$defs/id"},
                       "of": {"$ref": "#/$defs/id"}
                     },
-                    "required": ["type", "id", "at", "textFrom"]
+                    "required": ["type", "id", "near", "textFrom"]
                   },
                   {
                     "type": "object",

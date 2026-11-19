@@ -1,6 +1,6 @@
 // Build, the pure half (Brief 38 spec section 6): what code works out from a checked blueprint and what the Program is made of. No model, no renderer, no layout here: interact-templates/blueprint.js places
 // the card with the layout module, interact-blueprint-check.js measures. Nothing in this file names a subject or branches on an id, a label or a title of a blueprint.
-import { DEFAULT_DECIMALS, LABEL_DROP_PX, DOT_MAX_PX, DOT_MIN_PX, DOT_NAMED_PX, GRAPH_SAMPLES, KEPT_SAMPLES, SAMPLE_POSITIONS, SAMPLE_TIMES, THING_ROLES, TRACE_POINTS, Y_MARGIN } from './interact-blueprint-constants.js';
+import { DEFAULT_DECIMALS, LABEL_GAP_PX, DOT_MAX_PX, DOT_MIN_PX, DOT_NAMED_PX, GRAPH_SAMPLES, KEPT_SAMPLES, SAMPLE_POSITIONS, SAMPLE_TIMES, THING_ROLES, TRACE_POINTS, Y_MARGIN } from './interact-blueprint-constants.js';
 
 export const defaultsOf = blueprint => Object.fromEntries(blueprint.inputs.map(input => [input.id, input.default]));
 const evenly = (min, max, count) => Array.from({ length: count }, (_, k) => (count === 1 ? min : min + (max - min) * k / (count - 1)));
@@ -20,8 +20,9 @@ export function settingsGrid(blueprint) {
 }
 
 // ---- parts ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// The points of a part, each a pair of coordinates (a number or an output id). A label or a dot is one point; a line or an arrow two; a trace the point it follows.
-export const pointsOf = part => (part.type === 'line' || part.type === 'arrow' ? [part.from, part.to] : part.type === 'rect' ? [part.at] : [part.at]);
+// The points of a part, each a pair of coordinates (a number or an output id). A dot is one point; a line or an arrow two; a trace the point it follows. A label has no position of its own (it is near a part, and code places it, brief 43);
+// a stored blueprint whose label still has `at` (brief 41's) contributes that point.
+export const pointsOf = part => (part.type === 'line' || part.type === 'arrow' ? [part.from, part.to] : part.type === 'label' ? (part.at ? [part.at] : []) : part.type === 'rect' ? [part.at] : [part.at]);
 export const outputsOfPart = part => [...pointsOf(part).flat(), ...(part.type === 'dot' ? [part.size] : [])].filter(entry => typeof entry === 'string' && !['small', 'medium', 'large'].includes(entry));
 const at = (entry, out) => (typeof entry === 'number' ? entry : out[entry]);
 export const resolve = (point, out) => [at(point[0], out), at(point[1], out)];
@@ -120,6 +121,32 @@ export function splineAt(xs, ys, t) {
 // A dot's diameter in px: a named size, or an output between 0 and 1 mapped across the dot range (clamped).
 export function diameterOf(size, out, named, low, high) { return named[size] !== undefined ? named[size] : low + Math.min(1, Math.max(0, out[size])) * (high - low); }
 
+// Where a label's text goes (brief 43): the centre of its text box on the first of above, below, right, left of `ext` (the extent [x0, y0, x1, y1] of the part it is near, in px, y down) at `gap` px, whose box is inside `bounds` and
+// clear of every obstacle by frame-overlap.js's rules: a line or an arrow shaft 8 px (a mark under 16 px long: not touching), a circle, an arrowhead or another label's box not at all. -> { x, y } (x the middle of the text, y the centre
+// of its line: the text is drawn at y + 4.9) or null when no side is clear. w is the text's width; the box is the text's ink and its estimate together, so a label that passes here passes the host's rules.
+// An obstacle is { s: [x1, y1, x2, y2] } (a segment) or { b: [xMin, yMin, xMax, yMax] } (a box).
+export function labelSpot(ext, w, gap, obstacles, bounds) {
+  const up = 5.9, down = 10.8, cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2;
+  const tries = [[cx, ext[1] - gap - down], [cx, ext[3] + gap + up], [ext[2] + gap + w / 2, cy - 2.45], [ext[0] - gap - w / 2, cy - 2.45]];
+  const distance = (s, box) => {
+    const a = { x: s[0], y: s[1] }, b = { x: s[2], y: s[3] }, inside = p => p.x >= box[0] && p.x <= box[2] && p.y >= box[1] && p.y <= box[3];
+    if (inside(a) || inside(b)) return 0;
+    const corners = [{ x: box[0], y: box[1] }, { x: box[2], y: box[1] }, { x: box[2], y: box[3] }, { x: box[0], y: box[3] }];
+    const crosses = (p, q, r, t) => { const d = (q.x - p.x) * (t.y - r.y) - (q.y - p.y) * (t.x - r.x); if (!d) return false; const u = ((r.x - p.x) * (t.y - r.y) - (r.y - p.y) * (t.x - r.x)) / d, v = ((r.x - p.x) * (q.y - p.y) - (r.y - p.y) * (q.x - p.x)) / d; return u >= 0 && u <= 1 && v >= 0 && v <= 1; };
+    if (corners.some((c, i) => crosses(a, b, c, corners[(i + 1) % 4]))) return 0;
+    const onSegment = p => { const dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy, u = len2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0; return Math.hypot(p.x - (a.x + u * dx), p.y - (a.y + u * dy)); };
+    const toBox = p => Math.hypot(Math.max(box[0] - p.x, 0, p.x - box[2]), Math.max(box[1] - p.y, 0, p.y - box[3]));
+    return Math.min(toBox(a), toBox(b), ...corners.map(onSegment));
+  };
+  for (const [x, y] of tries) {
+    const box = [x - w / 2, y - up, x + w / 2, y + down];
+    if (box[0] < bounds[0] || box[1] < bounds[1] || box[2] > bounds[2] || box[3] > bounds[3]) continue;
+    const blocked = obstacles.some(o => (o.s ? distance(o.s, box) < (Math.hypot(o.s[2] - o.s[0], o.s[3] - o.s[1]) < 16 ? 1 : 9) : Math.min(box[2], o.b[2]) - Math.max(box[0], o.b[0]) > -1 && Math.min(box[3], o.b[3]) - Math.max(box[1], o.b[1]) > -1));
+    if (!blocked) return { x, y };
+  }
+  return null;
+}
+
 // The y range of a graph: the sampled range widened by Y_MARGIN each side, then rounded outward to a step of one tenth of the range's order of magnitude.
 export function yRangeOf(values) {
   const lo = Math.min(...values), hi = Math.max(...values), spread = hi - lo || Math.max(Math.abs(hi), 1), pad = spread * Y_MARGIN;
@@ -134,29 +161,41 @@ export function yRangeOf(values) {
 export function programSource(code, data) {
   // A Worker bundle (esbuild keepNames) wraps the helper functions in __name(...) calls that toString() carries into the guest text; the guest gets the same no-op the bundler's own helper is.
   return `const __name = target => target;
-const compute = (function (sdk, P, L, evaluate, keepIndices, curveOf, specOf, splineAt, diameterOf) {
+const compute = (function (sdk, P, L, evaluate, keepIndices, curveOf, specOf, splineAt, diameterOf, labelSpot) {
 ${code}
 ;
 return compute;
-})(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined);
+})(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined);
 const P = ${JSON.stringify(data.P)}, L = ${JSON.stringify(data.L)}, NAMED = ${JSON.stringify(DOT_NAMED_PX)};
-${[keepIndices, curveOf, specOf, splineAt, diameterOf].map(fn => fn.toString()).join('\n')}
+${[keepIndices, curveOf, specOf, splineAt, diameterOf, labelSpot].map(fn => fn.toString()).join('\n')}
 const grid = (a, b, n) => { const out = []; for (let k = 0; k < n; k++) out.push(a + (b - a) * k / (n - 1)); return out; };
 const X = x => L.window.ox + x * L.window.s, Y = y => L.window.oy - y * L.window.s;
 export function evaluate({ inputs, time }) {
   const t = Math.min(Math.max(time || 0, 0), P.duration), set = { ...P.defaults, ...inputs }, out = compute(set, t), objects = [];
-  const num = v => (typeof v === 'number' ? v : out[v]);
+  const num = v => (typeof v === 'number' ? v : out[v]), extents = {}, obstacles = [];
   for (const part of P.parts) {
     const id = 'part.' + part.id, opts = { role: part.role };
-    if (part.type === 'line') objects.push(sdk.line(id, X(num(part.from[0])), Y(num(part.from[1])), X(num(part.to[0])), Y(num(part.to[1])), opts));
-    else if (part.type === 'arrow') objects.push(sdk.arrow(id, X(num(part.from[0])), Y(num(part.from[1])), X(num(part.to[0])), Y(num(part.to[1])), part.label ? { role: part.role, text: part.label } : opts));
-    else if (part.type === 'dot') objects.push(sdk.circle(id, X(num(part.at[0])), Y(num(part.at[1])), diameterOf(part.size, out, NAMED, ${DOT_MIN_PX}, ${DOT_MAX_PX}), opts));
-    else if (part.type === 'label') objects.push(sdk.text(id, X(num(part.at[0])), Y(num(part.at[1])) + ${LABEL_DROP_PX + 4.9}, part.text, { align: 'middle', role: part.role }));
+    if (part.type === 'line') { const x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])); objects.push(sdk.line(id, x1, y1, x2, y2, opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] }); }
+    else if (part.type === 'arrow') {
+      const x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])), length = Math.hypot(x2 - x1, y2 - y1);
+      objects.push(sdk.arrow(id, x1, y1, x2, y2, part.label ? { role: part.role, text: part.label } : opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] });
+      if (length) { const dx = (x2 - x1) / length, dy = (y2 - y1) / length, tip = Math.min(7, length), bx = x2 - dx * tip, by = y2 - dy * tip, hx = [x2, bx - dy * 3.4, bx + dy * 3.4], hy = [y2, by + dx * 3.4, by - dx * 3.4]; obstacles.push({ b: [Math.min(...hx), Math.min(...hy), Math.max(...hx), Math.max(...hy)] }); }
+    }
+    else if (part.type === 'dot') { const x = X(num(part.at[0])), y = Y(num(part.at[1])), d = diameterOf(part.size, out, NAMED, ${DOT_MIN_PX}, ${DOT_MAX_PX}); objects.push(sdk.circle(id, x, y, d, opts)); extents[part.id] = [x - d / 2, y - d / 2, x + d / 2, y + d / 2]; obstacles.push({ b: extents[part.id] }); }
     else if (part.type === 'trace' && t > 0) {
       const n = Math.min(${TRACE_POINTS - 1}, Math.max(1, Math.round(t / P.duration * ${TRACE_POINTS - 1}))), points = [];
       for (let k = 0; k <= n; k++) { const o = compute(set, t * k / n); points.push([X(o[part.at[0]]), Y(o[part.at[1]])]); }
-      objects.push(sdk.polyline(id, points, opts));
+      objects.push(sdk.polyline(id, points, opts)); extents[part.id] = [Math.min(...points.map(p => p[0])), Math.min(...points.map(p => p[1])), Math.max(...points.map(p => p[0])), Math.max(...points.map(p => p[1]))];
     }
+  }
+  // A label is placed here, never by the model (brief 43): beside the part it is near, on the first side that is clear; no clear side leaves it out of this frame (the checker counts it). A stored label with at is placed around that point.
+  for (const part of P.parts) if (part.type === 'label') {
+    const ext = part.near !== undefined ? extents[part.near] : part.at ? [X(num(part.at[0])), Y(num(part.at[1])), X(num(part.at[0])), Y(num(part.at[1]))] : null;
+    if (!ext) continue;
+    const w = L.labelWidths[part.id], spot = labelSpot(ext, w, ${LABEL_GAP_PX}, obstacles, L.stageBounds);
+    if (!spot) continue;
+    objects.push(sdk.text('part.' + part.id, spot.x, spot.y + 4.9, part.text, { align: 'middle', role: part.role }));
+    obstacles.push({ b: [spot.x - w / 2, spot.y - 5.9, spot.x + w / 2, spot.y + 10.8] });
   }
   if (P.plot) {
     const plot = P.plot, over = plot.over, xs = over === 'time' ? grid(0, P.duration, ${GRAPH_SAMPLES}) : grid(plot.xRange[0], plot.xRange[1], ${GRAPH_SAMPLES}), nowX = over === 'time' ? t : set[over];

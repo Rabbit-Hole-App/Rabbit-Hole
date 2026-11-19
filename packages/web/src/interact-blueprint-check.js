@@ -40,6 +40,12 @@ export function checkNames(blueprint, seeded = null) {
     for (const key of ['from', 'to', 'at']) if (part[key] && part.type !== 'rect') part[key].forEach((entry, i) => (part.type === 'trace' ? number(entry, `${base}.${key}[${i}]`) : coordinate(entry, `${base}.${key}[${i}]`)));
     if (part.type === 'dot' && !['small', 'medium', 'large'].includes(part.size)) number(part.size, `${base}.size`);
     if (part.of !== undefined) thing(part.of, `${base}.of`);
+    // brief 43: a label names the part it is near; that part exists and is not a label (a stored label that still has `at` names none)
+    if (part.type === 'label' && part.near !== undefined) {
+      const target = blueprint.pictures.main.parts.find(other => other.id === part.near);
+      if (!target) bad(`${base}.near`, `${code(`${base}.near`)} names ${code(part.near)}, which is not a part of the picture.`);
+      else if (target.type === 'label') bad(`${base}.near`, `${code(`${base}.near`)} names ${code(part.near)}, a label; a label is near a part that is not a label.`);
+    }
   });
   const panel = blueprint.pictures.panel;
   if (panel) {
@@ -247,7 +253,7 @@ function checkLayout(blueprint, sampled, graph) {
 }
 
 async function checkProgram(blueprint, sampled, measured) {
-  const out = [], bad = message => out.push({ code: 'program', path: 'math.code', message });
+  const out = [], notes = [], bad = message => out.push({ code: 'program', path: 'math.code', message });
   let source;
   try { source = programSourceOf({ geometry: { blueprint: { blueprint, measured } } }); } catch (error) { return [{ code: 'program', path: error.path ?? 'blueprint', message: `The Program cannot be built: ${error.message}.` }]; }
   const bytes = new TextEncoder().encode(source).length;
@@ -260,6 +266,10 @@ async function checkProgram(blueprint, sampled, measured) {
     worst = Math.max(worst, ms);
     if (!run.ok) { bad(run.code === 'runtime_limit' ? `One frame takes longer than ${FRAME_MS} ms at ${describe(setting, time)}; make ${code('compute')} cheaper (the Program calls it up to 129 times per frame).` : `The Program does not run at ${describe(setting, time)}: ${run.detail}.`); return { out, source, worst, objects }; }
     const frame = run.value.frame; objects = Math.max(objects, frame.objects.length);
+    // brief 43: a label with no clear side is left out of the frame by the program. It is counted in the notes; at the defaults and t = 0 it fails the check, and says so.
+    const drawn = new Set(frame.objects.map(object => object.id)), parts = blueprint.pictures.main.parts, leftOut = parts.filter(part => part.type === 'label' && !drawn.has(`part.${part.id}`) && (part.near === undefined || drawn.has(`part.${part.near}`)));
+    leftOut.forEach(part => notes.push(`label ${part.id} left out at ${describe(setting, time)}: no clear side`));
+    if (setting === sampled.points[0] && time === 0 && leftOut.length) { leftOut.forEach(part => bad(`The label ${code(part.id)}${part.near === undefined ? '' : ` near ${code(part.near)}`} has no clear side at ${describe(setting, time)}: above, below, right and left of ${part.near === undefined ? 'its point' : code(part.near)} each overlap another part or leave the picture; move the parts apart or shorten the text.`)); return { out, notes, source, worst, objects }; }
     if (frame.objects.length >= CONTRACT_LIMITS.objects) bad(`One frame has ${frame.objects.length} objects; at most ${CONTRACT_LIMITS.objects - 1}. Draw fewer parts.`);
     const parsed = parseFrame(frame); if (!parsed.ok) { bad(`The frame is refused by the host at ${describe(setting, time)}: ${parsed.error ?? JSON.stringify(parsed).slice(0, 160)}.`); return { out, source, worst, objects }; }
     const normalized = normalizeFrame(frame); if (!normalized.ok) { bad(`The frame cannot be normalized at ${describe(setting, time)}.`); return { out, source, worst, objects }; }
@@ -267,17 +277,20 @@ async function checkProgram(blueprint, sampled, measured) {
     if (overlaps.length || problems.length) { bad(`Things overlap in the frame at ${describe(setting, time)}: ${JSON.stringify([...overlaps, ...problems][0]).slice(0, 160)}.`); return { out, source, worst, objects }; }
   }
   if (worst > FRAME_MS) bad(`One frame takes ${Math.round(worst)} ms; the limit is ${FRAME_MS}. Make ${code('compute')} cheaper.`);
-  return { out, source, worst, objects };
+  return { out, notes, source, worst, objects };
 }
 
 // ---- the whole checker ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // light: the form, the names, the function run over the grid, and the claims only (MVP 1 as cut by the owner, 2026-11-19): no moves, controls-matter, parts, graph, layout or Program checks and no measured facts.
+// legacyLabels (offline only, brief 43): a stored blueprint whose label still has `at` (brief 41's) is checked as it is; its labels are placed around that point. The form check sees each such label with a stand-in `near`.
 // through: the last check to run. 10 (the default, Build's) builds the Program and tests the frame; the design phase asks for 9 (brief 42): the blueprint is checked as a design, and check 10 is Build's.
-export async function checkBlueprint(value, { seeded = null, light = false, through = 10 } = {}) {
+const withStandIn = value => { const copy = structuredClone(value), first = copy.pictures?.main?.parts?.find(part => part.type !== 'label'); for (const part of copy.pictures?.main?.parts ?? []) if (part.type === 'label' && part.at && first) { delete part.at; part.near = first.id; } return copy; };
+const withAtBack = (parsed, original) => { for (const part of parsed.pictures.main.parts) { const was = original.pictures.main.parts.find(other => other.id === part.id); if (part.type === 'label' && was?.at) { part.at = was.at; delete part.near; } } return parsed; };
+export async function checkBlueprint(value, { seeded = null, light = false, through = 10, legacyLabels = false } = {}) {
   const notes = [], done = (failed, problems, measured = null) => ({ ok: !failed, failed, problems: problems.slice(0, MAX_PROBLEMS).map(problem => ({ ...problem, check: failed })), notes, measured });
-  const form = checkForm(value);
+  const form = checkForm(legacyLabels ? withStandIn(value) : value);
   if (!form.ok) return done(1, form.problems);
-  const blueprint = form.value;
+  const blueprint = legacyLabels ? withAtBack(form.value, value) : form.value;
   const names = checkNames(blueprint, seeded);
   if (names.length) return done(2, names);
   const sampled = await sample(blueprint);
@@ -296,8 +309,9 @@ export async function checkBlueprint(value, { seeded = null, light = false, thro
   const turns = {};
   if (graph.plot) graph.plot.series.forEach((series, k) => { turns[series.value] = Math.max(...graph.curves.map(entry => turnsOf(entry.ys[k]))); });
   const measured = { ...layout.measured, facts: { turns, msPerFrameWorst: Math.round(program.worst * 10) / 10, programBytes: program.source ? new TextEncoder().encode(program.source).length : null, frameObjects: program.objects, msPerComputeBatch: Math.round(Math.max(...sampled.points.map(point => point.ms))) } };
+  notes.push(...(program.notes ?? []));
   if (program.out.length) return done(10, program.out, measured);
-  const card = blueprintCardSchema.safeParse({ blueprint, measured });
+  const card = blueprintCardSchema.safeParse({ blueprint: legacyLabels ? withStandIn(blueprint) : blueprint, measured });
   if (!card.success) return done(10, [{ code: 'program', path: 'blueprint', message: `What was measured does not fit the card's data: ${card.error.issues[0].message}.` }], measured);
   return { ok: true, failed: 0, problems: [], notes, measured, blueprint };
 }

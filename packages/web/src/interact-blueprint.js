@@ -101,8 +101,8 @@ function parts(o) {
     arrow: object({ type: lit('arrow'), id: idRule, from: point, to: point, label: str(1, L.arrowLabel).optional(), ...of }),
     trace: object({ type: lit('trace'), id: idRule, at: ids2, ...of }),
     label: o.labelFrom
-      ? object({ type: lit('label'), id: idRule, at: point, text: str(1, L.partText).optional(), textFrom: idRule.optional(), ...of }).refine(part => (part.text === undefined) !== (part.textFrom === undefined), 'a label has text (fixed) or textFrom (an output), one of the two')
-      : object({ type: lit('label'), id: idRule, at: point, text: str(1, L.partText), ...of }),
+      ? object({ type: lit('label'), id: idRule, near: idRule, text: str(1, L.partText).optional(), textFrom: idRule.optional(), ...of }).refine(part => (part.text === undefined) !== (part.textFrom === undefined), 'a label has text (fixed) or textFrom (an output), one of the two')
+      : object({ type: lit('label'), id: idRule, near: idRule, text: str(1, L.partText), ...of }),
     rect: object({ type: lit('rect'), id: idRule, at: point, size: point, ...of }),
     number: object({ type: lit('number'), id: idRule, at: point, value: idRule, decimals: z.number().int().min(L.decimals[0]).max(L.decimals[1]), ...of }),
     curve: object({ type: lit('curve'), id: idRule, over: idRule, y: idRule, ...of }),

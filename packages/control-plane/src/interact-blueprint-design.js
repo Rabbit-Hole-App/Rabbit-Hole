@@ -1,7 +1,7 @@
 // Brief 39 (MVP 2): the interactive-blueprint design phase as a live job, INTERACT_DESIGN_KIND=blueprint. It is the seeded arm of MVP 1 (scripts/interact/bench-blueprint.mjs) on the job's own prompt and depth:
 //   the quantities call (spec 7.8), dice over the control quantities the model named (spec 8) from seededRandom(job.flow.seed), the blueprint call with the settled relationship and quantities, the light checker
-//   checks 1 to 9 of interact-blueprint-check.js (brief 42: check 10, building the Program and testing the frame, is Build's), and at most one correction call with the problems of whichever check failed. The prompt files and the schema are MVP 1's, unchanged; nothing here knows the prompt.
-// The job stops after this phase and never enters Build. -> { blueprint: record, final }; `final` is the parsed blueprint that passed checks 1 to 9 (null when none did), saved by the job as its own JSON beside the record; the record is the run record: every answer exactly as returned (the message text, not parsed), the dice, the checker outputs, per call seconds, tokens and cost.
+//   all ten checks of interact-blueprint-check.js (brief 43, for the owner's measurement: this reverses brief 42's split, which ran 1 to 9 and left check 10 to Build), and at most one correction call with the problems of whichever check failed. The prompt files and the schema are MVP 1's, unchanged; nothing here knows the prompt.
+// The job stops after this phase and never enters Build. -> { blueprint: record, final }; `final` is the parsed blueprint that passed all ten checks (null when none did), saved by the job as its own JSON beside the record; the record is the run record: every answer exactly as returned (the message text, not parsed), the dice, the checker outputs, per call seconds, tokens and cost.
 // A call that fails before it can be answered is recorded with its reason and its problems; one that spent nothing (a refused admission) is the job's, as in the fast path.
 import { providerSchema, quantitiesProviderSchema } from '../../web/src/interact-blueprint.js';
 import { checkBlueprint } from '../../web/src/interact-blueprint-check.js';
@@ -59,7 +59,7 @@ async function callOnce(ctx, role, kind, args) {
 }
 const refused = (error, what) => ({ ok: false, failed: 1, problems: [{ check: 1, path: '', message: `${what} was not usable: ${error?.message ?? 'no answer'}` }], measured: null });
 async function checked(answer, settled) {
-  try { return await checkBlueprint(answer, { seeded: settled, through: 9 }); } catch (e) { return { ok: false, failed: 0, problems: [{ check: 0, path: '', message: `the checker could not run: ${String(e?.message ?? e).slice(0, 300)}` }], measured: null, checkerError: true }; }
+  try { return await checkBlueprint(answer, { seeded: settled }); } catch (e) { return { ok: false, failed: 0, problems: [{ check: 0, path: '', message: `the checker could not run: ${String(e?.message ?? e).slice(0, 300)}` }], measured: null, checkerError: true }; }
 }
 
 export async function blueprintDesign(job, ctx) {

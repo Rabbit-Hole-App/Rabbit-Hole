@@ -139,7 +139,7 @@
         {"type": "trace", "id": "path", "at": ["ballX", "ballY"], "of": "ball"},
         {"type": "arrow", "id": "velocity", "from": ["ballX", "ballY"], "to": ["tipX", "tipY"], "label": "v", "of": "ball"},
         {"type": "dot", "id": "ballDot", "at": ["ballX", "ballY"], "size": "medium", "of": "ball"},
-        {"type": "label", "id": "startMark", "at": [0, 0], "text": "Start"}
+        {"type": "label", "id": "startMark", "near": "ground", "text": "Start"}
       ]
     },
     "panel": null
@@ -514,7 +514,7 @@
       "unit": "",
       "parts": [
         {"type": "rect", "id": "box", "at": ["xs", 0], "size": [1, 1], "of": "piece"},
-        {"type": "label", "id": "letters", "at": ["xs", 0], "textFrom": "pieces", "of": "piece"}
+        {"type": "label", "id": "letters", "near": "box", "textFrom": "pieces", "of": "piece"}
       ]
     },
     "panel": null
