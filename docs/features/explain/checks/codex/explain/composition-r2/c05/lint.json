@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-recurrent-networks-references.js",
+    "packages/web/src/tutor-diagrams/composition-recurrent-training-references.js",
+    "packages/web/src/tutor-diagrams/topic-recurrent-networks-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-recurrent-networks-data.js",
+    "packages/web/src/tutor-diagrams/topic-recurrent-networks-sources.json",
+    "packages/web/src/tutor-diagrams/topic-recurrent-training-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-recurrent-training-data.js"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-recurrent-networks-references.js",
+      "ids": [
+        "ml-recurrent-networks-recurrent-update",
+        "ml-recurrent-networks-recurrent-next-token-training"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-recurrent-training-references.js",
+      "ids": [
+        "ml-recurrent-training-gradient-horizons",
+        "ml-recurrent-training-shared-parameter-gradients"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "3f868d330e5dac469454f8e6feb2147992e24844",
+  "publishedTree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077"
+}

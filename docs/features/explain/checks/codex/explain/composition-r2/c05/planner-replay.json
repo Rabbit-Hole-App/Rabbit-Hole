@@ -1,0 +1,914 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "8cf1613cce57bad779ea840bf4d8ce3a21451a13",
+    "tree": "efc93cff02117eb402c402356b61c6ee42cdb262",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "1e122082cc10637e6e9c601f19300d9642962a7f",
+    "tree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3213,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 75,
+    "newOwnPromptFirstPicks": 75,
+    "newOwnExactPromptFirstPicks": 75
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3397,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3397,
+    "computedCandidateCaseInputs": 3397
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "3f868d330e5dac469454f8e6feb2147992e24844",
+  "publishedTree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077",
+  "publishedBaseline": "c967dc54c0f00f5c50a61c609c2e30efce52f9ab",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Truncating backpropagation trades a shorter gradient path for less direct training signal from distant steps.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Compare gradient segment horizons without resetting recurrent state.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Show forward versus detach at a fixed cutoff.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Why do sampled gradient segment horizons differ?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Trace forward versus detach for the final recurrent loss.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Contrast short and long gradient segment horizons.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "timeline",
+          "afterPlannerKind": "timeline"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-gradient-horizons",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-gradient-horizons",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "Unrolling recurrence exposes all time steps whose losses contribute gradients to shared parameters.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "Show loss state dependencies for a shared recurrent weight.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "How do shared gradient uses add across time?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "Trace loss state dependencies before summing parameter gradients.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "Show shared gradient uses with two prediction losses.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "Which prior states receive the later loss in loss state dependencies?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "prompt": "The same recurrent rule updates the state from the previous state and the new input at every step.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "regression-tree-steps",
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": "regression-tree-steps",
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "prompt": "Explain an activated recurrent update with two fresh inputs.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "prompt": "Trace fresh input readout through a shared recurrent cell.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "prompt": "Where does ReLU act in an activated recurrent update?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "prompt": "Compare both fresh input readout steps with state handoff.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "regression-tree-steps",
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": "regression-tree-steps",
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "prompt": "Show activation before readout in an activated recurrent update.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-update",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-update",
+          "beforePlannerKind": "coordinate-plot",
+          "afterPlannerKind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "A next-token objective can teach a recurrent text model useful internal representations.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "Next-token training compares each recurrent output with a target shifted one position ahead.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-feature-store-architecture",
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": "ml-feature-store-architecture",
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "Explain recurrent prefix supervision with shifted observed targets.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "Why do teacher forced states use observed words after a guess?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "Show a hidden representation receiving recurrent prefix supervision.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "Trace two teacher forced states and their next-token predictions.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "Compare a sampled guess with the observed input in teacher forced states.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    }
+  ]
+}

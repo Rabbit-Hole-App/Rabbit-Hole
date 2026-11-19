@@ -1,0 +1,695 @@
+{
+  "commit": "1e122082cc10637e6e9c601f19300d9642962a7f",
+  "tree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-recurrent-training-gradient-horizons",
+    "ml-recurrent-training-shared-parameter-gradients",
+    "ml-recurrent-networks-recurrent-update",
+    "ml-recurrent-networks-recurrent-next-token-training"
+  ],
+  "additionalReusedIds": [],
+  "references": [
+    {
+      "id": "ml-recurrent-training-gradient-horizons",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [],
+        "deep": [
+          {
+            "role": "detail",
+            "path": [
+              "diagram"
+            ],
+            "title": "Backward signal stops; forward state passes",
+            "edgeCount": 8,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h1",
+                "to": "h2",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h2",
+                "to": "h3",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "h3",
+                "to": "h4",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h4",
+                "to": "h5",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h5",
+                "to": "h6",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "loss",
+                "to": "h6",
+                "label": "gradient",
+                "words": 1
+              },
+              {
+                "edgeIndex": 6,
+                "from": "h6",
+                "to": "h5",
+                "label": "gradient",
+                "words": 1
+              },
+              {
+                "edgeIndex": 7,
+                "from": "h5",
+                "to": "detach",
+                "label": "gradient",
+                "words": 1
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-training-shared-parameter-gradients",
+      "inventory": "added",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Both losses train the same recurrent parameter",
+            "edgeCount": 5,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "h1",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "a",
+                "to": "h2",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "h1",
+                "to": "h2",
+                "label": "handoff",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h1",
+                "to": "l1",
+                "label": "via readout",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h2",
+                "to": "l2",
+                "label": "via readout",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Shared recurrence and losses",
+            "edgeCount": 8,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h0",
+                "to": "h1",
+                "label": "+x1",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h1",
+                "to": "h2",
+                "label": "+x2",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "a",
+                "to": "h1",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "a",
+                "to": "h2",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h1",
+                "to": "p1",
+                "label": "readout",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "h2",
+                "to": "p2",
+                "label": "readout",
+                "words": 1
+              },
+              {
+                "edgeIndex": 6,
+                "from": "p1",
+                "to": "l1",
+                "label": "target y1",
+                "words": 2
+              },
+              {
+                "edgeIndex": 7,
+                "from": "p2",
+                "to": "l2",
+                "label": "target y2",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-networks-recurrent-update",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Fresh inputs, state handoff and both outputs",
+            "edgeCount": 6,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h0",
+                "to": "h1",
+                "label": "scaled carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h1",
+                "to": "h2",
+                "label": "scaled carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "x1",
+                "to": "h1",
+                "label": "add before ReLU",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "x2",
+                "to": "h2",
+                "label": "add before ReLU",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h1",
+                "to": "y1",
+                "label": "scale activation",
+                "words": 2
+              },
+              {
+                "edgeIndex": 5,
+                "from": "h2",
+                "to": "y2",
+                "label": "scale activation",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-networks-recurrent-next-token-training",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Marked first prediction and next-token target",
+            "edgeCount": 7,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "x1",
+                "to": "h1",
+                "label": "encode observation",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h1",
+                "to": "h2",
+                "label": "carry state",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "x2",
+                "to": "h2",
+                "label": "encode observation",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h1",
+                "to": "p1",
+                "label": "softmax readout",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h2",
+                "to": "p2",
+                "label": "softmax readout",
+                "words": 2
+              },
+              {
+                "edgeIndex": 5,
+                "from": "p1",
+                "to": "l1",
+                "label": "worked example loss",
+                "words": 3
+              },
+              {
+                "edgeIndex": 6,
+                "from": "p2",
+                "to": "l2",
+                "label": "next-token loss",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    }
+  ],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "review": {
+    "authoredLabelsCompliant": true,
+    "authoredLabels": [
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "forward"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "forward"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "forward"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 3,
+        "label": "forward"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 4,
+        "label": "forward"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 5,
+        "label": "gradient"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 6,
+        "label": "gradient"
+      },
+      {
+        "referenceId": "ml-recurrent-training-gradient-horizons",
+        "depth": "deep",
+        "role": "detail",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 7,
+        "label": "gradient"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "scale carry"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "scale carry"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "handoff"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 3,
+        "label": "via readout"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 4,
+        "label": "via readout"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "+x1"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "+x2"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "scale carry"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 3,
+        "label": "scale carry"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 4,
+        "label": "readout"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 5,
+        "label": "readout"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 6,
+        "label": "target y1"
+      },
+      {
+        "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 7,
+        "label": "target y2"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-update",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "scaled carry"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-update",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "scaled carry"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-update",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "add before ReLU"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-update",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 3,
+        "label": "add before ReLU"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-update",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 4,
+        "label": "scale activation"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-update",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 5,
+        "label": "scale activation"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "encode observation"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "carry state"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "encode observation"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 3,
+        "label": "softmax readout"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 4,
+        "label": "softmax readout"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 5,
+        "label": "worked example loss"
+      },
+      {
+        "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 6,
+        "label": "next-token loss"
+      }
+    ]
+  },
+  "publishedCommit": "3f868d330e5dac469454f8e6feb2147992e24844",
+  "publishedTree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077"
+}

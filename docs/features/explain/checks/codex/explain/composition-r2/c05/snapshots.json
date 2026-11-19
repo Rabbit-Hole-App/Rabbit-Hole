@@ -1,0 +1,20 @@
+{
+  "added": [
+    "ml-recurrent-networks-recurrent-next-token-training/320",
+    "ml-recurrent-networks-recurrent-next-token-training/408",
+    "ml-recurrent-networks-recurrent-next-token-training/720",
+    "ml-recurrent-networks-recurrent-update/320",
+    "ml-recurrent-networks-recurrent-update/408",
+    "ml-recurrent-networks-recurrent-update/720",
+    "ml-recurrent-training-gradient-horizons/320",
+    "ml-recurrent-training-gradient-horizons/408",
+    "ml-recurrent-training-gradient-horizons/720",
+    "ml-recurrent-training-shared-parameter-gradients/320",
+    "ml-recurrent-training-shared-parameter-gradients/408",
+    "ml-recurrent-training-shared-parameter-gradients/720"
+  ],
+  "changed": [],
+  "removed": [],
+  "publishedCommit": "3f868d330e5dac469454f8e6feb2147992e24844",
+  "publishedTree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077"
+}

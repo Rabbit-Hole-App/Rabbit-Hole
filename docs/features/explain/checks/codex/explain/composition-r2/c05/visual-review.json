@@ -1,0 +1,49 @@
+{
+  "commit": "1e122082cc10637e6e9c601f19300d9642962a7f",
+  "tree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077",
+  "viewsRead": 18,
+  "noteExceptions": [
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "depth": "deep",
+      "role": "detail",
+      "visibleLines": 11,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 10,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 2."
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 9,
+      "reason": "The current relationship renderer puts the arrow labels into 6 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 17,
+      "reason": "The current relationship renderer puts the arrow labels into 14 numbered-list text lines below the diagram. The caption takes 3."
+    }
+  ],
+  "observations": [
+    "The relationship graph renderer leaves node boxes unfilled and numbers its arrow labels in these references: `ml-recurrent-training-gradient-horizons`, `ml-recurrent-training-shared-parameter-gradients`, `ml-recurrent-networks-recurrent-update`, `ml-recurrent-networks-recurrent-next-token-training`. These views are listed for the renderer review.",
+    "`ml-recurrent-networks-recurrent-next-token-training` Standard uses a three-line authored caption. Its Detailed distribution shows the three bars and labelled categories, and the compact renderer suppresses the numeric labels above those bars at this width.",
+    "In `ml-recurrent-networks-recurrent-update` Detailed the two markers coincide at the first step because the positive input is unchanged by ReLU. The second step separates the negative value and zero."
+  ],
+  "publishedCommit": "3f868d330e5dac469454f8e6feb2147992e24844",
+  "publishedTree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077"
+}
