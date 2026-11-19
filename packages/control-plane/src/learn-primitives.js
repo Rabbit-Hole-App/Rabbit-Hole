@@ -20,6 +20,7 @@ import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'jso
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS, PARAGRAPH_MAX, validDepth } from './chat-depth.js';
 import { parseTutorDiagram, authorJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 import { flowPaths } from '../../web/src/tutor-diagrams/flow-paths.js';
+import { boxDrawn } from '../../web/src/tutor-diagrams/derived.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -522,9 +523,6 @@ export function distributionBarIssues(diagram) {
   return out;
 }
 const proseOfMarkdown = md => split(md).prose.filter(line => typeof line === 'string').join('\n');
-// -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
-// such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
-// "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
 // BOX-1 (b): the learner's question lists five or more numbers (comma or semicolon separated, "and" allowed) and the card draws a box plot: its boxes carry `values`, and every list the
 // learner wrote is the values of one box (as a multiset: the order is free). The statistics are then computed from them (derived.js), never typed. shortcut: numbers separated by spaces only,
 // or a list inside a table or sentence of words, are not read; a box plot inside a comparison panel is not checked; upgrade on the Reviewer's word.
@@ -545,8 +543,33 @@ export function boxDataIssues(diagram, question) {
   return sets.filter(set => !diagram.boxes.some(box => sameData(box.values, set)))
     .map(set => `the box-plot "${title}" holds ${diagram.boxes.map(box => `values (${shortList(box.values)})`).join(' and ')}, but the learner's data is (${shortList(set)}): set the values of the box that shows it to exactly those numbers`);
 }
+// BOX-1 (c): in a card that draws a box plot, a number written right after "upper fence", "lower fence", "IQR", "interquartile range", "median", "Q1" or "Q3" in a diagram caption or the prose is
+// the drawn statistic of one of the card's boxes, within half a unit of the decimals written (derived.js boxDrawn). Read conservatively: the word, a connector (is, are, was, of, at, equals, =, :) or
+// none, then the number; skipped when it is an operand ("Q3 - Q1", "1.5 x IQR = 9", "= 11.5 + 9") or is followed by a word of its own ("median of 9 values", "IQR 6 points"). shortcut: "Q1 and Q3 are
+// 5.5 and 11.5" (a number two words away) is not read; upgrade on the Reviewer's word.
+const STAT_TEXT = /(?<![\w.]|[-+×*/]\s*|\bx\s*)(upper fence|lower fence|interquartile range|IQR|median|Q1|Q3)(?!\w|[-+]\d)(?:\s*\([^()]*[A-Za-z][^()]*\))?\s*(?:(?:is|are|was|of|at|equals|sits at|stands at)\b|[=:≈~])?\s*\(?\s*(-?\d+(?:\.\d+)?)/gi;
+const plainStats = text => String(text ?? '').replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1').replace(/\\(?:times|cdot)/g, '×').replace(/\\[,;!]|\\left|\\right|\$|\*\*/g, ' ').replace(/Q_\{?([13])\}?/g, 'Q$1').replace(/[−–‐‑‒—]/g, '-').replace(/[·⋅∙]/g, '×');
+const NOT_OPERAND = /^\s*(?:[+×*/^÷]|-\s*\d|x\s*\d|(?:minus|plus|times|divided|over)\b)|^\w|^\s+(?:values?|numbers?|data|points?|observations?|samples?|items?|elements?|entries|readings?|students?|people|rows|times|units?|years?|days?|hours?|minutes?|seconds?|ms|more|less|higher|lower|above|below|greater|smaller|larger|bigger|apart|wide|long|away|spread)\b/i;
+export function boxTextIssues(boxDiagrams, texts) {
+  const out = [], seen = new Set(), shown = value => Number(value.toFixed(3));
+  for (const text of texts.map(plainStats)) {
+    for (const m of text.matchAll(STAT_TEXT)) {
+      if (NOT_OPERAND.test(text.slice(m.index + m[0].length))) continue;
+      const word = m[1].toLowerCase(), key = word === 'interquartile range' ? 'iqr' : word, wrote = Number(m[2]), places = (m[2].split('.')[1] ?? '').length;
+      const drawn = boxDiagrams.flatMap(d => d.boxes.map(box => ({ d, box, value: boxDrawn(box)[key] })));
+      if (drawn.some(x => Math.abs(x.value - wrote) <= 0.5 * 10 ** -places + 1e-9) || seen.has(`${key} ${m[2]}`)) continue;
+      seen.add(`${key} ${m[2]}`);
+      const numbers = drawn.map(x => (drawn.length > 1 ? `${shown(x.value)} (${x.box.label})` : String(shown(x.value)))).join(', ');
+      out.push(`the text states "${m[1]} ${m[2]}" but the box-plot "${String(drawn[0].d.title).slice(0, 60)}" draws ${key === 'iqr' ? 'an IQR' : `a ${word}`} of ${numbers}: state the drawn number, or change the box and every sentence that states it`);
+    }
+  }
+  return out;
+}
+// -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
+// such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
+// "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
 export function numbersIssue(block, question = '') {
-  const hits = [], extra = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }
+  const hits = [], extra = [], boxes = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }; boxes: the card's parsed box plots
   let n = 0;
   const texts = [block?.body, ...(block?.more || []).map(s => s?.text)];
   for (const md of texts) for (const f of split(md).fences) {
@@ -556,12 +579,14 @@ export function numbersIssue(block, question = '') {
       const { diagram } = parseTutorDiagram(f.lines.join('\n'));
       for (const bad of distributionBarIssues(diagram)) extra.push({ kind: 'bar-chart', message: `the bar-chart "${String(diagram.title).slice(0, 60)}" is called a ${bad.word} but its ${bad.label ? `"${bad.label}" ` : ''}values (${bad.values.join(', ')}) sum to ${bad.sum}: values that form a distribution sum to 1, so change the values to sum to 1 and every sentence that states them` });
       for (const message of boxDataIssues(diagram, question)) extra.push({ kind: 'box-plot', message });
+      if (diagram.kind === 'box-plot') boxes.push(diagram);
     } catch (error) {
       const [first] = arithmeticOf(error);
       if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
     }
   }
   for (const md of texts) for (const bad of proseArithmetic(proseOfMarkdown(md))) extra.push({ kind: null, message: `the text states "${bad.text}" but the left side computes to ${Number(bad.computed.toFixed(Math.min(8, bad.decimals + 2)))}: state the computed result, or fix the numbers it uses, everywhere the card states them` });
+  if (boxes.length) for (const message of boxTextIssues(boxes, [...boxes.map(d => d.caption), ...texts.map(proseOfMarkdown)])) extra.push({ kind: 'box-plot', message });
   if (!hits.length && !extra.length) return null;
   const fence = !hits.length ? '' : hits.length === 1 ? fenceProblem(hits[0].error)
     : `explanation_bad_numbers: the rh-diagram specs state wrong numbers. ${hits.map(h => `Diagram ${h.n}: ${issuesText(h.error).slice(0, 280)}`).join(' | ')}`;
