@@ -1,0 +1,4220 @@
+{
+ "four controls": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "m2",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "m3",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "a value label of 15 characters": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle of ball B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "unknown part type": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "spring",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "an expression as a coordinate": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "0.7 + bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "a colour on a part": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A",
+      "color": "red"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "a window on the picture": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ],
+    "window": {
+     "x": [
+      -2,
+      2
+     ]
+    }
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "five values": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   },
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "one claim": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "duration 60": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 60,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "a typed number in equal.to": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   },
+   {
+    "type": "equal",
+    "value": "periodA",
+    "to": 2.01
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "no relationship": {
+  "version": 1,
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "control",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ },
+ "a quantity with an unknown role": {
+  "version": 1,
+  "relationship": {
+   "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+   "formula": "T = 2\\pi\\sqrt{L/g}",
+   "assumptions": [
+    "Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."
+   ]
+  },
+  "quantities": [
+   {
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "role": "ignored",
+    "meaning": "Length of the string of pendulum B."
+   },
+   {
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "role": "control",
+    "meaning": "Mass of the ball of pendulum B."
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "role": "fixed",
+    "meaning": "Held at 9.81."
+   },
+   {
+    "id": "startAngle",
+    "label": "Start angle",
+    "unit": "\u00b0",
+    "role": "fixed",
+    "meaning": "Both pendulums start at 20 degrees."
+   },
+   {
+    "id": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of B."
+   },
+   {
+    "id": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "role": "result",
+    "meaning": "Time for one full swing of the reference A."
+   },
+   {
+    "id": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "role": "result",
+    "meaning": "Angle of B from straight down."
+   }
+  ],
+  "things": [
+   {
+    "id": "A",
+    "label": "A: reference"
+   },
+   {
+    "id": "B",
+    "label": "B: yours"
+   }
+  ],
+  "inputs": [
+   {
+    "type": "number",
+    "id": "massB",
+    "label": "B mass",
+    "unit": "kg",
+    "min": 0.5,
+    "max": 3,
+    "default": 1,
+    "step": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lengthB",
+    "label": "B length",
+    "unit": "m",
+    "min": 0.5,
+    "max": 2,
+    "default": 1,
+    "step": 0.1
+   }
+  ],
+  "time": {
+   "mode": "continuous",
+   "duration": 8,
+   "label": "Time",
+   "unit": "s"
+  },
+  "math": {
+   "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+   "outputs": [
+    {
+     "id": "periodA",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of A."
+    },
+    {
+     "id": "periodB",
+     "kind": "number",
+     "unit": "s",
+     "meaning": "Time for one full swing of B."
+    },
+    {
+     "id": "angleA",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of A from straight down."
+    },
+    {
+     "id": "angleB",
+     "kind": "number",
+     "unit": "\u00b0",
+     "meaning": "Angle of B from straight down."
+    },
+    {
+     "id": "bobAx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, across."
+    },
+    {
+     "id": "bobAy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where A's ball is, up."
+    },
+    {
+     "id": "bobBx",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, across."
+    },
+    {
+     "id": "bobBy",
+     "kind": "number",
+     "unit": "m",
+     "meaning": "Where B's ball is, up."
+    },
+    {
+     "id": "sizeB",
+     "kind": "number",
+     "unit": "",
+     "meaning": "B's mass as a share of its range, 0 to 1."
+    },
+    {
+     "id": "sameLength",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B has A's length but a different mass."
+    },
+    {
+     "id": "longer",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is longer than A's."
+    },
+    {
+     "id": "shorter",
+     "kind": "flag",
+     "unit": "",
+     "meaning": "B's string is shorter than A's."
+    }
+   ]
+  },
+  "pictures": {
+   "main": {
+    "type": "parts",
+    "unit": "m",
+    "parts": [
+     {
+      "type": "line",
+      "id": "support",
+      "from": [
+       -1.2,
+       0
+      ],
+      "to": [
+       1.2,
+       0
+      ]
+     },
+     {
+      "type": "line",
+      "id": "stringA",
+      "from": [
+       -0.7,
+       0
+      ],
+      "to": [
+       "bobAx",
+       "bobAy"
+      ],
+      "of": "A"
+     },
+     {
+      "type": "dot",
+      "id": "ballA",
+      "at": [
+       "bobAx",
+       "bobAy"
+      ],
+      "size": "medium",
+      "of": "A"
+     },
+     {
+      "type": "line",
+      "id": "stringB",
+      "from": [
+       0.7,
+       0
+      ],
+      "to": [
+       "bobBx",
+       "bobBy"
+      ],
+      "of": "B"
+     },
+     {
+      "type": "dot",
+      "id": "ballB",
+      "at": [
+       "bobBx",
+       "bobBy"
+      ],
+      "size": "sizeB",
+      "of": "B"
+     }
+    ]
+   },
+   "panel": {
+    "type": "kind",
+    "kind": "coordinate-plot",
+    "title": "Angle against time",
+    "x": {
+     "over": "time",
+     "label": "Time",
+     "unit": "s"
+    },
+    "y": {
+     "label": "Angle",
+     "unit": "\u00b0"
+    },
+    "series": [
+     {
+      "value": "angleA",
+      "label": "A: reference",
+      "of": "A",
+      "style": "line"
+     },
+     {
+      "value": "angleB",
+      "label": "B: yours",
+      "of": "B",
+      "style": "line"
+     }
+    ]
+   }
+  },
+  "values": [
+   {
+    "value": "angleB",
+    "label": "Angle B",
+    "unit": "\u00b0",
+    "decimals": 0,
+    "of": "B"
+   },
+   {
+    "value": "periodB",
+    "label": "Period B",
+    "unit": "s",
+    "decimals": 2,
+    "of": "B"
+   },
+   {
+    "value": "periodA",
+    "label": "Period A",
+    "unit": "s",
+    "decimals": 2,
+    "of": "A"
+   }
+  ],
+  "explanation": {
+   "always": [],
+   "cases": [
+    {
+     "when": "sameLength",
+     "text": "Same timing: only the mass differs."
+    },
+    {
+     "when": "longer",
+     "text": "Longer string: a slower swing."
+    },
+    {
+     "when": "shorter",
+     "text": "Faster: a shorter string is quicker."
+    }
+   ],
+   "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {
+   "pictureCount": "two",
+   "runs": "compact",
+   "panelRole": "records-main"
+  },
+  "claims": [
+   {
+    "type": "unchanged",
+    "value": "periodB",
+    "when": "massB"
+   },
+   {
+    "type": "unchanged",
+    "value": "angleB",
+    "when": "massB"
+   },
+   {
+    "type": "increases",
+    "value": "periodB",
+    "with": "lengthB"
+   },
+   {
+    "type": "equal",
+    "value": "periodB",
+    "to": "periodA",
+    "at": [
+     {
+      "input": "lengthB",
+      "value": 1
+     }
+    ]
+   }
+  ],
+  "lesson": {
+   "title": "Does a heavier pendulum swing slower?",
+   "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+   "instructions": "Press play, then move the mass slider and the length slider of B.",
+   "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+ }
+}

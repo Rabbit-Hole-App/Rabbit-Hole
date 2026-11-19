@@ -1,0 +1,754 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "interactive-blueprint, version 1 (the full form)",
+  "description": "What the Design model returns. The fields are in the order of the reasoning: the relationship that answers the question, the quantities in it, the controls, the math, the pictures, and the words last. Field meanings and which options are built: claude/interactive-blueprint.md section 4. Rules that need more than one field (ids exist, kinds match, min below max, a control quantity is an input, pictureCount agrees with the panel) are the checker's, section 5.",
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"},
+    "coordinate": {"anyOf": [{"type": "number"}, {"$ref": "#/$defs/id"}]},
+    "point": {"type": "array", "prefixItems": [{"$ref": "#/$defs/coordinate"}, {"$ref": "#/$defs/coordinate"}], "items": false, "minItems": 2, "maxItems": 2},
+    "labels": {
+      "anyOf": [{"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 42}, "minItems": 2, "maxItems": 12}, {"$ref": "#/$defs/id"}]
+    },
+    "input": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "number"},
+            "id": {"$ref": "#/$defs/id"},
+            "label": {"type": "string", "minLength": 1, "maxLength": 24},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+            "default": {"type": "number"},
+            "step": {"type": "number", "exclusiveMinimum": 0}
+          },
+          "required": ["type", "id", "label", "unit", "min", "max", "default", "step"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "select"},
+            "id": {"$ref": "#/$defs/id"},
+            "label": {"type": "string", "minLength": 1, "maxLength": 24},
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"value": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,32}$"}, "label": {"type": "string", "minLength": 1, "maxLength": 24}},
+                "required": ["value", "label"]
+              },
+              "minItems": 2,
+              "maxItems": 8
+            },
+            "default": {"type": "string"}
+          },
+          "required": ["type", "id", "label", "options", "default"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "boolean"},
+            "id": {"$ref": "#/$defs/id"},
+            "label": {"type": "string", "minLength": 1, "maxLength": 24},
+            "default": {"type": "boolean"}
+          },
+          "required": ["type", "id", "label", "default"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "index"},
+            "id": {"$ref": "#/$defs/id"},
+            "label": {"type": "string", "minLength": 1, "maxLength": 24},
+            "items": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 24}, "minItems": 2, "maxItems": 12},
+            "default": {"type": "integer", "minimum": 0}
+          },
+          "required": ["type", "id", "label", "items", "default"]
+        }
+      ]
+    },
+    "time": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {"const": "continuous"},
+            "duration": {"type": "number", "minimum": 2, "maximum": 20},
+            "label": {"type": "string", "minLength": 1, "maxLength": 20},
+            "unit": {"type": "string", "minLength": 1, "maxLength": 6}
+          },
+          "required": ["mode", "duration", "label", "unit"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {"const": "steps"},
+            "count": {"type": "integer", "minimum": 2, "maximum": 40},
+            "label": {"type": "string", "minLength": 1, "maxLength": 20}
+          },
+          "required": ["mode", "count", "label"]
+        },
+        {"type": "object", "additionalProperties": false, "properties": {"mode": {"const": "none"}}, "required": ["mode"]}
+      ]
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {"$ref": "#/$defs/id"},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+            "meaning": {"type": "string", "minLength": 1, "maxLength": 120},
+            "kind": {"enum": ["number", "flag", "text", "index"]}
+          },
+          "required": ["id", "unit", "meaning", "kind"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {"$ref": "#/$defs/id"},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+            "meaning": {"type": "string", "minLength": 1, "maxLength": 120},
+            "kind": {"enum": ["list", "textList"]},
+            "length": {"type": "integer", "minimum": 2, "maximum": 12}
+          },
+          "required": ["id", "unit", "meaning", "kind", "length"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {"$ref": "#/$defs/id"},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+            "meaning": {"type": "string", "minLength": 1, "maxLength": 120},
+            "kind": {"enum": ["list", "textList"]},
+            "maxLength": {"type": "integer", "minimum": 2, "maximum": 12}
+          },
+          "required": ["id", "unit", "meaning", "kind", "maxLength"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {"$ref": "#/$defs/id"},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+            "meaning": {"type": "string", "minLength": 1, "maxLength": 120},
+            "kind": {"const": "grid"},
+            "rows": {"type": "integer", "minimum": 1, "maximum": 8},
+            "columns": {"type": "integer", "minimum": 1, "maximum": 8}
+          },
+          "required": ["id", "unit", "meaning", "kind", "rows", "columns"]
+        }
+      ]
+    },
+    "part": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "line"},
+            "id": {"$ref": "#/$defs/id"},
+            "from": {"$ref": "#/$defs/point"},
+            "to": {"$ref": "#/$defs/point"},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "from", "to"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "dot"},
+            "id": {"$ref": "#/$defs/id"},
+            "at": {"$ref": "#/$defs/point"},
+            "size": {"anyOf": [{"enum": ["small", "medium", "large"]}, {"$ref": "#/$defs/id"}]},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "at", "size"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "arrow"},
+            "id": {"$ref": "#/$defs/id"},
+            "from": {"$ref": "#/$defs/point"},
+            "to": {"$ref": "#/$defs/point"},
+            "label": {"type": "string", "minLength": 1, "maxLength": 4},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "from", "to"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "trace"},
+            "id": {"$ref": "#/$defs/id"},
+            "at": {"type": "array", "prefixItems": [{"$ref": "#/$defs/id"}, {"$ref": "#/$defs/id"}], "items": false, "minItems": 2, "maxItems": 2},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "at"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "label"},
+            "id": {"$ref": "#/$defs/id"},
+            "at": {"$ref": "#/$defs/point"},
+            "text": {"type": "string", "minLength": 1, "maxLength": 24},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "at", "text"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "label"},
+            "id": {"$ref": "#/$defs/id"},
+            "at": {"$ref": "#/$defs/point"},
+            "textFrom": {"$ref": "#/$defs/id"},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "at", "textFrom"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "rect"},
+            "id": {"$ref": "#/$defs/id"},
+            "at": {"$ref": "#/$defs/point"},
+            "size": {"$ref": "#/$defs/point"},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "at", "size"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "number"},
+            "id": {"$ref": "#/$defs/id"},
+            "at": {"$ref": "#/$defs/point"},
+            "value": {"$ref": "#/$defs/id"},
+            "decimals": {"type": "integer", "minimum": 0, "maximum": 3},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "at", "value", "decimals"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "curve"},
+            "id": {"$ref": "#/$defs/id"},
+            "over": {"$ref": "#/$defs/id"},
+            "y": {"$ref": "#/$defs/id"},
+            "of": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "id", "over", "y"]
+        }
+      ]
+    },
+    "picture": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "parts"},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+            "parts": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "line"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "from": {"$ref": "#/$defs/point"},
+                      "to": {"$ref": "#/$defs/point"},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "from", "to"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "dot"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "at": {"$ref": "#/$defs/point"},
+                      "size": {"anyOf": [{"enum": ["small", "medium", "large"]}, {"$ref": "#/$defs/id"}]},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "at", "size"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "arrow"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "from": {"$ref": "#/$defs/point"},
+                      "to": {"$ref": "#/$defs/point"},
+                      "label": {"type": "string", "minLength": 1, "maxLength": 4},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "from", "to"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "trace"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "at": {"type": "array", "prefixItems": [{"$ref": "#/$defs/id"}, {"$ref": "#/$defs/id"}], "items": false, "minItems": 2, "maxItems": 2},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "at"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "label"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "at": {"$ref": "#/$defs/point"},
+                      "text": {"type": "string", "minLength": 1, "maxLength": 24},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "at", "text"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "label"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "at": {"$ref": "#/$defs/point"},
+                      "textFrom": {"$ref": "#/$defs/id"},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "at", "textFrom"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "rect"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "at": {"$ref": "#/$defs/point"},
+                      "size": {"$ref": "#/$defs/point"},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "at", "size"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "number"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "at": {"$ref": "#/$defs/point"},
+                      "value": {"$ref": "#/$defs/id"},
+                      "decimals": {"type": "integer", "minimum": 0, "maximum": 3},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "at", "value", "decimals"]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {"const": "curve"},
+                      "id": {"$ref": "#/$defs/id"},
+                      "over": {"$ref": "#/$defs/id"},
+                      "y": {"$ref": "#/$defs/id"},
+                      "of": {"$ref": "#/$defs/id"}
+                    },
+                    "required": ["type", "id", "over", "y"]
+                  }
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 12
+            }
+          },
+          "required": ["type", "unit", "parts"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "kind"},
+            "kind": {"const": "coordinate-plot"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 30},
+            "x": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "over": {"anyOf": [{"const": "time"}, {"$ref": "#/$defs/id"}]},
+                "label": {"type": "string", "minLength": 1, "maxLength": 20},
+                "unit": {"type": "string", "minLength": 0, "maxLength": 6}
+              },
+              "required": ["over", "label", "unit"]
+            },
+            "y": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {"type": "string", "minLength": 1, "maxLength": 20},
+                "unit": {"type": "string", "minLength": 0, "maxLength": 6},
+                "range": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "items": false, "minItems": 2, "maxItems": 2}
+              },
+              "required": ["label", "unit"]
+            },
+            "series": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "value": {"$ref": "#/$defs/id"},
+                  "label": {"type": "string", "minLength": 1, "maxLength": 12},
+                  "of": {"$ref": "#/$defs/id"},
+                  "style": {"enum": ["line", "scatter", "step"]}
+                },
+                "required": ["value", "label", "of", "style"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            }
+          },
+          "required": ["type", "kind", "title", "x", "y", "series"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "kind"},
+            "kind": {"const": "bar-chart"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 30},
+            "unit": {"type": "string", "minLength": 0, "maxLength": 6},
+            "labels": {"$ref": "#/$defs/labels"},
+            "values": {"$ref": "#/$defs/id"},
+            "highlight": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "kind", "title", "unit", "labels", "values"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "kind"},
+            "kind": {"const": "heatmap"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 30},
+            "rowLabels": {"$ref": "#/$defs/labels"},
+            "columnLabels": {"$ref": "#/$defs/labels"},
+            "cells": {"$ref": "#/$defs/id"},
+            "highlight": {"type": "array", "prefixItems": [{"$ref": "#/$defs/id"}, {"$ref": "#/$defs/id"}], "items": false, "minItems": 2, "maxItems": 2}
+          },
+          "required": ["type", "kind", "title", "rowLabels", "columnLabels", "cells"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "kind"},
+            "kind": {"const": "token-links"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 30},
+            "source": {"$ref": "#/$defs/labels"},
+            "target": {"$ref": "#/$defs/labels"},
+            "picked": {"$ref": "#/$defs/id"},
+            "weights": {"$ref": "#/$defs/id"}
+          },
+          "required": ["type", "kind", "title", "source", "target", "picked", "weights"]
+        }
+      ]
+    },
+    "claim": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "unchanged"},
+            "value": {"$ref": "#/$defs/id"},
+            "when": {"$ref": "#/$defs/id"},
+            "at": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"input": {"$ref": "#/$defs/id"}, "value": {"type": ["number", "string", "boolean"]}},
+                "required": ["input", "value"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            },
+            "atTime": {"enum": ["start", "end"]}
+          },
+          "required": ["type", "value", "when"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"enum": ["increases", "decreases"]},
+            "value": {"$ref": "#/$defs/id"},
+            "with": {"$ref": "#/$defs/id"},
+            "strict": {"type": "boolean"},
+            "at": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"input": {"$ref": "#/$defs/id"}, "value": {"type": ["number", "string", "boolean"]}},
+                "required": ["input", "value"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            }
+          },
+          "required": ["type", "value", "with"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "equal"},
+            "value": {"$ref": "#/$defs/id"},
+            "to": {"$ref": "#/$defs/id"},
+            "at": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"input": {"$ref": "#/$defs/id"}, "value": {"type": ["number", "string", "boolean"]}},
+                "required": ["input", "value"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            },
+            "atTime": {"enum": ["start", "end"]}
+          },
+          "required": ["type", "value", "to"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "sumsTo"},
+            "value": {"$ref": "#/$defs/id"},
+            "to": {"type": "number"},
+            "at": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"input": {"$ref": "#/$defs/id"}, "value": {"type": ["number", "string", "boolean"]}},
+                "required": ["input", "value"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            },
+            "atTime": {"enum": ["start", "end"]}
+          },
+          "required": ["type", "value", "to"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "between"},
+            "value": {"$ref": "#/$defs/id"},
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+            "at": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"input": {"$ref": "#/$defs/id"}, "value": {"type": ["number", "string", "boolean"]}},
+                "required": ["input", "value"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            },
+            "atTime": {"enum": ["start", "end"]}
+          },
+          "required": ["type", "value", "min", "max"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"const": "holds"},
+            "value": {"$ref": "#/$defs/id"},
+            "at": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"input": {"$ref": "#/$defs/id"}, "value": {"type": ["number", "string", "boolean"]}},
+                "required": ["input", "value"]
+              },
+              "minItems": 1,
+              "maxItems": 3
+            },
+            "atTime": {"enum": ["start", "end"]}
+          },
+          "required": ["type", "value"]
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": 1},
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statement": {"type": "string", "minLength": 1, "maxLength": 300},
+        "formula": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 40}, {"type": "null"}]},
+        "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 120}, "minItems": 1, "maxItems": 3}
+      },
+      "required": ["statement", "formula", "assumptions"]
+    },
+    "quantities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "label": {"type": "string", "minLength": 1, "maxLength": 24},
+          "unit": {"type": "string", "minLength": 0, "maxLength": 16},
+          "role": {"enum": ["control", "fixed", "result"]},
+          "meaning": {"type": "string", "minLength": 1, "maxLength": 120}
+        },
+        "required": ["id", "label", "unit", "role", "meaning"]
+      },
+      "minItems": 2,
+      "maxItems": 10
+    },
+    "things": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {"id": {"$ref": "#/$defs/id"}, "label": {"type": "string", "minLength": 1, "maxLength": 16}},
+        "required": ["id", "label"]
+      },
+      "minItems": 1,
+      "maxItems": 4
+    },
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}, "minItems": 1, "maxItems": 3},
+    "time": {"$ref": "#/$defs/time"},
+    "math": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {"type": "string", "minLength": 20, "maxLength": 3000},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1, "maxItems": 24},
+        "sweeps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {"id": {"$ref": "#/$defs/id"}, "min": {"type": "number"}, "max": {"type": "number"}, "default": {"type": "number"}},
+            "required": ["id", "min", "max", "default"]
+          },
+          "minItems": 0,
+          "maxItems": 2
+        }
+      },
+      "required": ["code", "outputs"]
+    },
+    "pictures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"main": {"$ref": "#/$defs/picture"}, "panel": {"anyOf": [{"$ref": "#/$defs/picture"}, {"type": "null"}]}},
+      "required": ["main", "panel"]
+    },
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {"$ref": "#/$defs/id"},
+          "label": {"type": "string", "minLength": 1, "maxLength": 12},
+          "unit": {"type": "string", "minLength": 0, "maxLength": 6},
+          "decimals": {"type": "integer", "minimum": 0, "maximum": 3},
+          "of": {"$ref": "#/$defs/id"}
+        },
+        "required": ["value", "label", "of"]
+      },
+      "minItems": 1,
+      "maxItems": 4
+    },
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "always": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 36}, "minItems": 0, "maxItems": 3},
+        "cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {"when": {"$ref": "#/$defs/id"}, "text": {"type": "string", "minLength": 1, "maxLength": 36}},
+            "required": ["when", "text"]
+          },
+          "minItems": 0,
+          "maxItems": 4
+        },
+        "otherwise": {"type": "string", "minLength": 1, "maxLength": 36}
+      },
+      "required": ["always", "cases"]
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pictureCount": {"enum": ["one", "two"]},
+        "runs": {"enum": ["left-to-right", "top-to-bottom", "compact"]},
+        "panelRole": {"enum": ["none", "records-main", "equal", "aligned"]}
+      },
+      "required": ["pictureCount", "runs", "panelRole"]
+    },
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}, "minItems": 2, "maxItems": 6},
+    "lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 60},
+        "description": {"type": "string", "minLength": 130, "maxLength": 200},
+        "instructions": {"type": "string", "minLength": 1, "maxLength": 300},
+        "goal": {"type": "string", "minLength": 1, "maxLength": 200}
+      },
+      "required": ["title", "description", "instructions", "goal"]
+    }
+  },
+  "required": ["version", "relationship", "quantities", "things", "inputs", "time", "math", "pictures", "values", "explanation", "layout", "claims", "lesson"]
+}

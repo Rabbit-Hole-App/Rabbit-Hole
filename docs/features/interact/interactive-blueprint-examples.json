@@ -1,0 +1,544 @@
+{
+"pendulum": {
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's swing is timed by its length and by gravity. The time for one full swing grows with the square root of the length, and the mass of the ball does not enter.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": ["Both start at 20 degrees; no air resistance; g = 9.81 m/s^2."]
+  },
+  "quantities": [
+    {"id": "lengthB", "label": "B length", "unit": "m", "role": "control", "meaning": "Length of the string of pendulum B."},
+    {"id": "massB", "label": "B mass", "unit": "kg", "role": "control", "meaning": "Mass of the ball of pendulum B."},
+    {"id": "gravity", "label": "Gravity", "unit": "m/s^2", "role": "fixed", "meaning": "Held at 9.81."},
+    {"id": "startAngle", "label": "Start angle", "unit": "°", "role": "fixed", "meaning": "Both pendulums start at 20 degrees."},
+    {"id": "periodB", "label": "Period B", "unit": "s", "role": "result", "meaning": "Time for one full swing of B."},
+    {"id": "periodA", "label": "Period A", "unit": "s", "role": "result", "meaning": "Time for one full swing of the reference A."},
+    {"id": "angleB", "label": "Angle B", "unit": "°", "role": "result", "meaning": "Angle of B from straight down."}
+  ],
+  "things": [
+    {"id": "A", "label": "A: reference"},
+    {"id": "B", "label": "B: yours"}
+  ],
+  "inputs": [
+    {"type": "number", "id": "massB", "label": "B mass", "unit": "kg", "min": 0.5, "max": 3, "default": 1, "step": 0.1},
+    {"type": "number", "id": "lengthB", "label": "B length", "unit": "m", "min": 0.5, "max": 2, "default": 1, "step": 0.1}
+  ],
+  "time": {"mode": "continuous", "duration": 8, "label": "Time", "unit": "s"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  const g = 9.81, start = 20 * Math.PI / 180;\n  const swing = (length, pivotX) => {\n    const period = 2 * Math.PI * Math.sqrt(length / g);\n    const angle = start * Math.cos(2 * Math.PI * t / period);\n    return { period, degrees: angle * 180 / Math.PI, x: pivotX + length * Math.sin(angle), y: -length * Math.cos(angle) };\n  };\n  const a = swing(1, -0.7), b = swing(inputs.lengthB, 0.7);\n  return {\n    periodA: a.period, periodB: b.period, angleA: a.degrees, angleB: b.degrees,\n    bobAx: a.x, bobAy: a.y, bobBx: b.x, bobBy: b.y,\n    sizeB: (inputs.massB - 0.5) / 2.5,\n    sameLength: Math.abs(inputs.lengthB - 1) < 1e-9 && Math.abs(inputs.massB - 1) > 1e-9,\n    longer: inputs.lengthB > 1 + 1e-9,\n    shorter: inputs.lengthB < 1 - 1e-9\n  };\n}",
+    "outputs": [
+      {"id": "periodA", "kind": "number", "unit": "s", "meaning": "Time for one full swing of A."},
+      {"id": "periodB", "kind": "number", "unit": "s", "meaning": "Time for one full swing of B."},
+      {"id": "angleA", "kind": "number", "unit": "°", "meaning": "Angle of A from straight down."},
+      {"id": "angleB", "kind": "number", "unit": "°", "meaning": "Angle of B from straight down."},
+      {"id": "bobAx", "kind": "number", "unit": "m", "meaning": "Where A's ball is, across."},
+      {"id": "bobAy", "kind": "number", "unit": "m", "meaning": "Where A's ball is, up."},
+      {"id": "bobBx", "kind": "number", "unit": "m", "meaning": "Where B's ball is, across."},
+      {"id": "bobBy", "kind": "number", "unit": "m", "meaning": "Where B's ball is, up."},
+      {"id": "sizeB", "kind": "number", "unit": "", "meaning": "B's mass as a share of its range, 0 to 1."},
+      {"id": "sameLength", "kind": "flag", "unit": "", "meaning": "B has A's length but a different mass."},
+      {"id": "longer", "kind": "flag", "unit": "", "meaning": "B's string is longer than A's."},
+      {"id": "shorter", "kind": "flag", "unit": "", "meaning": "B's string is shorter than A's."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {"type": "line", "id": "support", "from": [-1.2, 0], "to": [1.2, 0]},
+        {"type": "line", "id": "stringA", "from": [-0.7, 0], "to": ["bobAx", "bobAy"], "of": "A"},
+        {"type": "dot", "id": "ballA", "at": ["bobAx", "bobAy"], "size": "medium", "of": "A"},
+        {"type": "line", "id": "stringB", "from": [0.7, 0], "to": ["bobBx", "bobBy"], "of": "B"},
+        {"type": "dot", "id": "ballB", "at": ["bobBx", "bobBy"], "size": "sizeB", "of": "B"}
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Angle against time",
+      "x": {"over": "time", "label": "Time", "unit": "s"},
+      "y": {"label": "Angle", "unit": "°"},
+      "series": [
+        {"value": "angleA", "label": "A: reference", "of": "A", "style": "line"},
+        {"value": "angleB", "label": "B: yours", "of": "B", "style": "line"}
+      ]
+    }
+  },
+  "values": [
+    {"value": "angleB", "label": "Angle B", "unit": "°", "decimals": 0, "of": "B"},
+    {"value": "periodB", "label": "Period B", "unit": "s", "decimals": 2, "of": "B"},
+    {"value": "periodA", "label": "Period A", "unit": "s", "decimals": 2, "of": "A"}
+  ],
+  "explanation": {
+    "always": [],
+    "cases": [
+      {"when": "sameLength", "text": "Same timing: only the mass differs."},
+      {"when": "longer", "text": "Longer string: a slower swing."},
+      {"when": "shorter", "text": "Faster: a shorter string is quicker."}
+    ],
+    "otherwise": "B matches A: same mass, same length."
+  },
+  "layout": {"pictureCount": "two", "runs": "compact", "panelRole": "records-main"},
+  "claims": [
+    {"type": "unchanged", "value": "periodB", "when": "massB"},
+    {"type": "unchanged", "value": "angleB", "when": "massB"},
+    {"type": "increases", "value": "periodB", "with": "lengthB"},
+    {"type": "equal", "value": "periodB", "to": "periodA", "at": [{"input": "lengthB", "value": 1}]}
+  ],
+  "lesson": {
+    "title": "Does a heavier pendulum swing slower?",
+    "description": "Pendulum A is fixed at 1 kg on a 1 m string. Change the mass and the string length of pendulum B, press play, and watch which change makes B fall out of step with A.",
+    "instructions": "Press play, then move the mass slider and the length slider of B.",
+    "goal": "A pendulum's period depends on its length, not on its mass."
+  }
+},
+"throw": {
+  "version": 1,
+  "relationship": {
+    "statement": "A thrown ball keeps a steady sideways speed while gravity changes its upward speed at a steady rate, so its path is a parabola. How far it lands follows from the launch speed, the launch angle and gravity.",
+    "formula": "R = v^2 \\sin(2\\theta) / g",
+    "assumptions": ["No air resistance; the ground is level."]
+  },
+  "quantities": [
+    {"id": "speed", "label": "Launch speed", "unit": "m/s", "role": "control", "meaning": "How fast the ball leaves the hand."},
+    {"id": "launchAngle", "label": "Launch angle", "unit": "°", "role": "control", "meaning": "The angle above the ground at launch."},
+    {"id": "planet", "label": "Planet", "unit": "", "role": "control", "meaning": "Which gravity pulls the ball down."},
+    {"id": "range", "label": "Range", "unit": "m", "role": "result", "meaning": "How far from the start the ball lands."},
+    {"id": "peak", "label": "Peak height", "unit": "m", "role": "result", "meaning": "The highest point of the flight."},
+    {"id": "flightTime", "label": "Flight time", "unit": "s", "role": "result", "meaning": "How long the ball is in the air."}
+  ],
+  "things": [
+    {"id": "ball", "label": "Ball"}
+  ],
+  "inputs": [
+    {"type": "number", "id": "speed", "label": "Launch speed", "unit": "m/s", "min": 6, "max": 14, "default": 10, "step": 0.5},
+    {"type": "number", "id": "launchAngle", "label": "Launch angle", "unit": "°", "min": 20, "max": 70, "default": 45, "step": 5},
+    {"type": "select", "id": "planet", "label": "Planet", "options": [{"value": "earth", "label": "Earth"}, {"value": "mars", "label": "Mars"}], "default": "earth"}
+  ],
+  "time": {"mode": "continuous", "duration": 8, "label": "Time", "unit": "s"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  const g = inputs.planet === 'mars' ? 3.71 : 9.81;\n  const tilt = inputs.launchAngle * Math.PI / 180;\n  const across = inputs.speed * Math.cos(tilt), up = inputs.speed * Math.sin(tilt);\n  const flightTime = 2 * up / g, now = Math.min(t, flightTime);\n  const ballX = across * now, ballY = Math.max(0, up * now - g * now * now / 2);\n  const upNow = t < flightTime ? up - g * now : 0, acrossNow = t < flightTime ? across : 0;\n  return { ballX, ballY, tipX: ballX + 0.2 * acrossNow, tipY: ballY + 0.2 * upNow,\n    range: across * flightTime, peak: up * up / (2 * g), flightTime, landed: t >= flightTime };\n}",
+    "outputs": [
+      {"id": "ballX", "kind": "number", "unit": "m", "meaning": "Where the ball is, across."},
+      {"id": "ballY", "kind": "number", "unit": "m", "meaning": "Where the ball is, up."},
+      {"id": "tipX", "kind": "number", "unit": "m", "meaning": "The tip of the velocity arrow, across."},
+      {"id": "tipY", "kind": "number", "unit": "m", "meaning": "The tip of the velocity arrow, up."},
+      {"id": "range", "kind": "number", "unit": "m", "meaning": "How far from the start the ball lands."},
+      {"id": "peak", "kind": "number", "unit": "m", "meaning": "The highest point of the flight."},
+      {"id": "flightTime", "kind": "number", "unit": "s", "meaning": "How long the ball is in the air."},
+      {"id": "landed", "kind": "flag", "unit": "", "meaning": "The ball is back on the ground."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {"type": "line", "id": "ground", "from": [0, 0], "to": ["range", 0]},
+        {"type": "trace", "id": "path", "at": ["ballX", "ballY"], "of": "ball"},
+        {"type": "arrow", "id": "velocity", "from": ["ballX", "ballY"], "to": ["tipX", "tipY"], "label": "v", "of": "ball"},
+        {"type": "dot", "id": "ballDot", "at": ["ballX", "ballY"], "size": "medium", "of": "ball"},
+        {"type": "label", "id": "startMark", "at": [0, 0], "text": "Start"}
+      ]
+    },
+    "panel": null
+  },
+  "values": [
+    {"value": "range", "label": "Range", "unit": "m", "decimals": 1, "of": "ball"},
+    {"value": "peak", "label": "Peak", "unit": "m", "decimals": 1, "of": "ball"},
+    {"value": "flightTime", "label": "In the air", "unit": "s", "decimals": 2, "of": "ball"}
+  ],
+  "explanation": {
+    "always": [],
+    "cases": [
+      {"when": "landed", "text": "Landed: the line shows the range."}
+    ],
+    "otherwise": "Steady sideways; gravity bends it."
+  },
+  "layout": {"pictureCount": "one", "runs": "left-to-right", "panelRole": "none"},
+  "claims": [
+    {"type": "increases", "value": "range", "with": "speed"},
+    {"type": "increases", "value": "peak", "with": "launchAngle"},
+    {"type": "increases", "value": "flightTime", "with": "launchAngle"}
+  ],
+  "lesson": {
+    "title": "How far does a thrown ball go?",
+    "description": "A ball is thrown from the ground. Set its speed, its launch angle and the planet, press play, and watch the path it draws and where it comes down.",
+    "instructions": "Press play. Then change one control at a time and play again.",
+    "goal": "The range grows with the square of the speed, is largest near 45 degrees, and is longer where gravity is weaker."
+  }
+},
+"softmax": {
+  "version": 1,
+  "relationship": {
+    "statement": "Softmax turns scores into probabilities that sum to 1. Dividing the scores by a temperature first makes the result sharper when the temperature is low and flatter when it is high.",
+    "formula": "p_i = e^{s_i/T} / \\sum_j e^{s_j/T}",
+    "assumptions": ["The four scores are illustrative and do not change."]
+  },
+  "quantities": [
+    {"id": "temperature", "label": "Temperature", "unit": "", "role": "control", "meaning": "The number the scores are divided by."},
+    {"id": "scores", "label": "Scores", "unit": "", "role": "fixed", "meaning": "Four fixed scores, one per word."},
+    {"id": "probs", "label": "Probabilities", "unit": "", "role": "result", "meaning": "The probability of each word."},
+    {"id": "topProb", "label": "Top word", "unit": "", "role": "result", "meaning": "Probability of the highest-scoring word."},
+    {"id": "lastProb", "label": "Last word", "unit": "", "role": "result", "meaning": "Probability of the lowest-scoring word."}
+  ],
+  "things": [
+    {"id": "top", "label": "Top word"},
+    {"id": "last", "label": "Last word"}
+  ],
+  "inputs": [
+    {"type": "number", "id": "temperature", "label": "Temperature", "unit": "", "min": 0.2, "max": 3, "default": 1, "step": 0.1}
+  ],
+  "time": {"mode": "none"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  const scores = [2.0, 1.0, 0.5, -1.0];\n  const weights = scores.map(score => Math.exp(score / inputs.temperature));\n  const total = weights.reduce((sum, weight) => sum + weight, 0);\n  const probs = weights.map(weight => weight / total);\n  return { probs, topProb: probs[0], lastProb: probs[3], sharp: inputs.temperature < 0.6, flat: inputs.temperature > 2 };\n}",
+    "outputs": [
+      {"id": "probs", "kind": "list", "length": 4, "unit": "", "meaning": "Probability of each word, in the order of the labels."},
+      {"id": "topProb", "kind": "number", "unit": "", "meaning": "Probability of the highest-scoring word."},
+      {"id": "lastProb", "kind": "number", "unit": "", "meaning": "Probability of the lowest-scoring word."},
+      {"id": "sharp", "kind": "flag", "unit": "", "meaning": "The temperature is low."},
+      {"id": "flat", "kind": "flag", "unit": "", "meaning": "The temperature is high."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "kind",
+      "kind": "bar-chart",
+      "title": "Probability of each next word",
+      "unit": "",
+      "labels": ["cat", "dog", "car", "the"],
+      "values": "probs"
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Probability vs temperature",
+      "x": {"over": "temperature", "label": "Temperature", "unit": ""},
+      "y": {"label": "Probability", "unit": ""},
+      "series": [
+        {"value": "topProb", "label": "Top word", "of": "top", "style": "line"},
+        {"value": "lastProb", "label": "Last word", "of": "last", "style": "line"}
+      ]
+    }
+  },
+  "values": [
+    {"value": "topProb", "label": "Top word", "unit": "", "decimals": 2, "of": "top"},
+    {"value": "lastProb", "label": "Last word", "unit": "", "decimals": 2, "of": "last"}
+  ],
+  "explanation": {
+    "always": [],
+    "cases": [
+      {"when": "sharp", "text": "Low: the top word takes nearly all."},
+      {"when": "flat", "text": "High: the four words are near equal."}
+    ],
+    "otherwise": "At T = 1 the scores are used as is."
+  },
+  "layout": {"pictureCount": "two", "runs": "compact", "panelRole": "records-main"},
+  "claims": [
+    {"type": "decreases", "value": "topProb", "with": "temperature"},
+    {"type": "increases", "value": "lastProb", "with": "temperature"},
+    {"type": "sumsTo", "value": "probs", "to": 1}
+  ],
+  "lesson": {
+    "title": "What does temperature do to softmax?",
+    "description": "Four candidate next words have fixed scores. Move the temperature and watch how the same scores turn into very different probabilities: one clear winner, or four near-equal options.",
+    "instructions": "Drag the temperature down towards 0.2, then up towards 3.",
+    "goal": "Temperature divides the scores before softmax: low makes the top word dominate, high makes the words nearly equal."
+  }
+},
+"attention": {
+  "version": 1,
+  "relationship": {
+    "statement": "Each word scores every word of the sentence. Softmax over one word's scores gives its attention weights, which sum to 1; the largest shows what it attends to.",
+    "formula": "w_{ij} = e^{s_{ij}} / \\sum_k e^{s_{ik}}",
+    "assumptions": ["The scores are illustrative; no model produced them."]
+  },
+  "quantities": [
+    {"id": "word", "label": "Word", "unit": "", "role": "control", "meaning": "The word whose attention is shown."},
+    {"id": "scores", "label": "Scores", "unit": "", "role": "fixed", "meaning": "A fixed table of scores, one row per word."},
+    {"id": "weights", "label": "Weights", "unit": "", "role": "result", "meaning": "The weights the picked word gives to the six words."},
+    {"id": "topWeight", "label": "Largest weight", "unit": "", "role": "result", "meaning": "The largest of those weights."}
+  ],
+  "things": [
+    {"id": "picked", "label": "Picked word"},
+    {"id": "attended", "label": "Attended word"}
+  ],
+  "inputs": [
+    {"type": "index", "id": "word", "label": "Word", "items": ["The", "cat", "sat", "on", "the", "mat"], "default": 2}
+  ],
+  "time": {"mode": "none"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  const words = ['The', 'cat', 'sat', 'on', 'the', 'mat'];\n  const scores = [[2.0, 1.8, 0.4, 0.1, 0.3, 0.2], [1.5, 2.0, 1.0, 0.1, 0.2, 0.6], [0.2, 2.2, 1.8, 0.8, 0.1, 0.9], [0.1, 0.5, 1.6, 1.4, 0.6, 1.9], [0.4, 0.1, 0.5, 1.0, 1.2, 2.1], [0.1, 0.9, 0.8, 1.5, 1.3, 2.0]];\n  const softmax = row => { const w = row.map(Math.exp), sum = w.reduce((a, b) => a + b, 0); return w.map(v => v / sum); };\n  const all = scores.map(softmax), weights = all[inputs.word];\n  const top = weights.indexOf(Math.max(...weights));\n  return { all, weights, top, topWeight: weights[top], pickedWord: words[inputs.word], topWord: words[top], toItself: top === inputs.word };\n}",
+    "outputs": [
+      {"id": "all", "kind": "grid", "rows": 6, "columns": 6, "unit": "", "meaning": "The weight every word gives to every word."},
+      {"id": "weights", "kind": "list", "length": 6, "unit": "", "meaning": "The weights the picked word gives to the six words."},
+      {"id": "top", "kind": "index", "unit": "", "meaning": "The position of the word the picked word attends to most."},
+      {"id": "topWeight", "kind": "number", "unit": "", "meaning": "The largest weight of the picked word."},
+      {"id": "pickedWord", "kind": "text", "unit": "", "meaning": "The picked word."},
+      {"id": "topWord", "kind": "text", "unit": "", "meaning": "The word it attends to most."},
+      {"id": "toItself", "kind": "flag", "unit": "", "meaning": "The picked word attends most to itself."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "kind",
+      "kind": "token-links",
+      "title": "Attention from the picked word",
+      "source": ["The", "cat", "sat", "on", "the", "mat"],
+      "target": ["The", "cat", "sat", "on", "the", "mat"],
+      "picked": "word",
+      "weights": "weights"
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "heatmap",
+      "title": "All the weights",
+      "rowLabels": ["The", "cat", "sat", "on", "the", "mat"],
+      "columnLabels": ["The", "cat", "sat", "on", "the", "mat"],
+      "cells": "all",
+      "highlight": ["word", "top"]
+    }
+  },
+  "values": [
+    {"value": "pickedWord", "label": "Word", "of": "picked"},
+    {"value": "topWord", "label": "Attends to", "of": "attended"},
+    {"value": "topWeight", "label": "Weight", "unit": "", "decimals": 2, "of": "attended"}
+  ],
+  "explanation": {
+    "always": ["A thicker line is a larger weight."],
+    "cases": [
+      {"when": "toItself", "text": "It attends most to itself."}
+    ],
+    "otherwise": "It attends most to another word."
+  },
+  "layout": {"pictureCount": "two", "runs": "top-to-bottom", "panelRole": "equal"},
+  "claims": [
+    {"type": "sumsTo", "value": "weights", "to": 1},
+    {"type": "between", "value": "weights", "min": 0, "max": 1}
+  ],
+  "lesson": {
+    "title": "How does a word attend to the others?",
+    "description": "Pick one word of the sentence. A line runs from it to every word, thicker where the attention weight is larger, and the grid shows the weights of all six words at once.",
+    "instructions": "Pick each word in turn and see which word it looks at most.",
+    "goal": "Each word gives every word a weight; the weights of one word sum to 1 and the largest shows what it attends to."
+  }
+},
+"descent": {
+  "version": 1,
+  "relationship": {
+    "statement": "Each step moves the point against the slope by the learning rate times the slope. On the loss x squared, a rate below 1 shrinks the distance to the lowest point every step and a rate above 1 grows it.",
+    "formula": "x \\leftarrow x - \\eta \\cdot 2x",
+    "assumptions": ["The loss is x squared, so its slope is 2x and the lowest point is at 0."]
+  },
+  "quantities": [
+    {"id": "rate", "label": "Learning rate", "unit": "", "role": "control", "meaning": "How far each step moves, as a multiple of the slope."},
+    {"id": "start", "label": "Start", "unit": "", "role": "control", "meaning": "Where the point begins."},
+    {"id": "lossShape", "label": "Loss function", "unit": "", "role": "fixed", "meaning": "The loss is x squared."},
+    {"id": "position", "label": "Position", "unit": "", "role": "result", "meaning": "Where the point is after this many steps."},
+    {"id": "loss", "label": "Loss", "unit": "", "role": "result", "meaning": "The loss at the point."}
+  ],
+  "things": [
+    {"id": "ball", "label": "Current point"},
+    {"id": "curve", "label": "Loss curve"}
+  ],
+  "inputs": [
+    {"type": "number", "id": "rate", "label": "Learning rate", "unit": "", "min": 0.05, "max": 1.1, "default": 0.3, "step": 0.05},
+    {"type": "number", "id": "start", "label": "Start", "unit": "", "min": -4, "max": 4, "default": 3.5, "step": 0.5}
+  ],
+  "time": {"mode": "steps", "count": 20, "label": "Step"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  const loss = x => x * x, slope = x => 2 * x;\n  let position = inputs.start;\n  for (let step = 0; step < t; step++) position = position - inputs.rate * slope(position);\n  return { position, loss: loss(position), curve: loss(inputs.x), step: t,\n    tipX: position - inputs.rate * slope(position), tooFast: inputs.rate > 1, crawling: inputs.rate < 0.1 };\n}",
+    "sweeps": [{"id": "x", "min": -4.5, "max": 4.5, "default": 0}],
+    "outputs": [
+      {"id": "position", "kind": "number", "unit": "", "meaning": "Where the ball is after this many steps."},
+      {"id": "loss", "kind": "number", "unit": "", "meaning": "The loss at the ball."},
+      {"id": "curve", "kind": "number", "unit": "", "meaning": "The loss at the sweep position x."},
+      {"id": "step", "kind": "number", "unit": "", "meaning": "The step number."},
+      {"id": "tipX", "kind": "number", "unit": "", "meaning": "Where the next step will land."},
+      {"id": "tooFast", "kind": "flag", "unit": "", "meaning": "The rate is above 1."},
+      {"id": "crawling", "kind": "flag", "unit": "", "meaning": "The rate is below 0.1."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "",
+      "parts": [
+        {"type": "curve", "id": "lossCurve", "over": "x", "y": "curve", "of": "curve"},
+        {"type": "arrow", "id": "nextStep", "from": ["position", "loss"], "to": ["tipX", "loss"], "of": "ball"},
+        {"type": "dot", "id": "ballDot", "at": ["position", "loss"], "size": "medium", "of": "ball"}
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Loss at each step",
+      "x": {"over": "time", "label": "Step", "unit": ""},
+      "y": {"label": "Loss", "unit": "", "range": [0, 20]},
+      "series": [
+        {"value": "loss", "label": "Loss", "of": "ball", "style": "step"}
+      ]
+    }
+  },
+  "values": [
+    {"value": "step", "label": "Step", "unit": "", "decimals": 0, "of": "ball"},
+    {"value": "loss", "label": "Loss", "unit": "", "decimals": 2, "of": "ball"},
+    {"value": "position", "label": "Position", "unit": "", "decimals": 2, "of": "ball"}
+  ],
+  "explanation": {
+    "always": [],
+    "cases": [
+      {"when": "tooFast", "text": "Too large: the loss grows each step."},
+      {"when": "crawling", "text": "Too small: it barely moves."}
+    ],
+    "otherwise": "Each step lowers the loss."
+  },
+  "layout": {"pictureCount": "two", "runs": "compact", "panelRole": "records-main"},
+  "claims": [
+    {"type": "decreases", "value": "loss", "with": "time", "at": [{"input": "rate", "value": 0.3}]},
+    {"type": "increases", "value": "loss", "with": "time", "at": [{"input": "rate", "value": 1.1}]},
+    {"type": "unchanged", "value": "curve", "when": "rate"}
+  ],
+  "lesson": {
+    "title": "What does the learning rate do?",
+    "description": "A ball sits on a loss curve. Each step it moves against the slope by the learning rate times the slope. Change the rate and step through to see it crawl, settle, or bounce out of the valley.",
+    "instructions": "Press play, then try a rate near 0.05, near 0.5 and above 1.",
+    "goal": "A small learning rate crawls, a good one settles quickly, and one that is too large makes the loss grow."
+  }
+},
+"sorting": {
+  "version": 1,
+  "relationship": {
+    "statement": "Bubble sort compares neighbours from left to right and swaps a pair when the left item is larger. Each pass leaves the largest remaining item in its final place.",
+    "formula": null,
+    "assumptions": ["Six items; the comparison order is fixed: left to right, pass after pass."]
+  },
+  "quantities": [
+    {"id": "order", "label": "Starting order", "unit": "", "role": "control", "meaning": "Which starting arrangement of the six items is used."},
+    {"id": "itemCount", "label": "Items", "unit": "", "role": "fixed", "meaning": "Six items."},
+    {"id": "heights", "label": "The list", "unit": "", "role": "result", "meaning": "The six items in their current order."},
+    {"id": "swaps", "label": "Swaps", "unit": "", "role": "result", "meaning": "How many swaps have happened so far."},
+    {"id": "outOfOrder", "label": "Out of order", "unit": "", "role": "result", "meaning": "How many neighbouring pairs are still in the wrong order."}
+  ],
+  "things": [
+    {"id": "pair", "label": "Compared pair"},
+    {"id": "list", "label": "The list"}
+  ],
+  "inputs": [
+    {"type": "select", "id": "order", "label": "Starting order", "options": [{"value": "shuffled", "label": "Shuffled"}, {"value": "reversed", "label": "Reversed"}, {"value": "nearly", "label": "Nearly sorted"}], "default": "shuffled"}
+  ],
+  "time": {"mode": "steps", "count": 16, "label": "Step"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  const starts = { shuffled: [4, 2, 6, 1, 5, 3], reversed: [6, 5, 4, 3, 2, 1], nearly: [1, 2, 4, 3, 5, 6] };\n  const items = starts[inputs.order].slice();\n  let swaps = 0, done = 0, pair = [0, 1], sortedFrom = items.length;\n  for (let pass = 0; pass < items.length - 1; pass++) {\n    for (let j = 0; j < items.length - 1 - pass; j++) {\n      pair = [j, j + 1];\n      if (done === t) return result();\n      if (items[j] > items[j + 1]) { const keep = items[j]; items[j] = items[j + 1]; items[j + 1] = keep; swaps++; }\n      done++;\n    }\n    sortedFrom = items.length - 1 - pass;\n  }\n  sortedFrom = 0;\n  return result();\n  function result() {\n    let outOfOrder = 0;\n    for (let k = 0; k < items.length - 1; k++) if (items[k] > items[k + 1]) outOfOrder++;\n    return { heights: items.slice(), compared: pair.slice(), swaps, outOfOrder, sortedFrom, sorted: outOfOrder === 0, step: t };\n  }\n}",
+    "outputs": [
+      {"id": "heights", "kind": "list", "length": 6, "unit": "", "meaning": "The six items in their current order."},
+      {"id": "compared", "kind": "list", "length": 2, "unit": "", "meaning": "The positions of the two neighbours compared at this step."},
+      {"id": "swaps", "kind": "number", "unit": "", "meaning": "How many swaps have happened so far."},
+      {"id": "outOfOrder", "kind": "number", "unit": "", "meaning": "How many neighbouring pairs are still in the wrong order."},
+      {"id": "sortedFrom", "kind": "index", "unit": "", "meaning": "The position from which the right end is already in its final place."},
+      {"id": "sorted", "kind": "flag", "unit": "", "meaning": "The whole list is in order."},
+      {"id": "step", "kind": "number", "unit": "", "meaning": "The step number."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "kind",
+      "kind": "bar-chart",
+      "title": "The list",
+      "unit": "",
+      "labels": ["1st", "2nd", "3rd", "4th", "5th", "6th"],
+      "values": "heights",
+      "highlight": "compared"
+    },
+    "panel": null
+  },
+  "values": [
+    {"value": "step", "label": "Step", "unit": "", "decimals": 0, "of": "list"},
+    {"value": "swaps", "label": "Swaps", "unit": "", "decimals": 0, "of": "pair"},
+    {"value": "outOfOrder", "label": "Out of order", "unit": "", "decimals": 0, "of": "list"}
+  ],
+  "explanation": {
+    "always": ["Swap when the left one is taller."],
+    "cases": [
+      {"when": "sorted", "text": "Every pair in order: it is sorted."}
+    ]
+  },
+  "layout": {"pictureCount": "one", "runs": "left-to-right", "panelRole": "none"},
+  "claims": [
+    {"type": "sumsTo", "value": "heights", "to": 21},
+    {"type": "increases", "value": "swaps", "with": "time", "strict": false},
+    {"type": "holds", "value": "sorted", "atTime": "end"},
+    {"type": "between", "value": "outOfOrder", "min": 0, "max": 5}
+  ],
+  "lesson": {
+    "title": "How does bubble sort put a list in order?",
+    "description": "Six bars start out of order. Each step compares two neighbours and swaps them if the left one is taller. Step through and watch the tallest bar drift to the right on every pass.",
+    "instructions": "Press play or step through. Then pick another starting order.",
+    "goal": "Bubble sort only ever swaps neighbours; each pass carries the largest remaining item to its final place."
+  }
+},
+"tokenizer": {
+  "version": 1,
+  "relationship": {
+    "statement": "Byte-pair encoding starts from single letters and repeatedly merges every copy of the most frequent neighbouring pair into one piece.",
+    "formula": null,
+    "assumptions": ["One word at a time; ties go to the pair seen first."]
+  },
+  "quantities": [
+    {"id": "word", "label": "Word", "unit": "", "role": "control", "meaning": "The word being split into pieces."},
+    {"id": "pieces", "label": "Pieces", "unit": "", "role": "result", "meaning": "The pieces of the word after this many merges."},
+    {"id": "count", "label": "Pieces", "unit": "", "role": "result", "meaning": "How many pieces there are."},
+    {"id": "merged", "label": "Merged", "unit": "", "role": "result", "meaning": "The piece made by the latest merge."}
+  ],
+  "things": [
+    {"id": "piece", "label": "Pieces"}
+  ],
+  "inputs": [
+    {"type": "select", "id": "word", "label": "Word", "options": [{"value": "nanana", "label": "nanana"}, {"value": "mamamama", "label": "mamamama"}], "default": "nanana"}
+  ],
+  "time": {"mode": "steps", "count": 4, "label": "Merge"},
+  "math": {
+    "code": "function compute(inputs, t) {\n  let pieces = inputs.word.split(''), merged = '';\n  for (let step = 0; step < t; step++) {\n    const counts = {};\n    for (let k = 0; k < pieces.length - 1; k++) { const pair = pieces[k] + ' ' + pieces[k + 1]; counts[pair] = (counts[pair] || 0) + 1; }\n    let best = '', most = 1;\n    for (const pair in counts) if (counts[pair] > most) { most = counts[pair]; best = pair; }\n    if (!best) { merged = ''; break; }\n    const [left, right] = best.split(' '), next = [];\n    for (let k = 0; k < pieces.length; k++) {\n      if (k < pieces.length - 1 && pieces[k] === left && pieces[k + 1] === right) { next.push(left + right); k++; } else next.push(pieces[k]);\n    }\n    pieces = next; merged = left + right;\n  }\n  return { pieces, xs: pieces.map((piece, k) => k * 1.2), count: pieces.length, merged: merged || 'none', nothingLeft: t > 0 && merged === '' };\n}",
+    "outputs": [
+      {"id": "pieces", "kind": "textList", "maxLength": 8, "unit": "", "meaning": "The pieces of the word after this many merges."},
+      {"id": "xs", "kind": "list", "maxLength": 8, "unit": "", "meaning": "Where each piece sits, left to right."},
+      {"id": "count", "kind": "number", "unit": "", "meaning": "How many pieces there are."},
+      {"id": "merged", "kind": "text", "unit": "", "meaning": "The piece made by the latest merge."},
+      {"id": "nothingLeft", "kind": "flag", "unit": "", "meaning": "No pair appears twice any more."}
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "",
+      "parts": [
+        {"type": "rect", "id": "box", "at": ["xs", 0], "size": [1, 1], "of": "piece"},
+        {"type": "label", "id": "letters", "at": ["xs", 0], "textFrom": "pieces", "of": "piece"}
+      ]
+    },
+    "panel": null
+  },
+  "values": [
+    {"value": "count", "label": "Pieces", "unit": "", "decimals": 0, "of": "piece"},
+    {"value": "merged", "label": "Merged", "of": "piece"}
+  ],
+  "explanation": {
+    "always": ["Each merge joins the commonest pair."],
+    "cases": [
+      {"when": "nothingLeft", "text": "No pair repeats, so merging stops."}
+    ]
+  },
+  "layout": {"pictureCount": "one", "runs": "left-to-right", "panelRole": "none"},
+  "claims": [
+    {"type": "decreases", "value": "count", "with": "time", "strict": false},
+    {"type": "between", "value": "count", "min": 1, "max": 8}
+  ],
+  "lesson": {
+    "title": "How does a tokenizer build its pieces?",
+    "description": "A word starts as single letters. Each step finds the pair of neighbouring pieces that appears most often and merges every copy of it into one piece. Step through and watch the word shrink.",
+    "instructions": "Step through the merges, then pick the other word.",
+    "goal": "Byte-pair encoding repeatedly merges the most frequent neighbouring pair, so common letter groups become single tokens."
+  }
+}
+}
