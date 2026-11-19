@@ -28,11 +28,11 @@ export const tAccountInputs = {
   },
 };
 
-const fromCents = cents => cents / 100;
+const dollars = cents => cents / 100;
 const subtotal = entries => entries.reduce((total, entry) => total + entry.cents, 0);
 const combine = (label, entries) => ({ label, cents: subtotal(entries) });
 const cost = ({ quantity, unitCents }) => quantity * unitCents;
-const toAmounts = entries => entries.map(({ label, cents }) => ({ label, amount: fromCents(cents) }));
+const toAmounts = entries => entries.map(({ label, cents }) => ({ label, amount: dollars(cents) }));
 
 function ledger(debits, credits) {
   return { debits: toAmounts(debits), credits: toAmounts(credits) };
@@ -70,20 +70,20 @@ export const tAccountExamples = {
     overview: ledger(advances, [rehearsal, combine('Recital and cleanup', recitalAndCleanup)]),
     full: ledger(advances, rentalCharges),
     days: venue.use.reduce((total, entry) => total + entry.days, 0),
-    dailyRate: fromCents(venue.dailyRateCents),
-    total: fromCents(subtotal(rentalCharges)),
+    dailyRate: dollars(venue.dailyRateCents),
+    total: dollars(subtotal(rentalCharges)),
   },
   robotics: {
     overview: ledger(payments, [chassis, combine('Motors and sensors', motorsAndSensors)]),
     full: ledger(payments, bills),
-    firstPayment: fromCents(robotics.firstPaymentCents),
-    finalPayment: fromCents(finalPaymentCents),
-    total: fromCents(subtotal(bills)),
+    firstPayment: dollars(robotics.firstPaymentCents),
+    finalPayment: dollars(finalPaymentCents),
+    total: dollars(subtotal(bills)),
   },
   orchard: {
     overview: ledger([cartons, combine('Labels and sleeves', labelsAndSleeves)], expenseCredits),
     full: ledger(purchases, expenseCredits),
-    returned: fromCents(sleevesReturnedCents),
-    closingExpense: fromCents(closingExpenseCents),
+    returned: dollars(sleevesReturnedCents),
+    closingExpense: dollars(closingExpenseCents),
   },
 };
