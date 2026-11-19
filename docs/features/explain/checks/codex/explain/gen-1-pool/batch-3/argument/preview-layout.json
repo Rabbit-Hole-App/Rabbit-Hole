@@ -1,0 +1,107 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 1664,
+  "groups": [
+    {
+      "kind": "argument",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-late-library-return",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 453
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 456
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 520
+            }
+          ],
+          "bottom": 675
+        },
+        {
+          "id": "pool-felt-mug-sleeve",
+          "top": 671,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 695,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 415
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 695,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 418
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 695,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 463
+            }
+          ],
+          "bottom": 1173
+        },
+        {
+          "id": "pool-club-poster-inks",
+          "top": 1169,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1193,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 377
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1193,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 396
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1193,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 446
+            }
+          ],
+          "bottom": 1654
+        }
+      ],
+      "bottom": 1654
+    }
+  ]
+}

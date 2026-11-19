@@ -1,0 +1,198 @@
+{
+  "sha": "1d4e3841912f7aae706b766f77e848dca8e0a246",
+  "records": [
+    {
+      "id": "pool-late-library-return",
+      "kind": "argument",
+      "depths": {
+        "overview": {
+          "tokens": 101,
+          "parsedTokens": 101,
+          "nativeWidth": 408,
+          "height": 453,
+          "ownPicks": [
+            {
+              "prompt": "Should we keep the late library return bin given the return counts and pickup time?",
+              "kind": "argument",
+              "picked": [
+                "pool-late-library-return"
+              ],
+              "steer": "pool-late-library-return",
+              "score": 60
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 109,
+          "parsedTokens": 109,
+          "nativeWidth": 408,
+          "height": 456,
+          "ownPicks": [
+            {
+              "prompt": "Should we keep the late library return bin given the return counts and pickup time?",
+              "kind": "argument",
+              "picked": [
+                "pool-late-library-return"
+              ],
+              "steer": "pool-late-library-return",
+              "score": 60
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 121,
+          "parsedTokens": 121,
+          "nativeWidth": 408,
+          "height": 520,
+          "ownPicks": [
+            {
+              "prompt": "Should we keep the late library return bin given the return counts and pickup time?",
+              "kind": "argument",
+              "picked": [
+                "pool-late-library-return"
+              ],
+              "steer": "pool-late-library-return",
+              "score": 60
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-felt-mug-sleeve",
+      "kind": "argument",
+      "depths": {
+        "overview": {
+          "tokens": 112,
+          "parsedTokens": 112,
+          "nativeWidth": 408,
+          "height": 415,
+          "ownPicks": [
+            {
+              "prompt": "Do these matched mug trials support using a felt sleeve for a short break?",
+              "kind": "argument",
+              "picked": [
+                "pool-felt-mug-sleeve"
+              ],
+              "steer": "pool-felt-mug-sleeve",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 116,
+          "parsedTokens": 116,
+          "nativeWidth": 408,
+          "height": 418,
+          "ownPicks": [
+            {
+              "prompt": "Do these matched mug trials support using a felt sleeve for a short break?",
+              "kind": "argument",
+              "picked": [
+                "pool-felt-mug-sleeve"
+              ],
+              "steer": "pool-felt-mug-sleeve",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 133,
+          "parsedTokens": 133,
+          "nativeWidth": 408,
+          "height": 463,
+          "ownPicks": [
+            {
+              "prompt": "Do these matched mug trials support using a felt sleeve for a short break?",
+              "kind": "argument",
+              "picked": [
+                "pool-felt-mug-sleeve"
+              ],
+              "steer": "pool-felt-mug-sleeve",
+              "score": 58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-club-poster-inks",
+      "kind": "argument",
+      "depths": {
+        "overview": {
+          "tokens": 94,
+          "parsedTokens": 94,
+          "nativeWidth": 408,
+          "height": 377,
+          "ownPicks": [
+            {
+              "prompt": "Which ink plan should the club use for its poster given the material costs and setup times?",
+              "kind": "argument",
+              "picked": [
+                "pool-club-poster-inks"
+              ],
+              "steer": "pool-club-poster-inks",
+              "score": 50
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 107,
+          "parsedTokens": 107,
+          "nativeWidth": 408,
+          "height": 396,
+          "ownPicks": [
+            {
+              "prompt": "Which ink plan should the club use for its poster given the material costs and setup times?",
+              "kind": "argument",
+              "picked": [
+                "pool-club-poster-inks"
+              ],
+              "steer": "pool-club-poster-inks",
+              "score": 50
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 122,
+          "parsedTokens": 122,
+          "nativeWidth": 408,
+          "height": 446,
+          "ownPicks": [
+            {
+              "prompt": "Which ink plan should the club use for its poster given the material costs and setup times?",
+              "kind": "argument",
+              "picked": [
+                "pool-club-poster-inks"
+              ],
+              "steer": "pool-club-poster-inks",
+              "score": 50
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "replay": {
+    "existingPromptDepthCases": 3114,
+    "savedPlannerCases": 474,
+    "overlap": 0,
+    "moves": []
+  },
+  "pool": {
+    "overview": {
+      "before": 0,
+      "after": 3
+    },
+    "standard": {
+      "before": 0,
+      "after": 3
+    },
+    "deep": {
+      "before": 0,
+      "after": 3
+    }
+  },
+  "publishedTip": "293511c1b118f6b11be5a8adc3f089f8c2fe3f00",
+  "publishedTree": "d513edb2906f6ce0819316b1a8dd40df53c86d2c"
+}
