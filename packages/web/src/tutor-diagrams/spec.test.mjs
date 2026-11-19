@@ -270,6 +270,18 @@ test('softmax list transformation: only with softmax in the title or operation a
   assert.equal(arithmetic(softmaxIssues(softmax(['2.0', '1.0', '0.1'], ['0.7', '0.26', '0.04'], { title: 'Scores to shares', operation: 'Apply softmax' }))).length, 1, 'softmax in the operation alone is enough');
 });
 
+test('softmax list transformation (NUM-3a): the word on the before or after label, or the operation written out as exponential and normalize, also starts the recompute; plain numbers on both sides are still required', () => {
+  const card = (before, after, extra) => softmax(before, after, { title: 'Convert raw scores to weights', operation: 'Apply exponential and normalize', before: { label: 'Raw Scores', items: before }, after: { label: 'Softmax Weights', items: after }, ...extra });
+  const issues = softmaxIssues(card(['0.5', '2.0', '1.0'], ['0.10', '0.45', '0.45']));
+  assert.equal(arithmetic(issues).length, 1, 'the R3-pre cell 5 card is rejected');
+  assert.ok(issues[0].message.includes('softmax(0.5, 2.0, 1.0) = 0.14, 0.63, 0.23, not 0.10, 0.45, 0.45'), 'with the correct values');
+  assert.deepEqual(softmaxIssues(card(['0.5', '2.0', '1.0'], ['0.14', '0.63', '0.23'])), [], 'the correct card passes');
+  const labelOnly = softmaxIssues({ version: 1, diagram: { kind: 'transformation', title: 'Scores to shares', before: { label: 'Scores', items: ['2.0', '1.0', '0.1'] }, after: { label: 'Softmax output', items: ['0.7', '0.26', '0.04'] }, operation: 'Apply the function' } });
+  assert.equal(arithmetic(labelOnly).length, 1, 'softmax on the after label alone is enough');
+  assert.deepEqual(softmaxIssues(card(['h1', 'h2', 'h3'], ['0.10', '0.45', '0.45'])), [], 'non-numeric before items still skip the rule');
+  assert.deepEqual(softmaxIssues(card(['0.5', '2.0', '1.0'], ['0.10', '0.45', '0.45'], { operation: 'Apply exponential, scaled by temperature' })), [], 'a switched-off wording still turns the recompute off');
+});
+
 test('softmax list transformation: temperature, T =, scaled, scaling, masked, causal and log-softmax turn the recompute off; a correct softmax(before / T) card passes', () => {
   const plain = ['0.70', '0.26', '0.04'];
   for (const extra of [{ title: 'Softmax with temperature' }, { caption: 'Temperature T lowers the entropy' }, { operation: 'Apply softmax with T = 0.5' }, { operation: 'Softmax, T=2' }, { title: 'Scaled softmax' },

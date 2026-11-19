@@ -59,7 +59,7 @@ function boxFenceInstance(box, i) {
 // `op: 'softmax'` is the declared rule (fires whatever the words say); `t` (optional) divides the before items (SOFT-T). Without `op`, release 154's word trigger stays as a fallback:
 // a title or operation that says softmax, with plain numeric before and after items; it is OFF when a label says temperature, scaled, scaling, masked, causal, log-softmax or
 // "T =" (after = softmax(before / T): the plain recompute would flag a correct card); then the only check is that after sums to 1 when the title or caption calls them probabilities.
-const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
+const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/, SOFTMAX_WORD = /softmax|exponentia\w*\s+and\s+normali[sz]e/i;
 // "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
 export function listNumber(item) {
   if (typeof item !== 'string') return null;
@@ -74,7 +74,8 @@ const softmax = (values, t = 1) => {
 };
 function softmaxInstance(d) {
   const declared = d.op === 'softmax', at = ['after', 'items'];
-  if (!declared && !/softmax/i.test(`${d.title} ${d.operation}`)) return null;
+  // NUM-3a: the word also counts on the before / after labels, and "exponential and normalize" is the softmax operation written out (the structural conditions below still decide).
+  if (!declared && !SOFTMAX_WORD.test(`${d.title} ${d.operation} ${d.before.label} ${d.after.label}`)) return null;
   const before = d.before.items.map(listNumber), written = d.after.items, after = written?.map(listNumber);
   if (declared && before.some(x => !x)) return { at, written, problems: [{ plain: true, message: 'op softmax needs plain numeric before items (like 2.0 or 1.5)' }] };
   if (!declared && (before.some(x => !x) || !after || after.length !== before.length || after.some(x => !x))) return null;
