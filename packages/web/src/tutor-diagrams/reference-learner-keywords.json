@@ -1750,5 +1750,25 @@
   "ml-gpt2-overview-and-expanded-block": [
     "collapsed decoder detail",
     "omitted normalization shortcuts"
+  ],
+  "ml-music-tokenization-music-events-and-time": [
+    "music event clock reconstruction",
+    "simultaneous note changes"
+  ],
+  "ml-language-generation-vocabulary-score-probabilities": [
+    "tied vocabulary head scores",
+    "candidate logit probability slots"
+  ],
+  "ml-language-generation-key-value-cache": [
+    "layer cache row origins",
+    "current query cached positions"
+  ],
+  "ml-language-generation-greedy-versus-sampling": [
+    "same distribution selection rules",
+    "greedy maximum sampled draw"
+  ],
+  "ml-language-generation-autoregressive-feedback": [
+    "growing prefix stop event",
+    "encode once generation trace"
   ]
 }

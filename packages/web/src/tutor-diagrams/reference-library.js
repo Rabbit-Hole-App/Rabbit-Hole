@@ -65,6 +65,9 @@ import { references as compositionEmbeddings } from './composition-embeddings-re
 import { references as compositionContextualEmbeddings } from './composition-contextual-embeddings-references.js';
 import { references as compositionModelCapacity } from './composition-model-capacity-references.js';
 import { references as compositionGpt2 } from './composition-gpt2-references.js';
+import { references as compositionLanguageGeneration } from './composition-language-generation-references.js';
+import { references as compositionMusicTokenization } from './composition-music-tokenization-references.js';
+import { overlays as languageGenerationOverlays } from './topic-language-generation-overlays.js';
 import { overlays as bertOverlays } from './topic-bert-overlays.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
@@ -124,13 +127,16 @@ export const diagramReferences = Object.freeze([
   ...compositionNormalization, ...compositionPositionalEncoding, ...compositionEmbeddings,
   ...compositionContextualEmbeddings,
   ...compositionModelCapacity, ...compositionGpt2,
+  ...compositionLanguageGeneration, ...compositionMusicTokenization,
   ...estimationEvaluationReferences,
   samplingTopKReference,
 ].map(ref => {
-  const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id] ?? attentionOverlays[ref.id];
+  const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id] ?? attentionOverlays[ref.id] ?? languageGenerationOverlays[ref.id];
   if (overlay) ref = { ...ref, prompts: [...new Set([...ref.prompts, ...overlay.prompts])], keywords: [...new Set([...ref.keywords, ...overlay.keywords])] };
   // C03 owner ruling: retain the source's lesson 01 outside the prompt/keyword-only REUSE overlay. Visuals and data stay unchanged.
   if (ref.id === 'ml-transformer-encoder-decoder-memory') ref = { ...ref, lessons: [...new Set([...ref.lessons, '01'])] };
+  // C11 owner ruling: source GPT2-02 adds introductory lesson01; REUSE overlay stays prompt/keyword-only.
+  if (ref.id === 'ml-word2vec-prefix-guesses') ref = { ...ref, lessons: [...new Set([...ref.lessons, '01'])] };
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];
   if (!topics && !vary) return ref;

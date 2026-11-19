@@ -132,7 +132,7 @@ export const references = [
         { from: 'cache', to: 'attention', label: String.raw`All keys $K_{\le t+1}$ and values $V_{\le t+1}$` },
         { from: 'attention', to: 'decoder', label: 'Context for next-token prediction' },
       ],
-      caption: 'Attention uses the new query with cached keys and values. Reuse saves projecting past tokens again.',
+      caption: 'Reuse cached keys and values to skip projecting past tokens.',
     } },
   },
   {

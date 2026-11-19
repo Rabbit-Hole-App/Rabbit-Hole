@@ -1717,19 +1717,19 @@
       "height": 376
     },
     "ml-kv-cache-decode/320": {
-      "sha256": "1faf956391429a48eb480135d85fdd544873b6347ebed10e0fecf646438ba2f7",
+      "sha256": "62bddd888c36ee077639d5e4782b21d4608be2a2a81cbdb350c7174e8bad1caf",
       "width": 332,
-      "height": 861
+      "height": 844
     },
     "ml-kv-cache-decode/408": {
-      "sha256": "5dfbafbdad829b30427e906f1432d04bc32973e3f557557e354d08ee4651ca21",
+      "sha256": "b34778ce1fc19b87e6e51ff721aad27f74e82305d41e220007a0b6ede2ff8b4e",
       "width": 408,
-      "height": 772
+      "height": 755
     },
     "ml-kv-cache-decode/720": {
-      "sha256": "9518ec7c72adf09bf16927d69510d7485e12cfd6c6708964dbc8da1f4a57ee3f",
+      "sha256": "e4026ebb8f6cb354dace6794c9254e6ca2c15f09b34e3ebe4c4fa27742c805b1",
       "width": 720,
-      "height": 559
+      "height": 542
     },
     "ml-label-prior-drift-comparison/320": {
       "sha256": "3527e9b39ec9a13f78bb5361144c318ee4e4b9e721ecca5c06f399f8c693ed15",
@@ -1745,6 +1745,66 @@
       "sha256": "840ae584fa91efc9b42933951ac9d025a10aaf63aea12e40f63024fd93672ecc",
       "width": 720,
       "height": 414
+    },
+    "ml-language-generation-autoregressive-feedback/320": {
+      "sha256": "cab87d1e43ac6f08f7b26ada65be8c8a538d1e52271b18b1fc2b322a01e686be",
+      "width": 320,
+      "height": 802
+    },
+    "ml-language-generation-autoregressive-feedback/408": {
+      "sha256": "66eddcaeb9803516d21c2584f91a4d83997c4612be4be1ce9536cfce956a12fb",
+      "width": 408,
+      "height": 638
+    },
+    "ml-language-generation-autoregressive-feedback/720": {
+      "sha256": "1d6da45ef12b0b78dc165d8a5596a0e1b2ddc49779ad6581878a1dcd3b968f7b",
+      "width": 720,
+      "height": 457
+    },
+    "ml-language-generation-greedy-versus-sampling/320": {
+      "sha256": "58cef3171fdac60c64a4b8c69c755104abf62a6bd5a8453617bd4f50a790f16e",
+      "width": 320,
+      "height": 423
+    },
+    "ml-language-generation-greedy-versus-sampling/408": {
+      "sha256": "c85c9037f0d8a2a8cfa3d3a1f1df02ed05b1deaee4e42461a3f7614bad8b53a3",
+      "width": 408,
+      "height": 401
+    },
+    "ml-language-generation-greedy-versus-sampling/720": {
+      "sha256": "bd2f06124a6332c69f703ddef838be65f668ee98642c26e7fb8a15242540467e",
+      "width": 720,
+      "height": 362
+    },
+    "ml-language-generation-key-value-cache/320": {
+      "sha256": "9bb7f89850e53e8d6ed3e7894c41a4622ae701280d0ca1aea44e091aeeaff416",
+      "width": 444,
+      "height": 416
+    },
+    "ml-language-generation-key-value-cache/408": {
+      "sha256": "9bb7f89850e53e8d6ed3e7894c41a4622ae701280d0ca1aea44e091aeeaff416",
+      "width": 444,
+      "height": 416
+    },
+    "ml-language-generation-key-value-cache/720": {
+      "sha256": "2913290fad3bbaf025b57d6b250158705c0b07de6c53f47b94a5bcd52dfc0096",
+      "width": 720,
+      "height": 399
+    },
+    "ml-language-generation-vocabulary-score-probabilities/320": {
+      "sha256": "cb5b0ce1f931810087fcf2e02d4a2888ff1b4d72cc109b24002e5b1876474f41",
+      "width": 320,
+      "height": 971
+    },
+    "ml-language-generation-vocabulary-score-probabilities/408": {
+      "sha256": "7f7e90d868315f76c0ffef89a220e609f2f5695d3d2d734c6a9e3c0822f9c79e",
+      "width": 408,
+      "height": 937
+    },
+    "ml-language-generation-vocabulary-score-probabilities/720": {
+      "sha256": "90df0973c4f8f9ecdece909d3d1cb3d069c754aefb1b166af35ad7bc491db51c",
+      "width": 720,
+      "height": 881
     },
     "ml-language-training-prefix-target-alignment/320": {
       "sha256": "69d183dc9f39897dd6f4883c1bd83dbaacb8dc91d5895d681f335dd7741d34ae",
@@ -2315,6 +2375,21 @@
       "sha256": "da3424c2dc72c362039f1c5165d745cbb952b1d654f44156758b046fc6abc403",
       "width": 720,
       "height": 893
+    },
+    "ml-music-tokenization-music-events-and-time/320": {
+      "sha256": "be13804570d5c5f65581b36fea3ba70c83b17d862667922fc4d0afc90bda5c4c",
+      "width": 408,
+      "height": 507.5
+    },
+    "ml-music-tokenization-music-events-and-time/408": {
+      "sha256": "be13804570d5c5f65581b36fea3ba70c83b17d862667922fc4d0afc90bda5c4c",
+      "width": 408,
+      "height": 507.5
+    },
+    "ml-music-tokenization-music-events-and-time/720": {
+      "sha256": "c81b660e4d80c528bbd9fb71f3ef754a5413e36857922765bed4f17cfbf35bb6",
+      "width": 720,
+      "height": 468.5
     },
     "ml-neural-network-weights/320": {
       "sha256": "5a5a0b734c63cadccc0832227ef83156a899d081f198941b71f5e0d6398b3a26",
@@ -6957,17 +7032,17 @@
       "height": 455
     },
     "ml-gpt2-music-event-tokens-detailed-detail/408": {
-      "sha256": "ddc912172e81e5e405744454029350a0244600938d73da2697cb080177833db5",
+      "sha256": "12678728918631c9d2fa4c50f776baaab29575216cf9fb57ab722d9f9aaacc10",
       "width": 408,
       "height": 490.5
     },
     "ml-gpt2-music-event-tokens-detailed-detail/960": {
-      "sha256": "cb2cae0bcf5a19010292da2b319014d8feb84c5b6f3d8541ef5f18c7f6c0e4a3",
+      "sha256": "ab3678a2c75769c1aecb7fc93910ca797d55e6637cf3c790c013284f56ebe041",
       "width": 720,
       "height": 468.5
     },
     "ml-gpt2-music-event-tokens-detailed-detail/natural": {
-      "sha256": "ddc912172e81e5e405744454029350a0244600938d73da2697cb080177833db5",
+      "sha256": "12678728918631c9d2fa4c50f776baaab29575216cf9fb57ab722d9f9aaacc10",
       "width": 408,
       "height": 490.5
     },

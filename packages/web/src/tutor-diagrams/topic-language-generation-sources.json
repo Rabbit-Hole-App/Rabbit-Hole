@@ -1,0 +1,733 @@
+{
+  "batch": "C11",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "8a0e4ea23e5adb63d9dc626f3c0dc7ceda202497",
+  "families": [
+    {
+      "rank": 55,
+      "source": "illustrated-gpt2",
+      "figure": "62",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+      "summary": "Music can be tokenized into a vocabulary that encodes changes in pitch, timing and loudness.",
+      "kinds": [
+        "coordinate-plot",
+        "matrix",
+        "timeline"
+      ],
+      "proposedReferenceId": "ml-music-tokenization-music-events-and-time",
+      "proposedTopicSlug": "music-tokenization",
+      "lessons": [
+        "08",
+        "15"
+      ],
+      "batch": "C11",
+      "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 4",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "matrix",
+        "timeline"
+      ],
+      "representativeLessons": [
+        "08",
+        "15"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-music-tokenization-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "63",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-63",
+          "summary": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+          "kinds": [
+            "coordinate-plot",
+            "timeline"
+          ],
+          "lessons": [
+            "08",
+            "15"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 5",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Two views of the same event vocabulary and its cumulative-time note reconstruction; no weighted time-aligned links.",
+      "batchTopic": "language-generation"
+    },
+    {
+      "rank": 56,
+      "source": "illustrated-gpt2",
+      "figure": "02",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+      "summary": "Keyboard suggestions illustrate the same basic next-token task as a language model.",
+      "kinds": [
+        "bar-chart",
+        "sequence",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "proposedTopicSlug": "language-generation",
+      "lessons": [
+        "01",
+        "03"
+      ],
+      "batch": "C11",
+      "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 2",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "bar-chart",
+        "sequence"
+      ],
+      "representativeLessons": [
+        "01",
+        "03"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "31",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-31",
+          "summary": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+          "kinds": [
+            "bar-chart",
+            "tensor"
+          ],
+          "lessons": [
+            "03"
+          ],
+          "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 3",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "25",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-25",
+          "summary": "The output layer projects a hidden vector to one score per token in the vocabulary.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [
+            "03"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 11",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same hidden-state-to-vocabulary score projection followed by probabilities; tied weights are an explicit GPT-2 variant.",
+      "batchTopic": "language-generation"
+    },
+    {
+      "rank": 57,
+      "source": "illustrated-gpt2",
+      "figure": "16",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+      "summary": "The next inference step processes the new token while earlier context remains available.",
+      "kinds": [
+        "matrix",
+        "relationship",
+        "sequence",
+        "timeline",
+        "token-links"
+      ],
+      "proposedReferenceId": "ml-language-generation-key-value-cache",
+      "proposedTopicSlug": "language-generation",
+      "lessons": [],
+      "batch": "C11",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 2",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "timeline",
+        "sequence"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "41",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-41",
+          "summary": "The cache keeps a layer's earlier keys and values for future token queries.",
+          "kinds": [
+            "matrix",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 2",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "42",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-42",
+          "summary": "A new token query can score cached earlier keys without recomputing their projections.",
+          "kinds": [
+            "sequence",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 3",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "49",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-49",
+          "summary": "A decoder head uses stored earlier keys as well as the newly computed key when scoring context.",
+          "kinds": [
+            "matrix",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 10",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive storage/read/append views of the same layer-local cache and new-token query; keep old versus current entries explicit.",
+      "batchTopic": "language-generation"
+    },
+    {
+      "rank": 58,
+      "source": "illustrated-gpt2",
+      "figure": "27",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-27",
+      "summary": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+      "kinds": [
+        "bar-chart",
+        "comparison"
+      ],
+      "proposedReferenceId": "ml-language-generation-greedy-versus-sampling",
+      "proposedTopicSlug": "language-generation",
+      "lessons": [
+        "03"
+      ],
+      "batch": "C11",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 13",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "bar-chart",
+        "comparison"
+      ],
+      "representativeLessons": [
+        "03"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Different selection rules over the same normalized distribution.",
+      "batchTopic": "language-generation"
+    },
+    {
+      "rank": 59,
+      "source": "illustrated-transformer",
+      "figure": "29",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+      "summary": "The encoder computes source memory before the decoder begins to predict target tokens.",
+      "kinds": [
+        "flow",
+        "sequence",
+        "timeline",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-language-generation-autoregressive-feedback",
+      "proposedTopicSlug": "language-generation",
+      "lessons": [],
+      "batch": "C11",
+      "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 1",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "sequence",
+        "timeline"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "30",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-30",
+          "summary": "Autoregressive generation appends each predicted token to the prefix and repeats until a stop token or limit.",
+          "kinds": [
+            "timeline",
+            "sequence"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 2",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-07",
+          "summary": "A causal decoder reveals one predicted token at each successive generation step.",
+          "kinds": [
+            "timeline",
+            "sequence"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 7",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "08",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-08",
+          "summary": "The token just predicted becomes part of the next autoregressive input.",
+          "kinds": [
+            "timeline",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 8",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "15",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15",
+          "summary": "Generation can begin from a special start condition even with no user text.",
+          "kinds": [
+            "timeline",
+            "flow"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated growing-prefix generation; encoding once and the optional empty/start condition are explicit variants of the same feedback loop.",
+      "batchTopic": "language-generation",
+      "flowReturnRequirement": "conditional"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "mode": "REUSE",
+      "topic": "music-tokenization",
+      "lessons": [
+        "08",
+        "15"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "62",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+        "summary": "Music can be tokenized into a vocabulary that encodes changes in pitch, timing and loudness.",
+        "kinds": [
+          "matrix",
+          "timeline"
+        ],
+        "lessons": [
+          "08",
+          "15"
+        ],
+        "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 4",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Two views of the same event vocabulary and its cumulative-time note reconstruction; no weighted time-aligned links."
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "mode": "NEW",
+      "topic": "music-tokenization",
+      "lessons": [
+        "08",
+        "15"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "63",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-63",
+        "summary": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+        "kinds": [
+          "coordinate-plot",
+          "timeline"
+        ],
+        "lessons": [
+          "08",
+          "15"
+        ],
+        "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 5",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Two views of the same event vocabulary and its cumulative-time note reconstruction; no weighted time-aligned links."
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "mode": "REUSE",
+      "topic": "language-generation",
+      "lessons": [
+        "03",
+        "01"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+        "summary": "Keyboard suggestions illustrate the same basic next-token task as a language model.",
+        "kinds": [
+          "bar-chart",
+          "sequence"
+        ],
+        "lessons": [
+          "01",
+          "03"
+        ],
+        "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 2",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Same hidden-state-to-vocabulary score projection followed by probabilities; tied weights are an explicit GPT-2 variant."
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "mode": "NEW",
+      "topic": "language-generation",
+      "lessons": [
+        "03"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "31",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-31",
+        "summary": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+        "kinds": [
+          "bar-chart",
+          "tensor"
+        ],
+        "lessons": [
+          "03"
+        ],
+        "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 3",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "25",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-25",
+          "summary": "The output layer projects a hidden vector to one score per token in the vocabulary.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [
+            "03"
+          ],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 11",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same hidden-state-to-vocabulary score projection followed by probabilities; tied weights are an explicit GPT-2 variant."
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "referenceId": "ml-kv-cache-decode",
+      "mode": "REUSE",
+      "topic": "language-generation",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "16",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+        "summary": "The next inference step processes the new token while earlier context remains available.",
+        "kinds": [
+          "timeline",
+          "sequence"
+        ],
+        "lessons": [],
+        "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 2",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "42",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-42",
+          "summary": "A new token query can score cached earlier keys without recomputing their projections.",
+          "kinds": [
+            "sequence",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 3",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive storage/read/append views of the same layer-local cache and new-token query; keep old versus current entries explicit."
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "referenceId": "ml-language-generation-key-value-cache",
+      "mode": "NEW",
+      "topic": "language-generation",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "41",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-41",
+        "summary": "The cache keeps a layer's earlier keys and values for future token queries.",
+        "kinds": [
+          "matrix",
+          "relationship"
+        ],
+        "lessons": [],
+        "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 2",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "49",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-49",
+          "summary": "A decoder head uses stored earlier keys as well as the newly computed key when scoring context.",
+          "kinds": [
+            "matrix",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 10",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive storage/read/append views of the same layer-local cache and new-token query; keep old versus current entries explicit."
+    },
+    {
+      "queueId": "ml-language-generation-greedy-versus-sampling",
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "mode": "NEW",
+      "topic": "language-generation",
+      "lessons": [
+        "03"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "27",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-27",
+        "summary": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+        "kinds": [
+          "bar-chart",
+          "comparison"
+        ],
+        "lessons": [
+          "03"
+        ],
+        "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 13",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Different selection rules over the same normalized distribution."
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "mode": "NEW",
+      "topic": "language-generation",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "29",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+        "summary": "The encoder computes source memory before the decoder begins to predict target tokens.",
+        "kinds": [
+          "sequence",
+          "timeline"
+        ],
+        "lessons": [],
+        "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 1",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "30",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-30",
+          "summary": "Autoregressive generation appends each predicted token to the prefix and repeats until a stop token or limit.",
+          "kinds": [
+            "timeline",
+            "sequence"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 2",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-07",
+          "summary": "A causal decoder reveals one predicted token at each successive generation step.",
+          "kinds": [
+            "timeline",
+            "sequence"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 7",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "15",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15",
+          "summary": "Generation can begin from a special start condition even with no user text.",
+          "kinds": [
+            "timeline",
+            "flow"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated growing-prefix generation; encoding once and the optional empty/start condition are explicit variants of the same feedback loop."
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-gpt2-continue-prefix",
+      "mode": "REUSE",
+      "topic": "language-generation",
+      "lessons": [
+        "01"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "08",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-08",
+        "summary": "The token just predicted becomes part of the next autoregressive input.",
+        "kinds": [
+          "timeline",
+          "transformation"
+        ],
+        "lessons": [],
+        "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 8",
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Repeated growing-prefix generation; encoding once and the optional empty/start condition are explicit variants of the same feedback loop."
+    }
+  ],
+  "catalogLessonChanges": {
+    "ml-word2vec-prefix-guesses": {
+      "before": [
+        "03"
+      ],
+      "after": [
+        "03",
+        "01"
+      ],
+      "sourceFigure": "illustrated-gpt2:02"
+    }
+  },
+  "expressibility": [
+    "Dedicated-event highlighting is present on old GPT2-08; inline token emphasis is absent. Source memory M is temporal/interface context; decoder h is separately supplied, not computed from M."
+  ]
+}

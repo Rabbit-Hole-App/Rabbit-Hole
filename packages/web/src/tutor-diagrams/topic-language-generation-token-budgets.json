@@ -1,0 +1,138 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-language-generation-vocabulary-score-probabilities": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 111,
+          "sha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 230,
+          "sha256": "0b93cd44a584a954c22f53c86e5fab55df9109c7d40b3eb2227287a1d0c12c28"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 111,
+          "sha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 248,
+          "sha256": "d974d2a8e9cd97d697cc952e078729713c817bff6d3205c6ba1f3cca5e5afde7"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 111,
+          "sha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c"
+        }
+      ]
+    },
+    "ml-language-generation-key-value-cache": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 125,
+          "sha256": "0a97afb3adbe877eddc886d4e80d87f3c9d4a1d0d8a0a546ddaa53b000621e02"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 175,
+          "sha256": "c39ae7e762ef4d1ec20ca71c5d28cecbc02bd3a7e0bcc7a1f134836e78402aa9"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 106,
+          "sha256": "bd15b082ee6525d6b82f47a7424c98363b0545b2f70f6b7b739acd9e2eeacaff"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 192,
+          "sha256": "6e9b4aa87aa8cf6d62c39e2d84a9e488a586078655b7b65069da84da5914bf0b"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 118,
+          "sha256": "3daf50a9e08b51c73923d583f4f9d4841bc66461f438cd45b2f3277529e5fed0"
+        }
+      ]
+    },
+    "ml-language-generation-greedy-versus-sampling": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 100,
+          "sha256": "01b1451dde0ecbd6931e3e84296f71f81d8ad3dd0fc1bc3d418332e8812ccf8e"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 164,
+          "sha256": "a2178dcd2d9b7c3d6b13356ae846c887bd588f2fe9cde232bc16760f3f7e9567"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 100,
+          "sha256": "01b1451dde0ecbd6931e3e84296f71f81d8ad3dd0fc1bc3d418332e8812ccf8e"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 164,
+          "sha256": "6b40a3f0c21e33e69ab5df3b306409fea2ba08935420d6a46a90d5abfbb548b0"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 100,
+          "sha256": "a6e877cfaee8286f298f1eb88d9a6b3e10967d35582dce78b4ca2e1ee6a7e5c3"
+        }
+      ]
+    },
+    "ml-language-generation-autoregressive-feedback": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 193,
+          "sha256": "ba5f9aef72ef345b63d0b1ca267752f7829e9714b3656e8e5055564c4aab92eb"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 222,
+          "sha256": "9d01c5fd649d08cbe1102d6e70831dee16ba52430fbf883a7fb3c14af5c6ead6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 116,
+          "sha256": "86259b913fb14d9deff5fd2a6607a83441919d6bd9244da47dd2fdf601117738"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 215,
+          "sha256": "85bcc6a91cef171f9256cb540f95cb83bf13d20d1c3e4f1c26a595e30ece301c"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 178,
+          "sha256": "50f03810881e9e0f2eb2dc75fa96ad8c106deac31988a64c8bf53aa3a4536405"
+        }
+      ]
+    }
+  }
+}

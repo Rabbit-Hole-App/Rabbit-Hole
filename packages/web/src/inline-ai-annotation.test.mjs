@@ -132,6 +132,7 @@ const READERS = {
   'web/src/tutor-diagrams/composition-distribution-shift-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
   'web/src/tutor-diagrams/composition-model-evaluation-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
   'web/src/tutor-diagrams/composition-positional-encoding-references.js': 'C08 transformation references link before and after items',
+  'web/src/tutor-diagrams/composition-music-tokenization-references.js': 'C11 diagram guidance mentions weighted token links as an excluded visual kind',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);
