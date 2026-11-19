@@ -1,0 +1,8 @@
+ILL-B DRY RUN (no network call in a dry run: fetch is replaced and would throw). Product code read from C:/s/r162-int/packages/control-plane/src/ (read-only).
+prompt forms 55 (N 30, L 25); arms F=recraftv4_1_flash (7 units), S=recraftv4_1 (35 units), V=recraftv4_1_vector (80 units)
+planned calls 165 (F 55, S 55, V 55); finished before this run 0; still to do 165
+N subject length: max 181 (limit 200), over limit 0; L whole subject: max 262 (limit 400), over 0; full prompt incl. FIGURE_STYLE: N max 386, L max 433
+assertions: 55 forms; every N subject <= 200; every L whole subject <= 400 and <= 4 labels: OK
+request body (one call): {"prompt":"<prompt>","model":"recraftv4_1_flash","size":"1024x1024","n":1,"response_format":"url","controls":"<RECRAFT_CONTROLS: background #FFFCF0 + 8 colours>","random_seed":1299344522}; random_seed = sha256(image id) & 0x7fffffff, recorded per row
+cost estimate (USD): Phase 0 real (one call per model, 3 images) 0.122; Phase 1 165 images 6.71 (F 0.39 + S 1.93 + V 4.40); speed extras (10 url + 10 multipart, F) 0.14; judges 1.42 (Sonnet 5.5 0.0072 + Gemini 3.5 Flash Lite 0.0014 per image, 165 images; rates from the repo registry, tokens are an estimate); Phase 2 ceiling 5.00
+TOTAL 13.39 against the cap US$15 (headroom 1.61); settled so far 0.000
