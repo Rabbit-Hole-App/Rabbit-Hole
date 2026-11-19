@@ -1,0 +1,1 @@
+{"version":1,"diagram":{"title":"Attention weights by head and token","caption":"Head A focuses on local syntax while Head B captures long-range context.","kind":"bar-chart","variant":"grouped","categories":["the_1","cat","sat","on","the_2","mat"],"series":[{"label":"Head A","values":[0.05,0.65,0.2,0.05,0.02,0.03]},{"label":"Head B","values":[0.38,0.17,0.09,0.05,0.08,0.23]}]}}
