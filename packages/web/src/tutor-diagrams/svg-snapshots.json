@@ -2886,6 +2886,21 @@
       "width": 720,
       "height": 344
     },
+    "pool-soundcheck-time-window/320": {
+      "sha256": "0d4d5151ec33e8696e6973f35dbfb0d4183427d6ff3a8e8a396f4ffc8a711358",
+      "width": 320,
+      "height": 395
+    },
+    "pool-soundcheck-time-window/408": {
+      "sha256": "a3367115a18817e304f2e041f42bc6385a1d48212f731b0ee1a2a441f5a60fce",
+      "width": 408,
+      "height": 356
+    },
+    "pool-soundcheck-time-window/720": {
+      "sha256": "e9cbf72ff6593b806e0d57da76eed319bb650feebb22b5547168fb1f95854d29",
+      "width": 720,
+      "height": 339
+    },
     "pool-sunflower-tray-heights/320": {
       "sha256": "cba2e23f8ac2c32e4f1f8b13cc31ea651e3ad4d01453884c210acd8716db871a",
       "width": 360,
@@ -2900,6 +2915,21 @@
       "sha256": "57484da8cb1d1dcd50441fc8bf298d3576f2291405d469638f3fc7860afec43b",
       "width": 720,
       "height": 447.5
+    },
+    "pool-trailhead-elevation-offsets/320": {
+      "sha256": "adfdc2c9ab08f953bc9d72b46314fa82c7fe0873a707e212edf2da8c717200ab",
+      "width": 320,
+      "height": 343
+    },
+    "pool-trailhead-elevation-offsets/408": {
+      "sha256": "cd723ee8ccec1728fa0861e211f906db9729427d481ab90bf7e443bb80aa745c",
+      "width": 408,
+      "height": 304
+    },
+    "pool-trailhead-elevation-offsets/720": {
+      "sha256": "5748fa78c49d41828afa2319e7df2152152d5c9b9104eccca4a1f2c8d7c9d315",
+      "width": 720,
+      "height": 287
     },
     "pool-trivia-team-score/320": {
       "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
