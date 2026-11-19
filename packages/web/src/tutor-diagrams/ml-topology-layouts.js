@@ -333,11 +333,11 @@ export function createLayouts({ legacy }) {
       const hasTensor = d.nodes.some(n => n.tensor);
       return d.layout === 'graph' || hasTensor ? graph(d, width, hasTensor) : legacy.relationship(d, width);
     },
-    flow: (d, width) => {
-      if (!extendedFlow(d)) return legacy.flow(d, width);
+    flow: (d, width, options) => {
+      if (!extendedFlow(d)) return legacy.flow(d, width, options);
       const roles = new Map(d.nodes.map(n => [n.id, n.role]));
       const rendered = legacy.flow({ ...d, nodes: d.nodes.map(n => ({ ...n,
-        role: n.role === 'fork' || n.role === 'merge' ? 'process' : n.role })) }, width);
+        role: n.role === 'fork' || n.role === 'merge' ? 'process' : n.role })) }, width, options);
       return { ...rendered, elements: rendered.elements.map(e => restyleFlow(e, roles)) };
     },
   };

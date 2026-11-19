@@ -40,7 +40,7 @@ function insidePicture(geometry, { width, height }, where) {
   walk(geometry);
 }
 
-const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix'];
+const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow'];
 for (const kind of FITTED) {
   test(`${kind}: the neutral example in every box at sizes 14, 12 and 16 equals the box when the box is at least min, else min; nothing text is larger than asked; geometry lies inside the picture`, () => {
     const spec = neutral(kind);

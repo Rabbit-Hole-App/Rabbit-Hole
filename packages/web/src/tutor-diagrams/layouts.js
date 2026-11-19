@@ -1,4 +1,4 @@
-import { layoutFlow } from './flow.js';
+import { fittedFlow, layoutFlow } from './flow.js';
 import { createLayouts as statisticalLayouts } from './ml-statistical-layouts.js';
 import { createLayouts as plotLayouts } from './ml-plot-layouts.js';
 import { createLayouts as topologyLayouts } from './ml-topology-layouts.js';
@@ -295,7 +295,7 @@ function cycle(diagram, width) {
 }
 
 const legacy = Object.freeze({
-  flow: layoutFlow, comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
+  flow: (diagram, width, options) => (typeof options === 'function' ? layoutFlow(diagram, width, options) : fittedFlow(diagram, width, options)), comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
   ...teachingLayouts, ...quantitativeLayouts, ...balanceLayouts,
   transformation: (diagram, width) => usesTensorItems(diagram)
     ? layoutTensorTransformation(diagram, width) : teachingLayouts.transformation(diagram, width),

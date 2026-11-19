@@ -16,7 +16,7 @@ const CAPTION_GUTTER = 32;
 const TITLE_STYLE = { size: 17, weight: 700 }; // the written card draws its title at TEACHING_TEXT.display (interact-style.test.mjs pins this line)
 
 // kinds-fit: the kinds that take a box, sizes and legend/parts switches; every other kind ignores them and is drawn as always (its `min` is its drawn size).
-const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix']);
+const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
 // A bar chart is fitted in its plain and grouped forms (vertical bars) and a matrix in its plain layout; a stacked bar chart (a stacked series chart or one stacked bar) and a matrix with layout teaching are drawn as always: min is their drawn size, geometry null.
 const isFitted = diagram => FITTED_KINDS.has(diagram.kind) && !(diagram.kind === 'bar-chart' && diagram.variant === 'stacked') && !(diagram.kind === 'matrix' && diagram.layout === 'teaching');
 // The kinds whose layout reports positions: `geometry` is an object for these (in the picture's coordinates, the title block counted) and null for every other kind.
