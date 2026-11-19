@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fallbackOpening, openingEntry, openingMessage, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
+import { askIntake, fallbackOpening, flowMessages, indexDoc, openingEntry, openingMessage, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
 import { openBody } from './source-arrived.js';
 import { SENTENCES } from './tutor-rehearsal-text.js';
 
@@ -55,4 +55,28 @@ test('the opening is saved as a Tutor entry and a reload puts it back, rows live
   assert.match(ui, /saveTutorEntry\(\{ app: canvas, threadId, clientId: `opening-\$\{message\.key\}`, content: message\.text, tutor: openingEntry\(detail\)/);
   assert.match(read('ChatMessages.jsx'), /\(hideTutor && m\.meta\?\.tutor\?\.kind === hideTutor\) \? null/, 'the transcript leaves it to the flow: never shown twice');
   assert.match(read('ask.jsx'), /hideTutor=\{REHEARSAL && chat && !tocView \? OPENING_KIND : null\}/);
+});
+
+// Codebase index step 2 (codebase-index-spec.md section 4): Learn reads the overview, not the Run catalogue.
+test('the opening fires with the Run catalogue absent: the overview stands in for the document, with no routes and no Run it row', () => {
+  const index = { summary: 'A tool for exploring data.', options: doc.learn.options, cannot: [{ thing: 'tests', why: 'there are none' }] };
+  const arrival = repositoryArrival(indexDoc('simonw/datasette', index));
+  assert.deepEqual([arrival.kind, arrival.canRun, arrival.options.map(o => o.id), arrival.cannot.length], ['repository', false, ['render'], 1]);
+  assert.equal(arrival.summary, '**datasette**: A tool for exploring data.');
+  const state = { log: [], lines: [], doc: indexDoc('simonw/datasette', index), get: { indexing: 'ready', catalogue: { status: 'ready' } } };
+  assert.deepEqual([askIntake(state, { run: false }).opening, askIntake(state, { run: false }).mode], ['loading', 'learn']);
+  assert.deepEqual(openingMessage({ text: 't', options: arrival.options, canRun: arrival.canRun, run: true }).choices.map(c => c.id), ['learn:render'], 'no Run it row without a route');
+});
+test('the index is waiting, failing and retried in Learn words; the Run sentence stays Run it\'s', () => {
+  const wait = flowMessages({ log: [], lines: [], get: { indexing: 'ready', catalogue: { status: 'queued' } } }, { repo: 'simonw/datasette', run: false });
+  assert.deepEqual(wait.map(m => m.pending), ['Working out what datasette offers']);
+  const failed = flowMessages({ log: [], lines: [], docError: true }, { repo: 'simonw/datasette', run: false });
+  assert.deepEqual([failed[0].key, failed[0].text, failed[0].chips.map(a => a.id)], ['index-failed', "I couldn't read **datasette** well enough to say what it offers. Try again.", ['retry:catalogue']]);
+  assert.equal(flowMessages({ log: [], lines: [], docError: true }, { repo: 'simonw/datasette', run: true })[0].key, 'catalogue-failed');
+  const ui = read('TutorRehearsal.jsx'), body = ui.slice(ui.indexOf('const indexPoll = async'), ui.indexOf('const poll = async'));
+  assert.match(ui, /if \(!runIt\) return indexPoll\(\);/, 'Learn reads the index unless Run it is on');
+  assert.match(body, /action: 'learn_index', layer: 'overview'/);
+  assert.doesNotMatch(body, /catalogue'|fetchDoc|api\(url/, 'no catalogue read on the Learn path');
+  assert.match(body, /\[422, 502, 503\]\.includes\(error\?\.status\)/, 'a failed build is said once, never repeated by itself');
+  assert.match(ui, /if \(!runIt\) \{ indexPoll\(\); return; \}/, 'Retry builds again');
 });

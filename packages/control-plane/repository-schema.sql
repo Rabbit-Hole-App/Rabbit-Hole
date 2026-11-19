@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS repository_snapshots (
  repo TEXT NOT NULL, commit_sha TEXT NOT NULL, version TEXT NOT NULL, storage_key TEXT NOT NULL,
  created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(repo,commit_sha,version)
 );
+-- The codebase index (learn-migrations/0048): a layer of what a repository offers, per repository and commit.
+CREATE TABLE IF NOT EXISTS repository_index (
+ repo TEXT NOT NULL, commit_sha TEXT NOT NULL, layer TEXT NOT NULL, scope TEXT NOT NULL DEFAULT '', storage_key TEXT NOT NULL,
+ status TEXT NOT NULL, usd REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(repo,commit_sha,layer,scope)
+);
 CREATE TABLE IF NOT EXISTS threads (
  id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL,
  commit_sha TEXT NOT NULL, title TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))

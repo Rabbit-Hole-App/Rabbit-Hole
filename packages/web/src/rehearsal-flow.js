@@ -29,6 +29,9 @@ export const statusWords = run => [STATUS_WORDS[run?.status] || STATUS_WORDS.que
 
 const note = (key, text, chips, choices) => ({ key, role: 'assistant', text, ...(chips ? { chips } : {}), ...(choices?.length ? { choices } : {}) });
 const pending = (key, text) => ({ key, role: 'assistant', pending: text });
+// What Learn reads in place of the Run catalogue document (codebase-index-spec.md section 4): the overview's own fields under the names the flow already reads (doc.learn.options and cannot,
+// doc.summary), with no routes, so the opening has no Run it row.
+export const indexDoc = (repo, index) => ({ repo, summary: index.summary, routes: [], learn: { options: index.options || [], cannot: (index.cannot || []).map(c => ({ kind: 'index', ...c })) } }); // learnOf keeps a cannot that has a kind
 export const RETRY_CATALOGUE = { id: 'retry:catalogue', label: 'Retry' };
 export const RETRY_ROUTE = { id: 'retry:route', label: 'Retry' };
 export const RETRY_LEARN = { id: 'retry:learn', label: 'Retry' };
@@ -83,8 +86,9 @@ export function flowMessages(state, { repo, run = runIt }) {
   // 1. before the catalogue: indexing, its failure, the catalogue's failure
   if (g?.indexing === 'failed') return [note('indexing-failed', indexingFailure(name, g?.catalogue?.error))];
   if (!doc) {
-    if (cat === 'failed' || state.docError) return [note('catalogue-failed', SENTENCES.catalogueFailed(name), [RETRY_CATALOGUE])];
-    return [pending('indexing', !g || ['queued', 'indexing'].includes(g.indexing) ? `Reading ${name}` : `Working out how ${name} can be used`)];
+    // Learn path (Run it off): the codebase index is what is read, so its failure and its wait have their own words (codebase-index-spec.md section 4); the catalogue sentence is Run it's.
+    if (cat === 'failed' || state.docError) return [note(run ? 'catalogue-failed' : 'index-failed', run ? SENTENCES.catalogueFailed(name) : SENTENCES.indexFailed(name), [RETRY_CATALOGUE])];
+    return [pending('indexing', !g || ['queued', 'indexing'].includes(g.indexing) ? `Reading ${name}` : run ? `Working out how ${name} can be used` : `Working out what ${name} offers`)];
   }
   // 2. Intake asked once (intake-once-spec.md, owner 2026-11-18 22:09): the question is ONE message in the thread (askIntake appends it to the log), never pinned here.
   // Until it is asked, a catalogue still adding its Learn options says so (transient, like the indexing line above).

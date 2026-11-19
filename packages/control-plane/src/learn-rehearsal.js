@@ -214,8 +214,11 @@ async function canvasRepositoryRow(env, access) {
 
 // Start the catalogue for a repository version, unless R2 already has it or it is running: called by the repository import when the snapshot turns ready (repositories.js).
 // `retry` also restarts a failed one. -> the DO's reply ({status, ...}), or null when the controller is not set up here (nothing is started).
+// Run it (the route catalogue and the rehearsals) is off unless the server flag RUN_IT is 'true' (codebase-index-spec.md section 4, owner 2026-11-19): off in every config. Learn reads the
+// codebase index (learn-index.js), never the catalogue, so nothing here starts or reads one while it is off.
+export const runItOn = env => env.RUN_IT === 'true';
 export async function startCatalogue(env, repo, { retry = false } = {}) {
-  if (!env.REPOSITORY_REHEARSALS || !configured(env)) return null;
+  if (!runItOn(env) || !env.REPOSITORY_REHEARSALS || !configured(env)) return null;
   if (await storedCatalogue(env, repo)) return { status: 'ready' };
   const key = await rehearsalKey(repo.id, repo.commit, CATALOGUE), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
   const seen = await actor.fetch('https://rehearsal/status');
@@ -366,8 +369,10 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
     if (!row) return json({ error: 'no_repository' }, 409);
     const indexed = row.status === 'ready' && row.commit, repo = indexed ? { id: row.id, repo: row.repo, commit: row.commit } : null;
     const indexing = ['queued', 'indexing', 'failed'].includes(row.status) ? row.status : indexed ? 'ready' : 'indexing';
+    if (action && !runItOn(env)) return json({ error: 'run_it_off' }, 409);
     if (action === 'start') return repo ? await startRoute(env, repo, routeId, access) : json({ error: 'not_indexed' }, 409);
     if (!repo) return json({ indexing, repo: row.repo, catalogue: indexing === 'failed' ? { status: 'failed', error: 'The repository could not be indexed.' } : { status: 'queued' } }); // the catalogue waits for the snapshot
+    if (!runItOn(env)) return json({ indexing, repo: row.repo, catalogue: { status: 'queued' }, routes: [] }); // Run it is off: the catalogue is neither started nor read
     // GET and {action:'catalogue'}: the catalogue state; a ready repository with no catalogue job (an import older than the trigger) starts one here; only the owner's action retries a failed one
     const { state, doc, learn } = await catalogueState(env, repo, { start: true, retry: action === 'catalogue' });
     const out = { indexing, catalogue: state, ...(learn && learn.status !== 'ready' ? { learn } : {}), ...(action === 'catalogue' && doc ? { catalogueDoc: doc } : {}), routes: await routeStates(env, repo, doc) };

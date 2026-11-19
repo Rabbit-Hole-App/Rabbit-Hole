@@ -19,7 +19,7 @@ const KIND = Symbol('usage attempt kind');
 export const FEATURES = ['ask', 'auto', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
   'image', 'image_generate', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
-  'webpage_capture', 'explanation_summary', 'explanation_script', 'explanation_audio', 'learn_intro', 'learn_open', 'learn_fit', 'learn_plan', 'learn_section'];
+  'webpage_capture', 'explanation_summary', 'explanation_script', 'explanation_audio', 'learn_intro', 'learn_open', 'learn_index', 'learn_fit', 'learn_plan', 'learn_section'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
 
 // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.

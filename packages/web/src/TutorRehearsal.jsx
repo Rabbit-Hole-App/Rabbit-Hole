@@ -7,9 +7,10 @@ import { coachingCanvas } from './learn-coaching-client.js';
 import { goalOf, useOf } from './learn-codebase-goals.js';
 import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText, routeLearnText } from './codebase-use-route.js';
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
+import { runIt } from './flags.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
-import { appendOpening, askIntake, fallbackOpening, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, openingEntry, openingKey, openingMessage, optionsOpen, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
+import { appendOpening, askIntake, indexDoc, fallbackOpening, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, openingEntry, openingKey, openingMessage, optionsOpen, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
 import { newThreadId, saveTutorEntry } from './chat-persist.js';
 import { SOURCE_ARRIVED_EVENT, openBody, sourceArrived } from './source-arrived.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
@@ -31,6 +32,7 @@ import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 // Under the indexing shimmer it polls GET (learn-rehearsal-get.json) every REHEARSAL_POLL_MS: the first Tutor line already knows whether the repository can run.
 
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
+const INDEX_POLL_MS = 3000; // a codebase index layer being built by someone is asked again this often (it costs nothing to ask)
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
 const INITIAL = { asked: 0, opening: null, openings: 0, intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], section: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
@@ -116,9 +118,26 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     return { status: mine && mine.status !== 'none' ? mine.status : previous?.status || 'queued', step: mine?.step ?? previous?.step, attempt: previous?.attempt, error: mine?.error, record: data.record || null };
   };
 
+  // Learn's own read (codebase-index-spec.md section 4, owner 2026-11-19): the overview layer of the codebase index, built once per repository and commit and stored; the Run catalogue is neither
+  // started nor read unless Run it is on (runIt). Building by someone else is asked again; a failed build is said once and waits for Retry (a build costs, so it is never repeated by itself).
+  const indexPoll = async () => {
+    if (!live.current) return;
+    let again = true;
+    patch(old => (old.doc ? {} : { get: { indexing: 'ready', catalogue: { status: 'queued' } } })); // "Working out what <name> offers"
+    try {
+      const out = await codebasePost(chatRef.current, board, { action: 'learn_index', layer: 'overview' });
+      fails.current = 0;
+      if (!live.current) return;
+      if (out.status === 'ready' && out.index) { patch({ doc: indexDoc(repoRef.current?.repo, out.index), docError: false, get: { indexing: 'ready', catalogue: { status: 'ready' } } }); again = false; }
+    } catch (error) {
+      if ([422, 502, 503].includes(error?.status) || ++fails.current >= FAILS) { again = false; if (live.current) patch({ docError: true }); }
+    }
+    if (again && live.current) timer.current = setTimeout(indexPoll, INDEX_POLL_MS);
+  };
   // The one poll: the catalogue first (its state, then the document), then the chosen route's rehearsal. It stops when it has what it waits for.
   const poll = async () => {
     if (!live.current) return;
+    if (!runIt) return indexPoll();
     let again = true;
     try {
       const data = await api(url(route.current));
@@ -164,7 +183,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     }, 4000);
     return () => clearInterval(tick);
   }, [waiting]); // eslint-disable-line react-hooks/exhaustive-deps
-  const retryCatalogue = () => { patch({ docError: false, get: null }); fails.current = 0; clearTimeout(timer.current); fetchDoc().then(done => { if (!done) poll(); }); };
+  const retryCatalogue = () => { patch({ docError: false, get: null }); fails.current = 0; clearTimeout(timer.current); if (!runIt) { indexPoll(); return; } fetchDoc().then(done => { if (!done) poll(); }); };
 
   // The chosen route's rehearsal: POST start, then the same poll with the route.
   const startRoute = async (routeId, title) => {

@@ -256,7 +256,7 @@ export async function sourceDrift(sourceRefs, snapshot) {
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const ACTION_ID = /^[A-Za-z0-9_-]{8,120}$/;
-const READ_ONLY = new Set(['learn_intro', 'learn_open', 'learn_fit', 'learn_plan', 'learn_plan_save', 'learn_section_brief', 'learn_section_compose', 'learn_section_make', 'learn_section_made', 'learn_section_next']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
+const READ_ONLY = new Set(['learn_intro', 'learn_open', 'learn_index', 'learn_fit', 'learn_plan', 'learn_plan_save', 'learn_section_brief', 'learn_section_compose', 'learn_section_make', 'learn_section_made', 'learn_section_next']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
 
 // The canvas's project repository, as projectRepository (canvases.js) reads it: the learner's own import, not in Trash, indexed.
 export async function canvasRepository(env, access) {
@@ -477,6 +477,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
     if (body.action === 'learn_intro') return await metered(env, access, 'learn_intro', scoped => learnIntro(scoped, snapshot, body.learn, deps));
     if (body.action === 'learn_plan') return await metered(env, access, 'learn_plan', scoped => learnPlanAction(scoped, snapshot, body, deps, actor));
     if (body.action === 'learn_plan_save') return await learnPlanSave(env, actor, body);
+    if (body.action === 'learn_index') return await metered(env, access, 'learn_index', async scoped => (await import('./learn-index.js')).runIndex(scoped, { repo, snapshot }, body, deps)); // the index layers (codebase-index-spec.md); loaded on use, as the section modules
     if (body.action === 'learn_fit') return await metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
     if (body.action === 'learn_section_brief') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-brief.js')).runBrief(scoped, { actor, snapshot }, body, deps)); // the section modules load on use: chat-tools.js reaches canvases.js, which imports this file
     if (body.action === 'learn_section_make') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-make.js')).runMake(scoped, { actor, snapshot, repo: { id: repo.id, app: repo.app, repo: repo.repo, commit: repo.commit } }, body, deps));
