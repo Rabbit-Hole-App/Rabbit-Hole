@@ -1,5 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap, wrapShared } from './primitives.js';
 import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
 import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
 
@@ -44,8 +44,10 @@ function heatmap(d, requested, options) {
     let top = PAD;
     if (d.columnLabel) top = textBlock(elements, d.columnLabel, left, top, width - left - PAD, { weight: 700, ...(sizes?.heading ? { size: sizes.heading } : {}) }) + 8; // today the title is wrapped at 14 and drawn at the label default 15: kept when no size is asked
     const titleBlock = top - PAD;
-    const heads = d.columns.map(text => wrap(text, cellWidth - 14, body));
-    const rowHeading = d.rowLabel ? wrap(d.rowLabel, rowWidth - 16, body) : [];
+    // MAT-F: the column headings and the row label (the header row) share one size, and the row headings share one: the smallest any of them needs.
+    const [rowText, ...heads] = wrapShared([d.rowLabel ?? '', ...d.columns], [rowWidth - 16, ...d.columns.map(() => cellWidth - 14)], body);
+    const rowHeading = d.rowLabel ? rowText : [];
+    const rowTitles = wrapShared(d.rows.map(row => row.label), rowWidth - 16, body);
     const headHeight = Math.max(34, ...[...heads, rowHeading].map(lines => lines.length * lineHeight(body) + 12));
     if (d.rowLabel) elements.push(label(rowHeading, PAD + 6, top + headHeight / 2, { anchor: 'start', weight: 700, size: body }));
     d.columns.forEach((_, column) => {
@@ -57,7 +59,7 @@ function heatmap(d, requested, options) {
     const highlighted = new Set((d.highlights ?? []).map(cell => `${cell.row}:${cell.column}`));
     let rowsHeight = 0;
     d.rows.forEach((row, rowIndex) => {
-      const rowLines = wrap(row.label, rowWidth - 16, body);
+      const rowLines = rowTitles[rowIndex];
       const cellLines = row.cells.map(value => wrap(value === null ? 'Masked' : String(value), cellWidth - 12, body));
       const height = Math.max(44, rowLines.length * lineHeight(body) + 12, ...cellLines.map(lines => lines.length * lineHeight(body) + 12)) + rowExtra(rowIndex);
       elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700, size: body }));
