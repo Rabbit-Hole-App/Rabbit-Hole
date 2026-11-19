@@ -1,7 +1,7 @@
 // The text side of a dropped document (docs/features/learn-sections/roadmap-unplug-spec.md section B): pure, no model and no storage, so the overview builder (learn-index.js) and the
 // store (learn-document.js) both import it without a cycle.
 //
-//   sectionsOf({ kind, name, text, pages }) -> [{ key, title, text }]   markdown: one section per heading ('#intro'); pdf: one per page ('p.3')
+//   sectionsOf({ kind, name, text, pages }) -> [{ key, title, text }]   markdown: one section per heading ('s/intro'); pdf: one per page ('p.3')
 //   documentSnapshot({ sha, name, kind, sections }) -> a snapshot { version: 'document-1', repo: 'file:<sha>', commit: <sha>, files: { <key>: text }, graph } the repository tools read
 //   documentDigest(snapshot) -> the text the overview is written from (outline first, then the first 24 KB)
 export const DOC_KINDS = ['markdown', 'pdf'];
@@ -18,7 +18,7 @@ const slugOf = title => String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').
 export function sectionsOf({ kind, name = 'document', text = '', pages = [] }) {
   if (kind === 'pdf') return pages.map((page, i) => ({ key: `p.${i + 1}`, title: `Page ${i + 1}`, text: String(page || '') })).filter(s => s.text.trim());
   const sections = [], seen = new Map();
-  let current = { key: '#start', title: 'Start', lines: [] }, fenced = false;
+  let current = { key: 's/start', title: 'Start', lines: [] }, fenced = false;
   const close = () => { const body = current.lines.join('\n'); if (body.trim()) sections.push({ key: current.key, title: current.title, text: body }); };
   for (const line of String(text).split('\n')) {
     if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
@@ -26,11 +26,11 @@ export function sectionsOf({ kind, name = 'document', text = '', pages = [] }) {
     if (heading) {
       close();
       const slug = slugOf(heading[1]), n = (seen.get(slug) || 0) + 1; seen.set(slug, n);
-      current = { key: `#${n > 1 ? `${slug}-${n}` : slug}`, title: heading[1].trim().slice(0, 120), lines: [line] };
+      current = { key: `s/${n > 1 ? `${slug}-${n}` : slug}`, title: heading[1].trim().slice(0, 120), lines: [line] };
     } else current.lines.push(line);
   }
   close();
-  if (sections.length === 1 && sections[0].key === '#start') sections[0] = { ...sections[0], key: '#document', title: String(name).slice(0, 120) };
+  if (sections.length === 1 && sections[0].key === 's/start') sections[0] = { ...sections[0], key: 's/document', title: String(name).slice(0, 120) };
   return sections;
 }
 

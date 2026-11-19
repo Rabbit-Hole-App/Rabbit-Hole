@@ -2,7 +2,7 @@
 // is read like a repository. Its text is stored once by sha256 (R2 learn-repositories-dev/shared/files/<sha>/text.json), cut into sections, and every section is a "file" of a
 // snapshot-shaped object, so read_source, search_code, the anchors checks and the Learn plan, brief and Make read it where they read a repository (sourceText = loadDocumentSnapshot).
 //
-//   sectionsOf({ kind, name, text, pages }) -> [{ key, title, text }]   markdown: one section per heading ('#intro'); pdf: one per page ('p.3')
+//   sectionsOf({ kind, name, text, pages }) -> [{ key, title, text }]   markdown: one section per heading ('s/intro'); pdf: one per page ('p.3')
 //   documentSnapshot({ sha, name, kind, sections }) -> a snapshot { repo: 'file:<sha>', commit: <sha>, files: { <key>: text }, graph } the repository tools read
 //   documentDigest(snapshot, { name, kind }) -> the text the overview is written from (outline first, then the first 24 KB)
 //   canvasDocument(env, access, app) -> { docSha, id: 0, app, repo: 'file:<sha>', commit: <sha>, name, kind } | null   the one document that started this canvas's Tutor

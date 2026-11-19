@@ -92,3 +92,29 @@ test('learn_section_compose: one submit over the stored brief; tools are reading
   f.deps.callModel = scripted(motion(), motion(), motion());
   assert.deepEqual((await f.post({ action: 'learn_section_compose', sectionId: '1.1', redo: true })).body, { error: 'sectionComposeFailed', words: SECTION_COMPOSE_FAILED }, 'refused three times (the answer and two repairs, Reviewer 19:55): the sentence, never silent');
 });
+
+// A dropped document as the source (roadmap-unplug-spec.md section B; learn-section-make-spec.md section 4): no code and no notebook are offered, the message names the source and the
+// reading-then-explanation pairing, and a reading followed by an explanation made after it is accepted.
+import { runCompose, documentSourceLine } from '../src/learn-section-compose.js';
+test('learn_section_compose for a document source: code and notebook are not offered, the source is named, a reading paired with an explanation after it is accepted', async t => {
+  const f = await sectionSetup(t);
+  f.env.EXPLAIN_V2_ENABLED = 'true';
+  await updateSection(f.env, ACTOR, '1.1', () => ({ brief }));
+  const reading = item('i1', 'b1', 'document'), paired = item('i2', 'b1', 'explanation', { after: 'i1' }), video = item('i3', 'b2', 'youtube', { lookFor: 'the stale copy' });
+  const callModel = scripted(toolUse('submit_section_composition', { items: [reading, paired, video] }, 's1'));
+  const res = await runCompose(f.env, { actor: ACTOR, email: 'ana@test', document: { kind: 'markdown', name: 'notes.md' } }, { sectionId: '1.1' }, { callModel });
+  const body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  assert.deepEqual(body.composition.items.map(i => [i.id, i.command, i.after]), [['i1', 'document', null], ['i2', 'explanation', 'i1'], ['i3', 'youtube', null]]);
+  const message = callModel.calls[0].body.messages[0].content;
+  assert.ok(!/\nnotebook: /.test(message) && !/\ncode: /.test(message), 'the tools list leaves out code and notebook');
+  assert.match(message, /\ndocument: /);
+  assert.ok(message.includes(documentSourceLine({ kind: 'markdown', name: 'notes.md' })));
+  assert.match(message, /SOURCE: a Markdown file the learner dropped on the canvas, "notes\.md"\. .*There is no code to show or run.*after names the reading/);
+  assert.ok(!(await readSection(f.env, ACTOR, '1.1')).composition.toolsOffered.some(c => c === 'code' || c === 'notebook'));
+  const refused = scripted(toolUse('submit_section_composition', { items: [item('i1', 'b1', 'notebook', { content: 'authored' }), video] }, 's2'), toolUse('submit_section_composition', { items: [reading, video] }, 's3'));
+  const again = await (await runCompose(f.env, { actor: ACTOR, email: 'ana@test', document: { kind: 'pdf', name: 'paper.pdf' } }, { sectionId: '1.1', redo: true }, { callModel: refused })).json();
+  assert.match(refused.calls[1].body.messages.at(-1).content[0].content, /item i1: notebook is not one of the tools you were given/);
+  assert.deepEqual(again.composition.items.map(i => i.command), ['document', 'youtube']);
+  assert.match(refused.calls[0].body.messages[0].content, /SOURCE: a PDF the learner dropped/);
+});

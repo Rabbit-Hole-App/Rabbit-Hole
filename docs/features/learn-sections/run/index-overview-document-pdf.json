@@ -5,21 +5,21 @@
     "pages": 2,
     "characters": 3593
   },
-  "summary": "A design spec for how the Tutor opens a conversation once a source (a repository now, other document types later) has been read. It describes one arrival event, a Tutor-written opening question with topic rows, a fallback sentence, saving the opening in the chat thread, and the tests that cover it.",
+  "summary": "This spec describes how the Tutor opens a conversation when a new source (today a repository, later Markdown, PDF or slides) arrives. A single arrival event leads to a Tutor-written opening question with topic rows. The opening is saved in the chat thread so a reload does not write it again.",
   "options": [
     {
       "id": "one-arrival-event",
       "label": "One event for any source",
-      "what": "How a single arrival event carries the kind, summary, options, cannot and run ability, so any source type can use the same call.",
+      "what": "You will see how one arrival event with the same shape serves every kind of source, and what a repository sends when its reading finishes.",
       "anchors": [
         "p.1"
       ],
       "kind": "interface"
     },
     {
-      "id": "tutor-written-opening",
+      "id": "tutor-writes-opening",
       "label": "How the Tutor writes the opening",
-      "what": "How a metered server action turns the arrival facts into two or three plain sentences ending in a question, without reading the source itself.",
+      "what": "You will see how a server action turns the source's summary and options into two or three short sentences ending in a question, with no repository read.",
       "anchors": [
         "p.1"
       ],
@@ -28,7 +28,7 @@
     {
       "id": "opening-in-thread",
       "label": "Opening joins the chat thread",
-      "what": "How the opening and its topic rows become a message, fall back to a fixed sentence on failure, and go grey once a topic is chosen.",
+      "what": "You will see how the opening and its option rows become one Tutor message, how a fixed sentence covers a failed call, and when a new opening is written.",
       "anchors": [
         "p.1"
       ],
@@ -37,7 +37,7 @@
     {
       "id": "run-it-flag",
       "label": "The Run it option and flag",
-      "what": "How a default-off flag adds a Run it row when the source can run.",
+      "what": "You will see how a feature flag, off by default, decides whether the rows offer running the source first.",
       "anchors": [
         "p.1"
       ],
@@ -46,7 +46,7 @@
     {
       "id": "saved-openings",
       "label": "Saving and restoring openings",
-      "what": "How each opening is stored as a Tutor entry so a reload brings it back with live rows and no second call.",
+      "what": "You will see how each opening is stored as a Tutor entry so a reload restores it without asking the model again.",
       "anchors": [
         "p.1",
         "p.2"
@@ -54,9 +54,9 @@
       "kind": "data"
     },
     {
-      "id": "tests-covering-it",
+      "id": "tests-covering-intake",
       "label": "What the tests check",
-      "what": "Which tests cover asking once, the fallback, the exact prompt and the flag.",
+      "what": "You will see which behaviours the tests pin down: asked once, no extra rows on re-render, failure fallback, and the exact prompt.",
       "anchors": [
         "p.1"
       ],
@@ -66,24 +66,24 @@
   "cannot": [
     {
       "thing": "The actual code behind the mechanism",
-      "why": "It names files and functions but shows no code, so behaviour beyond the description cannot be checked here."
+      "why": "The document only describes the design and names the files, and it includes no code."
     },
     {
-      "thing": "Worked examples of an opening",
-      "why": "No sample opening text or event payload with real values is given."
+      "thing": "The full wording of the opening prompt",
+      "why": "Only a summary of the prompt is given, and the exact sentence is in a separate file."
     },
     {
-      "thing": "How non-repository sources are read",
-      "why": "Only the event shape is built now; Markdown, PDF and slides are mentioned as future."
+      "thing": "Handling of Markdown, PDF or slides sources",
+      "why": "The document says only the event's shape is built now and the other kinds come later."
     }
   ],
   "meta": {
     "layer": "overview",
     "scope": "",
-    "usd": 0.011288,
-    "seconds": 5.8,
+    "usd": 0.011618,
+    "seconds": 6.7,
     "calls": 1,
     "model": "claude-sonnet-5-5",
-    "builtAt": "2026-11-19T20:04:33.166Z"
+    "builtAt": "2026-11-19T20:19:45.306Z"
   }
 }

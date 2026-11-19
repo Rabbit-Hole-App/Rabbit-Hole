@@ -83,7 +83,12 @@ export function validateComposition(input, { sectionId, brief, commands, check }
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const publicComposition = ({ sectionId, items }) => ({ sectionId, items });
 const briefOf = ({ sectionId, from, beats, to }) => ({ sectionId, from, beats, to });
-export async function runCompose(env, { actor, email }, body, { callModel = loggedModel('learn_section', anthropic), capUsd = COMPOSE_CAP_USD } = {}) {
+// A dropped document as the source (roadmap-unplug-spec.md section B; learn-section-make-spec.md section 4): it has no code to show or run, so code and notebook are not offered, and a beat
+// best read is a reading of the learner's own passage (the document tool) with an explanation made after it (the existing pairing: after names the reading).
+export const documentSourceLine = ({ kind, name }) => `SOURCE: ${kind === 'pdf' ? 'a PDF' : 'a Markdown file'} the learner dropped on the canvas, ${JSON.stringify(name || 'the document')}. The beats' anchors are its sections (a heading such as #introduction, or a page such as p.3). `
+  + 'There is no code to show or run, so code and notebook are not offered. For a beat that is best read, use the document tool for a reading that carries the source\'s own passage in its quote, '
+  + 'then an explanation made after it (after names the reading) when the idea also wants a picture: the passage is the explanation\'s example.';
+export async function runCompose(env, { actor, email, document = null }, body, { callModel = loggedModel('learn_section', anthropic), capUsd = COMPOSE_CAP_USD } = {}) {
   const plan = await learnPlanOf(env, actor);
   if (!plan) return json({ error: 'no_accepted_plan' }, 409);
   const section = plan.sections.find(s => s.id === body.sectionId);
@@ -92,12 +97,14 @@ export async function runCompose(env, { actor, email }, body, { callModel = logg
   if (!stored?.brief) return json({ error: 'no_brief' }, 409);
   if (stored.composition && body.redo !== true) return json({ composition: publicComposition(stored.composition) });
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
-  const offered = directTools(env, email, { sectionFlow: true }), commands = offered.map(t => t.command);
-  const defs = chatToolDefs(env, email, { sectionFlow: true }).map((d, i) => `${offered[i].command}: ${d.description.split(' Calling this only')[0]}`); // the same order as directTools; the chat-only tail is left off
+  const all = directTools(env, email, { sectionFlow: true }), described = chatToolDefs(env, email, { sectionFlow: true });
+  const keep = all.map((t, i) => ({ command: t.command, def: `${t.command}: ${described[i].description.split(' Calling this only')[0]}` })).filter(t => !(document && CODE_REQUESTS.has(t.command))); // the same order as directTools; the chat-only tail is left off
+  const commands = keep.map(t => t.command), defs = keep.map(t => t.def);
   const composed = composeTutorPrompt({ task: 'learn-section-compose', use: 'learn_concept' });
   const user = [
     `SECTION: ${section.id} ${section.title}   CHAPTER: ${section.chapter.n}. ${section.chapter.title}`,
     `FOCUS: ${plan.learn.focus || 'none'}`,
+    ...(document ? [documentSourceLine(document)] : []),
     `BRIEF\n${JSON.stringify(briefOf(stored.brief))}`,
     `TOOLS (command: what it is and its limits)\n${defs.join('\n')}`,
     `Return the composition by calling submit_section_composition once; each item's command is one of: ${commands.join(', ')}.`,

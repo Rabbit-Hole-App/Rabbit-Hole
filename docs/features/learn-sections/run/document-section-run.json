@@ -1,0 +1,279 @@
+{
+  "document": "codebase-index-spec.md",
+  "canvas": "canvas-d0c00006",
+  "section": "1.1",
+  "chose": "current-system",
+  "events": [
+    {
+      "t": 0.1,
+      "what": "overview",
+      "seconds": 0.1,
+      "usd": 0.021234,
+      "options": [
+        "current-system -> s/0-what-exists-read",
+        "shared-snapshots -> s/1-shared-snapshots-priority",
+        "index-layers -> s/2-the-index-layers-stored-once-per-repos",
+        "index-as-tool -> s/3-the-index-as-a-tool",
+        "learn-without-run -> s/4-learn-no-longer-waits-for-the-run-cata s/status-claude-code-owner-stack-8878",
+        "code-changes-and-order -> s/5-when-the-code-changes s/6-order-tests-report"
+      ]
+    },
+    {
+      "t": 0.1,
+      "what": "start",
+      "status": 200,
+      "seconds": 0.1
+    },
+    {
+      "t": 11.9,
+      "what": "plan",
+      "status": 200,
+      "seconds": 11.7,
+      "rows": 5
+    },
+    {
+      "t": 12,
+      "what": "plan accepted",
+      "status": 200,
+      "outline": [
+        "1. Turning a repository into a snapshot",
+        "  What goes into the snapshot",
+        "  The size limits",
+        "2. Where the snapshot is kept",
+        "  The stored file and its address",
+        "  Why the same repository is indexed twice",
+        "3. Keeping up with new commits",
+        "  Asking for a refresh",
+        "  When a commit is already known",
+        "4. The code-search tools",
+        "  Getting your bearings",
+        "  Finding code by text and by graph",
+        "  Following connections and reading source",
+        "  Who uses the tools",
+        "5. Why Learn waited for the Run catalogue",
+        "  Where Learn topics come from",
+        "  What happens when the catalogue fails",
+        "  How the Tutor starts"
+      ]
+    },
+    {
+      "t": 21.1,
+      "what": "brief",
+      "status": 200,
+      "seconds": 9.2,
+      "beats": [
+        "b1: The idea is a snapshot: the repository is read once, by plain static extraction with no model, and turned into one JSON object that every later step reads from.",
+        "b2: The object has a fixed shape: `version`, `repo`, `commit`, then `files`, `skipped` and `graph`.",
+        "b3: `files` maps each path to its text. `skipped` records the files that were left out, so the reader knows what is missing.",
+        "b4: `graph` holds `nodes` and `edges`: nodes are things like files and symbols, and edges are the links between them. This is a map extracted from code structure, not from meaning.",
+        "b5: The snapshot is what the tools read later. `get_repo_overview` lists the first 100 file paths, the top 18 symbols by degree, and the skipped files, all from this object."
+      ],
+      "anchors": [
+        [
+          "s/0-what-exists-read:2"
+        ],
+        [
+          "s/0-what-exists-read:2"
+        ],
+        [
+          "s/0-what-exists-read:2"
+        ],
+        [
+          "s/0-what-exists-read:2"
+        ],
+        [
+          "s/0-what-exists-read:5"
+        ]
+      ]
+    },
+    {
+      "t": 26.5,
+      "what": "compose",
+      "status": 200,
+      "seconds": 5.3,
+      "items": [
+        "i1 b1 document",
+        "i2 b2 explanation after i1",
+        "i3 b3 explanation after i1",
+        "i4 b4 diagram",
+        "i5 b5 diagram"
+      ]
+    },
+    {
+      "t": 37,
+      "what": "make",
+      "item": "i1",
+      "command": "document",
+      "seconds": 10.5,
+      "outcome": "made",
+      "perform": "doc",
+      "lead": "Before anything is taught, the repository has to be turned into something the later steps can read. The spec calls that thing the snapshot. Read the passage bel",
+      "words": 155
+    },
+    {
+      "t": 43.2,
+      "what": "make",
+      "item": "i2",
+      "command": "explanation",
+      "seconds": 6.1,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The same line of the spec that named the script also gives the shape of its output. Read the braces after \"Output\": the snapshot is one object with a fixed set "
+    },
+    {
+      "t": 52.3,
+      "what": "make",
+      "item": "i3",
+      "command": "explanation",
+      "seconds": 9.1,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The snapshot has a fixed shape. Two of its parts are about the files themselves: `files` and `skipped`.\n\nHere is a tiny version of both. Look at how `files` hol"
+    },
+    {
+      "t": 58,
+      "what": "make",
+      "item": "i4",
+      "command": "diagram",
+      "seconds": 5.6,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The last part of the snapshot is `graph`, which holds two lists: `nodes` and `edges`. A node is a thing found in the code, such as a file or a symbol (a functio"
+    },
+    {
+      "t": 62.9,
+      "what": "make",
+      "item": "i5",
+      "command": "diagram",
+      "seconds": 4.9,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The snapshot is what every tool reads later. Look at `get_repo_overview`: it takes three of the snapshot's parts and puts each into its output.\n\nFollow each arr"
+    },
+    {
+      "t": 72,
+      "what": "make",
+      "item": "notes",
+      "command": "document",
+      "seconds": 9.1,
+      "outcome": "made",
+      "perform": "doc",
+      "lead": "Before the size limits, fix what the snapshot is. These notes gather the section into one place you can come back to.",
+      "words": 235
+    }
+  ],
+  "rows": [
+    {
+      "item": "i1",
+      "command": "document",
+      "seconds": 10.5,
+      "outcome": "made",
+      "perform": "doc",
+      "lead": "Before anything is taught, the repository has to be turned into something the later steps can read. The spec calls that thing the snapshot. Read the passage bel",
+      "words": 155
+    },
+    {
+      "item": "i2",
+      "command": "explanation",
+      "seconds": 6.1,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The same line of the spec that named the script also gives the shape of its output. Read the braces after \"Output\": the snapshot is one object with a fixed set "
+    },
+    {
+      "item": "i3",
+      "command": "explanation",
+      "seconds": 9.1,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The snapshot has a fixed shape. Two of its parts are about the files themselves: `files` and `skipped`.\n\nHere is a tiny version of both. Look at how `files` hol"
+    },
+    {
+      "item": "i4",
+      "command": "diagram",
+      "seconds": 5.6,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The last part of the snapshot is `graph`, which holds two lists: `nodes` and `edges`. A node is a thing found in the code, such as a file or a symbol (a functio"
+    },
+    {
+      "item": "i5",
+      "command": "diagram",
+      "seconds": 4.9,
+      "outcome": "made",
+      "perform": "slash",
+      "lead": "The snapshot is what every tool reads later. Look at `get_repo_overview`: it takes three of the snapshot's parts and puts each into its output.\n\nFollow each arr"
+    },
+    {
+      "item": "notes",
+      "command": "document",
+      "seconds": 9.1,
+      "outcome": "made",
+      "perform": "doc",
+      "lead": "Before the size limits, fix what the snapshot is. These notes gather the section into one place you can come back to.",
+      "words": 235
+    }
+  ],
+  "serverLines": [
+    {
+      "event": "learn_section_brief",
+      "calls": 2,
+      "usd": 0.028877,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_compose",
+      "calls": 1,
+      "usd": 0.015607,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_make",
+      "item": "i1",
+      "command": "document",
+      "calls": 3,
+      "usd": 0.033018,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_make",
+      "item": "i2",
+      "command": "explanation",
+      "calls": 2,
+      "usd": 0.023048,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_make",
+      "item": "i3",
+      "command": "explanation",
+      "calls": 3,
+      "usd": 0.025636,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_make",
+      "item": "i4",
+      "command": "diagram",
+      "calls": 1,
+      "usd": 0.018218,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_make",
+      "item": "i5",
+      "command": "diagram",
+      "calls": 1,
+      "usd": 0.008987,
+      "outcome": "ok"
+    },
+    {
+      "event": "learn_section_make",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "usd": 0.017684,
+      "outcome": "ok"
+    }
+  ]
+}

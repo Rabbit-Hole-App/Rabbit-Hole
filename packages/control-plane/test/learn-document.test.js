@@ -17,8 +17,8 @@ const MD = '# Gradient descent\n\nA way to find a minimum.\n\n## The step\n\nMov
 const OVERVIEW = {
   summary: 'A short note on how gradient descent finds a minimum by repeated small steps.',
   options: [
-    { id: 'the-step', label: 'The step itself', what: 'How one step moves against the slope.', anchors: ['#the-step', '#gradient-descent'], kind: 'algorithm' },
-    { id: 'step-size', label: 'How far a step goes', what: 'How the learning rate sets the size of a step.', anchors: ['#learning-rate'], kind: 'practice' },
+    { id: 'the-step', label: 'The step itself', what: 'How one step moves against the slope.', anchors: ['s/the-step', 's/gradient-descent'], kind: 'algorithm' },
+    { id: 'step-size', label: 'How far a step goes', what: 'How the learning rate sets the size of a step.', anchors: ['s/learning-rate'], kind: 'practice' },
   ],
   cannot: [],
 };
@@ -35,23 +35,23 @@ const rows = f => f.sqlite.prepare('SELECT status, usd FROM repository_index').a
 
 test('markdown is cut at its headings (a fenced # is not one, a repeated heading gets its own anchor) and a pdf at its pages', () => {
   const sections = sectionsOf({ kind: 'markdown', name: 'notes.md', text: MD });
-  assert.deepEqual(sections.map(s => s.key), ['#gradient-descent', '#the-step', '#the-step-2', '#learning-rate']);
+  assert.deepEqual(sections.map(s => s.key), ['s/gradient-descent', 's/the-step', 's/the-step-2', 's/learning-rate']);
   assert.match(sections[1].text, /^## The step\n/);
   assert.match(sections[1].text, /not a heading/, 'a fenced line stays in its section');
-  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: 'Just words.\nNo headings.' }).map(s => s.key), ['#document']);
-  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: 'Intro words\n# Title\nbody' }).map(s => s.key), ['#start', '#title']);
-  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: '# Learn mode (owner 2026-11-18 15:19 to 15:38) the walk is a layout\nbody' }).map(s => s.key), ['#learn-mode-owner-2026-11-18-15-19-to-15'], 'a long heading is cut with no trailing dash');
+  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: 'Just words.\nNo headings.' }).map(s => s.key), ['s/document']);
+  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: 'Intro words\n# Title\nbody' }).map(s => s.key), ['s/start', 's/title']);
+  assert.deepEqual(sectionsOf({ kind: 'markdown', name: 'x.md', text: '# Learn mode (owner 2026-11-18 15:19 to 15:38) the walk is a layout\nbody' }).map(s => s.key), ['s/learn-mode-owner-2026-11-18-15-19-to-15'], 'a long heading is cut with no trailing dash');
   assert.deepEqual(sectionsOf({ kind: 'pdf', name: 'p.pdf', pages: ['one', '   ', 'three'] }).map(s => [s.key, s.title]), [['p.1', 'Page 1'], ['p.3', 'Page 3']]);
 });
 
 test('the snapshot of a document is read by the repository tools and the anchors checks as a repository is', async () => {
   const sha = await sha256(MD), snapshot = documentSnapshot({ sha, name: 'notes.md', kind: 'markdown', sections: sectionsOf({ kind: 'markdown', name: 'notes.md', text: MD }) });
   assert.deepEqual([snapshot.repo, snapshot.commit], [`file:${sha}`, sha]);
-  assert.match(repositoryTool(snapshot, 'read_source', { path: '#learning-rate', start: 1, end: 3 }).content, /How far one step goes/);
-  assert.ok(repositoryTool(snapshot, 'search_code', { query: 'slope' }).matches.some(m => m.path === '#the-step'));
+  assert.match(repositoryTool(snapshot, 'read_source', { path: 's/learning-rate', start: 1, end: 3 }).content, /How far one step goes/);
+  assert.ok(repositoryTool(snapshot, 'search_code', { query: 'slope' }).matches.some(m => m.path === 's/the-step'));
   const exists = repositoryAnchors(snapshot);
-  assert.ok(exists('#the-step') && exists('#the-step:1-3') && !exists('#nowhere') && !exists('p.3'));
-  assert.equal(fileRole('#the-step'), 'source');
+  assert.ok(exists('s/the-step') && exists('s/the-step:1-3') && !exists('s/nowhere') && !exists('p.3'));
+  assert.equal(fileRole('s/the-step'), 'source');
   assert.equal(fileRole('p.3'), 'source');
   const pdf = documentSnapshot({ sha, name: 'paper.pdf', kind: 'pdf', sections: sectionsOf({ kind: 'pdf', pages: ['alpha', 'beta'] }) });
   assert.ok(repositoryAnchors(pdf)('p.2') && repositoryTool(pdf, 'read_source', { path: 'p.2' }).content.includes('beta'));
@@ -62,7 +62,7 @@ test('the digest is deterministic: the outline first with each anchor, then the 
   assert.equal(documentDigest(make(MD)), documentDigest(make(MD)));
   const text = documentDigest(make(MD));
   assert.match(text, /^Document: notes\.md \(Markdown, 4 sections\)\n\nOutline/);
-  assert.ok(text.indexOf('#learning-rate | Learning rate') < text.indexOf('Text (the first 24 KB'), 'the outline comes first');
+  assert.ok(text.indexOf('s/learning-rate | Learning rate') < text.indexOf('Text (the first 24 KB'), 'the outline comes first');
   const big = documentDigest(make(`# Big\n${'word '.repeat(20000)}`));
   assert.ok(big.length < 27 * 1024, 'the text is cut');
 });
@@ -81,7 +81,7 @@ test('a dropped markdown file: stored by its hash, recorded as the canvas docume
   assert.deepEqual({ ...f.sqlite.prepare('SELECT sha, kind, name, block_id FROM canvas_document WHERE app=?').get(CANVAS) }, { sha, kind: 'markdown', name: 'notes.md', block_id: 'b1' });
   const doc = await canvasDocument(f.env, f.access, CANVAS);
   assert.deepEqual([doc.repo, doc.name, doc.kind], [`file:${sha}`, 'notes.md', 'markdown']);
-  assert.ok(Object.hasOwn((await loadDocumentSnapshot(f.env, doc)).files, '#learning-rate'), 'the Learn actions read the stored text');
+  assert.ok(Object.hasOwn((await loadDocumentSnapshot(f.env, doc)).files, 's/learning-rate'), 'the Learn actions read the stored text');
   const again = await runDocumentIndex(f.env, { access: f.access, canvas: CANVAS }, { layer: 'overview', source: { kind: 'markdown', name: 'notes.md', text: MD } }, { callModel: scripted() });
   assert.deepEqual([(await again.json()).status, rows(f).length], ['ready', 1], 'no model call the second time');
 });
@@ -132,6 +132,10 @@ test('the route: a drop starts the Tutor, a reload finds it, and the Learn actio
   const intro = await call('POST', { action: 'learn_intro', learn: { ...OVERVIEW.options[0], what: OVERVIEW.options[0].what } });
   assert.equal(intro.status, 200, JSON.stringify(await intro.clone().json()));
   assert.match((await intro.json()).text, /slope/);
-  assert.match(deps.callModel.calls[0].body.messages[0].content, /Files: #the-step, #gradient-descent/, 'the model reads the sections the topic names');
+  assert.match(deps.callModel.calls[0].body.messages[0].content, /Files: s\/the-step, s\/gradient-descent/, 'the model reads the sections the topic names');
   assert.match(deps.callModel.calls[0].body.messages[0].content, /Move against the slope/);
+  // The learner picks the topic: the goal starts on the document's sections (a source map from the anchors), as it does on a repository.
+  const started = await (await call('POST', { action: 'start', goal: 'learn_concept', learn: OVERVIEW.options[0], actionId: 'start-doc-0001', expectedRevision: 0 })).json();
+  assert.equal(started.route, 'started', JSON.stringify(started).slice(0, 200));
+  assert.ok(started.map.nodes.length > 0 && started.map.nodes.some(n => n.path === 's/the-step'));
 });
