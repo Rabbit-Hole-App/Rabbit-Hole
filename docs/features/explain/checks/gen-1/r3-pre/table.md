@@ -1,31 +1,31 @@
 | cell | depth | prompt (cut) | planner kind (REF run) | reference | reference kind | exact | REF delivered | planner p(own kind) PLAN run | top 3 | PLAN delivered | PLAN honest failure / repairs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | balanced | What happens to a skewed distribution when we ta | histogram | ml-raw-log-distributions | comparison | false | comparison | n/a | not run | not run | not run |
-| 2 | balanced | How does Bayesian optimization decide which sett | cycle | ml-bayesian-acquisition-choice | matrix | true | matrix | n/a | not run | not run | not run |
-| 3 | balanced | How does successive halving decide which trials  | tree | ml-successive-halving-rounds | matrix | true | matrix | n/a | not run | not run | not run |
-| 4 | balanced | how does attention work in a transformer? | token-links | ml-transformer-attention | matrix | true | matrix | n/a | not run | not run | not run |
-| 5 | balanced | How do attention scores turn into weights? | transformation | ml-transformer-attention-softmax | token-links | true | token-links | n/a | not run | not run | not run |
-| 6 | balanced | How does the transformer decoder avoid looking a | token-links | ml-transformer-causal-mask | heatmap | true | heatmap | n/a | not run | not run | not run |
-| 7 | balanced | Why does a transformer use more than one attenti | token-links | ml-transformer-parallel-attention-heads-single | comparison | true | bar-chart | n/a | not run | not run | not run |
-| 8 | balanced | How does a transformer get a match score between | token-links | ml-transformer-scaled-attention-scores | matrix | true | matrix | n/a | not run | not run | not run |
-| 9 | balanced | How does a transformer mix the word values after | token-links | ml-transformer-weighted-values | block-stack | true | block-stack | n/a | not run | not run | not run |
-| 10 | balanced | How does a transformer get query, key and value  | tensor | ml-transformer-qkv-projections | transformation | true | transformation | n/a | not run | not run | not run |
-| 11 | detailed | how does cross-validation detect overfitting? | bar-chart | knn-k-validation | null | null | coordinate-plot | n/a | not run | not run | not run |
-| 12 | detailed | How do attention scores turn into weights? | transformation | ml-transformer-attention-softmax | token-links | true | token-links | n/a | not run | not run | not run |
-| 13 | detailed | How does the transformer decoder avoid looking a | token-links | ml-transformer-causal-mask | heatmap | true | heatmap | n/a | not run | not run | not run |
-| 14 | detailed | Why does a transformer use more than one attenti | token-links | ml-transformer-parallel-attention-heads-single | comparison | true | bar-chart | n/a | not run | not run | not run |
-| 15 | detailed | How does a transformer get a match score between | token-links | ml-transformer-scaled-attention-scores | matrix | true | matrix | n/a | not run | not run | not run |
-| 16 | detailed | How does a transformer mix the word values after | token-links | ml-transformer-weighted-values | block-stack | true | block-stack | n/a | not run | not run | not run |
-| 17 | balanced | why does a bootstrap sample contain only about 6 | sample-set | ml-trees-bootstrap-coverage | coordinate-plot | true | coordinate-plot | n/a | not run | not run | not run |
-| 18 | balanced | compare impurity-based feature importance with p | comparison | ml-trees-feature-importance | bar-chart | true | bar-chart | n/a | not run | not run | not run |
-| 19 | balanced | how do I compute the Gini impurity on both sides | tree | ml-trees-gini-split | matrix | true | matrix | n/a | not run | not run | not run |
-| 20 | balanced | How does a transformer turn scores into a guess  | flow | ml-transformer-vocabulary-softmax | bar-chart | true | bar-chart | n/a | not run | not run | not run |
-| 21 | balanced | How does next-token training compare a probabili | comparison | ml-transformer-one-hot-target | matrix | true | matrix | n/a | not run | not run | not run |
-| 22 | balanced | How does rescaling a personality score help expl | coordinate-plot | ml-word2vec-trait-rescale | number-line | true | number-line | n/a | not run | not run | not run |
-| 23 | brief | How do IQR fences flag outliers in a box plot? U | flow | iqr-fences-and-outliers | null | null | box-plot | n/a | not run | not run | not run |
-| 24 | brief | Show a box plot of exam scores 52, 55, 61, 64, 6 | flow | iqr-fences-and-outliers | null | null | box-plot | n/a | not run | not run | not run |
-| 25 | brief | How do I read a box plot of delivery times 12, 1 | flow | iqr-fences-and-outliers | null | null | box-plot | n/a | not run | not run | not run |
-| 26 | brief | Explain quartiles, the median and whiskers on a  | flow | iqr-fences-and-outliers | null | null | box-plot | n/a | not run | not run | not run |
-| 27 | brief | What does the 1.5 x IQR rule do to a box plot of | transformation | iqr-fences-and-outliers | null | null | box-plot | n/a | not run | not run | not run |
-| 28 | balanced | How can I compare encoder self-attention heatmap | comparison | d2l-transformer-encoder-head-weight-grids | heatmap | true | heatmap+comparison | n/a | not run | not run | not run |
-| 29 | balanced | Can you show the numbers when forward diffusion  | transformation | ml-stable-diffusion-forward-noise | heatmap | true | heatmap | n/a | not run | not run | not run |
+| 1 | balanced | What happens to a skewed distribution when we ta | histogram | ml-raw-log-distributions | comparison | false | comparison | 0.55 | histogram 0.55, transformation 0.38, coordinate-plot 0.04 | transformation | no / 1 |
+| 2 | balanced | How does Bayesian optimization decide which sett | cycle | ml-bayesian-acquisition-choice | matrix | true | matrix | 0.55 | cycle 0.55, coordinate-plot 0.23, flow 0.20 | cycle | no / 0 |
+| 3 | balanced | How does successive halving decide which trials  | tree | ml-successive-halving-rounds | matrix | true | matrix | 0.42 | tree 0.42, flow 0.21, cycle 0.16 | flow | no / 0 |
+| 4 | balanced | how does attention work in a transformer? | token-links | ml-transformer-attention | matrix | true | matrix | 0.93 | token-links 0.93, block-stack 0.06, heatmap 0.01 | token-links | no / 0 |
+| 5 | balanced | How do attention scores turn into weights? | transformation | ml-transformer-attention-softmax | token-links | true | token-links | 0.61 | transformation 0.61, token-links 0.23, bar-chart 0.08 | transformation | no / 0 |
+| 6 | balanced | How does the transformer decoder avoid looking a | token-links | ml-transformer-causal-mask | heatmap | true | heatmap | 0.72 | token-links 0.72, block-stack 0.14, heatmap 0.11 | token-links | no / 0 |
+| 7 | balanced | Why does a transformer use more than one attenti | token-links | ml-transformer-parallel-attention-heads-single | comparison | true | bar-chart | 0.58 | token-links 0.58, comparison 0.16, block-stack 0.14 | token-links | no / 0 |
+| 8 | balanced | How does a transformer get a match score between | token-links | ml-transformer-scaled-attention-scores | matrix | true | matrix | 0.67 | token-links 0.67, heatmap 0.09, block-stack 0.09 | token-links | no / 0 |
+| 9 | balanced | How does a transformer mix the word values after | token-links | ml-transformer-weighted-values | block-stack | true | block-stack | 0.61 | token-links 0.61, tensor 0.15, block-stack 0.10 | token-links | no / 0 |
+| 10 | balanced | How does a transformer get query, key and value  | tensor | ml-transformer-qkv-projections | transformation | true | transformation | 0.61 | tensor 0.61, transformation 0.22, block-stack 0.10 | tensor | no / 1 |
+| 11 | detailed | how does cross-validation detect overfitting? | bar-chart | knn-k-validation | null | null | coordinate-plot | 0.52 | bar-chart 0.52, coordinate-plot 0.27, cycle 0.11 | coordinate-plot | no / 0 |
+| 12 | detailed | How do attention scores turn into weights? | transformation | ml-transformer-attention-softmax | token-links | true | token-links | 0.52 | transformation 0.52, token-links 0.26, bar-chart 0.10 | token-links | no / 0 |
+| 13 | detailed | How does the transformer decoder avoid looking a | token-links | ml-transformer-causal-mask | heatmap | true | heatmap | 0.70 | token-links 0.70, block-stack 0.15, heatmap 0.13 | token-links | no / 1 |
+| 14 | detailed | Why does a transformer use more than one attenti | token-links | ml-transformer-parallel-attention-heads-single | comparison | true | bar-chart | 0.48 | token-links 0.48, block-stack 0.21, comparison 0.18 | token-links | no / 0 |
+| 15 | detailed | How does a transformer get a match score between | token-links | ml-transformer-scaled-attention-scores | matrix | true | matrix | 0.72 | token-links 0.72, block-stack 0.14, heatmap 0.06 | token-links | no / 0 |
+| 16 | detailed | How does a transformer mix the word values after | token-links | ml-transformer-weighted-values | block-stack | true | block-stack | 0.67 | token-links 0.67, block-stack 0.12, tensor 0.10 | token-links | no / 0 |
+| 17 | balanced | why does a bootstrap sample contain only about 6 | sample-set | ml-trees-bootstrap-coverage | coordinate-plot | true | coordinate-plot | 0.87 | sample-set 0.87, coordinate-plot 0.07, transformation 0.03 | sample-set | no / 0 |
+| 18 | balanced | compare impurity-based feature importance with p | comparison | ml-trees-feature-importance | bar-chart | true | bar-chart | 0.69 | comparison 0.69, bar-chart 0.27, tree 0.02 | comparison | no / 0 |
+| 19 | balanced | how do I compute the Gini impurity on both sides | tree | ml-trees-gini-split | matrix | true | matrix | 0.63 | tree 0.63, flow 0.11, waterfall 0.08 | tree | no / 0 |
+| 20 | balanced | How does a transformer turn scores into a guess  | flow | ml-transformer-vocabulary-softmax | bar-chart | true | bar-chart | 0.53 | flow 0.53, block-stack 0.14, bar-chart 0.11 | flow | no / 1 |
+| 21 | balanced | How does next-token training compare a probabili | comparison | ml-transformer-one-hot-target | matrix | true | matrix | 0.41 | comparison 0.41, tensor 0.26, bar-chart 0.25 | comparison | no / 0 |
+| 22 | balanced | How does rescaling a personality score help expl | coordinate-plot | ml-word2vec-trait-rescale | number-line | true | number-line | 0.35 | coordinate-plot 0.35, transformation 0.30, tensor 0.26 | coordinate-plot | no / 1 |
+| 23 | brief | How do IQR fences flag outliers in a box plot? U | flow | iqr-fences-and-outliers | null | null | box-plot | 0.01 | box-plot 0.97, number-line 0.02, flow 0.01 | box-plot | no / 1 |
+| 24 | brief | Show a box plot of exam scores 52, 55, 61, 64, 6 | flow | iqr-fences-and-outliers | null | null | box-plot | 0.00 | box-plot 1.00, flow 0.00, sequence 0.00 | box-plot | no / 1 |
+| 25 | brief | How do I read a box plot of delivery times 12, 1 | flow | iqr-fences-and-outliers | null | null | box-plot | 0.00 | box-plot 0.99, number-line 0.01, flow 0.00 | box-plot | no / 0 |
+| 26 | brief | Explain quartiles, the median and whiskers on a  | flow | iqr-fences-and-outliers | null | null | box-plot | 0.00 | box-plot 1.00, flow 0.00, sequence 0.00 | box-plot | no / 0 |
+| 27 | brief | What does the 1.5 x IQR rule do to a box plot of | transformation | iqr-fences-and-outliers | null | null | box-plot | 0.02 | box-plot 0.98, transformation 0.02, flow 0.00 | box-plot | no / 0 |
+| 28 | balanced | How can I compare encoder self-attention heatmap | comparison | d2l-transformer-encoder-head-weight-grids | heatmap | true | heatmap+comparison | 0.67 | comparison 0.67, heatmap 0.16, token-links 0.15 | heatmap+comparison | no / 0 |
+| 29 | balanced | Can you show the numbers when forward diffusion  | transformation | ml-stable-diffusion-forward-noise | heatmap | true | heatmap | 0.24 | transformation 0.24, timeline 0.21, flow 0.18 | transformation | no / 0 |
