@@ -1,0 +1,762 @@
+{
+  "base": "a88949c27578184b4e037d0ee2c4d7c7b3911ae3",
+  "scope": "Strict pool eligibility on the main spec at each depth of a registered reference. The renderer is inspected at 408 px. A residual edge without an explicit merge draws an add join.",
+  "counts": {
+    "overview": {
+      "eligible": 29,
+      "withSkips": 5,
+      "withAddJoins": 6,
+      "withEither": 6,
+      "withNeither": 23
+    },
+    "standard": {
+      "eligible": 29,
+      "withSkips": 6,
+      "withAddJoins": 7,
+      "withEither": 7,
+      "withNeither": 22
+    },
+    "deep": {
+      "eligible": 29,
+      "withSkips": 6,
+      "withAddJoins": 7,
+      "withEither": 7,
+      "withNeither": 22
+    }
+  },
+  "byDepth": {
+    "overview": {
+      "eligible": [
+        {
+          "id": "d2l-cnn-shape-through-classifier",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-attention-output-gate",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 1
+        },
+        {
+          "id": "figure-gallery-convolution-before-recurrent-state",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-convolution-layer-schedule",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-convolution-relative-bias",
+          "skips": [
+            "attention:attention-mix",
+            "expert:expert-mix"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-dense-to-expert-depth",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-fine-and-coarse-history-compression",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-layer-specific-token-lookup",
+          "skips": [],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-shared-core-reinjection",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-window-layer-schedule",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-retro-layer-placement",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-shared-decoder-checkpoint-specialization",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-vocabulary-interface-width",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-architecture-hybrid-routing",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-architecture-shared-core",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-bert-encoder-depth",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-gemma-decoder-stack",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-gpt2-feedforward-expansion",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-llama-decoder-block",
+          "skips": [
+            "an:att",
+            "fn:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-image-autoencoder",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-latent-pipeline",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-unet-text-attention",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-encoder-stack",
+          "skips": [
+            "att:att",
+            "ff:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-original-decoder-sublayers",
+          "skips": [
+            "self:self",
+            "cross:cross",
+            "ffn:ffn"
+          ],
+          "addJoins": 3,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-token-embeddings",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-vocabulary-softmax",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-weighted-values",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "raschka-residual-gain-and-soft-logit-cap",
+          "skips": [
+            "sparse:sparse"
+          ],
+          "addJoins": 1,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "raschka-uneven-mixer-macroblocks",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        }
+      ],
+      "withSkips": [
+        "figure-gallery-convolution-relative-bias",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withAddJoins": [
+        "figure-gallery-convolution-relative-bias",
+        "figure-gallery-layer-specific-token-lookup",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withEither": [
+        "figure-gallery-convolution-relative-bias",
+        "figure-gallery-layer-specific-token-lookup",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withNeither": [
+        "d2l-cnn-shape-through-classifier",
+        "figure-attention-output-gate",
+        "figure-gallery-convolution-before-recurrent-state",
+        "figure-gallery-convolution-layer-schedule",
+        "figure-gallery-dense-to-expert-depth",
+        "figure-gallery-fine-and-coarse-history-compression",
+        "figure-gallery-shared-core-reinjection",
+        "figure-gallery-window-layer-schedule",
+        "figure-retro-layer-placement",
+        "figure-shared-decoder-checkpoint-specialization",
+        "figure-vocabulary-interface-width",
+        "ml-architecture-hybrid-routing",
+        "ml-architecture-shared-core",
+        "ml-bert-encoder-depth",
+        "ml-gemma-decoder-stack",
+        "ml-gpt2-feedforward-expansion",
+        "ml-stable-diffusion-image-autoencoder",
+        "ml-stable-diffusion-latent-pipeline",
+        "ml-stable-diffusion-unet-text-attention",
+        "ml-transformer-token-embeddings",
+        "ml-transformer-vocabulary-softmax",
+        "ml-transformer-weighted-values",
+        "raschka-uneven-mixer-macroblocks"
+      ]
+    },
+    "standard": {
+      "eligible": [
+        {
+          "id": "d2l-cnn-shape-through-classifier",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-attention-output-gate",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 1
+        },
+        {
+          "id": "figure-gallery-convolution-before-recurrent-state",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-convolution-layer-schedule",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-convolution-relative-bias",
+          "skips": [
+            "attention:attention-mix",
+            "expert:expert-mix"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-dense-to-expert-depth",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-fine-and-coarse-history-compression",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-layer-specific-token-lookup",
+          "skips": [],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-shared-core-reinjection",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-window-layer-schedule",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-retro-layer-placement",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-shared-decoder-checkpoint-specialization",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-vocabulary-interface-width",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-architecture-hybrid-routing",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-architecture-shared-core",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-bert-encoder-depth",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-gemma-decoder-stack",
+          "skips": [
+            "att:att",
+            "ff:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-gpt2-feedforward-expansion",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-llama-decoder-block",
+          "skips": [
+            "an:att",
+            "fn:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-image-autoencoder",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-latent-pipeline",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-unet-text-attention",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-encoder-stack",
+          "skips": [
+            "att:att",
+            "ff:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-original-decoder-sublayers",
+          "skips": [
+            "self:self",
+            "cross:cross",
+            "ffn:ffn"
+          ],
+          "addJoins": 3,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-token-embeddings",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-weighted-values",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-what-is-machine-learning-dataset-split",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "raschka-residual-gain-and-soft-logit-cap",
+          "skips": [
+            "sparse:sparse"
+          ],
+          "addJoins": 1,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "raschka-uneven-mixer-macroblocks",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        }
+      ],
+      "withSkips": [
+        "figure-gallery-convolution-relative-bias",
+        "ml-gemma-decoder-stack",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withAddJoins": [
+        "figure-gallery-convolution-relative-bias",
+        "figure-gallery-layer-specific-token-lookup",
+        "ml-gemma-decoder-stack",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withEither": [
+        "figure-gallery-convolution-relative-bias",
+        "figure-gallery-layer-specific-token-lookup",
+        "ml-gemma-decoder-stack",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withNeither": [
+        "d2l-cnn-shape-through-classifier",
+        "figure-attention-output-gate",
+        "figure-gallery-convolution-before-recurrent-state",
+        "figure-gallery-convolution-layer-schedule",
+        "figure-gallery-dense-to-expert-depth",
+        "figure-gallery-fine-and-coarse-history-compression",
+        "figure-gallery-shared-core-reinjection",
+        "figure-gallery-window-layer-schedule",
+        "figure-retro-layer-placement",
+        "figure-shared-decoder-checkpoint-specialization",
+        "figure-vocabulary-interface-width",
+        "ml-architecture-hybrid-routing",
+        "ml-architecture-shared-core",
+        "ml-bert-encoder-depth",
+        "ml-gpt2-feedforward-expansion",
+        "ml-stable-diffusion-image-autoencoder",
+        "ml-stable-diffusion-latent-pipeline",
+        "ml-stable-diffusion-unet-text-attention",
+        "ml-transformer-token-embeddings",
+        "ml-transformer-weighted-values",
+        "ml-what-is-machine-learning-dataset-split",
+        "raschka-uneven-mixer-macroblocks"
+      ]
+    },
+    "deep": {
+      "eligible": [
+        {
+          "id": "d2l-cnn-shape-through-classifier",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-attention-output-gate",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 1
+        },
+        {
+          "id": "figure-gallery-convolution-before-recurrent-state",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-convolution-layer-schedule",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-convolution-relative-bias",
+          "skips": [
+            "attention:attention-mix",
+            "expert:expert-mix"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-dense-to-expert-depth",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-fine-and-coarse-history-compression",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-layer-specific-token-lookup",
+          "skips": [],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-shared-core-reinjection",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-gallery-window-layer-schedule",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-retro-layer-placement",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-shared-decoder-checkpoint-specialization",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "figure-vocabulary-interface-width",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-architecture-hybrid-routing",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-architecture-shared-core",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-bert-encoder-depth",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-gemma-decoder-stack",
+          "skips": [
+            "att:att",
+            "ff:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-gpt2-feedforward-expansion",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-llama-decoder-block",
+          "skips": [
+            "an:att",
+            "fn:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-image-autoencoder",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-latent-pipeline",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-stable-diffusion-unet-text-attention",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-encoder-stack",
+          "skips": [
+            "att:att",
+            "ff:ff"
+          ],
+          "addJoins": 2,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-original-decoder-sublayers",
+          "skips": [
+            "self:self",
+            "cross:cross",
+            "ffn:ffn"
+          ],
+          "addJoins": 3,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-token-embeddings",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-transformer-weighted-values",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "ml-what-is-machine-learning-dataset-split",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "raschka-residual-gain-and-soft-logit-cap",
+          "skips": [
+            "sparse:sparse"
+          ],
+          "addJoins": 1,
+          "multiplyJoins": 0
+        },
+        {
+          "id": "raschka-uneven-mixer-macroblocks",
+          "skips": [],
+          "addJoins": 0,
+          "multiplyJoins": 0
+        }
+      ],
+      "withSkips": [
+        "figure-gallery-convolution-relative-bias",
+        "ml-gemma-decoder-stack",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withAddJoins": [
+        "figure-gallery-convolution-relative-bias",
+        "figure-gallery-layer-specific-token-lookup",
+        "ml-gemma-decoder-stack",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withEither": [
+        "figure-gallery-convolution-relative-bias",
+        "figure-gallery-layer-specific-token-lookup",
+        "ml-gemma-decoder-stack",
+        "ml-llama-decoder-block",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers",
+        "raschka-residual-gain-and-soft-logit-cap"
+      ],
+      "withNeither": [
+        "d2l-cnn-shape-through-classifier",
+        "figure-attention-output-gate",
+        "figure-gallery-convolution-before-recurrent-state",
+        "figure-gallery-convolution-layer-schedule",
+        "figure-gallery-dense-to-expert-depth",
+        "figure-gallery-fine-and-coarse-history-compression",
+        "figure-gallery-shared-core-reinjection",
+        "figure-gallery-window-layer-schedule",
+        "figure-retro-layer-placement",
+        "figure-shared-decoder-checkpoint-specialization",
+        "figure-vocabulary-interface-width",
+        "ml-architecture-hybrid-routing",
+        "ml-architecture-shared-core",
+        "ml-bert-encoder-depth",
+        "ml-gpt2-feedforward-expansion",
+        "ml-stable-diffusion-image-autoencoder",
+        "ml-stable-diffusion-latent-pipeline",
+        "ml-stable-diffusion-unet-text-attention",
+        "ml-transformer-token-embeddings",
+        "ml-transformer-weighted-values",
+        "ml-what-is-machine-learning-dataset-split",
+        "raschka-uneven-mixer-macroblocks"
+      ]
+    }
+  }
+}

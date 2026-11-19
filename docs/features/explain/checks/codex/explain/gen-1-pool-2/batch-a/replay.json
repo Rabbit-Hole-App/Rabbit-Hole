@@ -1,0 +1,1053 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "050ad45c7f133b8d5d1f27e8669eea5a66a09fe7",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "37495e5ad27e7bdb2ad299de87c882e62827ec41",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3057,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 33,
+    "newOwnPromptFirstPicks": 33,
+    "newOwnExactPromptFirstPicks": 33
+  },
+  "existingMoves": [],
+  "newOwnPromptFirstPicks": [
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-garden-grant-softmax/1/brief",
+      "referenceId": "pool-garden-grant-softmax",
+      "promptType": "exact",
+      "prompt": "Show how softmax turns community garden grant scores into shares.",
+      "depth": "brief",
+      "plannerKind": "transformation",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "transformation",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-garden-grant-softmax",
+        "firstReferenceId": "pool-garden-grant-softmax",
+        "firstKind": "transformation",
+        "resolvedPlannerKind": "transformation",
+        "steer": "pool-garden-grant-softmax",
+        "offered": [
+          "pool-garden-grant-softmax"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-garden-grant-softmax/1/balanced",
+      "referenceId": "pool-garden-grant-softmax",
+      "promptType": "exact",
+      "prompt": "Show how softmax turns community garden grant scores into shares.",
+      "depth": "balanced",
+      "plannerKind": "transformation",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "transformation",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-garden-grant-softmax",
+        "firstReferenceId": "pool-garden-grant-softmax",
+        "firstKind": "transformation",
+        "resolvedPlannerKind": "transformation",
+        "steer": "pool-garden-grant-softmax",
+        "offered": [
+          "pool-garden-grant-softmax"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-garden-grant-softmax/1/detailed",
+      "referenceId": "pool-garden-grant-softmax",
+      "promptType": "exact",
+      "prompt": "Show how softmax turns community garden grant scores into shares.",
+      "depth": "detailed",
+      "plannerKind": "transformation",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "transformation",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-garden-grant-softmax",
+        "firstReferenceId": "pool-garden-grant-softmax",
+        "firstKind": "transformation",
+        "resolvedPlannerKind": "transformation",
+        "steer": "pool-garden-grant-softmax",
+        "offered": [
+          "pool-garden-grant-softmax"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-fruit-tea-blend-softmax/1/brief",
+      "referenceId": "pool-fruit-tea-blend-softmax",
+      "promptType": "exact",
+      "prompt": "How does softmax with temperature turn fruit tea tasting scores into a blend?",
+      "depth": "brief",
+      "plannerKind": "transformation",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "transformation",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-fruit-tea-blend-softmax",
+        "firstReferenceId": "pool-fruit-tea-blend-softmax",
+        "firstKind": "transformation",
+        "resolvedPlannerKind": "transformation",
+        "steer": "pool-fruit-tea-blend-softmax",
+        "offered": [
+          "pool-fruit-tea-blend-softmax"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-fruit-tea-blend-softmax/1/balanced",
+      "referenceId": "pool-fruit-tea-blend-softmax",
+      "promptType": "exact",
+      "prompt": "How does softmax with temperature turn fruit tea tasting scores into a blend?",
+      "depth": "balanced",
+      "plannerKind": "transformation",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "transformation",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-fruit-tea-blend-softmax",
+        "firstReferenceId": "pool-fruit-tea-blend-softmax",
+        "firstKind": "transformation",
+        "resolvedPlannerKind": "transformation",
+        "steer": "pool-fruit-tea-blend-softmax",
+        "offered": [
+          "pool-fruit-tea-blend-softmax"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-fruit-tea-blend-softmax/1/detailed",
+      "referenceId": "pool-fruit-tea-blend-softmax",
+      "promptType": "exact",
+      "prompt": "How does softmax with temperature turn fruit tea tasting scores into a blend?",
+      "depth": "detailed",
+      "plannerKind": "transformation",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "transformation",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-fruit-tea-blend-softmax",
+        "firstReferenceId": "pool-fruit-tea-blend-softmax",
+        "firstKind": "transformation",
+        "resolvedPlannerKind": "transformation",
+        "steer": "pool-fruit-tea-blend-softmax",
+        "offered": [
+          "pool-fruit-tea-blend-softmax"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-rain-barrel-midpoint/1/brief",
+      "referenceId": "pool-rain-barrel-midpoint",
+      "promptType": "exact",
+      "prompt": "What is the rain barrel volume halfway between the first two readings?",
+      "depth": "brief",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-rain-barrel-midpoint",
+        "firstReferenceId": "pool-rain-barrel-midpoint",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-rain-barrel-midpoint",
+        "offered": [
+          "pool-rain-barrel-midpoint"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-rain-barrel-midpoint/1/balanced",
+      "referenceId": "pool-rain-barrel-midpoint",
+      "promptType": "exact",
+      "prompt": "What is the rain barrel volume halfway between the first two readings?",
+      "depth": "balanced",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-rain-barrel-midpoint",
+        "firstReferenceId": "pool-rain-barrel-midpoint",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-rain-barrel-midpoint",
+        "offered": [
+          "pool-rain-barrel-midpoint"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-rain-barrel-midpoint/1/detailed",
+      "referenceId": "pool-rain-barrel-midpoint",
+      "promptType": "exact",
+      "prompt": "What is the rain barrel volume halfway between the first two readings?",
+      "depth": "detailed",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-rain-barrel-midpoint",
+        "firstReferenceId": "pool-rain-barrel-midpoint",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-rain-barrel-midpoint",
+        "offered": [
+          "pool-rain-barrel-midpoint"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-dog-park-gate-mean/1/brief",
+      "referenceId": "pool-dog-park-gate-mean",
+      "promptType": "exact",
+      "prompt": "What is the average number of entries per hour at the dog park gate?",
+      "depth": "brief",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-dog-park-gate-mean",
+        "firstReferenceId": "pool-dog-park-gate-mean",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-dog-park-gate-mean",
+        "offered": [
+          "pool-dog-park-gate-mean"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-dog-park-gate-mean/1/balanced",
+      "referenceId": "pool-dog-park-gate-mean",
+      "promptType": "exact",
+      "prompt": "What is the average number of entries per hour at the dog park gate?",
+      "depth": "balanced",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-dog-park-gate-mean",
+        "firstReferenceId": "pool-dog-park-gate-mean",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-dog-park-gate-mean",
+        "offered": [
+          "pool-dog-park-gate-mean"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-dog-park-gate-mean/1/detailed",
+      "referenceId": "pool-dog-park-gate-mean",
+      "promptType": "exact",
+      "prompt": "What is the average number of entries per hour at the dog park gate?",
+      "depth": "detailed",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-dog-park-gate-mean",
+        "firstReferenceId": "pool-dog-park-gate-mean",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-dog-park-gate-mean",
+        "offered": [
+          "pool-dog-park-gate-mean"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-farm-stand-shelf-peak/1/brief",
+      "referenceId": "pool-farm-stand-shelf-peak",
+      "promptType": "exact",
+      "prompt": "What was the highest shelf temperature recorded at the farm stand?",
+      "depth": "brief",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-farm-stand-shelf-peak",
+        "firstReferenceId": "pool-farm-stand-shelf-peak",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-farm-stand-shelf-peak",
+        "offered": [
+          "pool-farm-stand-shelf-peak"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-farm-stand-shelf-peak/1/balanced",
+      "referenceId": "pool-farm-stand-shelf-peak",
+      "promptType": "exact",
+      "prompt": "What was the highest shelf temperature recorded at the farm stand?",
+      "depth": "balanced",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-farm-stand-shelf-peak",
+        "firstReferenceId": "pool-farm-stand-shelf-peak",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-farm-stand-shelf-peak",
+        "offered": [
+          "pool-farm-stand-shelf-peak"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-farm-stand-shelf-peak/1/detailed",
+      "referenceId": "pool-farm-stand-shelf-peak",
+      "promptType": "exact",
+      "prompt": "What was the highest shelf temperature recorded at the farm stand?",
+      "depth": "detailed",
+      "plannerKind": "coordinate-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-farm-stand-shelf-peak",
+        "firstReferenceId": "pool-farm-stand-shelf-peak",
+        "firstKind": "coordinate-plot",
+        "resolvedPlannerKind": "coordinate-plot",
+        "steer": "pool-farm-stand-shelf-peak",
+        "offered": [
+          "pool-farm-stand-shelf-peak"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-museum-coat-check-waits/1/brief",
+      "referenceId": "pool-museum-coat-check-waits",
+      "promptType": "exact",
+      "prompt": "What do the whiskers and outliers show in the museum coat-check waits?",
+      "depth": "brief",
+      "plannerKind": "box-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "box-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-museum-coat-check-waits",
+        "firstReferenceId": "pool-museum-coat-check-waits",
+        "firstKind": "box-plot",
+        "resolvedPlannerKind": "box-plot",
+        "steer": "pool-museum-coat-check-waits",
+        "offered": [
+          "pool-museum-coat-check-waits"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-museum-coat-check-waits/1/balanced",
+      "referenceId": "pool-museum-coat-check-waits",
+      "promptType": "exact",
+      "prompt": "What do the whiskers and outliers show in the museum coat-check waits?",
+      "depth": "balanced",
+      "plannerKind": "box-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "box-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-museum-coat-check-waits",
+        "firstReferenceId": "pool-museum-coat-check-waits",
+        "firstKind": "box-plot",
+        "resolvedPlannerKind": "box-plot",
+        "steer": "pool-museum-coat-check-waits",
+        "offered": [
+          "pool-museum-coat-check-waits"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-museum-coat-check-waits/1/detailed",
+      "referenceId": "pool-museum-coat-check-waits",
+      "promptType": "exact",
+      "prompt": "What do the whiskers and outliers show in the museum coat-check waits?",
+      "depth": "detailed",
+      "plannerKind": "box-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "box-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-museum-coat-check-waits",
+        "firstReferenceId": "pool-museum-coat-check-waits",
+        "firstKind": "box-plot",
+        "resolvedPlannerKind": "box-plot",
+        "steer": "pool-museum-coat-check-waits",
+        "offered": [
+          "pool-museum-coat-check-waits"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-paint-swatch-drying-times/1/brief",
+      "referenceId": "pool-paint-swatch-drying-times",
+      "promptType": "exact",
+      "prompt": "How do the fences flag unusually fast or slow paint swatch drying times?",
+      "depth": "brief",
+      "plannerKind": "box-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "box-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-paint-swatch-drying-times",
+        "firstReferenceId": "pool-paint-swatch-drying-times",
+        "firstKind": "box-plot",
+        "resolvedPlannerKind": "box-plot",
+        "steer": "pool-paint-swatch-drying-times",
+        "offered": [
+          "pool-paint-swatch-drying-times"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-paint-swatch-drying-times/1/balanced",
+      "referenceId": "pool-paint-swatch-drying-times",
+      "promptType": "exact",
+      "prompt": "How do the fences flag unusually fast or slow paint swatch drying times?",
+      "depth": "balanced",
+      "plannerKind": "box-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "box-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-paint-swatch-drying-times",
+        "firstReferenceId": "pool-paint-swatch-drying-times",
+        "firstKind": "box-plot",
+        "resolvedPlannerKind": "box-plot",
+        "steer": "pool-paint-swatch-drying-times",
+        "offered": [
+          "pool-paint-swatch-drying-times"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-paint-swatch-drying-times/1/detailed",
+      "referenceId": "pool-paint-swatch-drying-times",
+      "promptType": "exact",
+      "prompt": "How do the fences flag unusually fast or slow paint swatch drying times?",
+      "depth": "detailed",
+      "plannerKind": "box-plot",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "box-plot",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-paint-swatch-drying-times",
+        "firstReferenceId": "pool-paint-swatch-drying-times",
+        "firstKind": "box-plot",
+        "resolvedPlannerKind": "box-plot",
+        "steer": "pool-paint-swatch-drying-times",
+        "offered": [
+          "pool-paint-swatch-drying-times"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-skate-rental-proportions/1/brief",
+      "referenceId": "pool-skate-rental-proportions",
+      "promptType": "exact",
+      "prompt": "How can I turn skate rental durations into a proportion histogram?",
+      "depth": "brief",
+      "plannerKind": "histogram",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "histogram",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-skate-rental-proportions",
+        "firstReferenceId": "pool-skate-rental-proportions",
+        "firstKind": "histogram",
+        "resolvedPlannerKind": "histogram",
+        "steer": "pool-skate-rental-proportions",
+        "offered": [
+          "pool-skate-rental-proportions"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-skate-rental-proportions/1/balanced",
+      "referenceId": "pool-skate-rental-proportions",
+      "promptType": "exact",
+      "prompt": "How can I turn skate rental durations into a proportion histogram?",
+      "depth": "balanced",
+      "plannerKind": "histogram",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "histogram",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-skate-rental-proportions",
+        "firstReferenceId": "pool-skate-rental-proportions",
+        "firstKind": "histogram",
+        "resolvedPlannerKind": "histogram",
+        "steer": "pool-skate-rental-proportions",
+        "offered": [
+          "pool-skate-rental-proportions"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-skate-rental-proportions/1/detailed",
+      "referenceId": "pool-skate-rental-proportions",
+      "promptType": "exact",
+      "prompt": "How can I turn skate rental durations into a proportion histogram?",
+      "depth": "detailed",
+      "plannerKind": "histogram",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "histogram",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-skate-rental-proportions",
+        "firstReferenceId": "pool-skate-rental-proportions",
+        "firstKind": "histogram",
+        "resolvedPlannerKind": "histogram",
+        "steer": "pool-skate-rental-proportions",
+        "offered": [
+          "pool-skate-rental-proportions"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-bakery-tray-spot-check/1/brief",
+      "referenceId": "pool-bakery-tray-spot-check",
+      "promptType": "exact",
+      "prompt": "Which cookie trays did the bakery tray spot check miss after returning each slip?",
+      "depth": "brief",
+      "plannerKind": "sample-set",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "sample-set",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-bakery-tray-spot-check",
+        "firstReferenceId": "pool-bakery-tray-spot-check",
+        "firstKind": "sample-set",
+        "resolvedPlannerKind": "sample-set",
+        "steer": "pool-bakery-tray-spot-check",
+        "offered": [
+          "pool-bakery-tray-spot-check"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-bakery-tray-spot-check/1/balanced",
+      "referenceId": "pool-bakery-tray-spot-check",
+      "promptType": "exact",
+      "prompt": "Which cookie trays did the bakery tray spot check miss after returning each slip?",
+      "depth": "balanced",
+      "plannerKind": "sample-set",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "sample-set",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-bakery-tray-spot-check",
+        "firstReferenceId": "pool-bakery-tray-spot-check",
+        "firstKind": "sample-set",
+        "resolvedPlannerKind": "sample-set",
+        "steer": "pool-bakery-tray-spot-check",
+        "offered": [
+          "pool-bakery-tray-spot-check"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-bakery-tray-spot-check/1/detailed",
+      "referenceId": "pool-bakery-tray-spot-check",
+      "promptType": "exact",
+      "prompt": "Which cookie trays did the bakery tray spot check miss after returning each slip?",
+      "depth": "detailed",
+      "plannerKind": "sample-set",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "sample-set",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-bakery-tray-spot-check",
+        "firstReferenceId": "pool-bakery-tray-spot-check",
+        "firstKind": "sample-set",
+        "resolvedPlannerKind": "sample-set",
+        "steer": "pool-bakery-tray-spot-check",
+        "offered": [
+          "pool-bakery-tray-spot-check"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-craft-market-aisle-traffic/1/brief",
+      "referenceId": "pool-craft-market-aisle-traffic",
+      "promptType": "exact",
+      "prompt": "How do the craft market aisle tallies set the color scale for foot traffic?",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-craft-market-aisle-traffic",
+        "firstReferenceId": "pool-craft-market-aisle-traffic",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "pool-craft-market-aisle-traffic",
+        "offered": [
+          "pool-craft-market-aisle-traffic"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-craft-market-aisle-traffic/1/balanced",
+      "referenceId": "pool-craft-market-aisle-traffic",
+      "promptType": "exact",
+      "prompt": "How do the craft market aisle tallies set the color scale for foot traffic?",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-craft-market-aisle-traffic",
+        "firstReferenceId": "pool-craft-market-aisle-traffic",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "pool-craft-market-aisle-traffic",
+        "offered": [
+          "pool-craft-market-aisle-traffic"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-craft-market-aisle-traffic/1/detailed",
+      "referenceId": "pool-craft-market-aisle-traffic",
+      "promptType": "exact",
+      "prompt": "How do the craft market aisle tallies set the color scale for foot traffic?",
+      "depth": "detailed",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-craft-market-aisle-traffic",
+        "firstReferenceId": "pool-craft-market-aisle-traffic",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "pool-craft-market-aisle-traffic",
+        "offered": [
+          "pool-craft-market-aisle-traffic"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-repair-cafe-station-weights/1/brief",
+      "referenceId": "pool-repair-cafe-station-weights",
+      "promptType": "exact",
+      "prompt": "How do I turn repair café station choice slips into link weights for each day?",
+      "depth": "brief",
+      "plannerKind": "token-links",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "token-links",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-repair-cafe-station-weights",
+        "firstReferenceId": "pool-repair-cafe-station-weights",
+        "firstKind": "token-links",
+        "resolvedPlannerKind": "token-links",
+        "steer": "pool-repair-cafe-station-weights",
+        "offered": [
+          "pool-repair-cafe-station-weights"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-repair-cafe-station-weights/1/balanced",
+      "referenceId": "pool-repair-cafe-station-weights",
+      "promptType": "exact",
+      "prompt": "How do I turn repair café station choice slips into link weights for each day?",
+      "depth": "balanced",
+      "plannerKind": "token-links",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "token-links",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-repair-cafe-station-weights",
+        "firstReferenceId": "pool-repair-cafe-station-weights",
+        "firstKind": "token-links",
+        "resolvedPlannerKind": "token-links",
+        "steer": "pool-repair-cafe-station-weights",
+        "offered": [
+          "pool-repair-cafe-station-weights"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-repair-cafe-station-weights/1/detailed",
+      "referenceId": "pool-repair-cafe-station-weights",
+      "promptType": "exact",
+      "prompt": "How do I turn repair café station choice slips into link weights for each day?",
+      "depth": "detailed",
+      "plannerKind": "token-links",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "token-links",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-repair-cafe-station-weights",
+        "firstReferenceId": "pool-repair-cafe-station-weights",
+        "firstKind": "token-links",
+        "resolvedPlannerKind": "token-links",
+        "steer": "pool-repair-cafe-station-weights",
+        "offered": [
+          "pool-repair-cafe-station-weights"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    }
+  ],
+  "newOwnPromptMisses": [],
+  "errors": [],
+  "publishedCommit": "8ebb70e353a4b9e16204db99afba584625991e21",
+  "publishedTree": "d8ef1c27ecb5818c5446388c65cc4e732dfff03b"
+}

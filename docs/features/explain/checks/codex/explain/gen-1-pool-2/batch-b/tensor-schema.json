@@ -1,0 +1,27 @@
+{
+  "sizeIssues": [
+    {
+      "code": "custom",
+      "path": [
+        "diagram",
+        "tensor"
+      ],
+      "message": "Show at most eight visible cells"
+    }
+  ],
+  "decorationIssues": [
+    {
+      "code": "unrecognized_keys",
+      "keys": [
+        "rowLabels",
+        "columnLabels",
+        "highlights"
+      ],
+      "path": [
+        "diagram",
+        "tensor"
+      ],
+      "message": "Unrecognized keys: \"rowLabels\", \"columnLabels\", \"highlights\""
+    }
+  ]
+}

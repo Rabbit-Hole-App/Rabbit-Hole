@@ -1,0 +1,309 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "37495e5ad27e7bdb2ad299de87c882e62827ec41",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "f951e6d111646f9715920154e28baee8135795b6",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3090,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 9,
+    "newOwnPromptFirstPicks": 9,
+    "newOwnExactPromptFirstPicks": 9
+  },
+  "existingMoves": [],
+  "newOwnPromptFirstPicks": [
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-pop-up-toaster-stages/1/brief",
+      "referenceId": "pool-pop-up-toaster-stages",
+      "promptType": "exact",
+      "prompt": "What are the timed stages of a pop-up toaster cycle?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-pop-up-toaster-stages",
+        "firstReferenceId": "pool-pop-up-toaster-stages",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-pop-up-toaster-stages",
+        "offered": [
+          "pool-pop-up-toaster-stages"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-pop-up-toaster-stages/1/balanced",
+      "referenceId": "pool-pop-up-toaster-stages",
+      "promptType": "exact",
+      "prompt": "What are the timed stages of a pop-up toaster cycle?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-pop-up-toaster-stages",
+        "firstReferenceId": "pool-pop-up-toaster-stages",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-pop-up-toaster-stages",
+        "offered": [
+          "pool-pop-up-toaster-stages"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-pop-up-toaster-stages/1/detailed",
+      "referenceId": "pool-pop-up-toaster-stages",
+      "promptType": "exact",
+      "prompt": "What are the timed stages of a pop-up toaster cycle?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-pop-up-toaster-stages",
+        "firstReferenceId": "pool-pop-up-toaster-stages",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-pop-up-toaster-stages",
+        "offered": [
+          "pool-pop-up-toaster-stages"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-mesh-and-paper-water-filter/1/brief",
+      "referenceId": "pool-mesh-and-paper-water-filter",
+      "promptType": "exact",
+      "prompt": "How much grit gets through the mesh and paper water filter?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-mesh-and-paper-water-filter",
+        "firstReferenceId": "pool-mesh-and-paper-water-filter",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-mesh-and-paper-water-filter",
+        "offered": [
+          "pool-mesh-and-paper-water-filter"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-mesh-and-paper-water-filter/1/balanced",
+      "referenceId": "pool-mesh-and-paper-water-filter",
+      "promptType": "exact",
+      "prompt": "How much grit gets through the mesh and paper water filter?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-mesh-and-paper-water-filter",
+        "firstReferenceId": "pool-mesh-and-paper-water-filter",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-mesh-and-paper-water-filter",
+        "offered": [
+          "pool-mesh-and-paper-water-filter"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-mesh-and-paper-water-filter/1/detailed",
+      "referenceId": "pool-mesh-and-paper-water-filter",
+      "promptType": "exact",
+      "prompt": "How much grit gets through the mesh and paper water filter?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-mesh-and-paper-water-filter",
+        "firstReferenceId": "pool-mesh-and-paper-water-filter",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-mesh-and-paper-water-filter",
+        "offered": [
+          "pool-mesh-and-paper-water-filter"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-parcel-sorting-line/1/brief",
+      "referenceId": "pool-parcel-sorting-line",
+      "promptType": "exact",
+      "prompt": "How far does a parcel travel along the sorting line from intake to dispatch?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-parcel-sorting-line",
+        "firstReferenceId": "pool-parcel-sorting-line",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-parcel-sorting-line",
+        "offered": [
+          "pool-parcel-sorting-line"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-parcel-sorting-line/1/balanced",
+      "referenceId": "pool-parcel-sorting-line",
+      "promptType": "exact",
+      "prompt": "How far does a parcel travel along the sorting line from intake to dispatch?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-parcel-sorting-line",
+        "firstReferenceId": "pool-parcel-sorting-line",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-parcel-sorting-line",
+        "offered": [
+          "pool-parcel-sorting-line"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "pool-parcel-sorting-line/1/detailed",
+      "referenceId": "pool-parcel-sorting-line",
+      "promptType": "exact",
+      "prompt": "How far does a parcel travel along the sorting line from intake to dispatch?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "pool-parcel-sorting-line",
+        "firstReferenceId": "pool-parcel-sorting-line",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "pool-parcel-sorting-line",
+        "offered": [
+          "pool-parcel-sorting-line"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    }
+  ],
+  "newOwnPromptMisses": [],
+  "errors": [],
+  "publishedCommit": "8af35e35742fbee0e198dd8f18eaebe5054ab7ed",
+  "publishedTree": "61af7850748ff6ac06bfdb1fd3178cc328ab90d9"
+}
