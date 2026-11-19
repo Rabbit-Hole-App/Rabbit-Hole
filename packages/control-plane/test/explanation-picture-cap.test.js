@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { markdownIllustrations, markdownVisuals } from '../src/learn-primitives.js';
+import { deriveVisualRequirements, requirementText } from '../src/explanation-visuals.js';
 
 const block = (id, label, extra = {}) => ({ id, label, ...extra });
 // The block-stack the fallback author drew on that card (saved body of the 117 rerun, raw/content-r2/cards/transformer-block.json), every block with detail 1.
@@ -64,9 +65,28 @@ test('a plan with two pictures keeps both', async t => {
   assert.equal(diagramsOf(r.out.block.body), 1);
 });
 
-test('no plan: the earlier rule is unchanged (an author picture is kept, up to two)', async t => {
+// ILL-2 (card 2fbd2c0e: the planner timed out, plan null, a generated picture came through on a softmax card): with no JEV plan and no mix named by the learner,
+// pictures are capped at the pictures the learner's words IMPLY (normally 0), diagrams up to three; explanation_picture_capped fires with source 'no-plan'.
+const impliedPicture = deriveVisualRequirements(requirementText({ args: 'What does a transformer block look like?' }));
+test('no plan, nothing implied: an author picture is dropped, the card still delivers with its diagram, and the cap line says no-plan', async t => {
   const r = await run(t, {}, answer([STACK, PICTURE], [2, 1]));
-  assert.deepEqual([r.out.result, r.droppedPictures], ['artifact', 0]);
+  assert.deepEqual([r.out.result, r.calls, r.droppedPictures, markdownIllustrations(r.out.block.body).length, diagramsOf(r.out.block.body)], ['artifact', 1, 1, 0, 1]);
+  assert.deepEqual(r.capped, [{ planned: 0, authored: 1, kept: 0, dropped: [1], source: 'no-plan' }]);
+});
+
+test('no plan, one picture implied by the learner\'s words ("what does X look like"): one picture is kept, a second is dropped', async t => {
+  assert.deepEqual(impliedPicture.items.map(i => [i.kind, i.implied]), [['illustration', true]], 'the derivation gives one implied picture');
+  const one = await run(t, { visualRequirements: impliedPicture }, answer([STACK, PICTURE], [2, 1]));
+  assert.deepEqual([one.out.result, one.droppedPictures, one.capped], ['artifact', 0, []]);
+  const two = await run(t, { visualRequirements: impliedPicture }, answer([STACK, PICTURE, PICTURE_2], [2, 1, 3]));
+  assert.deepEqual([two.out.result, two.droppedPictures], ['artifact', 1]);
+  assert.deepEqual(two.capped, [{ planned: 1, authored: 2, kept: 1, dropped: [2], source: 'no-plan' }]);
+});
+
+test('no plan, a learner-named mix: unchanged (the picture the learner asked for is kept, no cap line)', async t => {
+  const visualRequirements = { version: 1, items: [{ id: 'vr-1', kind: 'diagram', purpose: 'the block' }, { id: 'vr-2', kind: 'illustration', purpose: 'a picture of it' }] };
+  const r = await run(t, { visualRequirements }, answer([STACK, PICTURE], [2, 1]));
+  assert.deepEqual([r.out.result, r.droppedPictures, r.capped], ['artifact', 0, []]);
 });
 
 test('the learner-named mix path is unchanged: a learner who asks for a picture and a diagram gets both, whatever the plan says', async t => {
