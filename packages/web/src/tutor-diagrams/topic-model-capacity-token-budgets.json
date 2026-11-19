@@ -1,0 +1,120 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-model-capacity-depth-width-allocation": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 129,
+          "sha256": "b555760f707ad329e14e5667e88fa0009bbd40df9751ac3fb2a6c3683113ed4f"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 137,
+          "sha256": "f5c102aa931ad3f3998ac549c8b846d782415f336045ed9554ca92b7131514fc"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 231,
+          "sha256": "1f64c4224652e494a560575c32cdf44e5d36e907a403cbac3840234d448db276"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 231,
+          "sha256": "4e506fc1a11e2c5d215fe74cbaad84e2d165c936658872468408a128d6031435"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 235,
+          "sha256": "2a7de0c34e95c9d3c8e6005f5858ce834f26a4d74dcb76b8b8770ef45206f687"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 235,
+          "sha256": "1816e0cf8d156c2fd311d115f81fbd04fa07096b19b729dd84e6ba71872bf1e6"
+        }
+      ]
+    },
+    "ml-model-capacity-capacity-profiles": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 95,
+          "sha256": "0b19146aef7dfba72ded95e571ac6e1c46aa34c54989d6dbbfe6c32656aeb6f3"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 85,
+          "sha256": "ce3ea2a14a8b72d7ffd58711c37bdc099accec36b50da1a3101836255fad4e42"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 119,
+          "sha256": "4601f8e790d931ebe2d9f1769cb6865e153facc71e3e97353d993231994cad22"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 85,
+          "sha256": "ce3ea2a14a8b72d7ffd58711c37bdc099accec36b50da1a3101836255fad4e42"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 120,
+          "sha256": "15fbe00249ca90bdb49b36e186aa76bee2456e8af007863d38d09189ba05d88a"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 85,
+          "sha256": "ce3ea2a14a8b72d7ffd58711c37bdc099accec36b50da1a3101836255fad4e42"
+        }
+      ]
+    },
+    "ml-model-capacity-block-parameter-accounting": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 156,
+          "sha256": "3548eb2e4858b661376c008c20967c3ed8c1bd223677b71233dabb6361843be6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 112,
+          "sha256": "08ec5117abdb4ef193e83579c7e53f9d98cf46df9600dcf3aafa6c0974484304"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 166,
+          "sha256": "bf01057d693a618b240213e43735e4ee9589a45673f2406dd1f77be0009353b9"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 112,
+          "sha256": "08ec5117abdb4ef193e83579c7e53f9d98cf46df9600dcf3aafa6c0974484304"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 167,
+          "sha256": "cdc9bf93670e5ef1f5c1396b4096337bfa1e5b3ce6aa00f8305404941a11a292"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 88,
+          "sha256": "dfa350d7f6fa72064f2aabd0b23a589daca3dd10114748829b86cfdee696b079"
+        }
+      ]
+    }
+  }
+}
