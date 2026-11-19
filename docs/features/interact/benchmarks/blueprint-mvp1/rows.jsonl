@@ -1,0 +1,1 @@
+{"ts":"2026-11-19T20:03:14.356Z","arm":"probe","level":"xhigh","run":0,"kind":"probe","seconds":148.669,"status":200,"finish":"stop","tokens":{"input":9696,"thinking":31464,"output":3155},"costUsd":0.2741865,"file":"blueprint-mvp1/prompts/probe-answer.json"}

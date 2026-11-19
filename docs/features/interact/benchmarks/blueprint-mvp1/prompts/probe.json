@@ -1,0 +1,55 @@
+{
+  "accepted": "pairs as two-item lists",
+  "attempts": [
+    {
+      "schema": "the real provider schema",
+      "bytes": 12098,
+      "ok": false,
+      "status": 400,
+      "seconds": 0.503,
+      "finish": null,
+      "served": null,
+      "usage": null,
+      "tokens": null,
+      "costUsd": 0,
+      "parsed": null,
+      "error": "[{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"schema at properties.pictures.properties.main.properties.parts.items.anyOf.0.properties.from.items must be a boolean or an object\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]",
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "model": "gemini-4-hydrogen",
+        "reasoning_effort": "xhigh",
+        "max_tokens": 48000,
+        "response_format": "json_schema, strict true"
+      }
+    },
+    {
+      "schema": "pairs as two-item lists",
+      "bytes": 12000,
+      "ok": true,
+      "status": 200,
+      "seconds": 148.669,
+      "finish": "stop",
+      "served": "gemini-4-hydrogen",
+      "usage": {
+        "completion_tokens": 3155,
+        "prompt_tokens": 9696,
+        "total_tokens": 44315
+      },
+      "tokens": {
+        "input": 9696,
+        "thinking": 31464,
+        "output": 3155
+      },
+      "costUsd": 0.2741865,
+      "parsed": true,
+      "error": null,
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "model": "gemini-4-hydrogen",
+        "reasoning_effort": "xhigh",
+        "max_tokens": 48000,
+        "response_format": "json_schema, strict true"
+      }
+    }
+  ]
+}
