@@ -123,6 +123,7 @@ import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCo
 import { SPACING, assumedHeight, assumedTextHeight, cardWidth, columnOwnIds, columnWidth, fitsContent, fixedHeight, guardLearnMoves, lateSlots, learnGuardMemory, learnLayout, setSpacingScale, union } from './learn-position.js';
 import { walkNext, walkPrev, walkStart } from './learn-walk.js';
 import LearnCardView from './LearnCardView.jsx';
+import { CARD_ROOM } from './learn-mode.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -2092,7 +2093,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const toolbarShown = walk ? !!toolbar && learnTab === 'canvas' : toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
   // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
   // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
-  const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
+  // Learn mode's notebook stop in Cards likewise (owner 2026-11-18 22:10): the notebook card alone, in place, no Focus header (the tabs are the way back).
+  const cardOnly = (studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state)) || (!!walk && learnTab === 'cards' && !!focus?.id);
   const chromeOff = studyChromeOff({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }); // no zoom controls, no feedback button
   const showWidget = (name, on) => {
     const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
@@ -2238,7 +2240,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus, { keepCurious: studyHides({ mode: widgetMode, repository: studyRepository }) });
   const focusRef = useRef(null), focusShown = useRef(null);
   focusRef.current = focus;
-  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }, { bar: !cardOnly }); };
+  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) - (walk ? CARD_ROOM.dock : 0) }, { bar: !cardOnly }); }; // Learn mode: above the composer's dock
   useLayoutEffect(() => { focusShown.current = syncFocus(focusShown.current, focus, { view, readOnly, find: id => surface.current?.querySelector(`[data-block][data-block-id="${CSS.escape(id)}"],[data-item-id="${CSS.escape(id)}"]`), restore: saved => commandsRef.current.restoreNavigation(saved), gone: id => dispatchFocus({ type: 'content-gone', id }) }); }, [focus, view, readOnly]);
   useLayoutEffect(() => () => { syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current }); }, []);
   // The pane measured again when a panel opens, the Study divider moves, the window or the bottom chrome resizes.
@@ -7114,7 +7116,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           under the composer, with no Focus, shown whole and zoomable (LearnCardView). A second instance of the card: edits go through changeBlock like the canvas's; nothing moves or resizes the canvas's copy. */}
       {learnTab === 'cards' && walk && (() => {
         const block = blocks.find(entry => entry.id === walk.stops[walk.at]);
-        return block && <LearnCardView key={block.id} id={block.id}>
+        return block && block.type !== 'notebook' && <LearnCardView key={block.id} id={block.id}>
           <LessonBlockCard block={block} zoom={1} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={noop} onConnect={noop} onSnap={noop} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} />
         </LearnCardView>;
       })()}

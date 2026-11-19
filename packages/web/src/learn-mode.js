@@ -18,13 +18,15 @@ export const learnEnter = panel => ({ panelWas: { open: !!panel?.open, tab: pane
 export const learnLeave = held => held?.panelWas ?? null;
 
 // What a tab shows for the current stop:
-//   cards  - the stop's own card component drawn in the pane at its width (AdaptiveCanvas learnCards; owner 2026-11-18 16:13: no Focus), the right panel closed;
+//   cards  - the stop's own card component drawn in the pane at its width (AdaptiveCanvas learnTab; owner 2026-11-18 16:13: no Focus), the right panel closed;
+//            a notebook stop instead takes the canvas's own notebook card in place (inPlace: the Focus machinery, no control; owner 2026-11-18 22:10, one kernel);
 //   canvas - the free canvas, the stop centred at zoom 1, nothing selected (owner 2026-11-18);
 //   toc, chat - the right panel's own tab, widened to the split (the canvas stays as it was underneath); nothing is selected (owner 2026-11-18).
-export function learnView(tab) {
-  if (tab === 'canvas') return { cards: false, centre: true, panel: { open: false, tab: null } };
-  if (tab === 'toc' || tab === 'chat') return { cards: false, centre: false, panel: { open: true, tab } };
-  return { cards: true, centre: false, panel: { open: false, tab: null } };
+// type: the stop card's type.
+export function learnView(tab, type = null) {
+  if (tab === 'canvas') return { cards: false, inPlace: false, centre: true, panel: { open: false, tab: null } };
+  if (tab === 'toc' || tab === 'chat') return { cards: false, inPlace: false, centre: false, panel: { open: true, tab } };
+  return { cards: type !== 'notebook', inPlace: type === 'notebook', centre: false, panel: { open: false, tab: null } };
 }
 export const learnTab = tab => (LEARN_TABS.some(entry => entry.id === tab) ? tab : 'cards');
 

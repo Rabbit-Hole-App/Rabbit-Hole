@@ -1590,6 +1590,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     learnHeld.current = null;
     setLearnTab('cards');
     if (!was) return;
+    canvas?.exitFocus?.(); // a notebook stop held in place (Cards) gives its card back
     if (held.view) canvas?.setView?.(held.view);
     setPanelOpen(was.open);
     if (was.tab) setPanelTab(was.tab);
@@ -1598,9 +1599,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => {
     const canvas = canvasApi.current;
     if (!learning || !stopId || !canvas) return;
-    const view = learnView(learnTab);
+    const view = learnView(learnTab, canvas.block?.(stopId)?.type);
     setPanelOpen(view.panel.open);
     if (view.panel.tab) setPanelTab(view.panel.tab);
+    // A notebook stop in Cards: the canvas's own notebook card, enlarged in place (one kernel, owner 2026-11-18 22:10); any other stop or tab gives it back first.
+    if (view.inPlace) canvas.enterFocus?.(stopId);
+    else if (canvas.focusState?.()) canvas.exitFocus?.();
     if (view.centre) canvas.walk?.centre(stopId);
   }, [learning, learnTab, stopId]); // eslint-disable-line react-hooks/exhaustive-deps
   // Learn | Canvas (learn-mode-spec §2): Study's toggle, labelled Learn on a canvas with built sections. Learn starts the first section not finished.
