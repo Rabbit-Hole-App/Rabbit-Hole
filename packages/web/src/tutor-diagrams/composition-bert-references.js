@@ -23,7 +23,7 @@ const overviewStates = { ...states(true), caption: `Toy bidirectional contextual
 const standardStates = { ...states(false), caption: `Toy ${p.classes.join(', ')} order. Select $h=H_{CLS}$; $${headInputs}$; apply $z=hW+b$.` };
 const scores = { kind: 'bar-chart', title: 'Task scores from the selected CLS row', unit: 'Logit',
   bars: p.classes.map((label, i) => ({ label, value: d.readout.base.scores[i] })),
-  caption: `Toy $h=(${d.readout.base.summary.join(',')}),${headInputs}$; $z=hW+b=(${d.readout.base.scores.join(',')})$. Raw scores in ${p.classes.join(', ')} order.` };
+  caption: `Toy $h=(${d.readout.base.summary.join(',')}),${headInputs}$. Logits $z=hW+b=(${d.readout.base.scores.join(',')})$.` };
 const probeStates = { ...states(false, true), caption: `Toy changes after encoding; CLS and head fixed. Scores stay $(${d.readout.probe.scores.join(',')})$. Input-word changes need not preserve CLS.` };
 const views = {
   'ml-bert-supervised-class-pairs': { overview: { spec: spec(pairs('overview')) }, standard: { spec: spec(pairs('standard')) }, deep: { spec: spec(pairs('deep')), detailSpec: spec(reorderedPairs) } },

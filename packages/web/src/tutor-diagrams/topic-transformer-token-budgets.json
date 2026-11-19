@@ -62,27 +62,27 @@
       "overview": [
         {
           "field": "spec",
-          "tokens": 120,
-          "sha256": "940e493f83f413cefac6f3840375ab81405ed04310a5e6732355501ef981cbcb"
+          "tokens": 222,
+          "sha256": "10c84569767ae5e9e067306b76b822ce069633a6981dbc2959d9fb8debe2dc63"
         }
       ],
       "standard": [
         {
           "field": "spec",
-          "tokens": 175,
-          "sha256": "4bb3777820e10bab46f004449b5b050b21d3912b56f8687051c4dae18ec29b3f"
+          "tokens": 226,
+          "sha256": "ce12667eb43385537602cdd31f149ffd13464eb5709c8d89c2e9e887f517e1f9"
         }
       ],
       "deep": [
         {
           "field": "spec",
-          "tokens": 183,
-          "sha256": "e3a3ec697d273412d10631b16bbf8bffec863bf5be986ec62ab5d3adb2225d67"
+          "tokens": 230,
+          "sha256": "684ee7233bddd6e898eceb389aad476b71971e0fe3d44e205d05412f72b9a897"
         },
         {
           "field": "detailSpec",
-          "tokens": 126,
-          "sha256": "26056551edb4265ea792ffbc14e357607c3b73cc0fcfa3cb2e2872d024ac5363"
+          "tokens": 233,
+          "sha256": "de6eca1e9d6b3d8d4279106a3ad254eab37da0da7488894283a34a684f8e3b82"
         }
       ]
     }

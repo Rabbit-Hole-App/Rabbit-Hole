@@ -48,8 +48,8 @@
       "deep": [
         {
           "field": "spec",
-          "tokens": 95,
-          "sha256": "0301edca3a755fca8099d1ac6d99a003d3c19b10f082ab132c49a5a0a58ddaa5"
+          "tokens": 89,
+          "sha256": "e79b59fdd843280677ba2168f7ada85e155bd5fccfc3ae2f651179eca1bba59e"
         },
         {
           "field": "detailSpec",

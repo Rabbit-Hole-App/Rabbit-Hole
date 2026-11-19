@@ -2452,19 +2452,19 @@
       "height": 813
     },
     "ml-transformer-contextual-layer-states/320": {
-      "sha256": "a970f85f3eefc9194474c14cd45d69b0ab5b305ce771eb45f304b528cfb48ae6",
-      "width": 320,
-      "height": 905
+      "sha256": "d7551dc13058782834963dd74cad1c5abaec2f5bec40f87454e2b3d9f1516da8",
+      "width": 381,
+      "height": 355
     },
     "ml-transformer-contextual-layer-states/408": {
-      "sha256": "e1fea6ae0e0212ebfa52f5d6b52d7e21c27017b960867c06895248509b528cf4",
+      "sha256": "55a7e9c57184f5cbe57a2c7def43566b60b6dde079d4307cf7c2e5978fdc9dfe",
       "width": 408,
-      "height": 866
+      "height": 355
     },
     "ml-transformer-contextual-layer-states/720": {
-      "sha256": "26e61aeca54aefee09d23b035205363944171f65b5573bdadcce5198f7a2385f",
+      "sha256": "53efda85772a2e1b0d4e4d02fa96c29cd74dc7403842290013e0b27dd1b21635",
       "width": 720,
-      "height": 849
+      "height": 338
     },
     "ml-transformer-cross-attention-alignment/320": {
       "sha256": "e5c6d9cb44bf5af254ccdde98524eb12cd364b45cc77f70d2c918e7bf5c0b6aa",
@@ -4812,47 +4812,47 @@
       "height": 490
     },
     "ml-transformer-encoder-decoder-memory/408": {
-      "sha256": "5489b87b6a4739b937f203d88d23786082050b38fd0da2bfbc6e821c5e469d9f",
+      "sha256": "a462a08f159f53cd0a7fae7fc6f11fe11d71dd1043e911b4bb275b42b47632d5",
       "width": 408,
       "height": 937
     },
     "ml-transformer-encoder-decoder-memory/960": {
-      "sha256": "8dfa75decdf57e9ac73c487c3f89b8855b927e495d6ae02ac9f87f154d22a674",
+      "sha256": "ff8cf854dfb2ba32dfac9ca0c8edc533f450d44f2532dba5ca24554d7f352810",
       "width": 720,
       "height": 813
     },
     "ml-transformer-encoder-decoder-memory/natural": {
-      "sha256": "d8d915649ebbe576742abe045aec8ae31e5f633f979c673807c9d2da4f1afa7e",
+      "sha256": "bf5f95270febeb8e7e7743ad4957505a30981dee9310434ff09575c6be409d3b",
       "width": 340,
       "height": 937
     },
     "ml-transformer-encoder-decoder-memory-brief/408": {
-      "sha256": "ce58c2ee69553578514ca570af0d29a091815a7945f30adaf6e2238beb7b4f01",
+      "sha256": "6683cee81b737c5ab31ffc7406351763af32b1f353c2e84db4ea2de74c6650c1",
       "width": 408,
-      "height": 915
+      "height": 898
     },
     "ml-transformer-encoder-decoder-memory-brief/960": {
-      "sha256": "16dfd99d1b62a0a52e5b7191803d60386061a1f3db260b71adc2972a46311d6f",
+      "sha256": "c3f7ed69c46b5d1631563af029217f0a2ee36d930c2b0113b6aba750901ee738",
       "width": 720,
       "height": 813
     },
     "ml-transformer-encoder-decoder-memory-brief/natural": {
-      "sha256": "4d931720c4687d8c4d7844a685b15a3c7b25e9eaaf1e9bd53a149fd2d34f4832",
+      "sha256": "0a61582e0ba82d152b597b8d37ab5de71ca33995b207fafea8482e5d9f897a66",
       "width": 340,
       "height": 937
     },
     "ml-transformer-encoder-decoder-memory-detailed/408": {
-      "sha256": "cb0997a2e78e277adfbd82d5257ee3e0f229eae6725a8180dfd011255470cb45",
+      "sha256": "f416f362dbba20776e9c2e53f469d3faa9be876a1ebfadb7c012b40065c355e3",
       "width": 408,
       "height": 954
     },
     "ml-transformer-encoder-decoder-memory-detailed/960": {
-      "sha256": "8237ed8dc158b3255653ac6461a7071f9dfc380b1b2d751b09e15ab213f5f7ce",
+      "sha256": "acc9de6dd67c7c5c3cbc60779ff3b8cc23c7ee5cdd0d05afecb8cdc0aa57ab19",
       "width": 720,
       "height": 830
     },
     "ml-transformer-encoder-decoder-memory-detailed/natural": {
-      "sha256": "459dc9449634c379b6f8f11d1a0e0e69f48a9ae85b31cd3e07e134fc0b2a921c",
+      "sha256": "7e57036197defebf64d460bf5dbae502ffaf4da41ce12dbc2cd4e1083238be67",
       "width": 340,
       "height": 971
     },
@@ -4902,47 +4902,47 @@
       "height": 652
     },
     "ml-transformer-positionwise-feedforward/408": {
-      "sha256": "59d3ed875735f00dd47580b3df01a3b0ab3bce6246e8d9a712949e0e63b9af9e",
+      "sha256": "8e5bc984f3fef76da55402db7a5e003028dd67b43fe41aa0b1aa0f88b6f0c85b",
       "width": 408,
       "height": 996
     },
     "ml-transformer-positionwise-feedforward/960": {
-      "sha256": "2ae4477b3b520284237674f6e096318f90e67f8be7431d1d3d47b3903657871a",
+      "sha256": "0dd6343226f45236be55ae85af8e1c3b1ec0b7b6113e4833722f2c7d13a8e5e5",
       "width": 720,
       "height": 855
     },
     "ml-transformer-positionwise-feedforward/natural": {
-      "sha256": "007956bbf21772c6b676abd840cdb96ae9445aa9cf57bc1308217f2d23bcea96",
+      "sha256": "a15c6b7a7a0a87493ec5af6bade8a20808d668f6733e22465f538a320837eb27",
       "width": 358,
       "height": 996
     },
     "ml-transformer-positionwise-feedforward-brief/408": {
-      "sha256": "403c7ce7e024e2dd770950bd5a047bcea326fe5a980e8954f319588ac5a1e9bb",
+      "sha256": "71bc9631ef8285159e8964da948d5ebf07827011ec8c1294d902e0dcaf4fa87a",
       "width": 408,
       "height": 996
     },
     "ml-transformer-positionwise-feedforward-brief/960": {
-      "sha256": "ac8132512c685ec29cba2391c226e4763789601d0aa49c1a25f321d2d2431236",
+      "sha256": "080088fc8717ada1bc1560e1486ea0fd156f287afc5088c344a52ec6711795de",
       "width": 720,
       "height": 855
     },
     "ml-transformer-positionwise-feedforward-brief/natural": {
-      "sha256": "2f8cea42dd267b20c7035cacdd901899c01c8fcdcd5601295fba0c6c5fd4fd02",
+      "sha256": "c3a3e6d1ee6bc50c3f2e29a7ca1f70605da1fc134d74736ca4f45185366c5878",
       "width": 358,
       "height": 996
     },
     "ml-transformer-positionwise-feedforward-detailed/408": {
-      "sha256": "a9c9a8b90d014476ceb37727196f2cabcfae7a9b9271ee35744019f9f50a65d6",
+      "sha256": "93e89bd0463350648784e023ca651d5e818064dcfe63abd8976adf03e189da73",
       "width": 408,
       "height": 996
     },
     "ml-transformer-positionwise-feedforward-detailed/960": {
-      "sha256": "66e51acd6936a279f8792a9e7c79fd7c318700606fea20be802b3eeb85796a57",
+      "sha256": "1d8e366bcb61d1a9aa30d7d582cd89d0d6065c4f2beef77798e06699b485c0d1",
       "width": 720,
       "height": 855
     },
     "ml-transformer-positionwise-feedforward-detailed/natural": {
-      "sha256": "8069e4981b056e3eccaa2b5f25c5da0de96a432390f0c26dfac952d2eb1ef5e0",
+      "sha256": "7c3bec158a228dfed5d66761a503044dd06a3efc2758cdcac40cd0ae028d6a4f",
       "width": 358,
       "height": 1013
     },
@@ -5742,47 +5742,47 @@
       "height": 624
     },
     "ml-bert-masked-token/408": {
-      "sha256": "223581dfdc67bdee96e706a78da48eccc6db9e154dd15085fafc24eb88f4b583",
+      "sha256": "1a9c44fe247fa53a90539058ea456927fb129cb19c844aa8abada60005a3e358",
       "width": 408,
       "height": 640
     },
     "ml-bert-masked-token/960": {
-      "sha256": "28896b53039782c514c2ab3647e774bfa13c3bd0db0602b024d4111072ecb164",
+      "sha256": "ddabe690d78f9da60195a2da35bc00311c48e1d160b1a5176ba8c4525fac82bd",
       "width": 720,
       "height": 572
     },
     "ml-bert-masked-token/natural": {
-      "sha256": "a3090e3de3d0e50d08030c436f4d5b873e892c52ff7a085ffbbfd8813968e353",
+      "sha256": "f3bf868dfd45c47d60d9920a7cc9460e9263fc29d8b0a9edaf369c83b541f2a6",
       "width": 320,
       "height": 662
     },
     "ml-bert-masked-token-brief/408": {
-      "sha256": "6be421a2f90992b17fa1b12385471df2a4a5872c61d024561e567094bbf5641a",
+      "sha256": "c7f8eda33f4f0d078ace61d76b9170d79a53d14eb5af4f01cbdb663f463282d8",
       "width": 408,
       "height": 640
     },
     "ml-bert-masked-token-brief/960": {
-      "sha256": "6e2c17edcc9d17520640c47ae80dbbc49e5c4d1f0c9ee7665d989bfaada7bf6f",
+      "sha256": "44bde6b7682faf15d6cdb0e0be331d9699b3678032d489b61714918bf2265252",
       "width": 720,
       "height": 572
     },
     "ml-bert-masked-token-brief/natural": {
-      "sha256": "ac2c0318499dddc0261314234e93c3950de815f04701d226acaddc871e909664",
+      "sha256": "a5dc84ae87fc90e29d4064996afb355d89239dbd2d9c005339174d4c1668e921",
       "width": 320,
       "height": 640
     },
     "ml-bert-masked-token-detailed/408": {
-      "sha256": "d21c41ead6968285ddd8db27e893698a3efbb7a124f23fc9495bf3f1400bfe46",
+      "sha256": "5ec530940a2cef1682a5a70101adb7e873a1754d01fd4d40b18dd076653ab3eb",
       "width": 408,
       "height": 640
     },
     "ml-bert-masked-token-detailed/960": {
-      "sha256": "1b36eb7eac02cfbe79c0aeb65520daa533ae3bb1fd0fdbad82950cd306c0670c",
+      "sha256": "8a5c7b3deb71f236fe440b4d07539298afb614ccddcac157756b9d1626a4e786",
       "width": 720,
       "height": 572
     },
     "ml-bert-masked-token-detailed/natural": {
-      "sha256": "bac3ec46d82ebf331864a4dddd1137a1c9a889d19032fc6ec68d7d8c89370298",
+      "sha256": "4804d91d7ed9b0020f265aa128cc4e439df4894c9d03f757dbda53e671b70496",
       "width": 320,
       "height": 679
     },

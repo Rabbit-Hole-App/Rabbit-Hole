@@ -86,14 +86,42 @@ test('C03 new views preserve source identity, contextual slots, schema, content 
       [d.masks.causal, d.masks.bidirectional]);
   }
   assert.deepStrictEqual(rules.deep.detailSpec.diagram.rows.map(row => row.cells), d.masks.memory);
-  const states = references.find(ref => ref.id === 'ml-transformer-contextual-layer-states').spec.diagram;
-  assert.strictEqual(states.kind, 'block-stack');
-  assert.strictEqual(states.blocks.length, 3);
-  assert.ok(states.caption.includes('[CLS]') && states.caption.includes('[SEP]'));
-  assert.ok(states.caption.includes('bidirectional'));
-  for (const block of states.blocks) assert.deepStrictEqual([block.diagram.tensor.rows, block.diagram.tensor.columns], [d.counts.slots, d.counts.features]);
-  assert.ok(states.blocks.slice(1).every(block => /mix.*FFN/u.test(block.label)));
-  const deepCaption = references.find(ref => ref.id === 'ml-transformer-contextual-layer-states').depths.deep.spec.diagram.caption;
-  assert.match(deepCaption, /parameter sets/iu);
-  assert.doesNotMatch(deepCaption, /\\ne|≠/u, 'Parameter identities do not establish numerical matrix inequality');
+});
+
+test('C03 contextual states recompute coloured updates in the same named slots at every depth', () => {
+  const { slots, slotLookups, slotMixWeights, focus } = parameters;
+  const reference = references.find(ref => ref.id === 'ml-transformer-contextual-layer-states');
+  const recompute = causal => {
+    const result = [slotLookups];
+    for (const weights of slotMixWeights) {
+      const previous = result.at(-1);
+      result.push(slots.map((_, position) => {
+        const neighbours = previous.filter((_, i) => Math.abs(i - position) === 1 && (!causal || i < position));
+        return weights.map((row, out) => neighbours.reduce((value, neighbour) =>
+          value + neighbour.reduce((addition, feature, j) => addition + feature * row[j], 0),
+        previous[position][out]));
+      }));
+    }
+    return result;
+  };
+  const encoder = recompute(false);
+  const causal = recompute(true);
+  assert.deepStrictEqual(derived().slotStates, { bidirectional: encoder, causal });
+  assert.deepStrictEqual(causal.map(layer => layer[0]), causal.map(() => slotLookups[0]));
+  assert.notDeepStrictEqual(encoder.at(-1), causal.at(-1));
+  const assertView = ({ diagram }, layers) => {
+    assert.deepStrictEqual([diagram.kind, diagram.layout], ['matrix', 'teaching']);
+    assert.deepStrictEqual(diagram.columns, layers.map((_, i) => i ? `Layer ${i}` : 'Lookup'));
+    assert.deepStrictEqual(diagram.rows.map(row => row.heading), slots);
+    for (const [i, row] of diagram.rows.entries()) {
+      assert.deepStrictEqual(row.cells, layers.map(layer => `$(${layer[i].join(', ')})$`));
+    }
+    const focusIndex = slots.indexOf(focus);
+    assert.deepStrictEqual(diagram.states, layers.slice(1).map((layer, i) => {
+      assert.notDeepStrictEqual(layer[focusIndex], layers[i][focusIndex]);
+      return { row: diagram.rows[focusIndex].id, column: i + 1, state: 'changed' };
+    }));
+  };
+  for (const { spec } of Object.values(reference.depths)) assertView(spec, encoder);
+  assertView(reference.depths.deep.detailSpec, causal);
 });

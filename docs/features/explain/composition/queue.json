@@ -231,7 +231,7 @@
         "new": 3,
         "existingUpdated": 4,
         "snapshotAdded": 9,
-        "snapshotChanged": 0,
+        "snapshotChanged": 9,
         "snapshotRemoved": 0
       }
     },

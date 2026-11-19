@@ -52,8 +52,8 @@ const memory = reference('encoder-decoder-memory',
       { id: 'memory', label: brief(depth) ? 'Source notes' : 'Encoded memory' }, { id: 'prefix', label: 'Words written so far' },
       { id: 'decoder', label: brief(depth) ? 'Writing layers' : 'Decoder stack' }, { id: 'next', label: 'Next word' },
     ],
-    edges: edges(['source', 'encoder', 'Supplies ordered words'], ['encoder', 'memory', 'Builds source context'],
-      ['memory', 'decoder', 'Supplies source context'], ['prefix', 'decoder', 'Supplies earlier words'], ['decoder', 'next', 'Predicts a continuation']),
+    edges: edges(['source', 'encoder', 'Exposes all positions'], ['encoder', 'memory', 'Computed once'],
+      ['memory', 'decoder', 'Reused each step'], ['prefix', 'decoder', 'Conditions word choice'], ['decoder', 'next', 'Scores possible continuations']),
   }));
 
 const decoder = reference('original-decoder-sublayers',
@@ -90,9 +90,9 @@ const positionwise = reference('positionwise-feedforward',
       { id: 'catMix', label: 'cat with context' }, { id: 'satMix', label: 'sat with context' },
       { id: 'catNext', label: 'cat after update' }, { id: 'satNext', label: 'sat after update' },
     ],
-    edges: edges(['cat', 'catMix', 'Contributes its own value'], ['sat', 'satMix', 'Contributes its own value'],
-      ['cat', 'satMix', 'Contributes nearby context'], ['sat', 'catMix', 'Contributes nearby context'],
-      ['catMix', 'catNext', 'Runs the shared update'], ['satMix', 'satNext', 'Runs the shared update']),
+    edges: edges(['cat', 'catMix', 'Weighted own value'], ['sat', 'satMix', 'Weighted own value'],
+      ['cat', 'satMix', 'Weighted other value'], ['sat', 'catMix', 'Weighted other value'],
+      ['catMix', 'catNext', 'Applies shared rule'], ['satMix', 'satNext', 'Applies shared rule']),
   }));
 
 const distantQuery = sentence.length - 1;

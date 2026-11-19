@@ -233,9 +233,9 @@ const mask = reference('masked-token', ['01', '08'],
       { id: 'answer', label: 'Original word “' + focusWord + '”' },
     ],
     edges: [
-      { from: 'left', to: 'mask', label: 'Provides a left cue' },
-      { from: 'right', to: 'mask', label: 'Provides a right cue' },
-      { from: 'mask', to: 'answer', label: 'Predicts the hidden word' },
+      { from: 'left', to: 'mask', label: 'Article cue' },
+      { from: 'right', to: 'mask', label: 'Motion cue' },
+      { from: 'mask', to: 'answer', label: 'Scores the target' },
     ],
     caption: detailed(depth) ? 'The model uses the hidden position to score vocabulary candidates. The original token supplies the self-supervised label.' :
       'The original sentence supplies the answer. The model uses both sides to work out the missing word.',
