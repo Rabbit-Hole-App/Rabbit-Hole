@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS repository_index (
  repo TEXT NOT NULL, commit_sha TEXT NOT NULL, layer TEXT NOT NULL, scope TEXT NOT NULL DEFAULT '', storage_key TEXT NOT NULL,
  status TEXT NOT NULL, usd REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(repo,commit_sha,layer,scope)
 );
+-- A dropped document starts the Tutor (learn-migrations/0049): the one document per canvas.
+CREATE TABLE IF NOT EXISTS canvas_document (
+ org TEXT NOT NULL, app TEXT NOT NULL, sha TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, block_id TEXT,
+ created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(org,app)
+);
 CREATE TABLE IF NOT EXISTS threads (
  id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL,
  commit_sha TEXT NOT NULL, title TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))

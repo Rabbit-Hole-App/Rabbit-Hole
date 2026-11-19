@@ -265,7 +265,8 @@ export async function canvasRepository(env, access) {
     .bind(access.org, access.project, access.email).first();
   return row?.commit_sha ? { id: row.id, app: row.name, repo: row.repo, commit: row.commit_sha } : null;
 }
-const loadSnapshot = (env, repo) => repositorySnapshot(env, { id: repo.id }, repo.commit);
+// A dropped document is read as a snapshot of its sections (learn-document.js, loaded on use); a repository from its stored index.
+const loadSnapshot = async (env, repo) => (repo.docSha ? (await import('./learn-document.js')).loadDocumentSnapshot(env, repo) : repositorySnapshot(env, { id: repo.id }, repo.commit));
 const codebaseActivityOf = (state, activityId) => (state.activities || []).find(a => a.activityId === activityId && a.checkpoint?.codebase) || null;
 // What the learner's own selections may name: code refs only, as identity (the server resolves them against the snapshot).
 const selectionOf = list => (Array.isArray(list) ? list : []).filter(ref => ref && ref.kind === 'code' && typeof ref.sourceId === 'string' && ref.sourceId.length <= 1000).slice(0, 8)
@@ -458,19 +459,25 @@ export async function codebaseRoute(path, req, env, deps = {}) {
   if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
   const actor = { org: access.org, userId: access.user_id, app: body.app, board: body.board };
   try {
-    const repo = await canvasRepository(env, access);
+    // The canvas's source: its repository, else the one document that started its Tutor (roadmap-unplug-spec.md section B).
+    const repository = await canvasRepository(env, access), repo = repository ?? (await (await import('./learn-document.js')).canvasDocument(env, access, body.app));
     if (req.method === 'GET') {
       const state = await readCoachingState(env, actor), activity = codebaseActivityOf(state, state.activeActivityId);
       let snapshot = null;
       if (activity && repo) snapshot = await loadSnapshot(env, repo).catch(() => null);
       return json({
-        repository: repo && { app: repo.app, repo: repo.repo, commit: repo.commit },
+        repository: repo && { app: repo.app, repo: repo.repo, commit: repo.commit, ...(repo.docSha ? { name: repo.name, kind: repo.kind } : {}) },
         activity: activity && { activityId: activity.activityId, commit: activity.checkpoint.codebase.commit, ...await sourceDrift(activity.sourceRefs, snapshot) },
       });
     }
     if (!READ_ONLY.has(body.action) && (typeof body.actionId !== 'string' || !ACTION_ID.test(body.actionId) || !Number.isInteger(body.expectedRevision))) return json({ error: 'actionId (8-120 letters, digits, - or _) and expectedRevision required' }, 400);
     // The opening reads only what the browser passes (any source kind), so it needs no repository.
     if (body.action === 'learn_open') return await metered(env, access, 'learn_open', scoped => learnOpen(scoped, body, deps));
+    // A dropped Markdown or PDF starts the Tutor on a canvas that has no repository (its text and pages come in the body; one document per canvas).
+    if (body.action === 'learn_index' && body.source) {
+      if (repository) return json({ error: 'canvas_has_repository' }, 409);
+      return await metered(env, access, 'learn_index', async scoped => (await import('./learn-document.js')).runDocumentIndex(scoped, { access, canvas: body.app, blockId: typeof body.source?.blockId === 'string' ? body.source.blockId.slice(0, 80) : null }, body, deps));
+    }
     if (!repo) return json({ error: 'no_repository' }, 409);
     let snapshot;
     try { snapshot = await loadSnapshot(env, repo); } catch { return json({ error: 'repository_unavailable' }, 503); }

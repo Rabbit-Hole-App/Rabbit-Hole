@@ -8,6 +8,7 @@ import { goalOf, useOf } from './learn-codebase-goals.js';
 import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText, routeLearnText } from './codebase-use-route.js';
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { runIt } from './flags.js';
+import { DOCUMENT_ARRIVED_EVENT, documentBody, takeDocument } from './document-arrived.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
 import { appendOpening, askIntake, indexDoc, fallbackOpening, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, openingEntry, openingKey, openingMessage, optionsOpen, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
@@ -78,7 +79,7 @@ export const FIRST_SECTION = '1.1';
 export default function TutorRehearsalFlow({ chat, slash = null }) {
   const board = chat.board || 'main', canvas = chat.canvas;
   const [info, setInfo] = useState(null), [s, setS] = useState(INITIAL), [busy, setBusy] = useState(false);
-  const live = useRef(true), timer = useRef(null), fails = useRef(0), cards = useRef(new Set()), kicked = useRef(false), choose = useRef(null);
+  const live = useRef(true), timer = useRef(null), fails = useRef(0), cards = useRef(new Set()), kicked = useRef(false), choose = useRef(null), docDrop = useRef(null);
   const st = useRef(s), repoRef = useRef(null), route = useRef(null);
   st.current = s;
   const patch = change => setS(old => ({ ...old, ...(typeof change === 'function' ? change(old) : change) }));
@@ -118,6 +119,32 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     return { status: mine && mine.status !== 'none' ? mine.status : previous?.status || 'queued', step: mine?.step ?? previous?.step, attempt: previous?.attempt, error: mine?.error, record: data.record || null };
   };
 
+  // A dropped Markdown or PDF starts the Tutor (document-arrived.js, roadmap-unplug-spec.md section B): Reading <name> while the server stores its text and reads its overview, then the canvas
+  // has a source like a repository's (the GET answers it after a reload) and the same opening follows. Building by someone else is asked again; a failure is said once with Retry.
+  const startDocument = async detail => {
+    docDrop.current = detail;
+    patch({ docError: false, get: { indexing: 'indexing', catalogue: { status: 'queued' } } });
+    setInfo(old => ({ ...(old?.key === canvas ? old : { key: canvas, repository: null, activity: null }), waiting: { repo: detail.name, get: { indexing: 'indexing', catalogue: { status: 'queued' } } } }));
+    try {
+      const out = await codebasePost(chatRef.current, board, documentBody(detail));
+      if (!live.current) return;
+      if (out.status === 'ready' && out.repository) setInfo({ key: canvas, repository: out.repository, activity: null });
+      else if (out.status === 'building') timer.current = setTimeout(() => startDocument(detail), INDEX_POLL_MS);
+      else setInfo(old => ({ ...old, waiting: null })); // ignored: a later file is only a card
+    } catch { if (live.current) patch({ docError: true }); }
+  };
+  useEffect(() => {
+    const start = detail => {
+      if (!detail || detail.canvas && detail.canvas !== canvas) return;
+      if (docDrop.current || repoRef.current || st.current.asked || st.current.learn || storedLearn(chatRef.current?.coaching?.state)) return; // one document starts a canvas; an accepted plan or a repository: the file is only a card
+      chatRef.current?.panels?.openChat?.();
+      startDocument(detail);
+    };
+    start(takeDocument(canvas)); // dropped before this flow was mounted
+    const onDrop = event => { if (event.detail?.canvas === canvas) start(takeDocument(canvas)); };
+    window.addEventListener(DOCUMENT_ARRIVED_EVENT, onDrop);
+    return () => window.removeEventListener(DOCUMENT_ARRIVED_EVENT, onDrop);
+  }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   // Learn's own read (codebase-index-spec.md section 4, owner 2026-11-19): the overview layer of the codebase index, built once per repository and commit and stored; the Run catalogue is neither
   // started nor read unless Run it is on (runIt). Building by someone else is asked again; a failed build is said once and waits for Retry (a build costs, so it is never repeated by itself).
   const indexPoll = async () => {
@@ -128,7 +155,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
       const out = await codebasePost(chatRef.current, board, { action: 'learn_index', layer: 'overview' });
       fails.current = 0;
       if (!live.current) return;
-      if (out.status === 'ready' && out.index) { patch({ doc: indexDoc(repoRef.current?.repo, out.index), docError: false, get: { indexing: 'ready', catalogue: { status: 'ready' } } }); again = false; }
+      if (out.status === 'ready' && out.index) { patch({ doc: indexDoc(repoRef.current?.name || repoRef.current?.repo, out.index), docError: false, get: { indexing: 'ready', catalogue: { status: 'ready' } } }); again = false; }
     } catch (error) {
       if ([422, 502, 503].includes(error?.status) || ++fails.current >= FAILS) { again = false; if (live.current) patch({ docError: true }); }
     }
@@ -183,7 +210,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     }, 4000);
     return () => clearInterval(tick);
   }, [waiting]); // eslint-disable-line react-hooks/exhaustive-deps
-  const retryCatalogue = () => { patch({ docError: false, get: null }); fails.current = 0; clearTimeout(timer.current); if (!runIt) { indexPoll(); return; } fetchDoc().then(done => { if (!done) poll(); }); };
+  const retryCatalogue = () => { patch({ docError: false, get: null }); fails.current = 0; clearTimeout(timer.current); if (docDrop.current && !repoRef.current) { startDocument(docDrop.current); return; } if (!runIt) { indexPoll(); return; } fetchDoc().then(done => { if (!done) poll(); }); };
 
   // The chosen route's rehearsal: POST start, then the same poll with the route.
   const startRoute = async (routeId, title) => {
@@ -569,7 +596,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     return () => window.removeEventListener(SOURCE_ARRIVED_EVENT, onArrived);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const indexing = !repository && info?.key === canvas ? info.waiting : null;
-  const messages = [...(active ? flowMessages(s, { repo: repository.repo }) : indexing ? flowMessages({ ...s, get: indexing.get }, { repo: indexing.repo }) : []), ...s.lines];
+  const messages = [...(active ? flowMessages(s, { repo: repository.name || repository.repo }) : indexing ? flowMessages({ ...s, get: indexing.get }, { repo: indexing.repo }) : []), ...s.lines];
   if (!messages.length) return null;
   return <div data-rehearsal-flow aria-live="polite" className="flex flex-col">
     {messages.map(m => {
