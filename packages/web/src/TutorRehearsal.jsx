@@ -9,7 +9,7 @@ import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText, routeLearnT
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
-import { flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute } from './rehearsal-flow.js';
+import { askIntake, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, optionsOpen } from './rehearsal-flow.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
 import { chapterCount, cleanOps, planRows, planTree, sectionEntries, storedLearn } from './learn-plan.js';
 import { SENTENCES, catalogueMessage, internal } from './tutor-rehearsal-text.js';
@@ -31,7 +31,7 @@ import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], section: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { asked: 0, intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], section: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -371,7 +371,8 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   planRef.current = requestPlan; chatRef.current = chat;
   // The router decided the learner asked what they can do here (ask.jsx): the intake is offered again, whatever was chosen before.
   useEffect(() => {
-    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; planSeq.current += 1; forgetIntake(canvas); patch({ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null }); };
+    // The question is asked again as one new message in the thread (intake-once-spec.md 2), its rows live.
+    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; planSeq.current += 1; forgetIntake(canvas); patch(old => { const reset = { ...old, intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null }; return { ...reset, ...(askIntake(reset, { again: true }) || {}) }; }); };
     window.addEventListener(CODEBASE_OPTIONS_EVENT, again);
     return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -395,7 +396,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     else if (id.startsWith('learn:')) {
       const option = learnOption(id.slice(6)), swap = st.current.plan?.status === 'draft' && st.current.learn?.id !== id.slice(6); // another topic offered beside a draft that cannot teach what was asked
       if (option && swap) { planSeq.current += 1; patch({ learn: null, plan: null, planLog: [], learnIntro: null, depthAsk: false }); chooseLearn(option); }
-      else if (option && learnOpen(st.current)) chooseLearn(option);
+      else if (option && (learnOpen(st.current) || optionsOpen(st.current))) { if (st.current.mode !== 'learn') patch({ mode: 'learn' }); chooseLearn(option); }
     }
     else if (id === 'retry:learn') { if (st.current.learn) { openLearnIntro(st.current.learn); if (!st.current.plan) requestPlan(st.current.learn); } }
     else if (id.startsWith('use:')) chooseUse(id.slice(4));
@@ -495,6 +496,13 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     if (!plan) requestPlan(picked);
     else if (!plan.acceptedAt) chat.canvasOps?.proposeOutline?.({ ops: plan.ops, base: plan.revision, source: 'learn-plan' });
   }, [stored?.id, !!s.doc, !!repository]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Intake asked once (intake-once-spec.md 1): when the catalogue and its options are in and no saved Learn goal brings the flow back, the question is appended to the
+  // thread once for this open of the chat; a later render adds nothing.
+  useEffect(() => {
+    if (!active || stored || st.current.learn) return;
+    const ask = askIntake(st.current);
+    if (ask) patch(ask);
+  }, [active, !!stored, !!s.doc, s.get?.learn?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const messages = [...(active ? flowMessages(s, { repo: repository.repo }) : []), ...s.lines];
   if (!messages.length) return null;
   return <div data-rehearsal-flow aria-live="polite" className="flex flex-col">

@@ -5,6 +5,8 @@ export const learnPreview = (import.meta.env?.VITE_RABBIT_HOLE === 'true' || imp
 // Review tooling (?fixtures=1 cards, ?board= review boards) is dev/review only: never in the production build,
 // which turns learnPreview on with VITE_RABBIT_HOLE alone.
 export const reviewTools = learnPreview && import.meta.env?.VITE_COACHING_DEV === 'true';
+// Run it (intake-once-spec.md, owner 2026-11-18 22:09): the intake's Run it row and the route list. Off by default and never set by prod-release.mjs; the Run card is not this flag.
+export const runIt = import.meta.env?.VITE_RUN_IT === '1' || import.meta.env?.VITE_RUN_IT === 'true';
 // The supplied NanoGPT course's editor (Edit course, Edit in chat, curriculum approval) is review tooling too:
 // ownership alone never opens it in production. Generated courses keep their owner editor.
 export const canEditCourse = (canAuthor, supplied) => !!canAuthor && (reviewTools || !supplied);

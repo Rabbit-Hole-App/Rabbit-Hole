@@ -16,7 +16,7 @@ import { planMessage } from './learn-rehearsal-view.js';
 import { SENTENCES, catalogueMessage, factsMessage, indexingFailure, rehearsalFailure, repoName, routeQuestion } from './tutor-rehearsal-text.js';
 import { learnOf, optionRows } from './learn-intake.js';
 import { draftText } from './learn-plan.js';
-import { reviewTools } from './flags.js';
+import { reviewTools, runIt } from './flags.js';
 import { sampleSectionOn } from './learn-sample-section.js';
 // Dev build only (Reviewer 2026-11-18 13:32): the built 1.1 fixture onto this fresh canvas, so a layout, walk or contents check costs seconds and no model call.
 const SAMPLE_ROW = { id: 'sample:load', label: 'Load sample section' };
@@ -36,10 +36,29 @@ export const RETRY_LEARN = { id: 'retry:learn', label: 'Retry' };
 export const intakeOpen = (state, cm) => !!cm && ['one', 'choose'].includes(cm.kind) && !state.mode && !state.use && !state.goalChosen && !state.elsewhere && !state.intakeDone;
 // The Learn options are open until one is chosen or the learner sets them aside.
 export const learnOpen = state => state.mode === 'learn' && !state.learn && !state.elsewhere;
+// The intake question's rows are live until a topic is chosen, the learner sets them aside, or Run it is taken.
+export const optionsOpen = state => !state.learn && !state.elsewhere && !state.use;
+// Intake asked once (intake-once-spec.md, owner 2026-11-18 22:09): the catalogue is in, and its teachable options too (a catalogue still adding them waits).
+export const intakeReady = state => !!state.doc && !(learnOf(state.doc).options.length === 0 && state.get?.learn?.status === 'queued');
+// The one Tutor message: the catalogue's one-line fact, the question, and the teachable options as rows (no Run it / Learn from it step). Run it (flag runIt) leads the rows
+// only where the codebase can run. The dev build's Load sample section stays last.
+export function intakeMessage(doc, { key = 'intake', run = runIt } = {}) {
+  const learn = learnOf(doc), cm = catalogueMessage(doc);
+  const rows = [...(run && ['one', 'choose'].includes(cm.kind) ? [{ id: 'mode:run', label: SENTENCES.runIt }] : []), ...optionRows(learn.options), ...sampleRow()];
+  return { key, role: 'assistant', text: `${factsMessage(doc, cm).text}\n\n${learn.options.length ? SENTENCES.intake : SENTENCES.learnNone}`, choices: rows, intakeRows: true };
+}
+// -> the state change that asks the question, or null: asked once per open (asked counts), again only when the router fires codebase-options (again: true).
+// Run it off: the answer is a Learn topic, so the Learn options are what typing replies to (mode learn).
+export function askIntake(state, { again = false, run = runIt } = {}) {
+  if (!intakeReady(state) || (state.asked && !again)) return null;
+  const asked = (state.asked || 0) + 1;
+  return { asked, mode: run ? null : 'learn', log: [...(state.log || []), intakeMessage(state.doc, { key: asked === 1 ? 'intake' : `intake-${asked}`, run })] };
+}
+
 // The route the pipeline runs once "Use the codebase" is chosen with exactly one practical route.
 export const onlyRoute = doc => { const practical = (doc?.routes || []).filter(route => route.practical); return practical.length === 1 ? practical[0] : null; };
 
-export function flowMessages(state, { repo }) {
+export function flowMessages(state, { repo, run = runIt }) {
   const name = repoName(repo), out = [], g = state.get, cat = g?.catalogue?.status, doc = state.doc;
   // 1. before the catalogue: indexing, its failure, the catalogue's failure
   if (g?.indexing === 'failed') return [note('indexing-failed', indexingFailure(name, g?.catalogue?.error))];
@@ -47,28 +66,15 @@ export function flowMessages(state, { repo }) {
     if (cat === 'failed' || state.docError) return [note('catalogue-failed', SENTENCES.catalogueFailed(name), [RETRY_CATALOGUE])];
     return [pending('indexing', !g || ['queued', 'indexing'].includes(g.indexing) ? `Reading ${name}` : `Working out how ${name} can be used`)];
   }
-  // 2. what the codebase is and what is out of reach, then ONE question with two rows: Run it or Learn from it (Intake v2, owner 2026-11-15). Run it shows the route list below (step 5);
-  // Learn from it shows the options the catalogue document offers (never the route list). A codebase that cannot run keeps its reading goals under the can / cannot message.
-  const cm = catalogueMessage(doc), set = state.goalChosen || state.elsewhere, ways = ['one', 'choose'].includes(cm.kind);
-  const open = intakeOpen(state, cm), learn = learnOf(doc), openLearn = learnOpen(state);
-  if (ways) {
-    const facts = factsMessage(doc, cm);
-    out.push(note('catalogue', facts.text));
-    if (facts.rest) out.push(note('catalogue-rest', facts.rest));
-    out.push(note('intake', SENTENCES.intake, null, [{ id: 'mode:run', label: SENTENCES.runIt, disabled: !open }, { id: 'mode:learn', label: SENTENCES.learnIt, disabled: !open }, ...sampleRow()]));
-  } else {
-    out.push(note('catalogue', cm.text, null, set ? null : cm.chips));
-    if (cm.rest) out.push(note('catalogue-rest', cm.rest));
+  // 2. Intake asked once (intake-once-spec.md, owner 2026-11-18 22:09): the question is ONE message in the thread (askIntake appends it to the log), never pinned here.
+  // Until it is asked, a catalogue still adding its Learn options says so (transient, like the indexing line above).
+  const cm = catalogueMessage(doc), openLearn = learnOpen(state), open = optionsOpen(state);
+  if (!state.asked && !intakeReady(state)) out.push(pending('learn-wait', 'Working out what you can learn here'));
+  // 3. the thread: the question (its rows live until a topic is set), what was typed, the Tutor's answers (rows in a typed reply live only while the Learn options are open)
+  for (const line of state.log) {
+    if (line.intakeRows) out.push({ ...line, choices: line.choices.map(choice => (choice.id === 'sample:load' ? choice : { ...choice, disabled: !open })) });
+    else out.push(line.learnRows ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !openLearn })) } : line);
   }
-  // 3. Learn from it: the options as rows, then the line that says typing works too
-  if (state.mode === 'learn') {
-    // A stored catalogue that has no `learn` yet is being added to (GET says learn: queued): the Tutor says so until it lands, never an empty list.
-    if (!learn.options.length && state.get?.learn?.status === 'queued') out.push(pending('learn-wait', 'Working out what you can learn here'));
-    else out.push(note('learn-options', learn.options.length ? SENTENCES.learnOptions : SENTENCES.learnNone, null, optionRows(learn.options, { disabled: !openLearn })));
-    if (openLearn && learn.options.length) out.push(note('learn-or-type', SENTENCES.learnOrType));
-  }
-  // 4. what was typed, what the Tutor answered (rows in a typed reply are live only while the Learn options are open), the goal's own question
-  for (const line of state.log) out.push(line.learnRows ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !openLearn })) } : line);
   // 4b. the chosen topic's opening paragraph
   if (state.learn && state.depthAsk) {
     // the topic is confirmed; how deep comes next, as three rows (the goal, the opening paragraph and the plan wait for the answer)
@@ -101,8 +107,8 @@ export function flowMessages(state, { repo }) {
     }
   }
   if (state.elsewhere) return out;
-  // 5. "Use the codebase": the route question when more than one route is practical, then the rehearsal
-  if (state.use === 'use_codebase' && cm.kind !== 'zero' && cm.kind !== 'none') {
+  // 5. "Use the codebase" (Run it, flag runIt only): the route question when more than one route is practical, then the rehearsal
+  if (run && state.use === 'use_codebase' && cm.kind !== 'zero' && cm.kind !== 'none') {
     if (cm.kind === 'choose' && !state.routeId) { const q = routeQuestion(doc); out.push(note('route-question', q.text, null, q.chips)); }
     if (state.routeId) {
       const run = state.run, failed = state.startError ? { text: SENTENCES.noMachine(name), retry: true } : run?.status === 'failed' ? rehearsalFailure(name, run.error) : null;

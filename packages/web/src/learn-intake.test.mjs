@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { flowMessages, intakeOpen, learnOpen } from './rehearsal-flow.js';
+import { askIntake, flowMessages, intakeMessage, learnOpen } from './rehearsal-flow.js';
 import { learnOf, learnReply, optionRows } from './learn-intake.js';
 import { SENTENCES } from './tutor-rehearsal-text.js';
 
@@ -22,28 +22,37 @@ const doc = {
   },
 };
 const base = { intakeDone: false, get: { indexing: 'ready', catalogue: { status: 'ready' } }, doc, use: null, mode: null, learn: null, learnIntro: null, goalChosen: false, elsewhere: false, log: [], routeId: null };
-const flow = state => flowMessages({ ...base, ...state }, { repo: 'acme/widgets' });
+// The question asked once (intake-once-spec.md): the state after askIntake, Run it off.
+const asked = { ...base, ...askIntake(base, { run: false }) };
+const flow = (state, run = false) => flowMessages({ ...asked, ...state }, { repo: 'acme/widgets', run });
 
-test('Learn from it: the options are rows from the document under one sentence, then the line that typing works; the route list never shows', () => {
-  const out = flow({ mode: 'learn' });
-  assert.deepEqual(out.map(m => m.key), ['catalogue', 'intake', 'learn-options', 'learn-or-type']);
-  assert.equal(out[2].text, SENTENCES.learnOptions);
-  assert.deepEqual(out[2].choices.map(c => [c.id, c.label, !!c.disabled]), [['learn:render', 'How a widget is drawn', false], ['learn:layout', 'How sizes are worked out', false]]);
-  assert.equal(out[3].text, SENTENCES.learnOrType);
+test('the intake (Run it off): one message, the fact, the question and the options as its first rows; typing replies to them; no route list', () => {
+  const out = flow({});
+  assert.deepEqual(out.map(m => m.key), ['intake']);
+  assert.equal(out[0].text, `**widgets**: A small widget library.\n\n${SENTENCES.intake}`);
+  assert.deepEqual(out[0].choices.map(c => [c.id, c.label, !!c.disabled]), [['learn:render', 'How a widget is drawn', false], ['learn:layout', 'How sizes are worked out', false]]);
   assert.equal(out.some(m => m.key === 'route-question'), false);
-  assert.equal(intakeOpen({ ...base, mode: 'learn' }, { kind: 'choose' }), false, 'the first question is answered');
-  assert.equal(learnOpen({ ...base, mode: 'learn' }), true);
+  assert.equal(learnOpen(asked), true, 'typing goes to the Learn options');
+});
+
+test('asked once per open: a second ask adds nothing; codebase-options asks again with live rows', () => {
+  assert.equal(askIntake(asked, { run: false }), null, 'a second render adds nothing');
+  const again = askIntake({ ...asked, learn: null }, { again: true, run: false });
+  assert.deepEqual(again.log.map(m => m.key), ['intake', 'intake-2']);
+  assert.equal(again.asked, 2);
+  assert.equal(askIntake({ ...base, doc: null }, { run: false }), null, 'nothing until the catalogue is in');
+  assert.equal(askIntake({ ...base, doc: { ...doc, learn: undefined }, get: { ...base.get, learn: { status: 'queued' } } }, { run: false }), null, 'nor while its options are still being added');
+  assert.deepEqual(intakeMessage(doc, { run: true }).choices.map(c => c.id), ['mode:run', 'learn:render', 'learn:layout'], 'Run it on: it leads the rows');
 });
 
 test('a chosen topic: the rows grey, the opening paragraph is pending, then said, or fails with Retry', () => {
   const option = doc.learn.options[0];
-  let out = flow({ mode: 'learn', learn: option, learnIntro: { status: 'loading' } });
-  assert.ok(out.find(m => m.key === 'learn-options').choices.every(c => c.disabled));
-  assert.equal(out.some(m => m.key === 'learn-or-type'), false);
+  let out = flow({ learn: option, learnIntro: { status: 'loading' } });
+  assert.ok(out.find(m => m.key === 'intake').choices.every(c => c.disabled));
   assert.ok(out.at(-1).pending);
-  out = flow({ mode: 'learn', learn: option, learnIntro: { status: 'done', text: 'It draws.' } });
+  out = flow({ learn: option, learnIntro: { status: 'done', text: 'It draws.' } });
   assert.deepEqual([out.at(-1).key, out.at(-1).text], ['learn-intro', 'It draws.']);
-  out = flow({ mode: 'learn', learn: option, learnIntro: { status: 'failed' } });
+  out = flow({ learn: option, learnIntro: { status: 'failed' } });
   assert.deepEqual(out.at(-1).chips.map(c => c.id), ['retry:learn']);
 });
 
@@ -76,19 +85,19 @@ test('learnOf keeps 1-4 plain options and leaves out one that would show a path;
   const many = { repo: 'acme/widgets', learn: { options: [...doc.learn.options, { id: 'x', label: 'Open src/render.py', what: 'w', anchors: [], kind: 'other' }, ...extra] } };
   assert.deepEqual(learnOf(many).options.map(o => o.id), ['render', 'layout', 'a', 'b']);
   assert.deepEqual(learnOf({ repo: 'acme/widgets' }), { options: [], cannot: [] });
-  assert.equal(flow({ mode: 'learn', doc: { ...doc, learn: undefined } }).find(m => m.key === 'learn-options').text, SENTENCES.learnNone);
+  assert.ok(intakeMessage({ ...doc, learn: undefined }, { run: false }).text.endsWith(SENTENCES.learnNone), 'no options: the question says so');
 });
 
-test('Run it is unchanged: the route list is the second step and the rehearsal follows', () => {
-  const out = flow({ mode: 'run', use: 'use_codebase' });
-  assert.deepEqual(out.map(m => m.key), ['catalogue', 'intake', 'route-question']);
+test('Run it (flag on) is unchanged: the route list is the second step and the rehearsal follows', () => {
+  const out = flow({ mode: 'run', use: 'use_codebase' }, true);
+  assert.deepEqual(out.map(m => m.key), ['intake', 'route-question']);
   assert.deepEqual(out.at(-1).choices.map(c => c.id), ['route:a', 'route:b', 'else']);
 });
 
 test('wiring: the two rows, the option click, the typed reply and the opening paragraph; no repository word in the sources (the grep gate)', () => {
   const ui = read('TutorRehearsal.jsx');
   assert.match(ui, /id === 'mode:run'\) chooseUse\('use_codebase'\)/);
-  assert.match(ui, /id === 'mode:learn'\) patch\(\{ mode: 'learn' \}\)/);
+  assert.match(ui, /const ask = askIntake\(st\.current\);/, 'asked once, from the effect');
   assert.match(ui, /startGoal\(\{ chat, board, repository: repoRef\.current, goalId: 'learn_concept', text: '', learn: option \}\)/);
   assert.match(ui, /codebasePost\(chat, board, \{ action: 'learn_intro', learn: option \}\)/);
   assert.match(ui, /routeLearnText\(\{ post:/);
@@ -114,27 +123,27 @@ test('the miss path: one fit is a Start row and keeps the learner words as the f
   assert.match(ui, /\{ \.\.\.picked, focus: kept\.text \}/, 'the focus rides the chosen option into the goal and the opening paragraph');
 });
 
-test('Learn from it before the document has its learn section: the Tutor says it is working it out, then offers the rows; a failure says it could not', () => {
+test('before the catalogue has its learn section the Tutor says it is working it out (transient), then asks; a failure asks with no options', () => {
   const noLearn = { ...doc, learn: undefined };
-  let out = flowMessages({ ...base, doc: noLearn, mode: 'learn', get: { ...base.get, learn: { status: 'queued' } } }, { repo: 'acme/widgets' });
-  assert.ok(out.find(m => m.key === 'learn-wait').pending);
-  assert.equal(out.some(m => m.key === 'learn-options'), false);
-  out = flowMessages({ ...base, doc: noLearn, mode: 'learn', get: { ...base.get, learn: { status: 'failed' } } }, { repo: 'acme/widgets' });
-  assert.equal(out.find(m => m.key === 'learn-options').text, SENTENCES.learnNone);
-  out = flowMessages({ ...base, mode: 'learn' }, { repo: 'acme/widgets' });
-  assert.equal(out.find(m => m.key === 'learn-options').text, SENTENCES.learnOptions);
+  let out = flowMessages({ ...base, doc: noLearn, get: { ...base.get, learn: { status: 'queued' } } }, { repo: 'acme/widgets', run: false });
+  assert.deepEqual(out.map(m => m.key), ['learn-wait']);
+  assert.ok(out[0].pending);
+  const failed = { ...base, doc: noLearn, get: { ...base.get, learn: { status: 'failed' } } };
+  out = flowMessages({ ...failed, ...askIntake(failed, { run: false }) }, { repo: 'acme/widgets', run: false });
+  assert.deepEqual(out.map(m => m.key), ['intake'], 'nothing pinned once the question is asked');
+  assert.ok(out[0].text.endsWith(SENTENCES.learnNone));
 });
 
 // Reviewer 2026-11-15 23:32: after a Learn topic is confirmed, how deep comes next (Brief / Standard / Detailed), before the goal, the opening paragraph and the plan.
 test('the depth question: three rows after the topic, nothing else waits on screen until it is answered; Standard is the balanced depth', () => {
   const option = doc.learn.options[0];
-  const out = flow({ mode: 'learn', learn: option, depthAsk: true });
+  const out = flow({ learn: option, depthAsk: true });
   const ask = out.at(-1);
   assert.equal(ask.key, 'learn-depth');
   assert.equal(ask.text, 'How deep do you want to go?');
   assert.deepEqual(ask.choices.map(c => [c.id, c.label]), [['depth:brief', 'Brief'], ['depth:balanced', 'Standard'], ['depth:detailed', 'Detailed']]);
   assert.equal(out.some(m => m.key === 'learn-intro' || m.key === 'learn-plan'), false, 'the opening paragraph and the plan come after the answer');
-  const after = flow({ mode: 'learn', learn: { ...option, depth: 'brief' }, depthAsk: false, learnIntro: { status: 'loading' } });
+  const after = flow({ learn: { ...option, depth: 'brief' }, depthAsk: false, learnIntro: { status: 'loading' } });
   assert.ok(after.at(-1).pending && after.every(m => m.key !== 'learn-depth'));
   const ui = read('TutorRehearsal.jsx');
   assert.match(ui, /chat\.settings\?\.set\?\.\(\{ depth \}\)/, 'saved for the board through the Chat\'s own Depth setting, which the composer menu and every tool read');
