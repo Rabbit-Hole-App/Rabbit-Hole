@@ -1,0 +1,33 @@
+# ILL-B checklists (the Reviewer marks yes/no per must item; text = none / correct / wrong / unasked)
+N pictures: no text at all. L pictures: every asked label present, spelled exactly, on the right part, and no other words.
+
+- P01 (physical): 1) piston inside a cylinder; 2) two valves on top; 3) rod and crank below; L labels: "piston", "valve", "crankshaft"
+- P02 (physical): 1) cone; 2) vent joined to a chamber below; 3) material leaving the top; L labels: "magma chamber", "vent"
+- P03 (physical): 1) four chambers; 2) upper pair smaller; 3) vessels on top; L labels: "atrium", "ventricle"
+- P04 (physical): 1) wall; 2) one nucleus; 3) several chloroplasts; 4) one large vacuole; L labels: "nucleus", "vacuole", "chloroplast"
+- P05 (physical): 1) three bodies in a line; 2) Moon in the middle; 3) shadow reaches Earth; L labels: "Sun", "Moon", "Earth"
+- P06 (physical): 1) two towers; 2) curved cable; 3) vertical hangers; 4) deck
+- P07 (physical): 1) two strands; 2) twisted; 3) rungs between them
+- P08 (physical): 1) three body sections; 2) wings; 3) six legs
+- P09 (physical): 1) cubic grid; 2) two sphere kinds; 3) they alternate
+- P10 (physical): 1) one sun gear; 2) exactly three planets; 3) outer ring
+- S01 (spatial): 1) two marker shapes; 2) straight axis-aligned split lines; 3) three regions in different colours; L labels: "feature 1", "feature 2"
+- S02 (spatial): 1) two trees, each with one root; 2) left clearly larger; 3) arrow from left to right; L labels: "large tree", "pruned tree"
+- S03 (spatial): 1) one smooth wave; 2) one stepped line; 3) the steps follow the wave; L labels: "curve", "steps"
+- S04 (spatial): 1) exactly five tiles; 2) one arrow per tile; 3) five columns of cells; L labels: "tokens", "vectors"
+- S05 (spatial): 1) three strips; 2) two round nodes; 3) a bar group with one tallest; 4) arrows in that order; L labels: "Query", "Key", "Value"
+- S06 (spatial): 1) two groups of three bars; 2) same height order in both; 3) an arrow between; L labels: "scores", "probabilities"
+- S07 (spatial): 1) at least four nested rings; 2) a dotted path ending at the centre; 3) steps shrink; L labels: "start", "minimum"
+- S08 (spatial): 1) two marker kinds; 2) one star; 3) a ring around the star with five points inside; L labels: "query"
+- S09 (spatial): 1) a 5x5 grid; 2) a 3x3 highlighted window; 3) a smaller output grid with one highlighted cell; L labels: "input", "kernel", "output"
+- S10 (spatial): 1) two curves; 2) one keeps falling; 3) one turns up; 4) dashed vertical line at the turn; L labels: "training", "validation"
+- A01 (abstract): 1) columns of 3, 4, 2; 2) lines only between neighbouring columns; L labels: "input", "hidden", "output"
+- A02 (abstract): 1) a layered network; 2) one arrow set each way; 3) the two sets in different colours; L labels: "forward", "backward"
+- A03 (abstract): 1) four stacked blocks; 2) an upward arrow; 3) one skip arrow around one block; L labels: "attention", "feed-forward"
+- A04 (abstract): 1) two towers; 2) three blocks each; 3) an arrow from left top to right; L labels: "encoder", "decoder"
+- A05 (abstract): 1) three clusters; 2) two arrows; 3) the arrows are parallel and equal; L labels: "king", "queen", "man", "woman"
+- A06 (abstract): 1) four targets; 2) the four dot patterns as described; L labels: "low bias", "high bias"
+- A07 (abstract): 1) three panels; 2) same dots; 3) line, smooth curve, wiggly curve in that order; L labels: "underfit", "good fit", "overfit"
+- A08 (abstract): 1) a layered network; 2) at least two crossed or grey nodes; 3) their lines absent or faded; L labels: "dropped"
+- A09 (abstract): 1) five stages in a row; 2) arrows between; 3) a pile of pages then a few chosen ones; L labels: "question", "retrieve", "generate", "answer"
+- A10 (abstract): 1) nine boxes; 2) three pointers at left, middle, right; 3) one half greyed; L labels: "low", "mid", "high"
