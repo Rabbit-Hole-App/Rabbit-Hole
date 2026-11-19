@@ -1,0 +1,1205 @@
+{
+  "job": {
+    "id": "ej_3fffcc7e79a741659753524c1d1d487d",
+    "version": 1,
+    "boardId": "28b0571b-c72b-4641-b0a0-96042bc6e924",
+    "cardId": "42788b47-0198-4c1c-b3a3-5f36d40ec86e",
+    "requestClass": "simple",
+    "stage": "ready",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "accepted",
+    "failure": null,
+    "recovery": [],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": {
+      "jobId": "ej_3fffcc7e79a741659753524c1d1d487d",
+      "resultId": "er_184fb227e72044a183e114ebceed7d74",
+      "cardId": "42788b47-0198-4c1c-b3a3-5f36d40ec86e",
+      "canvas": {
+        "boardId": "28b0571b-c72b-4641-b0a0-96042bc6e924"
+      },
+      "promptRef": "0f5990ff8d9bb1f0",
+      "revision": "xr_dd6e76115d824a7e86fa9765bce62b04",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "20f9cfc1522b5fd909be4a4b8b20a473efc4bd65f0bfbf3b40e23ea9b835d2d1",
+      "sourceHash": "0f885e85376b29f5dc9171e414d5f9fb83fff4153c6f358fe26d259900c5f059",
+      "manifestHash": "3f6b2edadcbe88bccbe9bc88b3369b8dbb94b74ee532679132b4470a5f0840fb",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "347f1a1d1a451589b720e3424d9641b3c21137ec2c30ebda5c316c9d22de7d72",
+        "envelopeHash": "454195297fa5cd642bcaec33706b05969361f00bffa014892bc80745e20e9c87",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      },
+      "program": {
+        "kind": "explain_program",
+        "schemaVersion": 1,
+        "runtimeVersion": "quickjs-release-sync@0.32.0",
+        "sdkVersion": "sdk-8",
+        "rendererVersion": "renderer-5",
+        "runtimePolicyVersion": "policy-1",
+        "permissionProfileVersion": "perm-1",
+        "fingerprints": {
+          "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+          "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+          "renderer": "renderer-5"
+        },
+        "dependencies": [],
+        "manifest": {
+          "title": "What changes a pendulum's swing?",
+          "summary": "Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it.",
+          "assumptions": [
+            "Both pendulums start at 20 degrees with g = 9.81 m/s^2 and no damping."
+          ],
+          "description": "Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it.",
+          "inputs": [
+            {
+              "type": "number",
+              "id": "mass",
+              "label": "B mass",
+              "unit": "kg",
+              "default": 1,
+              "min": 0.5,
+              "max": 3,
+              "step": 0.1
+            },
+            {
+              "type": "number",
+              "id": "length",
+              "label": "B length",
+              "unit": "m",
+              "default": 1,
+              "min": 0.5,
+              "max": 2,
+              "step": 0.1
+            }
+          ],
+          "duration": 8,
+          "timeline": {
+            "label": "Time",
+            "displayOffset": 0,
+            "playbackRate": 1,
+            "markers": []
+          },
+          "readouts": [
+            {
+              "id": "periodA",
+              "label": "A",
+              "unit": "s per swing",
+              "decimals": 2
+            },
+            {
+              "id": "periodB",
+              "label": "B",
+              "unit": "s per swing",
+              "decimals": 2
+            }
+          ],
+          "capabilities": [
+            "time_playback",
+            "number_inputs",
+            "figures"
+          ]
+        },
+        "source": "const T={\"title\":\"What changes a pendulum's swing?\",\"g\":9.81,\"theta0\":20,\"duration\":8,\"reference\":{\"mass\":1,\"length\":1},\"limits\":{\"maxMass\":3,\"maxLength\":2},\"plot\":{\"title\":\"Angle against time\",\"time\":\"Time\",\"angle\":\"Angle\",\"yMax\":25,\"nameA\":\"A: reference\",\"nameB\":\"B: your pendulum\",\"geometry\":{\"min\":{\"width\":218,\"height\":277},\"plotArea\":{\"left\":74,\"right\":280,\"top\":56,\"bottom\":198},\"x\":{\"min\":0,\"max\":8},\"y\":{\"min\":-25,\"max\":25}}},\"layout\":{\"pictureCount\":\"two\",\"runs\":\"compact\",\"panelRole\":\"records-main\",\"figureParts\":{\"legend\":\"always\"}},\"values\":[{\"quantity\":\"angleB\",\"label\":\"Angle B\",\"unit\":\"°\",\"decimals\":0,\"kind\":\"live\",\"role\":\"warning\",\"sample\":\"-20°\"},{\"quantity\":\"periodB\",\"label\":\"Period B\",\"unit\":\"s\",\"decimals\":2,\"kind\":\"set\",\"role\":\"warning\",\"sample\":\"2.84 s\"},{\"quantity\":\"periodA\",\"label\":\"Period A\",\"unit\":\"s\",\"decimals\":2,\"kind\":\"fixed\",\"role\":\"input\",\"sample\":\"2.01 s\"}],\"formula\":\"T = 2\\\\pi\\\\sqrt{L/g}\",\"notes\":{\"same\":\"B matches A: same mass, same length.\",\"mass\":\"Same timing: only the mass differs.\",\"longer\":\"Slower: a longer string takes longer.\",\"shorter\":\"Faster: a shorter string is quicker.\"}},L={\"layout\":\"side-by-side\",\"stage\":[12,12,304,299.2],\"panel\":[324,12,304,299.2],\"figure\":{\"at\":[324,12],\"w\":304},\"values\":[{\"quantity\":\"angleB\",\"label\":\"Angle B\",\"unit\":\"°\",\"decimals\":0,\"kind\":\"live\",\"role\":\"warning\",\"sample\":\"-20°\",\"box\":[12,320.4,200,28],\"dot\":[26,334.4,10]},{\"quantity\":\"periodB\",\"label\":\"Period B\",\"unit\":\"s\",\"decimals\":2,\"kind\":\"set\",\"role\":\"warning\",\"sample\":\"2.84 s\",\"box\":[220,320.4,200,28],\"dot\":[234,334.4,10]},{\"quantity\":\"periodA\",\"label\":\"Period A\",\"unit\":\"s\",\"decimals\":2,\"kind\":\"fixed\",\"role\":\"input\",\"sample\":\"2.01 s\",\"box\":[428,320.4,200,28],\"dot\":[442,334.4,10]}],\"formulaAt\":[138,372.8],\"noteBox\":[272,358.8,356,28]};\nconst RAD=Math.PI/180,PERIOD=length=>2*Math.PI*Math.sqrt(length/T.g);\nconst radius=mass=>10*Math.cbrt(mass)+4,kg=value=>String(Math.round(value*10)/10),metre=value=>String(Math.round(value*10)/10);\n// The stage box: the pivot bar 40 px under its top, and the longest string with the heaviest ball inside it with 6 px to spare.\nconst SX=L.stage[0],SY=L.stage[1],SW=L.stage[2],PIVOT_Y=SY+40,SCALE=Math.floor((SY+L.stage[3]-6-radius(T.limits.maxMass)-PIVOT_Y)/T.limits.maxLength);\n// A point at every quarter period from 0 to the end, then the end; the midpoint of every pair too while the total stays within the kind's 25 samples.\nconst sampleTimes=period=>{const quarter=period/4,base=[];for(let k=0;k*quarter<T.duration-1e-9;k++)base.push(k*quarter);base.push(T.duration);return base.length*2-1<=25?base.flatMap((value,i)=>i?[(base[i-1]+value)/2,value]:[value]):base;};\n// The renderer draws each curve as a Steffen monotone cubic through its samples (tutor-diagrams/plot-lines.js monotoneLinePath; the limiter is the same in data and pixel space), so the dot takes its height from that same curve.\nconst spline=(xs,ys,t)=>{const n=xs.length,dx=[],s=[],m=[];for(let i=1;i<n;i++){dx.push(xs[i]-xs[i-1]);s.push((ys[i]-ys[i-1])/dx[i-1]);}\nfor(let i=1;i<n-1;i++){const l=s[i-1],r=s[i],sign=Math.sign(l);m.push(sign!==Math.sign(r)?0:sign*Math.min(2*Math.abs(l),2*Math.abs(r),Math.abs((l*dx[i]+r*dx[i-1])/(dx[i-1]+dx[i]))));}\nm.unshift((3*s[0]-m[0])/2);m.push((3*s[n-2]-m[m.length-1])/2);\nlet i=0;while(i<n-2&&t>xs[i+1])i++;const h=dx[i],u=(t-xs[i])/h,u2=u*u,u3=u2*u;\nreturn (2*u3-3*u2+1)*ys[i]+(u3-2*u2+u)*h*m[i]+(3*u2-2*u3)*ys[i+1]+(u3-u2)*h*m[i+1];};\nexport function evaluate({inputs,time}){\n  const t=Math.min(Math.max(time||0,0),T.duration),mass=inputs.mass,length=inputs.length,ref=T.reference,periodA=PERIOD(ref.length),periodB=PERIOD(length);\n  const angleA=T.theta0*Math.cos(2*Math.PI*t/periodA),angleB=T.theta0*Math.cos(2*Math.PI*t/periodB);\n  const objects=[sdk.line('support',SX+20,PIVOT_Y,SX+SW-20,PIVOT_Y,{role:'neutral'})];\n  const swing=(name,pivotX,len,mass,angle,role)=>{\n    const bx=pivotX+len*SCALE*Math.sin(angle*RAD),by=PIVOT_Y+len*SCALE*Math.cos(angle*RAD);\n    objects.push(sdk.text('label.'+name,pivotX,SY+22,name+': '+kg(mass)+' kg, '+metre(len)+' m',{align:'middle',role:role}),sdk.polyline('string.'+name,[[pivotX,PIVOT_Y],[bx,by]],{role:role}),sdk.circle('ball.'+name,bx,by,2*radius(mass),{role:role}));\n  };\n  swing('A',Math.round(SX+0.19*SW),ref.length,ref.mass,angleA,'input');\n  swing('B',Math.round(SX+0.66*SW),length,mass,angleB,'warning');\n  const curve=(label,period)=>{const times=sampleTimes(period);return {label:label,kind:'line',samples:{x:times.map(value=>Math.round(value*1e4)/1e4),y:times.map(value=>Math.round(T.theta0*Math.cos(2*Math.PI*value/period)*1e3)/1e3)}};};\n  const curveA=curve(T.plot.nameA,periodA),curveB=curve(T.plot.nameB,periodB),drawn=c=>spline(c.samples.x,c.samples.y,t);\n  const spec={version:1,diagram:{kind:'coordinate-plot',title:T.plot.title,x:{label:T.plot.time,min:0,max:T.duration,unit:'s'},y:{label:T.plot.angle,min:-T.plot.yMax,max:T.plot.yMax,unit:'°'},\n    series:[curveA,curveB]}};\n  objects.push(sdk.diagram(spec,{x:L.figure.at[0],y:L.figure.at[1],w:L.figure.w}));\n  // The time line and the dots stand on the plot area and the two axis ranges the renderer returned for this plot (picture coordinates, moved to where the picture is drawn).\n  const G=T.plot.geometry,A=G.plotArea,F={left:L.figure.at[0]+A.left,right:L.figure.at[0]+A.right,top:L.figure.at[1]+A.top,bottom:L.figure.at[1]+A.bottom};\n  const nowX=F.left+(t-G.x.min)/(G.x.max-G.x.min)*(F.right-F.left),at=angle=>F.top+(G.y.max-angle)/(G.y.max-G.y.min)*(F.bottom-F.top);\n  objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:'input'}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:'warning'}));\n  const quantity={angleB:angleB,periodA:periodA,periodB:periodB};\n  L.values.forEach((entry,k)=>{const shown=entry.label+': '+quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);\n    objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:'neutral',text:shown}),sdk.circle('chip.'+k,entry.dot[0],entry.dot[1],entry.dot[2],{role:entry.role}));});\n  // The formula is a math run with no box: a text object's row sits 0.35 of its font size above the y given, so y is the slot's centre plus 5.25 at 15 px.\n  objects.push(sdk.math('formula',L.formulaAt[0],L.formulaAt[1]+5.25,T.formula,{align:'middle',role:'neutral'}));\n  const sameLength=Math.abs(length-ref.length)<1e-9,sameMass=Math.abs(mass-ref.mass)<1e-9;\n  objects.push(sdk.box('note',L.noteBox[0],L.noteBox[1],L.noteBox[2],L.noteBox[3],{role:'neutral',text:sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter}));\n  return {frame:sdk.frame(objects,{width:640,height:400,readouts:[{id:'periodA',value:periodA},{id:'periodB',value:periodB}]}),quantities:{mass:mass,length:length,periodA:periodA,periodB:periodB}};\n}",
+        "sourceHash": "0f885e85376b29f5dc9171e414d5f9fb83fff4153c6f358fe26d259900c5f059",
+        "manifestHash": "3f6b2edadcbe88bccbe9bc88b3369b8dbb94b74ee532679132b4470a5f0840fb",
+        "bundleHash": "20f9cfc1522b5fd909be4a4b8b20a473efc4bd65f0bfbf3b40e23ea9b835d2d1"
+      },
+      "execution": {
+        "allowed": true
+      }
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 92,
+      "proposalMs": 137,
+      "generateToResultMs": 292,
+      "processingMs": 337,
+      "approvalWaitMs": 2307,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 23,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 5,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "ms": 5,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 12,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "ms": 2307,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "ms": 102,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 10,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 180,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 10,
+          "outcome": "accepted"
+        }
+      ]
+    },
+    "createdAt": 1795048615957,
+    "updatedAt": 1795048618693,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "block": {
+    "type": "animation",
+    "id": "42788b47-0198-4c1c-b3a3-5f36d40ec86e",
+    "title": "What changes a pendulum's swing?",
+    "program": {
+      "kind": "explain_program",
+      "resultId": "er_184fb227e72044a183e114ebceed7d74",
+      "bundleHash": "20f9cfc1522b5fd909be4a4b8b20a473efc4bd65f0bfbf3b40e23ea9b835d2d1"
+    },
+    "interact": {
+      "version": 1,
+      "planHash": "347f1a1d1a451589b720e3424d9641b3c21137ec2c30ebda5c316c9d22de7d72",
+      "composition": {
+        "version": 1,
+        "planHash": "347f1a1d1a451589b720e3424d9641b3c21137ec2c30ebda5c316c9d22de7d72",
+        "depth": "detailed",
+        "title": "What changes a pendulum's swing?",
+        "cardDescription": "Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it.",
+        "instructions": "Press play, then change the mass and the length of B.",
+        "order": [
+          "title",
+          "description",
+          "main",
+          "transport",
+          "controls"
+        ],
+        "supporting": [],
+        "main": {
+          "artifact": {
+            "kind": "program",
+            "hash": "20f9cfc1522b5fd909be4a4b8b20a473efc4bd65f0bfbf3b40e23ea9b835d2d1"
+          },
+          "runtime": {
+            "renderer": "program",
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "programTuple": {
+              "schemaVersion": 1,
+              "sdkVersion": "sdk-8",
+              "rendererVersion": "renderer-5",
+              "runtimeVersion": "quickjs-release-sync@0.32.0",
+              "runtimePolicyVersion": "policy-1",
+              "permissionProfileVersion": "perm-1",
+              "fingerprints": {
+                "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+                "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+                "renderer": "renderer-5"
+              }
+            },
+            "requiredHelpers": [],
+            "requiredCapabilities": [
+              "time_playback",
+              "number_inputs",
+              "figures"
+            ],
+            "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+          },
+          "mode": "experiment",
+          "readoutIds": [
+            "periodA",
+            "periodB"
+          ],
+          "inputDefaults": {
+            "mass": 1,
+            "length": 1
+          },
+          "controls": [
+            {
+              "id": "play",
+              "type": "playback",
+              "label": "Play",
+              "nativeControlId": "program.playback",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "playback",
+                  "labels": {
+                    "paused": "Play",
+                    "playing": "Pause",
+                    "ended": "Replay"
+                  }
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "pendulums"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "plot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "labels": {
+                "paused": "Play",
+                "playing": "Pause",
+                "ended": "Replay"
+              }
+            },
+            {
+              "id": "scrub",
+              "type": "scrubber",
+              "label": "Time",
+              "nativeControlId": "program.scrubber",
+              "binding": {
+                "kind": "timeline"
+              },
+              "row": "transport",
+              "native": {
+                "in": "timeline",
+                "declaration": {
+                  "part": "scrubber",
+                  "unit": "s",
+                  "step": 0.01
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "pendulums"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "plot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "s",
+              "step": 0.01
+            },
+            {
+              "id": "mass",
+              "type": "number",
+              "label": "B mass",
+              "nativeControlId": "program.number",
+              "binding": {
+                "kind": "input",
+                "id": "mass"
+              },
+              "row": "controls",
+              "native": {
+                "in": "manifest.inputs",
+                "declaration": {
+                  "type": "number",
+                  "id": "mass",
+                  "label": "B mass",
+                  "unit": "kg",
+                  "default": 1,
+                  "min": 0.5,
+                  "max": 3,
+                  "step": 0.1
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "pendulums"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "plot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "kg",
+              "default": 1,
+              "min": 0.5,
+              "max": 3,
+              "step": 0.1,
+              "onChange": "recompute_still"
+            },
+            {
+              "id": "length",
+              "type": "number",
+              "label": "B length",
+              "nativeControlId": "program.number",
+              "binding": {
+                "kind": "input",
+                "id": "length"
+              },
+              "row": "controls",
+              "native": {
+                "in": "manifest.inputs",
+                "declaration": {
+                  "type": "number",
+                  "id": "length",
+                  "label": "B length",
+                  "unit": "m",
+                  "default": 1,
+                  "min": 0.5,
+                  "max": 2,
+                  "step": 0.1
+                }
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "pendulums"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "plot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ],
+              "unit": "m",
+              "default": 1,
+              "min": 0.5,
+              "max": 2,
+              "step": 0.1,
+              "onChange": "recompute_still"
+            },
+            {
+              "id": "resetAll",
+              "type": "reset",
+              "label": "Reset",
+              "nativeControlId": "program.reset",
+              "binding": {
+                "kind": "reset"
+              },
+              "row": "controls",
+              "native": {
+                "in": "card.reset",
+                "declaration": null
+              },
+              "affects": [
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "pendulums"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "plot"
+                },
+                {
+                  "scope": "main",
+                  "kind": "entity",
+                  "id": "callout"
+                }
+              ]
+            }
+          ],
+          "timeline": {
+            "label": "Time",
+            "unit": "s",
+            "end": {
+              "op": "literal",
+              "value": 8
+            },
+            "displayOffset": {
+              "op": "literal",
+              "value": 0
+            },
+            "markers": [],
+            "playbackRate": 1,
+            "initialTime": 0,
+            "initialPlayback": "paused",
+            "step": 0.01
+          },
+          "onInputChange": "reset_pause",
+          "layout": {
+            "pictureCount": "two",
+            "runs": "compact",
+            "panelRole": "records-main",
+            "figureParts": {
+              "legend": "always"
+            }
+          }
+        },
+        "envelopeHash": "454195297fa5cd642bcaec33706b05969361f00bffa014892bc80745e20e9c87"
+      }
+    },
+    "explain": {
+      "jobId": "ej_3fffcc7e79a741659753524c1d1d487d",
+      "resultId": "er_184fb227e72044a183e114ebceed7d74",
+      "cardId": "42788b47-0198-4c1c-b3a3-5f36d40ec86e",
+      "canvas": {
+        "boardId": "28b0571b-c72b-4641-b0a0-96042bc6e924"
+      },
+      "promptRef": "0f5990ff8d9bb1f0",
+      "revision": "xr_dd6e76115d824a7e86fa9765bce62b04",
+      "baseRevision": null,
+      "kind": "program",
+      "bundleHash": "20f9cfc1522b5fd909be4a4b8b20a473efc4bd65f0bfbf3b40e23ea9b835d2d1",
+      "sourceHash": "0f885e85376b29f5dc9171e414d5f9fb83fff4153c6f358fe26d259900c5f059",
+      "manifestHash": "3f6b2edadcbe88bccbe9bc88b3369b8dbb94b74ee532679132b4470a5f0840fb",
+      "versions": {
+        "schema": 1,
+        "runtime": "quickjs-release-sync@0.32.0",
+        "sdk": "sdk-8",
+        "renderer": "renderer-5"
+      },
+      "policyVersion": 1,
+      "interact": {
+        "version": 1,
+        "planHash": "347f1a1d1a451589b720e3424d9641b3c21137ec2c30ebda5c316c9d22de7d72",
+        "envelopeHash": "454195297fa5cd642bcaec33706b05969361f00bffa014892bc80745e20e9c87",
+        "rounds": 0,
+        "completeCard": false,
+        "descriptionFit": "card-description-v1:estimate",
+        "review": "shadow"
+      }
+    }
+  },
+  "scenePlan": {
+    "version": 1,
+    "hash": "347f1a1d1a451589b720e3424d9641b3c21137ec2c30ebda5c316c9d22de7d72",
+    "revision": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "depth": "detailed",
+      "title": "What changes a pendulum's swing?",
+      "story": "A learner compares two pendulums. A is the reference at 1 kg and 1 m; B is the learner's experiment with its own mass and string length. Both start at 20 degrees and swing for 8 seconds while a plot draws each angle against time with a marker at the current moment. Changing B's mass leaves its timing with A's, while a longer string swings slower and a shorter one faster, so the period depends on length and not on mass.",
+      "cardDescription": "Pendulum A (1 kg, 1 m) is the reference. Set the mass and the string length of pendulum B, press play, and watch whether B keeps time with A or falls behind it.",
+      "learningGoal": "A pendulum's period depends on its length and not on its mass: T = 2 pi sqrt(L / g).",
+      "instructions": "Press play, then change the mass and the length of B.",
+      "supportingVisuals": [],
+      "scene": {
+        "description": "Family stepper-states. Two pendulums drawn with frame primitives, an angle-against-time plot drawn by the plot renderer, two period readouts and a callout.\nA 640 x 400 px scene on the side-by-side layout with an 8 s timeline and two number inputs.",
+        "runtime": {
+          "renderer": "program",
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "programTuple": {
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-8",
+            "rendererVersion": "renderer-5",
+            "runtimeVersion": "quickjs-release-sync@0.32.0",
+            "runtimePolicyVersion": "policy-1",
+            "permissionProfileVersion": "perm-1",
+            "fingerprints": {
+              "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+              "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+              "renderer": "renderer-5"
+            }
+          },
+          "requiredHelpers": [],
+          "requiredCapabilities": [
+            "time_playback",
+            "number_inputs",
+            "figures"
+          ],
+          "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+        },
+        "entities": [
+          {
+            "id": "pendulums",
+            "label": "Pendulums",
+            "purpose": "A, the reference, and B, the experiment, swinging side by side."
+          },
+          {
+            "id": "plot",
+            "label": "Angle plot",
+            "purpose": "Each pendulum's angle against time, a marker on each curve at the current time."
+          },
+          {
+            "id": "callout",
+            "label": "What it shows",
+            "purpose": "One sentence about what the current settings show."
+          }
+        ],
+        "quantities": [
+          {
+            "id": "mass",
+            "label": "B mass",
+            "unit": "kg",
+            "meaning": "Mass of the swinging ball B.",
+            "reference": "A is fixed at 1 kg.",
+            "formula": "mass"
+          },
+          {
+            "id": "length",
+            "label": "B length",
+            "unit": "m",
+            "meaning": "Length of the string of B.",
+            "reference": "A is fixed at 1 m.",
+            "formula": "length"
+          },
+          {
+            "id": "periodA",
+            "label": "A",
+            "unit": "s per swing",
+            "meaning": "Time for one full swing of A.",
+            "reference": "T = 2 pi sqrt(L / 9.81) with L = 1 m.",
+            "relation": "periodA = 2 pi sqrt(1 / 9.81)",
+            "formula": "6.283185307 * sqrt(1 / 9.81)"
+          },
+          {
+            "id": "periodB",
+            "label": "B",
+            "unit": "s per swing",
+            "meaning": "Time for one full swing of B.",
+            "reference": "T = 2 pi sqrt(L / 9.81); the mass does not appear.",
+            "relation": "periodB = 2 pi sqrt(length / 9.81)",
+            "formula": "6.283185307 * sqrt(length / 9.81)"
+          }
+        ],
+        "observations": [
+          {
+            "id": "length",
+            "text": "A longer string gives a longer period; the mass does not change it.",
+            "quantityIds": [
+              "periodA",
+              "periodB"
+            ],
+            "readoutIds": [
+              "periodA",
+              "periodB"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "start",
+            "label": "Both at the start",
+            "time": {
+              "op": "literal",
+              "value": 0
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Both pendulums start at 20 degrees."
+          },
+          {
+            "id": "heavier",
+            "label": "B heavier",
+            "time": {
+              "op": "literal",
+              "value": 2
+            },
+            "inputOverrides": {
+              "mass": 2
+            },
+            "actions": [],
+            "expected": "B keeps time with A: the period is 2.01 s."
+          },
+          {
+            "id": "longer",
+            "label": "B longer",
+            "time": {
+              "op": "literal",
+              "value": 2
+            },
+            "inputOverrides": {
+              "length": 2
+            },
+            "actions": [],
+            "expected": "B takes 2.84 s per swing against 2.01 s for A."
+          }
+        ],
+        "readoutIds": [
+          "periodA",
+          "periodB"
+        ],
+        "template": "stepper-pendulum",
+        "slots": {},
+        "words": {},
+        "data": {
+          "title": "What changes a pendulum's swing?",
+          "g": 9.81,
+          "theta0": 20,
+          "duration": 8,
+          "reference": {
+            "mass": 1,
+            "length": 1
+          },
+          "plot": {
+            "title": "Angle against time",
+            "time": "Time",
+            "angle": "Angle",
+            "yMax": 25,
+            "nameA": "A: reference",
+            "nameB": "B: your pendulum",
+            "geometry": {
+              "min": {
+                "width": 218,
+                "height": 277
+              },
+              "plotArea": {
+                "left": 74,
+                "right": 280,
+                "top": 56,
+                "bottom": 198
+              },
+              "x": {
+                "min": 0,
+                "max": 8
+              },
+              "y": {
+                "min": -25,
+                "max": 25
+              }
+            }
+          },
+          "limits": {
+            "maxMass": 3,
+            "maxLength": 2
+          },
+          "layout": {
+            "pictureCount": "two",
+            "runs": "compact",
+            "panelRole": "records-main",
+            "figureParts": {
+              "legend": "always"
+            }
+          },
+          "formula": "T = 2\\pi\\sqrt{L/g}",
+          "notes": {
+            "same": "B matches A: same mass, same length.",
+            "mass": "Same timing: only the mass differs.",
+            "longer": "Slower: a longer string takes longer.",
+            "shorter": "Faster: a shorter string is quicker."
+          },
+          "values": [
+            {
+              "quantity": "angleB",
+              "label": "Angle B",
+              "unit": "°",
+              "decimals": 0,
+              "kind": "live",
+              "role": "warning",
+              "sample": "-20°"
+            },
+            {
+              "quantity": "periodB",
+              "label": "Period B",
+              "unit": "s",
+              "decimals": 2,
+              "kind": "set",
+              "role": "warning",
+              "sample": "2.84 s"
+            },
+            {
+              "quantity": "periodA",
+              "label": "Period A",
+              "unit": "s",
+              "decimals": 2,
+              "kind": "fixed",
+              "role": "input",
+              "sample": "2.01 s"
+            }
+          ]
+        },
+        "layout": {
+          "pictureCount": "two",
+          "runs": "compact",
+          "panelRole": "records-main",
+          "figureParts": {
+            "legend": "always"
+          }
+        }
+      },
+      "mode": {
+        "kind": "experiment",
+        "initialState": "B at 1 kg and 1 m beside A; time 0 s, paused.",
+        "fixedValues": {},
+        "adjustableIds": [
+          "mass",
+          "length"
+        ],
+        "timeline": {
+          "label": "Time",
+          "unit": "s",
+          "start": 0,
+          "end": {
+            "op": "literal",
+            "value": 8
+          },
+          "displayOffset": {
+            "op": "literal",
+            "value": 0
+          },
+          "markers": [],
+          "initialTime": 0,
+          "initialPlayback": "paused",
+          "playbackRate": 1
+        },
+        "onInputChange": "reset_pause"
+      },
+      "controls": [
+        {
+          "id": "play",
+          "label": "Play",
+          "purpose": "Run the swing and replay it.",
+          "selectionReason": "Time carries the swing, and the one supported transport drives every linked view.",
+          "nativeControlId": "program.playback",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "pendulums"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "plot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "playback",
+          "binding": {
+            "kind": "timeline"
+          },
+          "labels": {
+            "paused": "Play",
+            "playing": "Pause",
+            "ended": "Replay"
+          }
+        },
+        {
+          "id": "scrub",
+          "label": "Time",
+          "purpose": "Stop on any moment of the swing.",
+          "selectionReason": "A scrubber lets the learner stop on the moment being compared.",
+          "nativeControlId": "program.scrubber",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "pendulums"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "plot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "scrubber",
+          "binding": {
+            "kind": "timeline"
+          },
+          "unit": "s",
+          "step": 0.01
+        },
+        {
+          "id": "mass",
+          "label": "B mass",
+          "purpose": "Change how heavy the swinging ball B is.",
+          "selectionReason": "The value varies continuously, and intermediate values show which one changes the timing and which does not.",
+          "nativeControlId": "program.number",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "pendulums"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "plot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "number",
+          "binding": {
+            "kind": "input",
+            "id": "mass"
+          },
+          "unit": "kg",
+          "default": 1,
+          "min": 0.5,
+          "max": 3,
+          "step": 0.1,
+          "onChange": "recompute_still"
+        },
+        {
+          "id": "length",
+          "label": "B length",
+          "purpose": "Change how long the string of B is.",
+          "selectionReason": "The value varies continuously, and intermediate values show which one changes the timing and which does not.",
+          "nativeControlId": "program.number",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "pendulums"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "plot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "number",
+          "binding": {
+            "kind": "input",
+            "id": "length"
+          },
+          "unit": "m",
+          "default": 1,
+          "min": 0.5,
+          "max": 2,
+          "step": 0.1,
+          "onChange": "recompute_still"
+        },
+        {
+          "id": "resetAll",
+          "label": "Reset",
+          "purpose": "Return to the defaults.",
+          "selectionReason": "Replay keeps the settings; Reset restores them.",
+          "nativeControlId": "program.reset",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "pendulums"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "plot"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "callout"
+            }
+          ],
+          "type": "reset",
+          "binding": {
+            "kind": "reset"
+          },
+          "effect": "Restores B to 1 kg and 1 m and time 0, paused."
+        }
+      ],
+      "assumptions": [
+        "Both pendulums start at 20 degrees with g = 9.81 m/s^2 and no damping."
+      ],
+      "limitations": [
+        "Small-angle physics; a very wide swing is slightly slower than T = 2 pi sqrt(L / g)."
+      ],
+      "claims": []
+    },
+    "open": [],
+    "carried": [],
+    "fit": {
+      "styleVersion": "card-description-v1:estimate"
+    },
+    "review": {
+      "verdict": "pass",
+      "scores": [
+        5,
+        5
+      ],
+      "reviews": 1,
+      "revisions": 1
+    }
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "what changes a pendulum swing",
+      "depth": "detailed"
+    },
+    "findings": [
+      {
+        "round": 0,
+        "stage": "reviewing",
+        "accepted": true,
+        "findings": [],
+        "review": "shadow"
+      }
+    ],
+    "candidates": [],
+    "settings": {
+      "presentation": "experiment"
+    },
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1795048615957,
+        "firstFeedback": 1795048616049,
+        "proposalReady": 1795048616094,
+        "generate": 1795048618401,
+        "result": 1795048618693
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1795048616049,
+          "endedAt": 1795048616072,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1795048616072,
+          "endedAt": 1795048616077,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "startedAt": 1795048616077,
+          "endedAt": 1795048616082,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1795048616082,
+          "endedAt": 1795048616094,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "startedAt": 1795048616094,
+          "endedAt": 1795048618401,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "startedAt": 1795048618401,
+          "endedAt": 1795048618503,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1795048618503,
+          "endedAt": 1795048618513,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1795048618513,
+          "endedAt": 1795048618693,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 10,
+          "outcome": "accepted"
+        }
+      ],
+      "v": 2
+    },
+    "ledger": {
+      "jobId": "ej_3fffcc7e79a741659753524c1d1d487d",
+      "planHash": "347f1a1d1a451589b720e3424d9641b3c21137ec2c30ebda5c316c9d22de7d72",
+      "depth": "detailed",
+      "result": "ready",
+      "stopReason": "accepted",
+      "oracleId": null,
+      "oracleChecked": 0,
+      "oracleFailed": 0,
+      "bindingProblems": 0,
+      "overlapProblems": 0,
+      "repairs": 0,
+      "repairCauses": "",
+      "profile": "opus-baseline",
+      "fixture": "stepper-pendulum-detailed",
+      "authorModel": "template",
+      "fallbackFired": false,
+      "judgeVerdict": null,
+      "judgeMajor": null,
+      "judgeCostUsd": null,
+      "costUsd": null,
+      "msSteer": null,
+      "msAuthor": null,
+      "msValidate": 0,
+      "msRun": 162,
+      "msCheck": 2,
+      "msCompose": 23,
+      "msReview": null,
+      "msRepair": null,
+      "msTotal": 292,
+      "msJudge": null,
+      "timing": "v2",
+      "buildKind": "template",
+      "msHopWait": 105,
+      "judgeFindingsPath": null,
+      "designModel": null,
+      "designKind": null,
+      "msFill": null,
+      "designFallback": null,
+      "designCalls": null,
+      "msDesign": null,
+      "designCostUsd": null,
+      "pickFamily": null,
+      "pickConfidence": null,
+      "msPick": null,
+      "approvedBy": "learner",
+      "pickProbabilities": null,
+      "prompt": "what changes a pendulum swing"
+    }
+  }
+}

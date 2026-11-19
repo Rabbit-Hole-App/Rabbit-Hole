@@ -1,0 +1,392 @@
+{
+  "version": 1,
+  "hash": "cfb7da7506e4d7170e6b74276dbc4db3d9bd6e3569d5eecf06a9c4dbf1b55bda",
+  "revision": 1,
+  "plan": {
+    "schemaVersion": 1,
+    "depth": "brief",
+    "title": "How does a word attend to the others?",
+    "story": "A learner picks one word of the sentence \"The cat sat on the mat\" and sees how strongly it attends to every word of the sentence: a line from the picked word to each word, thicker where the weight is larger. The six weights of a word sum to one, and the largest shows which word it looks at most. The weights are made up for the picture and are not taken from a model.",
+    "cardDescription": "Pick a word and see how strongly it attends to every word in the sentence. The weights are illustrative, not taken from a model.",
+    "learningGoal": "In attention, each word gives a weight to every word of the sentence; the weights sum to one and the largest shows what it looks at most.",
+    "instructions": "Pick a word.",
+    "supportingVisuals": [],
+    "scene": {
+      "description": "Family stepper-states. One token-links diagram drawn by the written renderer with a ring round the picked word and a dot on the word it looks at most, three values, a formula and a note.\nA 640 x 400 px adjustable still scene on the wide layout with six ordered states. No elapsed time or playback.",
+      "runtime": {
+        "renderer": "program",
+        "schemaVersion": 1,
+        "sdkVersion": "sdk-8",
+        "programTuple": {
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-8",
+          "rendererVersion": "renderer-5",
+          "runtimeVersion": "quickjs-release-sync@0.32.0",
+          "runtimePolicyVersion": "policy-1",
+          "permissionProfileVersion": "perm-1",
+          "fingerprints": {
+            "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+            "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+            "renderer": "renderer-5"
+          }
+        },
+        "requiredHelpers": [],
+        "requiredCapabilities": [
+          "figures",
+          "inputs_v2"
+        ],
+        "catalogueHash": "14ccd1b07cc3afdf5d319606b9e6b8aed37b2979297887c23c3f8f4d602bb186"
+      },
+      "entities": [
+        {
+          "id": "tokens",
+          "label": "Attention picture",
+          "purpose": "Show the weights the picked word gives to every word of the sentence."
+        },
+        {
+          "id": "values",
+          "label": "Values",
+          "purpose": "Name the picked word, the word it looks at most and that weight."
+        }
+      ],
+      "quantities": [],
+      "observations": [
+        {
+          "id": "aha",
+          "text": "Each word spreads one unit of weight over the sentence; the largest share shows what it looks at most.",
+          "quantityIds": [],
+          "readoutIds": []
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "state2",
+          "label": "sat",
+          "time": null,
+          "inputOverrides": {
+            "step": 2
+          },
+          "actions": [],
+          "expected": "\"sat\" is picked: its largest weight is 0.40."
+        },
+        {
+          "id": "state5",
+          "label": "mat",
+          "time": null,
+          "inputOverrides": {
+            "step": 5
+          },
+          "actions": [],
+          "expected": "\"mat\" is picked: its largest weight is 0.35."
+        }
+      ],
+      "readoutIds": [],
+      "template": "stepper-attention",
+      "slots": {},
+      "words": {},
+      "data": {
+        "title": "How does a word attend to the others?",
+        "start": 2,
+        "words": [
+          "The",
+          "cat",
+          "sat",
+          "on",
+          "the",
+          "mat"
+        ],
+        "weights": [
+          [
+            0.4,
+            0.35,
+            0.1,
+            0.05,
+            0.05,
+            0.05
+          ],
+          [
+            0.3,
+            0.4,
+            0.15,
+            0.05,
+            0.04,
+            0.06
+          ],
+          [
+            0.05,
+            0.4,
+            0.3,
+            0.1,
+            0.05,
+            0.1
+          ],
+          [
+            0.05,
+            0.1,
+            0.35,
+            0.2,
+            0.1,
+            0.2
+          ],
+          [
+            0.1,
+            0.05,
+            0.1,
+            0.15,
+            0.2,
+            0.4
+          ],
+          [
+            0.05,
+            0.05,
+            0.1,
+            0.25,
+            0.35,
+            0.2
+          ]
+        ],
+        "layout": {
+          "pictureCount": "one",
+          "runs": "left-to-right",
+          "panelRole": "none",
+          "figureParts": {
+            "title": false,
+            "caption": false
+          }
+        },
+        "values": [
+          {
+            "quantity": "word",
+            "label": "Word",
+            "role": "input"
+          },
+          {
+            "quantity": "target",
+            "label": "Looks most at",
+            "role": "warning"
+          },
+          {
+            "quantity": "weight",
+            "label": "Weight",
+            "role": "warning"
+          }
+        ],
+        "formula": "\\alpha_j = \\mathrm{softmax}_j(q \\cdot k_j)",
+        "note": "{word} looks most at {target}.",
+        "geometry": {
+          "min": {
+            "width": 174,
+            "height": 238
+          },
+          "sources": [
+            {
+              "index": 0,
+              "x": 92,
+              "y": 46,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 1,
+              "x": 177,
+              "y": 46,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 2,
+              "x": 262,
+              "y": 46,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 3,
+              "x": 347,
+              "y": 46,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 4,
+              "x": 432,
+              "y": 46,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 5,
+              "x": 517,
+              "y": 46,
+              "width": 75,
+              "height": 56
+            }
+          ],
+          "targets": [
+            {
+              "index": 0,
+              "x": 92,
+              "y": 211,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 1,
+              "x": 177,
+              "y": 211,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 2,
+              "x": 262,
+              "y": 211,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 3,
+              "x": 347,
+              "y": 211,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 4,
+              "x": 432,
+              "y": 211,
+              "width": 75,
+              "height": 56
+            },
+            {
+              "index": 5,
+              "x": 517,
+              "y": 211,
+              "width": 75,
+              "height": 56
+            }
+          ]
+        }
+      },
+      "layout": {
+        "pictureCount": "one",
+        "runs": "left-to-right",
+        "panelRole": "none",
+        "figureParts": {
+          "title": false,
+          "caption": false
+        }
+      }
+    },
+    "mode": {
+      "kind": "static",
+      "initialState": "The word \"sat\" is picked.",
+      "fixedValues": {},
+      "adjustableIds": [
+        "step"
+      ],
+      "timeline": null,
+      "onInputChange": "recompute_still"
+    },
+    "controls": [
+      {
+        "id": "step",
+        "label": "Word",
+        "purpose": "Pick the word whose attention is shown.",
+        "selectionReason": "An ordered index keeps the native selector and state rail on the same discrete position.",
+        "nativeControlId": "program.index_slider",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tokens"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "values"
+          }
+        ],
+        "type": "index",
+        "binding": {
+          "kind": "input",
+          "id": "step"
+        },
+        "default": 2,
+        "dataRef": "states",
+        "items": [
+          {
+            "id": "word0",
+            "label": "The"
+          },
+          {
+            "id": "word1",
+            "label": "cat"
+          },
+          {
+            "id": "word2",
+            "label": "sat"
+          },
+          {
+            "id": "word3",
+            "label": "on"
+          },
+          {
+            "id": "word4",
+            "label": "the"
+          },
+          {
+            "id": "word5",
+            "label": "mat"
+          }
+        ],
+        "presentation": "slider"
+      },
+      {
+        "id": "reset",
+        "label": "Reset",
+        "purpose": "Return to the starting word.",
+        "selectionReason": "One reset restores the linked state selection and parameter together.",
+        "nativeControlId": "program.reset",
+        "affects": [
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "tokens"
+          },
+          {
+            "scope": "main",
+            "kind": "entity",
+            "id": "values"
+          }
+        ],
+        "type": "reset",
+        "binding": {
+          "kind": "reset"
+        },
+        "effect": "Picks \"sat\" again."
+      }
+    ],
+    "assumptions": [
+      "The weights are illustrative; no model produced them."
+    ],
+    "limitations": [
+      "One six-word sentence and one attention head."
+    ],
+    "claims": []
+  },
+  "open": [],
+  "carried": [],
+  "fit": {
+    "styleVersion": "card-description-v1:estimate"
+  },
+  "review": {
+    "verdict": "pass",
+    "scores": [
+      5,
+      5
+    ],
+    "reviews": 1,
+    "revisions": 1
+  }
+}
