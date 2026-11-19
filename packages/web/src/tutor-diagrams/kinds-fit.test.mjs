@@ -295,3 +295,35 @@ for (const [name, spec] of Object.entries(TREES)) {
     assert.ok(Math.min(...fontSizes(markup(rendered))) >= 13.99, `long words: ${fontSizes(markup(rendered))}`);
   });
 }
+
+// Batch 3: a bar's value label never runs over its neighbour in box mode (the unit goes first, then the label); options.range fixes the value axis; no options: as today.
+const books = { version: 1, diagram: { kind: 'bar-chart', variant: 'grouped', title: 'Loans', unit: 'books', categories: ['Mon', 'Tue', 'Wed'], series: [{ label: 'Town', values: [9, 7, 11] }, { label: 'Park', values: [7, 12, 8] }] } };
+test('bar-chart grouped: in a box every value label is at most as wide as its bar (the unit is dropped first), and no options keeps today\'s labels', () => {
+  const rendered = renderTutorDiagram(books, 408, { box: { width: 408, height: 312 }, sizes: all(14), parts: { title: false } });
+  const svg = markup(rendered);
+  const barWidth = rendered.geometry.bars[0].width;
+  const texts = [...svg.matchAll(/<text[^>]*font-weight="600"[^>]*><tspan[^>]*>([^<]*)<\/tspan>/g)].map(match => match[1]);
+  assert.ok(texts.length > 0, 'the value labels are drawn (digits fit their bars)');
+  for (const text of texts) assert.ok(!text.includes('books') || textWidthOf(text) <= barWidth + 0.5, `"${text}" is wider than its bar (${barWidth})`);
+  assert.ok(!texts.some(text => text.includes('books')), 'at this bar width the unit is dropped before the label');
+  assert.equal(markup(renderTutorDiagram(books, 408, {})), markup(renderTutorDiagram(books, 408)), 'with no options (or an empty one) the picture is today\'s: the rule applies in box mode only');
+});
+import { textWidth as textWidthOf } from './primitives.js';
+
+const plain = values => ({ version: 1, diagram: { kind: 'bar-chart', title: 'Loans', unit: 'books', bars: values.map((value, i) => ({ label: `Day ${i + 1}`, value })) } });
+test('bar-chart: options.range fixes the value axis; values outside it are clamped and reported; the same range gives the same scale for other values; no range is today\'s axis', () => {
+  const opts = range => ({ box: { width: 408, height: 312 }, sizes: all(14), parts: { title: false }, ...(range ? { range } : {}) });
+  const a = renderTutorDiagram(plain([12, 18]), 408, opts({ min: 0, max: 40 })), b = renderTutorDiagram(plain([30, 5]), 408, opts({ min: 0, max: 40 }));
+  assert.deepEqual(a.geometry.range, { min: 0, max: 40 });
+  assert.deepEqual(a.geometry.y, { min: 0, max: 40 });
+  assert.deepEqual(a.geometry.plotArea, b.geometry.plotArea, 'one plot area for one range');
+  assert.ok(Math.abs(a.geometry.bars[0].height / a.geometry.bars[1].height - 12 / 18) < 0.01, 'bars are to scale against the given range');
+  assert.ok(!a.geometry.bars.some(bar => bar.clamped));
+  const clamped = renderTutorDiagram(plain([12, 18]), 408, opts({ min: 0, max: 10 }));
+  assert.deepEqual(clamped.geometry.bars.map(bar => [bar.value, bar.clamped === true]), [[12, true], [18, true]], 'the original value stays, clamped: true');
+  assert.ok(Math.abs(clamped.geometry.bars[0].height - (clamped.geometry.plotArea.bottom - clamped.geometry.plotArea.top)) < 0.5, 'a clamped bar reaches the plot edge');
+  const none = renderTutorDiagram(plain([12, 18]), 408, opts());
+  assert.ok(none.geometry.range && none.geometry.range.min === none.geometry.y.min && none.geometry.range.max === none.geometry.y.max, 'without a range, geometry.range is the axis derived from the values');
+  assert.equal(markup(renderTutorDiagram(plain([12, 18]), 408, { range: { min: 0, max: 40 } })), markup(renderTutorDiagram(plain([12, 18]), 408)), 'a range with no box or sizes is ignored: today\'s drawing');
+  assert.ok(Number.isFinite(a.min.width) && a.min.width > 0 && a.min.parts.length > 0);
+});

@@ -596,6 +596,10 @@ function verticalBars(d, requested, options) {
   if (min === max) { min = -1; max = 1; }
   max = roundedUp(max);
   min = -roundedUp(-min);
+  // options.range = { min, max } (fitted calls only): the value axis the caller wants (one fixed range while values change); default = the axis computed from the values, as today. A value outside it is clamped: the bar is drawn to the range's edge and geometry says so.
+  const given = boxed || sizes ? options?.range : null;
+  if (given && Number.isFinite(given.min) && Number.isFinite(given.max) && given.min < given.max) { min = given.min; max = given.max; }
+  const clamp = value => Math.min(max, Math.max(min, value));
   const build = plotExtra => {
     const PLOT = boxed ? PLOT_FLOOR + plotExtra : 210, top = PAD + 24, bottom = top + PLOT;
     const y = scale({ min, max }, bottom, top);
@@ -623,21 +627,23 @@ function verticalBars(d, requested, options) {
       const name = wrap(category, slot - 4, nameSize);
       labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(nameSize) / 2, { size: nameSize }));
       series.forEach((entry, j) => {
-        const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(0), end = y(value);
+        const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(clamp(0)), end = y(clamp(value));
         const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? TEACHING_SERIES[i % TEACHING_SERIES.length];
         const attrs = grouped ? { 'data-tutor-grouped-bar': value, 'data-tutor-bar-category': category, 'data-tutor-bar-series': entry.label, 'data-tutor-stack-from': 0, 'data-tutor-stack-to': value }
           : { 'data-tutor-bar': value };
         if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
         else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
-        geometryBars.push({ label: category, ...(grouped ? { series: entry.label } : {}), value, x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) });
-        const text = amount(value, d.unit);
-        if (showAbove && textWidth(text, tickSize) <= barWidth + inner + 0.4 * barWidth) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: tickSize, weight: 600 }));
+        geometryBars.push({ label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) });
+        // In box mode the value above a bar never runs over its neighbour: the unit goes first, then the label itself, when it is wider than its bar (no options: as today).
+        let text = amount(value, d.unit);
+        if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
+        if (showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth)) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: tickSize, weight: 600 }));
       });
     });
     elements.push(...bars);
     // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
     elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
-      h('line', { x1: left, x2: right, y1: y(0), y2: y(0), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
+      h('line', { x1: left, x2: right, y1: y(clamp(0)), y2: y(clamp(0)), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
     const labelsHeight = Math.max(1, ...categories.map(category => wrap(category, slot - 4, nameSize).length)) * lineHeight(nameSize);
     let bottomOfLabels = bottom + 10 + labelsHeight + 8, legendRows = 0;
     const pills = legendMode === 'none' ? [] : grouped || legendMode === 'always' ? series.map((entry, i) => ({ i, text: entry.label })) : [];
@@ -652,7 +658,7 @@ function verticalBars(d, requested, options) {
     const widthCore = [{ part: 'value axis numbers and margin', px: left }, { part: `bars (${n} categories, each at least ${boxed ? slotMin : 0} px)`, px: n * slotMin }, { part: 'right margin', px: PAD + 10 }];
     const spare = width - widthCore.reduce((all, item) => all + item.px, 0);
     const widthParts = boxed ? [...widthCore, ...(spare > 1e-9 ? [{ part: 'spare width', px: spare }] : [])] : undefined;
-    const geometry = { plotArea: { left, right, top, bottom }, y: { min, max }, baseline: { y: y(0), left, right }, bars: geometryBars };
+    const geometry = { plotArea: { left, right, top, bottom }, y: { min, max }, range: { min, max }, baseline: { y: y(clamp(0)), left, right }, bars: geometryBars };
     return { width, height: bottomOfLabels + PAD, parts: minParts, widthParts, plotHeight: PLOT, elements, geometry };
   };
   const first = build(0);
