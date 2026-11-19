@@ -50,16 +50,16 @@ test('the frame is the diagram, three values with dots, the formula (math run, l
   }
 });
 
-test('the three values, in order, then the formula and the three lines; the third ends "to itself." when the word attends to itself; each text fits its room at every pick', () => {
+test('the three values, in order, then the formula and the three lines; the third names the word attended to most and its weight, and reads "looks most at itself (0.40)." when that is the picked word; each text fits its room at every pick', () => {
   const value = (step, k) => run(step).find(o => o.fn === 'box' && o.args[0] === `value.${k}`).args[5].text, line = (step, k) => run(step).find(o => o.fn === 'text' && o.args[0] === `line.${k}`).args[3];
   assert.deepEqual([0, 1, 2].map(k => value(2, k)), ['Word: sat', 'Attends to: cat', 'Weight: 0.40']);
   assert.deepEqual([0, 1, 2].map(k => value(5, k)), ['Word: mat', 'Attends to: the', 'Weight: 0.35']);
-  assert.deepEqual([0, 1, 2].map(k => line(2, k)), ['• A thicker line means a larger weight.', '• The six weights from one word add up to 1.', '• sat gives its largest weight, 0.40, to cat.']);
-  assert.equal(line(1, 2), '• cat gives its largest weight, 0.40, to itself.'); assert.equal(line(0, 2), '• The gives its largest weight, 0.40, to itself.');
+  assert.deepEqual([0, 1, 2].map(k => line(2, k)), ['• A thicker line means a larger weight.', '• The six weights add up to 1.', '• sat looks most at cat (0.40).']);
+  assert.equal(line(1, 2), '• cat looks most at itself (0.40).'); assert.equal(line(0, 2), '• The looks most at itself (0.40).');
   assert.equal(run(2).find(o => o.fn === 'math' && o.args[0] === 'formula').args[3], String.raw`\alpha_j = \mathrm{softmax}_j(q \cdot k_j)`);
   for (let step = 0; step < 6; step++) {
     for (const k of [0, 1, 2]) { const box = run(step).find(o => o.fn === 'box' && o.args[0] === `value.${k}`); assert.ok(textWidth(box.args[5].text, 14) <= box.args[3] - 50, `pick ${step} value ${k}`); }
-    for (const k of [0, 1, 2]) assert.ok(textWidth(line(step, k), 14) <= 392, `pick ${step} line ${k}`);
+    for (const k of [0, 1, 2]) assert.ok(textWidth(line(step, k), 14) <= 340, `pick ${step} line ${k}`);
   }
 });
 

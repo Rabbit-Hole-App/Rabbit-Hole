@@ -809,11 +809,11 @@ export function roleOf(of, { shapes = {}, kind = null } = {}) {
 
 // ---- Brief 37: the text area, arranged by rule (layouts 1 to 4) ---------------------------------------------------------------------------------------------------------------------------------
 // A card supplies content only: its values (in order of importance), its formula and its explanation (one to four lines, most important first; a line may carry the current values). The layout module chooses the
-// arrangement and every box. ROWS (as built before): the explanation is one line that fits the note box. COLUMNS: anything else; the values stack in columns 1 to 4, the formula stands at the top of columns 5 to 12
+// arrangement and every box. ROWS (as built before): the explanation is one line that fits the note box. COLUMNS: anything else; the values stack in columns 1 to 4, the formula stands at the top of columns 6 to 12 (column 5 stays empty between the values and the text)
 // and the explanation under it as bullets. Two rows tall when the card has at most two values and its explanation fits two lines; three rows tall when it needs more and every picture still fits; else two rows.
 // What gives way when it does not all fit: first the last explanation line, then the last value. Never shrunk text, never overlap; a line wider than its room is refused.
 export const COLUMNS = Object.freeze({
-  valuesBox: [12, 200], textBox: [220, 408], formulaBand: 28, lineHeight: 17.5, bullet: '• ', textClear: 8,
+  valuesBox: [12, 200], textBox: [272, 356], formulaBand: 28, lineHeight: 17.5, bullet: '• ', textClear: 8,
   heights: Object.freeze({ 2: Object.freeze({ y: 319.2, h: 68.8, lastPictureRow: 8 }), 3: Object.freeze({ y: 280.8, h: 107.2, lastPictureRow: 7 }) }),
 });
 const TEXT_LAYOUTS = Object.freeze(['wide', 'side-by-side', 'equal-split', 'stacked']);
