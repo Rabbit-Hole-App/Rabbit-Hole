@@ -1,0 +1,7 @@
+ILL-B Phase 1 DRY RUN (fake transport, temp dir, NO network call)
+plan: 220 images (F 55, S 55, V 55, F2 55) + 20 speed extras (10 url + 10 multipart, F); already sent (never re-POSTed): 4; to do now: 236 (216 images, 20 extras)
+estimate for this run US$7.106; STOP LINE (estimate + 20 %) US$8.527 settled in this run; cumulative spend so far US$0.150; cap US$15; judge reserve US$2.27 kept free: stop if spent + left + reserve > cap
+stops: 5 consecutive HTTP errors; credits != price; any attempt at a call already sent. concurrency 1, delay 300 ms; the owner's OK flag: (not needed in a dry run)
+DRY RUN finished: 236 calls made; run spend US$7.106; rows 240
+dry-run checks: files written 236; multipart extras parsed 10 of 10; the download-failure id F-P01-L-d1 retried the download and was POSTed once: yes
+resume check: after this run 0 planned calls remain to send; a second run would POST none of the 240 ids already sent

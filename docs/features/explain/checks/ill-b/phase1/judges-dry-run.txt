@@ -1,0 +1,7 @@
+ILL-B judges DRY RUN (fake transports, NO network call): gemini = gemini-3.5-flash-lite, sonnet = claude-sonnet-5-5; images available now 4 of the plan's 220
+estimate per image: gemini US$0.00138, sonnet US$0.00720; full plan (220 images, 2 judge(s)) US$1.89; STOP LINE (estimate + 20 %) US$2.27; image spend so far US$0.150; cap US$15: stop if spent + judge spend would pass the cap
+gemini: 4 images judged this run (fake); judge spend so far US$0.0029
+  sample row: {"id":"F-P01-N-d1","judge":"gemini","model":"gemini-3.5-flash-lite","httpStatus":200,"seconds":0,"tokens":{"input":2100,"output":40},"costUsd":0.00073,"must":[true,true,true],"text":"none","pass":true,"note":"fake gemini"}
+sonnet: 4 images judged this run (fake); judge spend so far US$0.0213
+  sample row: {"id":"F-P01-N-d1","judge":"sonnet","model":"claude-sonnet-5-5","httpStatus":200,"seconds":0,"tokens":{"input":2100,"output":40},"costUsd":0.0046,"must":[true,true,true],"text":"none","pass":true,"note":"fake sonnet"}
+done
