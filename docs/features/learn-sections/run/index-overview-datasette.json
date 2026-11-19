@@ -1,0 +1,81 @@
+{
+  "summary": "Datasette turns SQLite databases into an explorable website and JSON API, with a command line to serve or publish them. It has a plugin system, a permissions engine, and write APIs.",
+  "options": [
+    {
+      "id": "app-and-cli",
+      "label": "The Datasette app and CLI",
+      "what": "How the command line builds a `Datasette` object that holds databases, settings and plugins and serves them over ASGI.",
+      "anchors": [
+        "datasette/cli.py",
+        "datasette/app.py"
+      ],
+      "kind": "structure"
+    },
+    {
+      "id": "database-wrapper",
+      "label": "Running SQLite queries safely",
+      "what": "How `Database` runs SQL on connections and threads, with time limits and write handling.",
+      "anchors": [
+        "datasette/database.py"
+      ],
+      "kind": "structure"
+    },
+    {
+      "id": "views-and-routing",
+      "label": "Views, requests and responses",
+      "what": "How requests are routed to views for tables, rows and queries, and rendered as HTML, JSON or CSV.",
+      "anchors": [
+        "datasette/views/base.py",
+        "datasette/views/table.py",
+        "datasette/utils/asgi.py"
+      ],
+      "kind": "interface"
+    },
+    {
+      "id": "permissions",
+      "label": "Resource-based permissions",
+      "what": "How actions, resources like `TableResource`, and `PermissionSQL` rules decide what an actor may do.",
+      "anchors": [
+        "datasette/permissions.py",
+        "datasette/resources.py",
+        "datasette/default_permissions/__init__.py"
+      ],
+      "kind": "algorithm"
+    },
+    {
+      "id": "plugin-hooks",
+      "label": "Plugin hooks with pluggy",
+      "what": "How hook specifications let plugins extend rendering, actions, SQL functions and more.",
+      "anchors": [
+        "datasette/hookspecs.py",
+        "datasette/plugins.py"
+      ],
+      "kind": "interface"
+    },
+    {
+      "id": "table-extras",
+      "label": "Optional table data via extras",
+      "what": "How the `_extra` parameter selects extra computed data using a dependency-injection registry.",
+      "anchors": [
+        "datasette/extras.py",
+        "datasette/views/table_extras.py"
+      ],
+      "kind": "algorithm"
+    }
+  ],
+  "cannot": [
+    {
+      "thing": "Frontend build details",
+      "why": "The JavaScript is only skimmed here, and the bundling setup is not examined."
+    }
+  ],
+  "meta": {
+    "layer": "overview",
+    "scope": "",
+    "usd": 0.072582,
+    "seconds": 11.9,
+    "calls": 2,
+    "model": "claude-sonnet-5-5",
+    "builtAt": "2026-11-19T19:08:51.793Z"
+  }
+}

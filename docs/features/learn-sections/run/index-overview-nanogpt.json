@@ -1,0 +1,80 @@
+{
+  "summary": "nanoGPT is a small PyTorch codebase for training, fine-tuning and sampling GPT-style language models, including loading OpenAI's GPT-2 weights. It includes data preparation scripts, a training loop, a text generator and config files.",
+  "options": [
+    {
+      "id": "gpt-model-structure",
+      "label": "GPT model in one file",
+      "what": "How a GPT is built from token and position embeddings, stacked blocks of attention and MLP, layer norm, and an output head.",
+      "anchors": [
+        "model.py"
+      ],
+      "kind": "structure"
+    },
+    {
+      "id": "causal-self-attention",
+      "label": "Causal self-attention",
+      "what": "How each token attends only to earlier tokens, using multiple heads and a mask.",
+      "anchors": [
+        "model.py"
+      ],
+      "kind": "algorithm"
+    },
+    {
+      "id": "text-generation",
+      "label": "Sampling next tokens",
+      "what": "How generation repeatedly predicts the next token and appends it, and how a model is loaded and prompted.",
+      "anchors": [
+        "model.py",
+        "sample.py"
+      ],
+      "kind": "algorithm"
+    },
+    {
+      "id": "training-loop",
+      "label": "The training loop",
+      "what": "How batches are drawn, loss is computed and evaluated, and gradients are applied, with options for multi-GPU training.",
+      "anchors": [
+        "train.py",
+        "bench.py"
+      ],
+      "kind": "algorithm"
+    },
+    {
+      "id": "data-preparation",
+      "label": "Turning text into token files",
+      "what": "How raw text becomes binary arrays of integer ids, by character or by GPT-2 byte-pair encoding.",
+      "anchors": [
+        "data/shakespeare_char/prepare.py",
+        "data/shakespeare/prepare.py",
+        "data/openwebtext/prepare.py"
+      ],
+      "kind": "data"
+    },
+    {
+      "id": "config-overrides",
+      "label": "Config files and overrides",
+      "what": "How a tiny script overrides global variables from config files and command-line flags.",
+      "anchors": [
+        "configurator.py",
+        "config/train_shakespeare_char.py",
+        "config/finetune_shakespeare.py"
+      ],
+      "kind": "interface"
+    }
+  ],
+  "cannot": [
+    {
+      "thing": "Automated testing practice",
+      "why": "The repository has no test files."
+    }
+  ],
+  "meta": {
+    "layer": "overview",
+    "scope": "",
+    "usd": 0.044682,
+    "seconds": 10.1,
+    "calls": 2,
+    "model": "claude-sonnet-5-5",
+    "builtAt": "2026-11-19T19:09:02.543Z"
+  }
+}
