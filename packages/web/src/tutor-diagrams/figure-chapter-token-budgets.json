@@ -25,20 +25,20 @@
     "ml-transformer-encoder-decoder-memory": {
       "overview": [
         {
-          "tokens": 181,
-          "sha256": "b734fa28b3b6990860d43e777dc83117b3c38f3b7ddd75bee921107be9c8e161"
+          "tokens": 178,
+          "sha256": "3e60b51d524eaa0cdee2c0bf6c820ddca86881e67a77ed0f9ecd751cd7412abc"
         }
       ],
       "standard": [
         {
-          "tokens": 181,
-          "sha256": "4c23354351a1e07518b58f37420c7008c03115b8ec189b751e1c9d5e512fd039"
+          "tokens": 178,
+          "sha256": "39c28f147efc110d2dfa6c7cd386b589f2e966e7b20ead1df768e7ea4abeae80"
         }
       ],
       "deep": [
         {
-          "tokens": 184,
-          "sha256": "8bf35af92f814e3090e6e7f5b76e1c19041c0c976f0b43568cb18b43e1f4e292"
+          "tokens": 181,
+          "sha256": "eebb7f22cf7e9154237db3c512c6ca95f1928cb0f351f32c41bc772f05fba07f"
         }
       ]
     },
@@ -65,20 +65,20 @@
     "ml-transformer-positionwise-feedforward": {
       "overview": [
         {
-          "tokens": 219,
-          "sha256": "a552ec2cc826e73ce5fb03c181430b61d3f565da735a5eca3d13bd8576cd87f2"
+          "tokens": 217,
+          "sha256": "32014aa4e568eb3fd4a4d65e51774837eebd4b96e9c7a739ed7cd1b47e67c2ed"
         }
       ],
       "standard": [
         {
-          "tokens": 218,
-          "sha256": "4f35f4504a96b09d5906ed68bf62173354dd227e8b51b0dc6ab3abf4a4097829"
+          "tokens": 216,
+          "sha256": "3768ff34752e7a36587d5cee5d2dcb093f7bd70c592eedfd1d5a6adca18b2498"
         }
       ],
       "deep": [
         {
-          "tokens": 225,
-          "sha256": "9330888b2f21d3cfb0b58131f06ebeb6e4593a41dbcc3077e74b667e3549ba42"
+          "tokens": 223,
+          "sha256": "af25ae0cd554173d3ba6f701097333a7359417594854aa4bcec6413ba31c8a07"
         }
       ]
     },
