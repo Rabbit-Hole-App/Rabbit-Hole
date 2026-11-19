@@ -87,7 +87,8 @@ export const pictureId = i => `pic-${i + 1}`;
 export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: withNoTextSuffix(v.p), alt: v.a.trim(), caption: v.c.trim() } : null);
 const visualFence = (v, i) => {
   // an incomplete picture keeps its fence, so the validator names what is missing
-  const made = v?.k === 'diagram' ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
+  // NOVIS-1 (c): Gemini tagged a diagram k:'spec' (R2 bench, thermostat): it carries the spec object, so it is read as the diagram; a k:'spec' with no spec object makes no fence, nothing is invented.
+  const made = v?.k === 'diagram' || (v?.k === 'spec' && isObject(v.spec)) ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
   return made ? '```' + made[0] + '\n' + JSON.stringify(made[1]) + '\n```' : null;
 };
 // The saved body: each first [[visual:N]] marker becomes visual N's fence on its own lines; an unknown or repeated marker is removed; a visual with no marker

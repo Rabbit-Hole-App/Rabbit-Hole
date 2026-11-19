@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateArtifact } from '../src/learn-artifact.js';
-import { explanationLayoutProblem, markdownIllustrations, markdownVisuals } from '../src/learn-primitives.js';
+import { composeVisuals, explanationLayoutProblem, markdownIllustrations, markdownVisuals } from '../src/learn-primitives.js';
 
 const FLOW = { version: 1, diagram: { title: 'Sentence to picture', caption: 'The sentence becomes a picture in steps', kind: 'flow',
   nodes: [{ id: 'a', label: 'Encode the sentence', role: 'process' }, { id: 'b', label: 'Denoise the picture', role: 'process' }, { id: 'c', label: 'Decode the picture', role: 'outcome' }],
@@ -44,4 +44,25 @@ test('(a) the R2 text-to-image shape: plan = picture + flow diagram, author retu
 test('(a) a plan without a diagram (a planned picture only) still takes a picture-only answer at the first attempt', async t => {
   const r = await run(t, { plan: PLAN('picture') }, answer([PICTURE], [1]));
   assert.deepEqual([r.out.result, r.calls], ['artifact', 1]);
+});
+
+// ---- (c) ----
+const CYCLE = { version: 1, diagram: { title: 'The Thermostat Feedback Cycle', caption: 'Measuring temperature triggers heating until the set point is reached', kind: 'cycle', steps: ['Measure room temperature against set point', 'Compare difference and trigger relay', 'Deliver heat or cooling to the room', 'Temperature shifts back to target'] } };
+const THERMO = ['A thermostat keeps a room near a set temperature by closing a feedback loop.', 'It measures the room temperature against the set point and compares the difference.', 'When the room is cold it triggers the relay to deliver heat, and the temperature shifts back to the target.', 'The loop repeats, so the room stays near the set point.'];
+const THERMO_PICTURE = { k: 'picture', p: 'Technical cutaway of a wall thermostat showing a bimetallic strip and a heating switch, no text, labels, titles or icons', a: 'A thermostat cutaway', c: 'The strip bends as the room temperature changes' };
+const thermostat = visuals => ({ title: 'How a thermostat holds a temperature', visuals, body: [THERMO[0], '[[visual:1]]', THERMO[1], THERMO[2], '[[visual:2]]', THERMO[3]].join('\n\n') });
+
+test('(c) the R2 thermostat shape: a visual tagged k:spec that carries a spec is read as a diagram, delivered with its cycle at the first attempt', async t => {
+  const r = await run(t, { plan: { planner: 'jev', visuals: [{ type: 'picture' }, { type: 'diagram', kind: 'cycle' }], kind: 'cycle', fixed: true, depthTreatment: 'mechanism' }, args: 'How does a thermostat keep a room near a set temperature?' },
+    thermostat([THERMO_PICTURE, { k: 'spec', spec: CYCLE }]));
+  assert.equal(r.out.error, undefined, r.lines.filter(l => l.includes('learn_artifact_invalid')).join(' '));
+  assert.deepEqual([r.out.result, r.calls, diagramsOf(r.out.block.body)], ['artifact', 1, 1]);
+  assert.match(r.out.block.body, /"kind":"cycle"/);
+});
+
+test('(c) a k:spec visual with no spec object, or a string, makes no fence: nothing is invented', () => {
+  for (const visual of [{ k: 'spec' }, { k: 'spec', kind: 'cycle', p: '' }, { k: 'spec', spec: 'cycle' }, { k: 'spec', spec: ['cycle'] }, { k: 'other', spec: CYCLE }]) {
+    assert.equal(composeVisuals('Intro.\n\n[[visual:1]]\n\nAfter.', [visual]), 'Intro.\n\nAfter.', JSON.stringify(visual));
+  }
+  assert.match(composeVisuals('Intro.\n\n[[visual:1]]\n\nAfter.', [{ k: 'spec', spec: CYCLE }]), /```rh-diagram/);
 });
