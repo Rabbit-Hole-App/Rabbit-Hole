@@ -7,7 +7,8 @@ import { planFromAnswers } from '../src/explanation-planner.js';
 import { SEEDED_EXAMPLES_HEADING, REFERENCE_MARK } from '../src/explanation-references.js';
 import { assembledSystem } from '../src/explanation-fast-chain.js';
 import { INPUTS_RULE, NUMBER_RULE } from '../src/agents/learn-artifact.js';
-import { EXAMPLES_CAP_CHARS, capExamples } from '../src/explanation-examples.js';
+import { EXAMPLES_CAP_CHARS, capExamples } from '../src/explanation-example-cap.js';
+import { capExampleList } from '../src/explanation-examples.js';
 
 const FAST = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'google-low', GEMINI_API_KEY: 'x', FIREWORKS_API_KEY: 'x', EXPLANATION_INTERACTIONS: 'true' };
 const answers = kind => ({
@@ -80,9 +81,19 @@ test('the fast chain still moves the seeded block to the end of its system messa
   assert.equal(count(assembled, REFERENCE_MARK.trim()), 1, 'one examples block');
 });
 
-test('capExamples keeps whole examples in order until the cap and never splits one', () => {
+test('the cap is the roadmap quote\'s own helper: capExampleList keeps whole examples in order until EXAMPLES_CAP_CHARS', () => {
   const ex = n => ({ id: `e${n}`, spec: { text: 'x'.repeat(2000) } });
-  assert.deepEqual(capExamples([ex(1), ex(2), ex(3)]).map(e => e.id), ['e1', 'e2']);
-  assert.deepEqual(capExamples([ex(1), ex(2), ex(3)], 10_000).map(e => e.id), ['e1', 'e2', 'e3']);
-  assert.deepEqual(capExamples([{ id: 'big', spec: { text: 'y'.repeat(5000) } }]), []);
+  assert.deepEqual(capExampleList([ex(1), ex(2), ex(3)]).map(e => e.id), ['e1', 'e2']);
+  assert.deepEqual(capExampleList([ex(1)]).map(e => e.id), ['e1']);
+  assert.equal(capExamples('a\nb'), 'a\nb', 'the text helper is untouched');
+  assert.ok(EXAMPLES_CAP_CHARS === 4500);
+});
+
+test('the archive trace names the seeded examples and their kind apart from the topical references', async () => {
+  const { generateArtifact } = await import('../src/learn-artifact.js');
+  const trace = {}; const { log, warn } = console; console.log = () => {}; console.warn = () => {};
+  try { await generateArtifact(FAST, request(NO_MATCH, 'flow', { requestSeed: 'seed-a' }), { trace, callModel: async () => new Response('{}', { status: 500 }) }).catch(() => null); } finally { console.log = log; console.warn = warn; }
+  assert.ok(Array.isArray(trace.examples) && trace.examples.length >= 1, 'examples ids in the trace');
+  assert.equal(trace.examplesKind, 'flow');
+  assert.deepEqual(trace.references, [], 'no topical reference was involved');
 });

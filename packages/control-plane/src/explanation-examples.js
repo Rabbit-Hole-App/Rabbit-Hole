@@ -8,11 +8,11 @@ import { seededRandom } from '../../web/src/tutor-diagrams/random.js';
 import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
 import { diagramBundle, sampledSpec } from './explanation-references.js';
 import { planShape } from './explanation-planner.js';
+import { capExamples } from './explanation-example-cap.js';
 
 export const EXAMPLES_WANTED = 3;
-// GEN-1 G6 (Reviewer 2026-11-19): the seeded examples block is capped at 4,500 characters (JSON lines) IN CODE, so a roadmap quote can bound it (the quote pads it at 2 bytes a character).
-export const EXAMPLES_CAP_CHARS = 4_500;
-export function capExamples(examples, cap = EXAMPLES_CAP_CHARS) { const out = []; let used = 0; for (const example of examples) { const length = JSON.stringify({ id: example.id, spec: example.spec }).length; if (used + length > cap) break; out.push(example); used += length; } return out; }
+// GEN-1 G6: the seeded examples block is capped IN CODE with the roadmap quote's own helper (explanation-example-cap.js capExamples, EXAMPLES_CAP_CHARS): the lines of the examples that fit, whole, in order.
+export function capExampleList(examples) { const kept = capExamples(examples.map(example => JSON.stringify({ id: example.id, spec: example.spec })).join('\n')).split('\n').filter(Boolean).length; return examples.slice(0, kept); }
 const DEPTH_KEYS = { brief: 'overview', balanced: 'standard', detailed: 'deep' };
 const FLAGS = ['quant', 'fresh', 'panels', 'states', 'tensor', 'tokenLinks', 'blockStack', 'blockStackPanels', 'compactPlots', 'tensorHosts', 'parallelPaths'];
 const MAX_CONTEXT = 14_000, CONTEXT_START = 600; // explanation-references.js: the block's own start and its character limit

@@ -12,14 +12,14 @@ const DEPTHS = ['brief', 'balanced', 'detailed'];
 const KINDS = ['flow', 'comparison', 'timeline', 'sequence', 'matrix', 'layers', 'cycle', 'figure', 'tree', 'relationship', 'transformation', 'argument', 'number-line', 'coordinate-plot', 'bar-chart', 't-account', 'waterfall', 'heatmap', 'sample-set', 'histogram', 'box-plot', 'tensor', 'token-links', 'block-stack'];
 const SEEDS = Array.from({ length: 25 }, (_, i) => `request-${i}`);
 
-test('GEN-1 G1 pool: sizes per kind and depth reproduce the G1 prep table (main plus SAME-1\'s top-k bar-chart)', () => {
+test('GEN-1 G1 pool: sizes per kind and depth (main plus SAME-1\'s top-k bar-chart plus Codex\'s 10 pool references: number-line, t-account, waterfall, box-plot now 3 each)', () => {
   const want = { // [brief, balanced, detailed]
     flow: [36, 27, 28], comparison: [10, 8, 8], timeline: [10, 10, 10], sequence: [9, 9, 9], matrix: [94, 92, 92], layers: [1, 1, 1], cycle: [5, 5, 4], figure: [0, 0, 0], tree: [14, 14, 14], relationship: [22, 22, 22],
-    transformation: [10, 3, 2], argument: [0, 0, 0], 'number-line': [1, 1, 1], 'coordinate-plot': [95, 96, 96], 'bar-chart': [20, 20, 21], 't-account': [0, 0, 0], waterfall: [0, 0, 0], heatmap: [27, 27, 27],
-    'sample-set': [9, 9, 9], histogram: [5, 5, 5], 'box-plot': [1, 1, 1], tensor: [0, 0, 0], 'token-links': [6, 6, 6], 'block-stack': [29, 29, 29],
+    transformation: [10, 3, 2], argument: [0, 0, 0], 'number-line': [3, 3, 3], 'coordinate-plot': [95, 96, 96], 'bar-chart': [20, 20, 21], 't-account': [3, 3, 3], waterfall: [3, 3, 3], heatmap: [27, 27, 27],
+    'sample-set': [9, 9, 9], histogram: [5, 5, 5], 'box-plot': [3, 3, 3], tensor: [0, 0, 0], 'token-links': [6, 6, 6], 'block-stack': [29, 29, 29],
   };
   for (const kind of KINDS) assert.deepEqual(DEPTHS.map(d => examplePoolSize(kind, d)), want[kind], kind);
-  assert.deepEqual(DEPTHS.map(d => KINDS.reduce((s, k) => s + examplePoolSize(k, d), 0)), [404, 385, 385]);
+  assert.deepEqual(DEPTHS.map(d => KINDS.reduce((s, k) => s + examplePoolSize(k, d), 0)), [414, 395, 395]);
 });
 
 test('GEN-1 G1: three distinct library examples as { id, spec } only, none general-* or shape-*, deterministic for a seed and different across seeds', () => {
@@ -76,15 +76,16 @@ test('GEN-1 G1: the block stays inside MAX_CONTEXT for every kind, depth and 25 
   console.log(`worst examples block over 24 kinds x 3 depths x 25 seeds: ${worst} of 14000`);
 });
 
-test('GEN-1 G1 and G4: neither new module is imported by production code yet (R2 and R3 wire them)', () => {
+test('GEN-1 G1 and G4: only the R2 wiring (learn-artifact.js) imports explanation-examples.js; drawKind (explanation-kind-draw.js) is still unused until R3', () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const hits = [];
+  const hits = [], drawHits = [];
   const walk = dir => { for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
     if (f.name === 'node_modules' || f.name === 'dist' || f.name === 'dist-dev') continue;
     const full = path.join(dir, f.name);
     if (f.isDirectory()) walk(full);
-    else if (/\.(?:js|jsx|mjs)$/.test(f.name) && !/\.test\./.test(f.name) && /explanation-examples|explanation-kind-draw/.test(fs.readFileSync(full, 'utf8')) && !/explanation-(?:examples|kind-draw)\.js$/.test(f.name)) hits.push(path.relative(root, full));
+    else if (/\.(?:js|jsx|mjs)$/.test(f.name) && !/\.test\./.test(f.name) && !/explanation-(?:examples|kind-draw)\.js$/.test(f.name)) { const text = fs.readFileSync(full, 'utf8'); if (/explanation-examples/.test(text)) hits.push(path.relative(root, full).replace(/\\/g, '/')); if (/explanation-kind-draw/.test(text)) drawHits.push(path.relative(root, full).replace(/\\/g, '/')); }
   } };
   walk(path.join(root, 'control-plane', 'src')); walk(path.join(root, 'web', 'src'));
-  assert.deepEqual(hits, []);
+  assert.deepEqual(hits, ['control-plane/src/learn-artifact.js']);
+  assert.deepEqual(drawHits, []);
 });
