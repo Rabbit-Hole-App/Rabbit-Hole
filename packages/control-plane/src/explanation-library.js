@@ -1,5 +1,5 @@
-// GEN-1 R2: the ONE place the seeded examples (explanation-examples.js) read the reference library. Today it returns the static import; START-3 (the lazy library, reference-library-lazy.js
-// referenceLibrary()) swaps this body for `referenceLibrary()`, so R2 adds no static import of the library to the worker's start.
-import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+// GEN-1 R2: the ONE place the seeded examples (explanation-examples.js) read the reference library: START-3's synchronous reader of the lazy library (reference-library-lazy.js).
+// In a Worker it throws unless referenceLibraryReady() was awaited first; exampleReferences is reached only through generateArtifact and quoteRoadmapCard, which await it (learn-artifact.js, roadmap-generate.js).
+import { referenceLibrary } from './reference-library-lazy.js';
 
-export const libraryRefs = () => diagramReferences;
+export const libraryRefs = () => referenceLibrary().diagramReferences;
