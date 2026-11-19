@@ -161,7 +161,7 @@ try {
     assert.equal(n, draft.length + draft.flatMap(c => c.sections).length, 'the proposal carries one op per chapter and section');
   };
 
-  // A fresh canvas of the repository to a picked Learn option (the intake, as in intake-run-or-learn-check.mjs).
+  // A fresh canvas of the repository to a picked Learn option: the Tutor's opening (source arrived, owner 2026-11-18 22:15) carries the options as rows.
   const begin = async repo => {
     const canvas = await repo.newCanvas();
     await page.goto(`${BASE}/apps/${canvas}`);
@@ -170,9 +170,7 @@ try {
     return canvas;
   };
   const pick = async (repo, option) => {
-    await rowOf('intake', 'Learn from it').click();
-    await msg('learn-options').waitFor({ timeout: 60000 });
-    await rowOf('learn-options', option.label).click();
+    await rowOf('intake', option.label).click();
   };
   const optionOfKind = (repo, kind) => repo.options.find(o => o.kind === kind) || repo.options[0];
   const reloaded = async () => { await page.reload(); await pane().waitFor({ state: 'visible', timeout: 60000 }); await page.locator('[data-toc]').first().waitFor({ state: 'attached', timeout: 60000 }); };
@@ -332,7 +330,7 @@ try {
   await step('8 wording gate: no gate word in a fixed sentence or fixed row, fixed rows are the fixed set or document-derived, no dollar figure', async () => {
     assert.ok(seen.length >= 5, 'snapshots of the earlier steps exist');
     const GATE = /nanogpt|datasette|shakespeare|attention|tokens|word2vec/i, MONEY = /\$\s?\d|\busd\b|\bdollars?\b/i;
-    const FIXED_ROWS = new Set(['Accept', 'Change something', 'Keep the previous draft', 'Try again', 'Start without a plan', 'Run it', 'Learn from it']);
+    const FIXED_ROWS = new Set(['Accept', 'Change something', 'Keep the previous draft', 'Try again', 'Start without a plan', 'Run it']);
     const problems = [];
     for (const { repo, messages, toc } of seen) {
       const optionLabels = new Set(repo.options.map(o => norm(o.label)));
@@ -344,7 +342,7 @@ try {
           if (!FIXED_ROWS.has(label) && label !== 'Something else' && !derived) problems.push(`${repo.key} ${m.key}: an unidentified row "${label}"`);
           if (FIXED_ROWS.has(label) && GATE.test(label)) problems.push(`${repo.key} ${m.key}: a gate word in the fixed row "${label}"`);
         }
-        const fixed = m.key === 'learn-plan' && (m.pending || /^Plan accepted/.test(m.text)) ? m.text : ['intake', 'learn-options', 'learn-or-type', 'learn-intro-failed'].includes(m.key) ? m.text : null;
+        const fixed = m.key === 'learn-plan' && (m.pending || /^Plan accepted/.test(m.text)) ? m.text : ['learn-intro-failed'].includes(m.key) ? m.text : null; // the opening (intake) is the Tutor's own words now, not a fixed sentence
         if (fixed != null) {
           if (GATE.test(fixed)) problems.push(`${repo.key} ${m.key}: a gate word in the fixed sentence "${fixed}"`);
           if (m.key === 'learn-plan' && !m.pending && !/^Plan accepted · \d+ chapters?$/.test(fixed)) problems.push(`${repo.key}: the accepted line reads "${fixed}"`);

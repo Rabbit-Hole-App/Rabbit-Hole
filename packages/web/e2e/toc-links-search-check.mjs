@@ -1,14 +1,14 @@
 // The Table of contents' empty state and Links in Search (owner UI brief 2026-10-20 sections 6 and 7, clarification 10;
 // required validation items 13, 14 and 15). Against the LOCAL stack only: local D1, fresh browser profiles. No model is
-// called: the TOC's one Tutor turn is answered here, every other model route is aborted and counted. Prints no secrets.
+// called: /api/learn/ask is answered here, every other model route is aborted and counted. Prints no secrets.
 //   1-2 (item 14) no Links tab; Search's Links filter lists links from this canvas and backlinks by canvas title, with counts,
 //       in All and its counts, matched by canvas and card titles, never by a raw id
 //   3   an unavailable (trashed) target: labelled, no destination, no new tab; selecting it says so and stays
 //   4   an origin card chip frames that card; Enter in the field steps through link results without leaving the canvas
 //   5   a link opens its canvas in this tab; a backlink chip opens the source canvas at its card
-//   6   (item 15) keyboard and names: the filter, the new-tab buttons, the TOC entry and its close button
-//   7   (item 13) no TOC messages: no "TOC conversation" section or composer, one entry; a sent turn shows the section;
-//       a reload restores it from the saved TOC thread with no press
+//   6   (item 15) keyboard and names: the filter and the new-tab buttons
+//   7   (item 13) went with the TOC conversation (owner 2026-11-18)
+//   8   dark: the Links results
 // Usage: BASE=http://127.0.0.1:9171 SMALL_CP=http://127.0.0.1:9173 VARS=<cp .dev.vars> OUT=<dir> node e2e/toc-links-search-check.mjs
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -43,14 +43,14 @@ assert.equal((await linksOf(A.id))?.from?.find(group => group.target === X.id)?.
 
 const browser = await chromium.launch();
 const results = [], stray = [], errors = [], asks = [];
-const total = 9;
+const total = 8;
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const contextFor = async theme => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: theme });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(value => localStorage.setItem('small.theme', value), theme);
-  // The TOC's one Tutor turn (mode tutor on /api/learn/ask) is answered here; any other model route is refused.
+  // /api/learn/ask is answered here; any other model route is refused.
   await context.route('**/api/learn/ask', route => { asks.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Canned outline reply.' }) + frame('done', { ok: true, threadId: `toc-l4-${run}`, userMessageId: 'u-1', messageId: 'm-1' }) }); });
   await context.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
   await context.route(/\/api\/learn\/chat\//, route => (route.request().method() === 'GET' ? route.continue() : route.fulfill({ json: { ok: true } }))); // the canned thread exists nowhere
@@ -158,7 +158,7 @@ await check('5 a link opens its canvas in this tab; a backlink chip opens the so
   await waitFor(async () => (await selected()).join() === 'b1', 8000, 'the backlink did not select its card');
 });
 
-await check('6 keyboard and names: the Links filter, the new-tab buttons, the TOC entry and its close button', async () => {
+await check('6 keyboard and names: the Links filter and the new-tab buttons', async () => {
   await open(A, 'a1');
   await page.locator('[data-panel-tab="find"]').click();
   // The Filter dropdown by keyboard: Enter opens it on its first row, End reaches the last enabled row (Rabbit Holes; Clear is
@@ -184,54 +184,14 @@ await check('6 keyboard and names: the Links filter, the new-tab buttons, the TO
   await tab.waitForURL(url => url.pathname === `/apps/${T.name}`);
   await tab.close();
   assert.equal(new URL(page.url()).pathname, `/apps/${A.name}`, 'a new tab leaves this canvas');
-  await page.locator('[data-panel-tab="toc"]').click();
-  const entry = panel().getByRole('button', { name: 'Ask the Tutor about this outline', exact: true });
-  assert.equal(await entry.getAttribute('title'), 'Ask the Tutor about this outline');
-  await entry.focus();
-  await page.keyboard.press('Enter');
-  await expect(panel().locator('[data-toc-ask] [data-toc-composer] textarea').first()).toBeFocused();
-  const close = panel().getByRole('button', { name: 'Close the Tutor composer', exact: true });
-  assert.equal(await close.getAttribute('title'), 'Close the Tutor composer');
-  await close.focus();
-  await page.keyboard.press('Enter');
-  await expect(entry).toBeFocused();
-  assert.equal(await panel().locator('[data-toc-ask], [data-toc-composer]').count(), 0, 'closed: the composer is gone');
+  // step 6's TOC entry and its close button went with the TOC conversation (owner 2026-11-18).
 });
 
-await check('7 no TOC messages: no "TOC conversation" section or composer; a sent turn shows the section with its reply', async () => {
-  await page.reload();
-  await page.locator('[data-block-id="a1"]').waitFor({ timeout: 60000 });
-  await page.locator('[data-panel-tab="toc"]').click();
-  await panel().locator('[data-toc-start]').waitFor();
-  assert.equal(await panel().locator('[data-toc-conversation], [data-toc-ask], [data-toc-composer]').count(), 0);
-  assert.equal(await panel().getByText('TOC conversation', { exact: true }).count(), 0);
-  await shot('02-toc-empty-light');
-  await panel().locator('[data-toc-start] button').click();
-  await panel().locator('[data-toc-ask] [data-toc-composer] textarea').first().fill('Add a part on graphs');
-  await panel().locator('[data-toc-composer] button[aria-label="Send"]').click();
-  await panel().locator('[data-toc-conversation]').getByText('Canned outline reply.', { exact: true }).waitFor({ timeout: 15000 });
-  assert.ok(await panel().getByRole('button', { name: 'TOC conversation' }).isVisible(), 'the section header shows');
-  assert.equal(asks.length, 1); assert.equal(asks[0].mode, 'tutor');
-  await shot('03-toc-conversation-light');
-});
-
-await check('8 a reload restores the TOC conversation from the saved TOC thread, with no press', async () => {
-  const threadId = `toc-l4-${run}`;
-  await page.route(/\/api\/learn\/chat\/active\?.*slot=toc/, route => (route.request().method() === 'GET' ? route.fulfill({ json: { threadId } }) : route.fallback()));
-  await page.route(new RegExp(`/api/ask/threads/${threadId}$`), route => route.fulfill({ json: { id: threadId, title: 'Add a part on graphs', mode: 'tutor', contextRefs: [], draft: null, messages: [{ role: 'user', content: 'Add a part on graphs', status: 'done' }, { role: 'assistant', content: 'Canned outline reply.', status: 'done' }] } }));
-  await page.reload();
-  await page.locator('[data-block-id="a1"]').waitFor({ timeout: 60000 });
-  await page.locator('[data-panel-tab="toc"]').click();
-  await panel().locator('[data-toc-conversation]').getByText('Canned outline reply.', { exact: true }).waitFor({ timeout: 15000 });
-  assert.equal(await panel().locator('[data-toc-start]').count(), 0, 'no entry over a restored conversation');
-  assert.equal(asks.length, 1, 'restoring sent nothing');
-  // The same in dark: the empty entry on another canvas, and the Links results.
+// 7 went with the TOC conversation (owner 2026-11-18).
+// 8's TOC conversation restore and dark empty entry went with the TOC conversation (owner 2026-11-18).
+await check('8 dark: the Links results', async () => {
   await context.close();
   ({ context, page } = await contextFor('dark'));
-  await open(B, 'b1');
-  await page.locator('[data-panel-tab="toc"]').click();
-  await panel().locator('[data-toc-start]').waitFor();
-  await shot('04-toc-empty-dark');
   await open(A, 'a1');
   await openLinks();
   await shot('05-links-in-search-dark');

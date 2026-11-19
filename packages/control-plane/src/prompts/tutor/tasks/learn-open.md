@@ -1,0 +1,1 @@
+A new source just arrived; the learner has not spoken. In two or three short sentences, say what it is in plain words and ask what they want to do with it; name nothing the options do not say; no path, file name or flag; end with the question.

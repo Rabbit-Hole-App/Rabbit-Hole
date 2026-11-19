@@ -442,6 +442,38 @@ test('learn_intro: one call composed from base + learn-intro + learn_concept, wi
   assert.deepEqual(f.fetches, [], 'no network of its own');
 });
 
+// Source arrived (owner 2026-11-18 22:15): the Tutor's opening, one read-only call from the words the browser passes.
+const OPEN = { kind: 'repository', summary: '**widgets**: A small widget library.', options: [{ id: 'render', label: 'How a widget is drawn', what: 'the render loop' }], cannot: [{ thing: 'tests', why: 'there are none' }] };
+test('learn_open: the prompt is the owner\'s sentence byte for byte; one call from base + learn-open with the summary and options as material; nothing written', async t => {
+  assert.equal(TUTOR_PROMPT_FILES['tasks/learn-open.md'].text, 'A new source just arrived; the learner has not spoken. In two or three short sentences, say what it is in plain words and ask what they want to do with it; name nothing the options do not say; no path, file name or flag; end with the question.\n');
+  const f = setup(t);
+  f.deps.callModel = fakeModel(' A small widget library. What would you like to learn from it? ');
+  const before = f.rows(), log = console.log;
+  console.log = () => {};
+  let res;
+  try { res = await f.route('POST', { app: CANVAS, action: 'learn_open', ...OPEN }); } finally { console.log = log; }
+  assert.deepEqual([res.status, await res.json()], [200, { text: 'A small widget library. What would you like to learn from it?' }]);
+  assert.deepEqual(f.rows(), before, 'no coaching row is written');
+  const { body } = f.deps.callModel.calls[0];
+  assert.ok(body.system.includes(TUTOR_PROMPT_FILES['tasks/learn-open.md'].text.trim()));
+  assert.match(body.messages[0].content, /What it is: \*\*widgets\*\*: A small widget library\.\nWhat the learner can do with it:\n- How a widget is drawn: the render loop\nWhat it cannot teach:\n- tests: there are none/);
+  assert.deepEqual(f.fetches, [], 'no network of its own');
+});
+
+test('learn_open: a failed or empty call is a 502 (the browser says the fixed sentence); a bad shape is a 400', async t => {
+  const f = setup(t), log = console.log;
+  console.log = () => {};
+  try {
+    f.deps.callModel = async () => new Response('no', { status: 500 });
+    assert.deepEqual(await (await f.route('POST', { app: CANVAS, action: 'learn_open', ...OPEN })).json(), { error: 'learn_open_unavailable' });
+    f.deps.callModel = fakeModel(null);
+    const empty = await f.route('POST', { app: CANVAS, action: 'learn_open', ...OPEN });
+    assert.deepEqual([empty.status, (await empty.json()).error], [502, 'learn_open_empty']);
+    for (const bad of [{ ...OPEN, kind: 'Bad Kind' }, { ...OPEN, summary: '' }, { ...OPEN, options: 'x' }, { ...OPEN, options: [{ id: 'a' }] }, { ...OPEN, cannot: [{}] }])
+      assert.equal((await f.route('POST', { app: CANVAS, action: 'learn_open', ...bad })).status, 400, JSON.stringify(bad).slice(0, 60));
+  } finally { console.log = log; }
+});
+
 test('learn_intro: an empty answer or a failed call is a 502 the browser can retry; a bad option is a 400; no usable anchor is a 404; no key is a 503', async t => {
   const f = setup(t);
   for (const empty of [fakeModel(''), fakeModel('   '), fakeModel(null)]) {

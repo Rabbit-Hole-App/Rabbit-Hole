@@ -1,14 +1,10 @@
-// ponytail: STALE since Tutor cleanup P4. Steps 1-3 drive the syllabus card and its Use as table of contents button, which P4 removed
-// (windows-only; not run). Steps 4-5 (the 121st heading, outlineOmitted) still describe retained behavior. Rewrite steps 1-3 onto a
-// seeded board before running it.
+// ponytail: windows-only and not run since Tutor cleanup P4; steps 4-6 describe retained behavior on a seeded board.
 // The table of contents' 120-heading limit (owner decision, Release A3 item 1; C:/s/spec/rel-a.md B1). Against the LOCAL stack
 // only. No model is ever called: /api/learn/ask is answered here with canned SSE and its request bodies are captured; every
 // other model-capable route is aborted and counted. What the server does with a body is the control plane's unit tests
 // (chat-modes, learn-chat); this check proves what the page sends and what it applies.
-// 1 the largest syllabus (12 topics x 6 subtopics: 84 headings) adopts into empty contents in one Apply, and the next chat
-// turn sends all 84 with outlineRevision; 2 adopting another 84 is refused whole on the syllabus card with how many more fit
-// (36), nothing proposed or applied; 3 a syllabus that fits the room left (36 headings) adopts into the existing contents,
-// existing headings kept, and a chat turn sends all 120; 4 a 121st heading added by hand in the panel lands (manual editing is
+// Steps 1-3 (syllabus adoption from the TOC conversation's syllabus card) went with the TOC conversation (owner 2026-11-18); the
+// board is seeded with a 120-entry contents list instead. 4 a 121st heading added by hand in the panel lands (manual editing is
 // never capped), and the next chat turn sends outlineOmitted { count: 121 } with no outline and no outlineRevision, and still
 // answers; 5 at 121 entries the panel lists every entry, and pressing one with no canvas heading moves and marks nothing
 // (owner brief 2026-10-23); 6 no model route was reached and the page raised no error.
@@ -19,7 +15,6 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { outlineRevision } from '../src/learn-outline-model.js';
 import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8931';
@@ -33,14 +28,9 @@ const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init,
 const catalog = await api('/api/apps');
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'A long course' }) });
 const inkKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
-// One card and no headings: the contents start empty.
-const seed = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'k1', type: 'explanation', dx: 0, dy: 0, title: 'Course notes', body: 'Where the course starts.' }] };
-
-// A validated syllabus: `topics` topics of 1 + `subtopics` headings, titled under `name` so two syllabi never match.
-const syllabus = (name, topics, subtopics) => ({ journeyId: null, goal: `${name} course`, topics: Array.from({ length: topics }, (_, i) => ({
-  id: `${name}${i + 1}`, title: `${name} ${i + 1}`, objectives: ['o'], refs: [],
-  subtopics: Array.from({ length: subtopics }, (_, j) => ({ id: `${name}${i + 1}.${j + 1}`, title: `${name} ${i + 1}.${j + 1}` })),
-})) });
+// One card and no canvas headings; the board's own contents list (toc, owner brief 2026-10-23) holds the 120-heading limit.
+const toc120 = Array.from({ length: 120 }, (_, i) => ({ id: `u${i + 1}`, level: i % 6 ? 2 : 1, text: `Unit ${Math.floor(i / 6) + 1}${i % 6 ? `.${i % 6}` : ''}` }));
+const seed = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'k1', type: 'explanation', dx: 0, dy: 0, title: 'Course notes', body: 'Where the course starts.' }], toc: toc120 };
 
 // ---------------------------------------------------------------- routes: capture and canned answers
 const captured = [], refused = [], outside = [], errors = [];
@@ -99,7 +89,6 @@ const pane = () => page.locator('[data-chat-pane]');
 // The Table of contents tab's name also says how many proposals wait for review (PanelHeader tocPending, R4).
 const tab = name => page.getByRole('tab', { name: name === 'Table of contents' ? /^Table of contents(, \d+ proposals? to review)?$/ : name, exact: name !== 'Table of contents' });
 const contents = () => page.getByRole('tabpanel', { name: 'Table of contents' });
-const apply = () => contents().getByRole('button', { name: 'Apply', exact: true });
 const headings = () => page.evaluate(key => { const s = JSON.parse(localStorage.getItem(key) || '{}'); return (Array.isArray(s.toc) ? s.toc : (s.blocks || []).filter(b => b.type === 'heading')); }, inkKey)
   .then(list => list.map(b => ({ id: b.id, level: b.level, text: b.text })));
 // Owner brief 2026-10-23: the canvas objects as saved, which no Table of contents action creates or changes.
@@ -111,67 +100,21 @@ const setMode = async mode => {
   await page.locator(`[data-chat-mode-option="${mode}"]`).click();
   await waitFor(async () => await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode);
 };
-// Owner decision 1a (2026-10-20, Tutor workflow): syllabus building moved from Chat's Tutor mode (now the teaching Tutor) to the
-// Table of contents conversation, so a 'tutor' turn here is the TOC conversation's (its held Tutor, /api/learn/ask mode tutor)
-// and an 'ask' turn is Chat's. A syllabus there that fits applies at once (no Apply card); one that cannot is refused on its card.
-const tocBox = () => contents().locator('[data-toc-conversation], [data-toc-ask]');
-async function turn(text, plan = {}, mode = 'tutor') {
-  const where = mode === 'tutor' ? tocBox : pane;
-  if (mode === 'tutor') {
-    await tab('Table of contents').click();
-    await contents().locator('[data-toc-start] button, [data-toc-composer]').first().waitFor({ timeout: 10000 });
-    if (await contents().locator('[data-toc-start] button').count()) await contents().locator('[data-toc-start] button').click();
-  } else {
-    await tab('Chat').click();
-    await setMode(mode);
-  }
+// A Chat turn in `mode`; answers the request body /api/learn/ask received.
+async function turn(text, plan = {}, mode = 'ask') {
+  await tab('Chat').click();
+  await setMode(mode);
   next.push(plan);
   const n = captured.length;
-  const composer = mode === 'tutor' ? '[data-toc-composer]' : '[data-chat-composer]';
-  await where().locator(`${composer} textarea`).first().fill(text);
-  await where().locator(`${composer} button[aria-label="Send"]`).click();
+  await pane().locator('[data-chat-composer] textarea').first().fill(text);
+  await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
   await waitFor(() => captured.length > n, 20000);
-  await where().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).first().waitFor({ timeout: 15000 });
-  await where().locator(`${composer} button[aria-label="Send"]`).waitFor({ timeout: 10000 });
+  await pane().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).first().waitFor({ timeout: 15000 });
+  await pane().locator('[data-chat-composer] button[aria-label="Send"]').waitFor({ timeout: 10000 });
   return captured[n].body;
 }
-// Plans `plan` as a Tutor syllabus in the TOC conversation and presses its Use as table of contents; answers the card's status line.
-async function useAsContents(text, plan) {
-  await turn(text, { syllabus: plan });
-  const card = tocBox().locator('[data-syllabus]').last();
-  await card.locator('[data-syllabus-contents]').click();
-  return card.locator('[data-syllabus-contents-status]').innerText();
-}
-const sentWhole = (body, list) => {
-  assert.equal(body.outlineOmitted, undefined);
-  assert.deepEqual(body.outline.map(e => e.id), list.map(h => h.id));
-  assert.equal(body.outlineRevision, outlineRevision(body.outline), 'the revision of exactly the headings sent');
-};
 
-let after84 = [];
-await check('1 the largest syllabus (84 headings) adopts into empty contents at once from the TOC conversation; the next chat turn sends all 84', async () => {
-  assert.match(await useAsContents('plan a long course', syllabus('Unit', 12, 6)), /Proposed in Table of contents/);
-  after84 = await waitFor(async () => { const h = await headings(); return h.length === 84 && h; }, 15000);
-  sentWhole(await turn('how do the last two units connect?', {}, 'ask'), after84);
-});
-
-await check('2 adopting another 84 is refused whole on the card with how many more fit (36); nothing proposed or applied', async () => {
-  const status = await useAsContents('plan a second long course', syllabus('Extra', 12, 6));
-  assert.equal(status, 'This proposal cannot be applied: it adds 84 headings to 84, and the contents hold at most 120: 36 more fit. Nothing was changed.');
-  await tocBox().locator('[data-syllabus]').last().screenshot({ path: `${OUT}/2-refused.png` });
-  await tab('Table of contents').click();
-  assert.equal(await apply().count(), 0, 'no proposal waits in the panel');
-  assert.deepEqual(await headings(), after84, 'the existing contents are untouched');
-});
-
-let after120 = [];
-await check('3 a syllabus that fits the room left (36 headings) adopts into the existing contents; a chat turn sends all 120', async () => {
-  assert.match(await useAsContents('plan the last six units', syllabus('Last', 6, 5)), /Proposed in Table of contents/);
-  after120 = await waitFor(async () => { const h = await headings(); return h.length === 120 && h; }, 15000);
-  assert.deepEqual(after120.slice(0, 84), after84, 'existing headings kept, in order, with their ids');
-  sentWhole(await turn('what is left to study?', {}, 'ask'), after120);
-});
-
+// Steps 1-3 (syllabus adoption on the TOC conversation's card) went with the TOC conversation (owner 2026-11-18).
 let after121 = [];
 await check('4 a 121st heading added by hand lands; the next chat turn sends outlineOmitted { count: 121 } instead of the headings, and answers', async () => {
   await tab('Table of contents').click();
@@ -181,12 +124,11 @@ await check('4 a 121st heading added by hand lands; the next chat turn sends out
   after121 = await waitFor(async () => { const h = await headings(); return h.length === 121 && h; });
   assert.equal(after121.at(-1).text, 'My own notes');
   assert.deepEqual(await canvasBlocks(), seeded, 'owner brief 2026-10-23: 121 contents entries and the canvas still holds only its card');
-  for (const mode of ['ask', 'tutor']) {
-    const body = await turn(mode === 'tutor' ? 'add a section on revision' : 'what is attention?', {}, mode);
-    assert.deepEqual(body.outlineOmitted, { count: 121 }, mode);
-    assert.equal('outline' in body, false, `${mode}: no outline`);
-    assert.equal('outlineRevision' in body, false, `${mode}: no outlineRevision`);
-  }
+  // step 4's TOC-conversation (tutor) turn went with the TOC conversation (owner 2026-11-18).
+  const body = await turn('what is attention?', {}, 'ask');
+  assert.deepEqual(body.outlineOmitted, { count: 121 });
+  assert.equal('outline' in body, false, 'no outline');
+  assert.equal('outlineRevision' in body, false, 'no outlineRevision');
   await tab('Chat').click();
   await pane().screenshot({ path: `${OUT}/4-chat-at-121.png` });
 });

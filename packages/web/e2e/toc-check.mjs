@@ -13,6 +13,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { outlineFrom, outlineRevision, tocOf } from '../src/learn-outline-model.js';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8888';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8889';
@@ -71,17 +72,17 @@ const browser = await chromium.launch();
 const asks = [], stray = [], errors = [];
 let reply = null, lastProposal = null;
 const tutorTurn = proposal => `event: chunk\ndata: ${JSON.stringify({ text: 'Here is a place for that in your contents.' })}\n\nevent: outline\ndata: ${JSON.stringify(proposal)}\n\nevent: done\ndata: {}\n\n`;
-// Owner decision 1a (2026-10-20, Tutor workflow): syllabus and outline building moved out of Chat's Tutor mode (now the
-// teaching Tutor) into the Table of contents conversation, which posts its held Tutor to /api/learn/ask (answered above).
+// The Table of contents conversation's composer went with the TOC conversation (owner 2026-11-18): an outline request goes from
+// Chat in Ask mode (its one /api/learn/ask turn, answered above), whose outline event is a Tutor proposal (ask.jsx onOutlineProposal).
 const send = async text => {
-  await tocTab().click();
-  // With no TOC messages yet the conversation is a compact entry (data-toc-start); pressed, its composer opens.
-  const panel = page.locator('aside[aria-label="Learn agent chat"]');
-  await panel.locator('[data-toc-start] button, [data-toc-composer]').first().waitFor({ timeout: 10000 });
-  if (await panel.locator('[data-toc-start] button').count()) await panel.locator('[data-toc-start] button').click();
-  const input = page.locator('aside[aria-label="Learn agent chat"] [data-toc-composer] textarea').first();
-  await input.fill(text);
-  await input.press('Enter');
+  await page.locator('[data-panel-tab="chat"]').click();
+  const pane = page.locator('[data-chat-pane]');
+  if (await pane.locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'ask') {
+    await pane.getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.locator('[data-chat-mode-option="ask"]').click();
+  }
+  await pane.locator('[data-chat-composer] textarea').first().fill(text);
+  await pane.locator('[data-chat-composer] button[aria-label="Send"]').click();
 };
 const tocTab = () => page.locator('[data-panel-tab="toc"]');
 const results = [];
@@ -98,6 +99,8 @@ const open = async ({ width = 1440, height = 900, chat = 420, theme = 'light' } 
   // Every ask is answered here, by URL: a scripted Tutor turn when a step set one (reply), else an empty turn.
   await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); const body = reply || 'event: done\ndata: {}\n\n'; reply = null; return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body }); });
   await context.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
+  // CR-1: a Chat line asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs). CI has no JEV key.
+  await mockChatRoute(context);
   page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -306,7 +309,9 @@ await check('10 the active marker follows the canvas by its rule, apart from com
   await shot('07-active-section');
 });
 
-await check('11 an outline request in the Table of contents conversation applies its proposal at once (owner 1a): an uncompleted entry, once, under a completed topic', async () => {
+// 11's apply-at-once from the TOC conversation went with the TOC conversation (owner 2026-11-18); the request now comes from Chat,
+// so its proposal waits as the Apply/Discard card (as 13's does) and Apply adds it.
+await check('11 an outline request from Chat proposes in the Table of contents; Apply adds an uncompleted entry, once, under a completed topic', async () => {
   await circle('t3').click(); // Baking done: a new sub-section under it must still start open
   await page.waitForFunction(() => document.querySelector('[data-toc-entry="t3"]')?.hasAttribute('data-done'));
   await saved('Baking done', headings => headings.find(block => block.id === 't3')?.done === true);
@@ -314,11 +319,12 @@ await check('11 an outline request in the Table of contents conversation applies
   const proposal = { base, ops: [{ op: 'add', text: 'Proofing', level: 2, parent: 't3', description: 'Why dough rests before it bakes.' }] };
   reply = tutorTurn(proposal);
   await send('Where would proofing fit?');
-  // The learner's own request in the TOC conversation applies at once (TocConversation, LearnPage onOutlineProposal); only a
-  // proposal that cannot apply waits as the Apply/Discard card (13).
+  await page.waitForFunction(() => document.querySelector('[data-panel-tab="toc"]')?.getAttribute('aria-label') === 'Table of contents, 1 proposal to review', null, { timeout: 15000 });
+  await tocTab().click();
+  await toc().locator('[data-toc-proposal]').getByRole('button', { name: 'Apply' }).click();
   const added = toc().locator('[data-toc-entry]', { hasText: 'Proofing' });
   await added.waitFor({ timeout: 15000 });
-  assert.equal(await toc().locator('[data-toc-proposal]').count(), 0, 'nothing waits for review');
+  assert.equal(await toc().locator('[data-toc-proposal]').count(), 0, 'nothing waits for review once applied');
   await shot('08-proposal-applied', page.locator('aside[aria-label="Learn agent chat"]'));
   assert.equal(await added.count(), 1, 'added once');
   assert.equal(await added.getAttribute('data-done'), null, 'a new entry starts uncompleted');

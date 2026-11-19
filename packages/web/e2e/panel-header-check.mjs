@@ -172,30 +172,7 @@ await check('2 Chat is the default tab; Table of contents selects a soft purple 
 await shot('01-header-toc-active', panel());
 await shot('01b-page-toc-active');
 
-// Owner brief 2026-10-16 item 7 (replaces R4 A3's docked Chat composer): the Table of contents has its own conversation and
-// composer below the contents, Tutor its only mode. The long contents, drafts kept apart, Send and the narrow panel are on
-// their own canvas below (L1-L8).
-// Owner UI brief 2026-10-20 section 6: with no TOC messages there is no "TOC conversation" section, only the compact entry
-// (data-toc-start); pressing it opens the composer (data-toc-ask), which becomes the conversation once a turn is sent.
-const docked = (on = page) => on.locator('aside[aria-label="Learn agent chat"]').locator('[data-toc-conversation], [data-toc-ask]');
-const startToc = async (on = page) => { const entry = on.locator('aside[aria-label="Learn agent chat"] [data-toc-start] button'); await entry.waitFor(); await entry.click(); await docked(on).waitFor(); };
-const below = async (upper, lower) => { const a = await upper.boundingBox(), b = await lower.boundingBox(); return !!a && !!b && a.y + a.height <= b.y + 1; };
-await check('2b short contents, no TOC messages: no TOC conversation section, one entry; pressed, its focused composer stays below them, Tutor its only mode; no Chat header or conversation over the contents', async () => {
-  await panel().locator('[data-toc-start]').waitFor();
-  assert.equal(await panel().locator('[data-toc-conversation], [data-toc-ask], [data-toc-composer]').count(), 0, 'no empty section or composer');
-  assert.equal(await panel().getByText('TOC conversation', { exact: true }).count(), 0, 'no "TOC conversation" header');
-  await startToc();
-  assert.ok(await docked().locator('[data-toc-composer] textarea').first().isVisible(), 'the composer shows');
-  await expect(docked().locator('[data-toc-composer] textarea').first()).toBeFocused();
-  assert.ok(await below(panel().locator('[data-toc]'), docked()), 'below the contents');
-  const [aside, pane] = [await panel().boundingBox(), await docked().boundingBox()];
-  assert.ok(Math.abs(aside.y + aside.height - (pane.y + pane.height)) < 40, `anchored at the panel's foot: pane ends ${Math.round(pane.y + pane.height)}, panel ${Math.round(aside.y + aside.height)}`);
-  assert.equal(await docked().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
-  assert.equal(await docked().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no mode menu');
-  assert.equal(await panel().locator('[data-chat-header]').isVisible(), false);
-  assert.equal(await page.getByRole('tabpanel', { name: 'Chat', exact: true }).count(), 0, 'the Table of contents is the one tabpanel');
-});
-await shot('01c-toc-composer-short', panel());
+// 2b went with the TOC conversation (owner 2026-11-18).
 
 // Comments is live on a saved canvas (docs/features/canvas-comments.md); comments-check.mjs covers the view itself.
 await check('3 Comments selects on a saved canvas and shows the Comments view; the Table of contents comes back', async () => {
@@ -421,10 +398,6 @@ const panel2 = () => p2.locator('aside[aria-label="Learn agent chat"]');
 const field = () => p2.locator('[data-chat-pane] [data-chat-composer] textarea').first();
 const send2 = () => p2.locator('[data-chat-pane] [data-chat-composer] button[aria-label="Send"]');
 const mode2 = () => p2.locator('[data-chat-pane] [data-chat-mode]').getAttribute('data-chat-mode');
-// The TOC's own composer (owner brief 2026-10-16 item 7): its field, Send and mode.
-const tocField = () => docked(p2).locator('[data-toc-composer] textarea').first();
-const tocSend = () => docked(p2).locator('[data-toc-composer] button[aria-label="Send"]');
-const tocMode = () => docked(p2).locator('[data-chat-mode]').getAttribute('data-chat-mode');
 const pickMode = async id => { await p2.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await p2.locator(`[data-chat-mode-option="${id}"]`).click(); };
 const tab2 = name => p2.getByRole('tab', { name, exact: true });
 const selected2 = async () => p2.locator('[role="tab"][aria-selected="true"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
@@ -437,15 +410,14 @@ const shot2 = async (name, clip = null) => {
   await p2.screenshot({ path: `${SHOTS}/${name}.png`, ...(box ? { clip: { x: Math.max(0, box.x - 8), y: Math.max(0, box.y - 8), width: box.width + 16, height: box.height + 16 } } : {}) });
   console.log('shot', name);
 };
-// The contents reach their last entry above the composer: the list scrolls by itself, and its end shows clear of the composer.
+// The contents reach their last entry: the list scrolls by itself.
+// reachable's composer-below-the-contents assertions went with the TOC conversation (owner 2026-11-18).
 const reachable = async () => {
-  assert.ok(await below(list(), docked(p2)), 'the composer is below the contents, never over them');
   const [scrolls, sideways] = await list().evaluate(node => [node.scrollHeight > node.clientHeight + 4, node.scrollWidth > node.clientWidth + 1]);
   assert.ok(scrolls, 'the long contents scroll in their own area');
   assert.equal(sideways, false, 'no horizontal scroll');
   await lastEntry().scrollIntoViewIfNeeded();
   assert.ok(await lastEntry().isVisible());
-  assert.ok(await below(lastEntry(), docked(p2)), 'the last entry shows above the composer');
 };
 
 await p2.goto(`${BASE}/apps/${longCanvas.name}`);
@@ -468,36 +440,32 @@ await check('L1 in Chat: one Ask question answered, then an unsent draft and a c
   assert.equal(tocAsks.length, 1);
 });
 
-await check('L2 opening the Table of contents: its own composer below the long contents, Tutor only and empty; Chat\'s draft, card and conversation stay in Chat; nothing requested', async () => {
+// L2's TOC composer assertions (Tutor only, empty, no attached card) went with the TOC conversation (owner 2026-11-18).
+await check('L2 opening the Table of contents: the long contents scroll to their last entry; Chat\'s conversation stays in Chat; nothing requested', async () => {
   await p2.waitForTimeout(1200); // past the 800 ms thread-state save of the draft and the card (chat-threads.js SAVE_DELAY)
   const mark = chatRequests.length;
   await tab2('Table of contents').click();
-  await startToc(p2);
-  assert.equal(await tocMode(), 'tutor');
-  assert.equal(await tocField().inputValue(), '', 'Chat\'s draft is not here');
-  assert.equal(await docked(p2).locator('[data-context-chip]', { hasText: 'Heat flows from hot to cold' }).count(), 0, 'Chat\'s attached card is not here');
+  await list().waitFor();
   assert.equal(await p2.getByText('Canned answer 1.', { exact: true }).isVisible(), false, 'the conversation stays in Chat');
   await reachable();
   await p2.waitForTimeout(1200); // past the same save delay: entering the tab saves nothing either
   assert.deepEqual(chatRequests.slice(mark), [], 'no chat, ask or Tutor request from opening the tab');
   assert.equal(tocAsks.length, 1);
 });
-await shot2('06-toc-composer-long', panel2());
+await shot2('06-toc-long', panel2());
 
-await check('L3 drafts and modes stay apart: a TOC draft and Chat\'s draft each survive switching; Chat keeps its own mode, TOC stays Tutor', async () => {
-  await tocField().fill('Add a part on boiling points');
+// L3's TOC draft and TOC mode went with the TOC conversation (owner 2026-11-18).
+await check('L3 Chat\'s draft and mode survive a visit to the Table of contents', async () => {
   await tab2('Chat').click();
   assert.equal(await field().inputValue(), 'Which part should I review next?', 'Chat\'s draft');
   assert.equal(await mode2(), 'ask', 'Chat\'s own mode, never moved by the TOC');
   await tab2('Table of contents').click();
-  await docked(p2).waitFor();
-  assert.equal(await tocField().inputValue(), 'Add a part on boiling points', 'the TOC draft');
-  assert.equal(await tocMode(), 'tutor');
+  await list().waitFor();
 });
 
 await check('L4 coming back to the contents restores their scroll position, from Chat and after hiding the panel', async () => {
   await tab2('Table of contents').click();
-  await docked(p2).waitFor();
+  await list().waitFor();
   const box = await list().boundingBox();
   await p2.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await p2.mouse.wheel(0, 260);
@@ -505,51 +473,35 @@ await check('L4 coming back to the contents restores their scroll position, from
   const was = await list().evaluate(node => node.scrollTop);
   await tab2('Chat').click();
   await tab2('Table of contents').click();
-  await docked(p2).waitFor();
+  await list().waitFor();
   assert.ok(Math.abs((await list().evaluate(node => node.scrollTop)) - was) <= 2, `back from Chat at ${was}`);
   await p2.getByRole('button', { name: 'Hide the right panel' }).click();
   await p2.getByRole('button', { name: 'Show the right panel' }).click();
-  await docked(p2).waitFor();
+  await list().waitFor();
   assert.ok(Math.abs((await list().evaluate(node => node.scrollTop)) - was) <= 2, `reopened at ${was}`);
 });
 
-await check('L5 Send from the TOC: a Tutor turn in the TOC\'s own new thread; the answer shows in the TOC conversation and the panel stays on TOC; Chat and its New chat leave it', async () => {
-  await tocSend().click();
-  await docked(p2).getByText('Canned answer 2.', { exact: true }).waitFor({ timeout: 15000 });
-  assert.deepEqual(await selected2(), ['toc'], 'the panel stays on the Table of contents');
-  assert.equal(await docked(p2).getByText('Canned answer 1.', { exact: true }).count(), 0, 'Chat\'s turn is not in the TOC conversation');
-  assert.equal(tocAsks.length, 2);
-  assert.equal(tocAsks[1].mode, 'tutor', 'the existing Tutor pipeline');
-  assert.equal(tocAsks[1].thread_id ?? null, null, 'a new TOC thread, never Chat\'s canned-thread-1');
-  await tab2('Chat').click();
-  assert.equal(await p2.locator('[data-chat-pane]').getByText('Canned answer 2.', { exact: true }).count(), 0, 'the TOC answer is not in Chat');
-  await p2.locator('[data-chat-pane]').getByRole('button', { name: 'New chat', exact: true }).click();
+// L5 went with the TOC conversation (owner 2026-11-18).
+// L6's TOC composer room-to-type went with the TOC conversation (owner 2026-11-18).
+await check('L6 a narrow panel (its minimum width) and a phone: the contents usable, no horizontal scroll', async () => {
   await tab2('Table of contents').click();
-  assert.ok(await docked(p2).getByText('Canned answer 2.', { exact: true }).isVisible(), 'New chat in Chat leaves the TOC conversation');
-});
-await shot2('07-sent-from-contents-chat', panel2());
-
-await check('L6 a narrow panel (its minimum width) and a phone: contents and composer both usable, no overlap, no horizontal scroll', async () => {
-  await tab2('Table of contents').click();
-  await docked(p2).waitFor();
+  await list().waitFor();
   const handle = p2.getByRole('separator', { name: 'Resize Learn panel' });
   await handle.focus();
   for (let i = 0; i < 20; i += 1) await p2.keyboard.press('ArrowRight');
   if (await handle.getAttribute('aria-valuenow') !== await handle.getAttribute('aria-valuemin')) for (let i = 0; i < 40; i += 1) await p2.keyboard.press('ArrowLeft');
   assert.equal(await handle.getAttribute('aria-valuenow'), await handle.getAttribute('aria-valuemin'), 'at the minimum width');
   await reachable();
-  assert.ok((await tocField().boundingBox()).width > 200, 'room to type');
   assert.equal(await panel2().evaluate(node => node.scrollWidth > node.clientWidth + 1), false, 'the panel does not scroll sideways');
-  await shot2('08-toc-composer-narrow', panel2());
+  await shot2('08-toc-narrow', panel2());
   await p2.setViewportSize({ width: 390, height: 844 });
-  await docked(p2).scrollIntoViewIfNeeded();
+  await list().scrollIntoViewIfNeeded();
   assert.ok((await list().boundingBox()).height > 60, 'the contents keep room on a phone');
   await reachable();
-  await shot2('09-toc-composer-phone');
+  await shot2('09-toc-phone');
 });
 
-// Chat's saved thread (an Ask chat) answers only after the tab was entered: it restores into Chat with its own mode, and never
-// into the TOC, which stays Tutor. The TOC's own pointer (slot=toc) reads the server's (none: the canned thread exists nowhere).
+// Chat's saved thread (an Ask chat) answers only after the Table of contents was entered: it restores into Chat with its own mode.
 let releaseThread, threadAsked = false;
 const threadHeld = new Promise(resolve => { releaseThread = resolve; });
 await p2.route(/\/api\/learn\/chat\/active\?(?!.*slot=toc)/, route => (route.request().method() === 'GET' ? route.fulfill({ json: { threadId: 'toc-thread-2' } }) : route.fallback()));
@@ -558,19 +510,17 @@ await p2.route(/\/api\/ask\/threads\/toc-thread-2$/, async route => {
   await threadHeld;
   return route.fulfill({ json: { id: 'toc-thread-2', title: 'Saved Ask chat', mode: 'ask', contextRefs: [], draft: null, messages: [{ role: 'user', content: 'An earlier Ask question', status: 'done' }, { role: 'assistant', content: 'An earlier Ask answer', status: 'done' }] } });
 });
-await check('L8 entered before Chat\'s saved thread loads: it restores into Chat with its own mode, never into the TOC, which stays Tutor', async () => {
+// L8's TOC mode and TOC thread assertions went with the TOC conversation (owner 2026-11-18).
+await check('L8 the Table of contents entered before Chat\'s saved thread loads: it restores into Chat with its own mode', async () => {
   await p2.setViewportSize({ width: 1440, height: 900 });
   await p2.reload();
   await p2.locator('[data-block-id="t-card"]').waitFor({ timeout: 60000 });
   for (const end = Date.now() + 30000; !threadAsked; await p2.waitForTimeout(50)) if (Date.now() > end) throw Error('the saved thread was never asked for');
   assert.equal(await p2.locator('[data-chat-pane]').getAttribute('data-chat-restore'), 'loading');
   await tab2('Table of contents').click();
-  await startToc(p2); // the canned TOC thread exists nowhere, so the reloaded TOC has no messages: the entry, then the composer
-  assert.equal(await tocMode(), 'tutor', 'Tutor in the TOC, Chat\'s thread still loading');
+  await list().waitFor();
   releaseThread();
   await p2.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
-  assert.equal(await tocMode(), 'tutor', 'the saved Ask mode never reaches the TOC');
-  assert.equal(await docked(p2).getByText('An earlier Ask answer', { exact: true }).count(), 0, 'Chat\'s thread is not restored into the TOC');
   await tab2('Chat').click();
   await p2.locator('[data-chat-pane]').getByText('An earlier Ask answer', { exact: true }).waitFor();
   assert.equal(await mode2(), 'ask', 'Chat restores its own saved mode');
@@ -633,7 +583,7 @@ await shot2('10-progress-tab-chat-kept', panel2());
 await check('L7 the long canvas: no other model route, no page error', async () => {
   assert.deepEqual(tocStray, []);
   assert.deepEqual(tocErrors, []);
-  assert.equal(tocAsks.length, 2);
+  assert.equal(tocAsks.length, 1);
 });
 await ctx2.close();
 
@@ -653,5 +603,5 @@ await check('the canvas asked for no hooks on open, and nothing the panel did as
 });
 
 await browser.close();
-console.log(`${results.length}/27 checks passed`);
-process.exit(results.length === 27 ? 0 : 1);
+console.log(`${results.length}/25 checks passed`);
+process.exit(results.length === 25 ? 0 : 1);

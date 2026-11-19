@@ -9,7 +9,8 @@ import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText, routeLearnT
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
-import { askIntake, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, optionsOpen } from './rehearsal-flow.js';
+import { appendOpening, askIntake, fallbackOpening, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, openingKey, openingMessage, optionsOpen, repositoryArrival } from './rehearsal-flow.js';
+import { SOURCE_ARRIVED_EVENT, openBody, sourceArrived } from './source-arrived.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
 import { chapterCount, cleanOps, planRows, planTree, sectionEntries, storedLearn } from './learn-plan.js';
 import { SENTENCES, catalogueMessage, internal } from './tutor-rehearsal-text.js';
@@ -31,7 +32,7 @@ import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { asked: 0, intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], section: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { asked: 0, opening: null, openings: 0, intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], section: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -372,7 +373,14 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   // The router decided the learner asked what they can do here (ask.jsx): the intake is offered again, whatever was chosen before.
   useEffect(() => {
     // The question is asked again as one new message in the thread (intake-once-spec.md 2), its rows live.
-    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; planSeq.current += 1; forgetIntake(canvas); patch(old => { const reset = { ...old, intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null }; return { ...reset, ...(askIntake(reset, { again: true }) || {}) }; }); };
+    const again = event => {
+      if (event.detail?.canvas !== canvas) return;
+      event.detail.handled = true; planSeq.current += 1; forgetIntake(canvas);
+      const reset = { ...st.current, intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null };
+      const ask = askIntake(reset, { again: true });
+      patch({ ...reset, ...(ask || {}) });
+      if (ask) sourceArrived(canvas, repositoryArrival(reset.doc)); // a fresh learn_open, live rows
+    };
     window.addEventListener(CODEBASE_OPTIONS_EVENT, again);
     return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -501,8 +509,24 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   useEffect(() => {
     if (!active || stored || st.current.learn) return;
     const ask = askIntake(st.current);
-    if (ask) patch(ask);
+    if (ask) { patch(ask); sourceArrived(canvas, repositoryArrival(st.current.doc)); }
   }, [active, !!stored, !!s.doc, s.get?.learn?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Any source arriving (source-arrived.js): the Tutor writes the opening (learn_open) and ONE message joins the thread, its options as rows; a failed call says the fixed
+  // sentence with the same rows (the learner always gets the question).
+  useEffect(() => {
+    const onArrived = async event => {
+      const detail = event.detail || {};
+      if (detail.canvas !== canvas) return;
+      if (!st.current.opening) patch({ opening: 'loading' });
+      let text = null;
+      try { text = (await codebasePost(chatRef.current, board, openBody(detail)))?.text || null; } catch { /* the fixed sentence below */ }
+      if (!live.current) return;
+      const message = openingMessage({ key: openingKey(st.current), text: text || fallbackOpening(detail.summary, detail.options), options: detail.options || [], canRun: !!detail.canRun });
+      patch(old => appendOpening(old, message));
+    };
+    window.addEventListener(SOURCE_ARRIVED_EVENT, onArrived);
+    return () => window.removeEventListener(SOURCE_ARRIVED_EVENT, onArrived);
+  }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const messages = [...(active ? flowMessages(s, { repo: repository.repo }) : []), ...s.lines];
   if (!messages.length) return null;
   return <div data-rehearsal-flow aria-live="polite" className="flex flex-col">

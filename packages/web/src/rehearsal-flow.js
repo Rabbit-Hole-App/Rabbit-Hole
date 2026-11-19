@@ -38,22 +38,31 @@ export const intakeOpen = (state, cm) => !!cm && ['one', 'choose'].includes(cm.k
 export const learnOpen = state => state.mode === 'learn' && !state.learn && !state.elsewhere;
 // The intake question's rows are live until a topic is chosen, the learner sets them aside, or Run it is taken.
 export const optionsOpen = state => !state.learn && !state.elsewhere && !state.use;
-// Intake asked once (intake-once-spec.md, owner 2026-11-18 22:09): the catalogue is in, and its teachable options too (a catalogue still adding them waits).
+// Source arrived (owner 2026-11-18 22:09 / 22:15, intake-once-spec.md): the catalogue is in, and its teachable options too (a catalogue still adding them waits).
 export const intakeReady = state => !!state.doc && !(learnOf(state.doc).options.length === 0 && state.get?.learn?.status === 'queued');
-// The one Tutor message: the catalogue's one-line fact, the question, and the teachable options as rows (no Run it / Learn from it step). Run it (flag runIt) leads the rows
-// only where the codebase can run. The dev build's Load sample section stays last.
-export function intakeMessage(doc, { key = 'intake', run = runIt } = {}) {
+// The repository's arrival (source-arrived.js): its one-line facts, its teachable options, what it cannot teach, and whether it can run (Run it's row).
+export function repositoryArrival(doc) {
   const learn = learnOf(doc), cm = catalogueMessage(doc);
-  const rows = [...(run && ['one', 'choose'].includes(cm.kind) ? [{ id: 'mode:run', label: SENTENCES.runIt }] : []), ...optionRows(learn.options), ...sampleRow()];
-  return { key, role: 'assistant', text: `${factsMessage(doc, cm).text}\n\n${learn.options.length ? SENTENCES.intake : SENTENCES.learnNone}`, choices: rows, intakeRows: true };
+  return { kind: 'repository', summary: factsMessage(doc, cm).text, options: learn.options, cannot: learn.cannot, canRun: ['one', 'choose'].includes(cm.kind) };
 }
-// -> the state change that asks the question, or null: asked once per open (asked counts), again only when the router fires codebase-options (again: true).
-// Run it off: the answer is a Learn topic, so the Learn options are what typing replies to (mode learn).
+// When learn_open fails: the fixed sentence, so the learner always gets the question.
+export const fallbackOpening = (summary, options) => `${summary}\n\n${options?.length ? SENTENCES.intake : SENTENCES.learnNone}`;
+// The ONE Tutor message for an arrival: the opening's words (learn_open, else the fallback) and the options as rows (learn:<id>). Run it (flag runIt) leads them where the
+// source can run; the dev build's Load sample section stays last. Its rows are live until a topic is set (flowMessages).
+export function openingMessage({ key = 'intake', text, options = [], canRun = false, run = runIt }) {
+  return { key, role: 'assistant', text, choices: [...(run && canRun ? [{ id: 'mode:run', label: SENTENCES.runIt }] : []), ...optionRows(options), ...sampleRow()], intakeRows: true };
+}
+// The fallback message for a repository (learn_open failed): the same rows.
+export const intakeMessage = (doc, { key = 'intake', run = runIt } = {}) => { const arrival = repositoryArrival(doc); return openingMessage({ key, text: fallbackOpening(arrival.summary, arrival.options), options: arrival.options, canRun: arrival.canRun, run }); };
+// -> the state change that starts the opening, or null: once per open (asked counts), again only when the router fires codebase-options (again: true). The opening itself
+// comes back from learn_open (opening 'loading' shows the shimmer meanwhile). Run it off: the answer is a Learn topic, so typing replies to the options (mode learn).
 export function askIntake(state, { again = false, run = runIt } = {}) {
   if (!intakeReady(state) || (state.asked && !again)) return null;
-  const asked = (state.asked || 0) + 1;
-  return { asked, mode: run ? null : 'learn', log: [...(state.log || []), intakeMessage(state.doc, { key: asked === 1 ? 'intake' : `intake-${asked}`, run })] };
+  return { asked: (state.asked || 0) + 1, mode: run ? null : 'learn', opening: 'loading' };
 }
+// The opening appended to the thread (the n-th one keyed intake-n). -> the state change.
+export const appendOpening = (state, message) => ({ opening: null, openings: (state.openings || 0) + 1, log: [...(state.log || []), message] });
+export const openingKey = state => ((state.openings || 0) === 0 ? 'intake' : `intake-${(state.openings || 0) + 1}`);
 
 // The route the pipeline runs once "Use the codebase" is chosen with exactly one practical route.
 export const onlyRoute = doc => { const practical = (doc?.routes || []).filter(route => route.practical); return practical.length === 1 ? practical[0] : null; };
@@ -70,11 +79,13 @@ export function flowMessages(state, { repo, run = runIt }) {
   // Until it is asked, a catalogue still adding its Learn options says so (transient, like the indexing line above).
   const cm = catalogueMessage(doc), openLearn = learnOpen(state), open = optionsOpen(state);
   if (!state.asked && !intakeReady(state)) out.push(pending('learn-wait', 'Working out what you can learn here'));
-  // 3. the thread: the question (its rows live until a topic is set), what was typed, the Tutor's answers (rows in a typed reply live only while the Learn options are open)
+  // 3. the thread: the opening (its rows live until a topic is set), what was typed, the Tutor's answers (rows in a typed reply live only while the Learn options are open)
   for (const line of state.log) {
     if (line.intakeRows) out.push({ ...line, choices: line.choices.map(choice => (choice.id === 'sample:load' ? choice : { ...choice, disabled: !open })) });
     else out.push(line.learnRows ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !openLearn })) } : line);
   }
+  // the opening being written (learn_open): the shimmer, after the thread
+  if (state.opening === 'loading') out.push(pending('learn-open', `Working out how ${name} can be used`));
   // 4b. the chosen topic's opening paragraph
   if (state.learn && state.depthAsk) {
     // the topic is confirmed; how deep comes next, as three rows (the goal, the opening paragraph and the plan wait for the answer)

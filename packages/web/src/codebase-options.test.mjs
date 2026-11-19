@@ -20,7 +20,8 @@ test('a decided codebase-options turn asks the Tutor flow to offer the list agai
   assert.match(ask, /new CustomEvent\(CODEBASE_OPTIONS_EVENT, \{ detail: offer \}\)/);
   assert.match(ask, /if \(offer\.handled\) \{ setMsgs\(m => m\.slice\(0, -2\)\); return; \}\n\s+Object\.assign\(outcome, \{ send: true, token: null, answerOnly: false, direct: null \}\);/, 'unhandled: an ordinary turn with its tools, never answer-only (which strips the repository and paper tools)');
   assert.match(flow, /window\.addEventListener\(CODEBASE_OPTIONS_EVENT, again\)/);
-  assert.match(flow, /event\.detail\.handled = true; planSeq\.current \+= 1; forgetIntake\(canvas\); patch\(\{ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: \[\], focus: null, goalChosen: false, elsewhere: false, form: null \}\)/);
+  assert.match(flow, /event\.detail\.handled = true; planSeq\.current \+= 1; forgetIntake\(canvas\);\n\s+const reset = \{ \.\.\.st\.current, intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: \[\], focus: null, goalChosen: false, elsewhere: false, form: null \};/);
+  assert.match(flow, /if \(ask\) sourceArrived\(canvas, repositoryArrival\(reset\.doc\)\);/, 'the opening is written again (learn_open), owner 2026-11-18 22:15');
   assert.equal(CODEBASE_OPTIONS_EVENT, 'rh-codebase-options');
 });
 

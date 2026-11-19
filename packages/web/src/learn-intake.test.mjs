@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { askIntake, flowMessages, intakeMessage, learnOpen } from './rehearsal-flow.js';
+import { appendOpening, askIntake, flowMessages, intakeMessage, learnOpen, openingKey } from './rehearsal-flow.js';
 import { learnOf, learnReply, optionRows } from './learn-intake.js';
 import { SENTENCES } from './tutor-rehearsal-text.js';
 
@@ -23,7 +23,9 @@ const doc = {
 };
 const base = { intakeDone: false, get: { indexing: 'ready', catalogue: { status: 'ready' } }, doc, use: null, mode: null, learn: null, learnIntro: null, goalChosen: false, elsewhere: false, log: [], routeId: null };
 // The question asked once (intake-once-spec.md): the state after askIntake, Run it off.
-const asked = { ...base, ...askIntake(base, { run: false }) };
+// askIntake starts the opening; learn_open (or its fallback) comes back as one message appended to the thread.
+const opened = (state, run = false) => ({ ...state, ...appendOpening(state, intakeMessage(state.doc, { key: openingKey(state), run })) });
+const asked = opened({ ...base, ...askIntake(base, { run: false }) });
 const flow = (state, run = false) => flowMessages({ ...asked, ...state }, { repo: 'acme/widgets', run });
 
 test('the intake (Run it off): one message, the fact, the question and the options as its first rows; typing replies to them; no route list', () => {
@@ -38,8 +40,10 @@ test('the intake (Run it off): one message, the fact, the question and the optio
 test('asked once per open: a second ask adds nothing; codebase-options asks again with live rows', () => {
   assert.equal(askIntake(asked, { run: false }), null, 'a second render adds nothing');
   const again = askIntake({ ...asked, learn: null }, { again: true, run: false });
-  assert.deepEqual(again.log.map(m => m.key), ['intake', 'intake-2']);
-  assert.equal(again.asked, 2);
+  assert.deepEqual([again.asked, again.opening], [2, 'loading'], 'a fresh opening is on its way');
+  assert.deepEqual(flowMessages({ ...asked, ...again }, { repo: 'acme/widgets', run: false }).map(m => m.key), ['intake', 'learn-open'], 'the shimmer while it is written');
+  assert.deepEqual(opened({ ...asked, ...again }).log.map(m => m.key), ['intake', 'intake-2']);
+  assert.equal(openingKey(asked), 'intake-2');
   assert.equal(askIntake({ ...base, doc: null }, { run: false }), null, 'nothing until the catalogue is in');
   assert.equal(askIntake({ ...base, doc: { ...doc, learn: undefined }, get: { ...base.get, learn: { status: 'queued' } } }, { run: false }), null, 'nor while its options are still being added');
   assert.deepEqual(intakeMessage(doc, { run: true }).choices.map(c => c.id), ['mode:run', 'learn:render', 'learn:layout'], 'Run it on: it leads the rows');
@@ -129,7 +133,7 @@ test('before the catalogue has its learn section the Tutor says it is working it
   assert.deepEqual(out.map(m => m.key), ['learn-wait']);
   assert.ok(out[0].pending);
   const failed = { ...base, doc: noLearn, get: { ...base.get, learn: { status: 'failed' } } };
-  out = flowMessages({ ...failed, ...askIntake(failed, { run: false }) }, { repo: 'acme/widgets', run: false });
+  out = flowMessages(opened({ ...failed, ...askIntake(failed, { run: false }) }), { repo: 'acme/widgets', run: false });
   assert.deepEqual(out.map(m => m.key), ['intake'], 'nothing pinned once the question is asked');
   assert.ok(out[0].text.endsWith(SENTENCES.learnNone));
 });
