@@ -19,7 +19,7 @@ export const learnLeave = held => held?.panelWas ?? null;
 
 // What a tab shows for the current stop:
 //   cards  - the stop's own card component drawn in the pane at its width (AdaptiveCanvas learnCards; owner 2026-11-18 16:13: no Focus), the right panel closed;
-//   canvas - the free canvas, the stop selected and centred at zoom 1;
+//   canvas - the free canvas, the stop centred at zoom 1, nothing selected (owner 2026-11-18);
 //   toc, chat - the right panel's own tab, widened to the split (the canvas stays as it was underneath); in Chat the stop is the canvas selection,
 //               which is the chat's selected context (chat-canvas-context.js reads api.selection()).
 export function learnView(tab) {

@@ -13,9 +13,10 @@ import { walkProgress } from './learn-walk.js';
 
 // walk: AdaptiveCanvas onState walk ({ at, total, heading, lead, follow }). onGeometry({ width, guide }): the column's width and the guide's (LearnPage
 // widens the right panel to the rest). toggle: the Learn | Canvas pill (LearnPage's, the one the header shows outside Learn mode). onSplit: Study's setSplit
-// (the divider). stripRef / windowRef: the chat composer's hosts (ask.jsx stripHost, windowHost), the one composer docked where the canvas has it, in every tab.
+// (the divider). stripRef: the chat composer's host (ask.jsx stripHost), the one composer docked where the canvas has it, in every tab; no window over it, a reply
+// shows in the Chat tab (LearnPage onSent).
 const STEP = 0.05;
-export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, split, onSplit, panelOpen, toggle, onGeometry, stripRef, windowRef }) {
+export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, split, onSplit, panelOpen, toggle, onGeometry, stripRef }) {
   const [box, setBox] = useState(null);
   const [drag, setDrag] = useState(null); // the divider's share while it is dragged
   // The canvas column's place on screen, read while the right panel is closed (open, the column is only the guide's width).
@@ -86,10 +87,9 @@ export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, sp
       className="fixed z-[45] w-2 -translate-x-1 cursor-col-resize touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/40 focus-visible:outline-none"
       style={{ left: box.left + guide, top: box.top + LEARN_TOP, bottom }} />
     {/* The chat composer, where the canvas has it (bottom, centred on the column), in every tab (owner 2026-11-18): the same composer moves here once when
-        Learn mode starts; the window over it holds the conversation while the right panel is closed, the Chat tab holds it while open. */}
+        Learn mode starts; the conversation is the Chat tab's (owner 2026-11-18: never a window over the composer). */}
     <div data-learn-dock className={`pointer-events-none fixed z-50 ${DOCK_PAD} [&>*]:pointer-events-auto`} style={{ left: box.left, width: box.width, bottom: Math.max(0, window.innerHeight - (box.top + box.height)) }}>
       <div data-canvas-composer className={`${DOCK_WIDTH} relative min-w-0`}>
-        {!panelOpen && <div ref={windowRef} data-canvas-chat-window className="empty:hidden" />}
         <div ref={stripRef} data-canvas-chat-strip />
       </div>
     </div>

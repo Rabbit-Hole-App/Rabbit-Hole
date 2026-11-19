@@ -5856,13 +5856,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       setWalk(state);
     },
     prev: () => setWalk(walkPrev(walkRef.current)),
-    // Learn mode's Canvas tab: the stop selected and centred at zoom 1 (a card taller than the view: its top under the view's top).
+    // Learn mode's Canvas tab: the stop centred at zoom 1 (a card taller than the view: its top under the view's top); never selected (owner 2026-11-18).
     centre: id => {
       const card = boundsRef.current[id], area = controlArea();
       if (!card || !area) return;
       const y = card.h > area.bottom - area.top - 2 * SPACING.card ? area.top + SPACING.card - card.y : (area.top + area.bottom) / 2 - (card.y + card.h / 2);
       glideTo({ x: Math.round((area.left + area.right) / 2 - (card.x + card.w / 2)), y: Math.round(y), z: 1 }, true);
-      setSelection([id]);
     },
     exit: () => setWalk(null),
     state: () => walkRef.current,
