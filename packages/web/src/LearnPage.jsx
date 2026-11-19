@@ -2719,7 +2719,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
       <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={planDone ? null : ref => { chat.context.attach(ref); chat.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.walk ? canvasState.activeSection : planDone && planCurrent ? planCurrent : canvasState.activeSection ?? null} walk={canvasState.walk || null} onWalk={startWalk} readOnly={!canEditCanvas || planDone} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
-        className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto ${learning ? 'pb-40' : ''}`} />
+        className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
@@ -2731,6 +2731,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
+      {/* Learn mode: the composer's dock lies over the panel's bottom (LearnPane), so the TOC and the conversation end above it (owner 2026-11-18). */}
+      {learning && <div aria-hidden data-learn-dock-room className="h-28 shrink-0" />}
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept={acceptList()} className="hidden"
       onChange={event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (files.length) setUploadAsk(files); }} />

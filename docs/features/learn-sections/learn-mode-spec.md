@@ -35,7 +35,7 @@ The camera walk is dropped because the card was too small to read. The walk beco
      - Prev and Next show the next card from its top.
    - **Canvas:** the free canvas, with the stop centred at zoom 1 (`walk.centre`), nothing selected (owner 2026-11-18).
    - The contents' Start, Continue or Start again (also from Learn mode's TOC tab) goes to the Cards tab.
-   - **TOC and Chat:** the right panel's own tabs. The panel is widened to the split (ResizableSidePanel `fill`) and starts under the rows. Nothing is selected in TOC or Chat (owner 2026-11-18). The contents leave room under their last row for the composer.
+   - **TOC and Chat:** the right panel's own tabs. The panel is widened to the split (ResizableSidePanel `fill`) and starts under the rows. Nothing is selected in TOC or Chat (owner 2026-11-18). The TOC and the conversation end above the composer's dock (owner 2026-11-18).
    - The divider between the guide and the tabs resizes (drag or arrow keys); the share is Study's split (owner 2026-11-18).
    - The Canvas tab shows the drawing toolbar as View > Toolbar says (never over Cards, TOC or Chat). The toolbar minimizes to one button anywhere, remembered in this browser (owner 2026-11-18).
 5. **No Focus** (owner 2026-11-18 16:13). Every way into Focus from a card is removed: the pill's Focus button and the right-click Focus row (focus-study.md section 7). Learn mode uses none.
