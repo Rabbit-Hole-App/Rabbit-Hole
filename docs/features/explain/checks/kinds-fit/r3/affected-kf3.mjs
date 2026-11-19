@@ -1,0 +1,12 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const R = 'C:/s/kinds-fit';
+const git = (...a) => execFileSync('git', ['-C', R, ...a], { encoding: 'utf8', maxBuffer: 1 << 28 }).trim();
+const { affectedTests } = await import(pathToFileURL(R + '/scripts/mvp-fast-path.mjs').href);
+const changed = git('diff', '--name-only', '--diff-filter=ACMR', 'rabbit-hole/main', 'HEAD').split('\n').filter(Boolean);
+const tests = new Map(git('ls-files', '--', '*.test.mjs', '*.test.js').split('\n').filter(Boolean).map(p => [p, readFileSync(R + '/' + p, 'utf8')]));
+const plan = affectedTests(changed, tests);
+console.log('changed', changed.join(', '));
+for (const p of plan) console.log(p.cwd, p.ran.length, 'tests; uncovered', p.uncovered.join(',') || 'none');
+console.log(plan.flatMap(p => p.ran.map(f => f.replace(/^packages\/web\//, ''))).filter(f => !f.startsWith('src/tutor-diagrams/') || true).join(' '));
