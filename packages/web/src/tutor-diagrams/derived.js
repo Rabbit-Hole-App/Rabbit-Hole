@@ -223,6 +223,21 @@ function annotationInstances(d) {
   });
 }
 
+// ---- grouped bar chart: a probability series that is the softmax of a score series (NUM-3c) ----
+// Exactly two series, one labelled logit/score and one labelled probability, and the softmax word on the title, caption or a series label: the transformation rule above decides
+// (same word test, same switch-off words, same half-unit tolerance and rounding clause) on the two series read as before and after items. It only checks; the author's series stays.
+const SCORE_LABEL = /logit|score/i, PROBABILITY_LABEL = /probabilit/i;
+function softmaxBarInstances(d) {
+  if (d.variant !== 'grouped' || d.series?.length !== 2 || !d.categories) return [];
+  const score = d.series.findIndex(s => SCORE_LABEL.test(s.label) && !PROBABILITY_LABEL.test(s.label)), probability = d.series.findIndex(s => PROBABILITY_LABEL.test(s.label));
+  if (score < 0 || probability < 0 || score === probability) return [];
+  const places = Math.max(0, ...d.series[probability].values.map(decimalsOf)); // JSON loses a trailing zero (0.10 is 0.1): the series is read at the most decimals any of its values shows
+  const instance = softmaxInstance({ title: d.title, caption: d.caption, operation: [d.caption, ...d.series.map(s => s.label)].filter(Boolean).join(' '),
+    before: { label: d.series[score].label, items: d.series[score].values.map(String) }, after: { label: d.series[probability].label, items: d.series[probability].values.map(value => value.toFixed(places)) } });
+  if (!instance || instance.computed === undefined) return []; // the switched-off wordings stay with the distribution rule (learn-primitives.js), not this one
+  return [{ at: ['series', probability, 'values'], written: d.series[probability].values, computed: instance.computed.map(Number), silent: true, problems: instance.problems }];
+}
+
 export const DERIVED_ROWS = [
   { kind: 'box-plot', path: 'boxes[].fences', inputs: ['q1', 'q3'], tolerance: 'half a unit of the decimals written', compute: d => d.boxes.map(boxFenceInstance) },
   { kind: 'transformation', path: 'after.items', inputs: ['before.items', 'op', 't'], tolerance: 'half a unit of the decimals written on each item', compute: d => (d.variant === 'visual' || !d.before?.items ? [] : [softmaxInstance(d)].filter(Boolean)) },
@@ -231,6 +246,7 @@ export const DERIVED_ROWS = [
   { kind: 'heatmap', path: 'range', inputs: ['rows[].cells'], tolerance: 'exact (an explicit range is kept)', compute: heatmapInstance },
   { kind: 'sample-set', path: 'groups[].omitted, groups[].members (out of bag)', inputs: ['groups[].members', 'groups[].outOfBagFor'], tolerance: 'exact', compute: sampleInstances },
   { kind: 'coordinate-plot', path: 'annotations[] (derive)', inputs: ['series'], tolerance: 'half a unit of the decimals written', compute: annotationInstances },
+  { kind: 'bar-chart', path: 'series[probability].values (grouped, two series)', inputs: ['series[score].values'], tolerance: 'half a unit of the decimals written on each value', compute: softmaxBarInstances },
 ];
 
 const instancesOf = d => DERIVED_ROWS.filter(row => row.kind === d.kind).flatMap(row => row.compute(d));

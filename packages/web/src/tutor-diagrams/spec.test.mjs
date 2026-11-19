@@ -282,6 +282,21 @@ test('softmax list transformation (NUM-3a): the word on the before or after labe
   assert.deepEqual(softmaxIssues(card(['0.5', '2.0', '1.0'], ['0.10', '0.45', '0.45'], { operation: 'Apply exponential, scaled by temperature' })), [], 'a switched-off wording still turns the recompute off');
 });
 
+test('softmax grouped bar chart (NUM-3c): a score series and a probability series that say softmax are recomputed like the transformation rule', () => {
+  const bars = (raw, prob, extra = {}) => ({ version: 1, diagram: { kind: 'bar-chart', variant: 'grouped', unit: 'value', title: 'Scores to probabilities via Softmax', caption: 'Raw scores turning into a probability distribution.', categories: ['Token A', 'Token B', 'Token C'], series: [{ label: 'Raw score', values: raw }, { label: 'Probability', values: prob }], ...extra } });
+  const issues = softmaxIssues(bars([3, 1, 0.5], [0.79, 0.11, 0.1]));
+  assert.equal(arithmetic(issues).length, 1, 'the R2 bench card is rejected, tagged arithmetic');
+  assert.ok(issues[0].message.includes('softmax(3, 1, 0.5) = 0.82, 0.11, 0.07, not 0.79, 0.11, 0.10'), 'with the correct values');
+  assert.deepEqual(issues[0].path.slice(0, 3), ['diagram', 'series', 1], 'on the probability series');
+  assert.deepEqual(softmaxIssues(bars([3, 1, 0.5], [0.82, 0.11, 0.07])), [], 'the true values pass');
+  assert.equal(arithmetic(softmaxIssues(bars([3, 1, 0.5], [0.79, 0.11, 0.1], { series: [{ label: 'Probability', values: [0.79, 0.11, 0.1] }, { label: 'Logit', values: [3, 1, 0.5] }] }))).length, 1, 'either series order, a logit label counts');
+  assert.deepEqual(softmaxIssues(bars([1, 1, 1], [0.33, 0.33, 0.34])), [], 'the rounding clause of the transformation rule applies: 1/1/1 written 0.33/0.33/0.34');
+  assert.deepEqual(softmaxIssues(bars([3, 1, 0.5], [0.79, 0.11, 0.1], { title: 'Scores to shares', caption: 'Raw scores and shares.' })), [], 'no softmax word on the title, caption or a series label: not applicable');
+  assert.deepEqual(softmaxIssues(bars([3, 1, 0.5], [0.79, 0.11, 0.1], { caption: 'Softmax with temperature 2 on the raw scores.' })), [], 'a switched-off wording (temperature) leaves it to the distribution rule');
+  assert.deepEqual(softmaxIssues(bars([3, 1, 0.5], [0.79, 0.11, 0.1], { series: [{ label: 'Raw score', values: [3, 1, 0.5] }, { label: 'Probability', values: [0.79, 0.11, 0.1] }, { label: 'Other', values: [1, 1, 1] }] })), [], 'exactly two series');
+  assert.deepEqual(softmaxIssues(bars([3, 1, 0.5], [0.79, 0.11, 0.1], { series: [{ label: 'Input A', values: [3, 1, 0.5] }, { label: 'Input B', values: [0.79, 0.11, 0.1] }] })), [], 'series labelled neither score nor probability: not applicable');
+});
+
 test('softmax list transformation: temperature, T =, scaled, scaling, masked, causal and log-softmax turn the recompute off; a correct softmax(before / T) card passes', () => {
   const plain = ['0.70', '0.26', '0.04'];
   for (const extra of [{ title: 'Softmax with temperature' }, { caption: 'Temperature T lowers the entropy' }, { operation: 'Apply softmax with T = 0.5' }, { operation: 'Softmax, T=2' }, { title: 'Scaled softmax' },
