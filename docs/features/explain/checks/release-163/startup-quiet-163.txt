@@ -1,0 +1,14 @@
+A run 1: total 341 ms, idle 113 ms, ACTIVE 227 ms
+B run 1: total 319 ms, idle 104 ms, ACTIVE 214 ms
+A run 2: total 412 ms, idle 131 ms, ACTIVE 281 ms
+B run 2: total 333 ms, idle 108 ms, ACTIVE 224 ms
+A run 3: total 315 ms, idle 112 ms, ACTIVE 202 ms
+B run 3: total 317 ms, idle 109 ms, ACTIVE 208 ms
+A run 4: total 293 ms, idle 98 ms, ACTIVE 195 ms
+B run 4: total 296 ms, idle 104 ms, ACTIVE 192 ms
+A run 5: total 335 ms, idle 112 ms, ACTIVE 223 ms
+B run 5: total 359 ms, idle 116 ms, ACTIVE 243 ms
+A run 6: total 278 ms, idle 105 ms, ACTIVE 174 ms
+B run 6: total 295 ms, idle 102 ms, ACTIVE 193 ms
+A: active ms 227, 281, 202, 195, 223, 174; median 223
+B: active ms 214, 224, 208, 192, 243, 193; median 214
