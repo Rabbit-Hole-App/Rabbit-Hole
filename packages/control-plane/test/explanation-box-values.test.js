@@ -150,3 +150,14 @@ test('the route: two lists in the question fill nothing and reject nothing; the 
   assert.deepEqual(trace.box_values_unmatched, [{ lists: 2, boxes: 1, withoutValues: 1, listsMatched: 0 }]);
   assert.equal(trace.box_values_from_question, 0);
 });
+
+test('(c) a unit after the number is part of the statistic: "IQR is 14.5 ms" and "upper fence at 122.75 ms" are read (the v2 bench captions); copulas and prepositions between term and number', () => {
+  const resp = [80, 85, 90, 92, 95, 99, 104, 110, 300], x = { x: { label: 'Time', min: 0, max: 320 } };
+  const says = (text, caption) => numbersIssue(card(text, box({ values: resp }, { ...x, ...(caption ? { caption } : {}) })));
+  const bad = says('A plain sentence.', 'IQR is 14.5 ms. The upper fence at 122.75 ms marks off the 300 ms response time as an outlier.');
+  assert.match(bad.problem, /"IQR 14\.5", "upper fence 122\.75" but the box-plot "Scores and the outlier" draws Q1 87\.5, median 95, Q3 107, IQR 19\.5, lower fence 58\.25, upper fence 136\.25/);
+  assert.match(says('The IQR is 14 ms. The upper fence is 120 ms, making 300 ms an outlier.').problem, /"IQR 14", "upper fence 120"/);
+  assert.match(says('The IQR of 6 minutes and the median = 8, the median: 9.').problem, /"IQR 6", "median 8", "median 9"/);
+  assert.equal(says('The IQR is 19.5 ms. The upper fence at 136.25 ms marks off 300 ms. The lower fence equals 58.25 ms; the median is 95 ms.'), null);
+  assert.equal(says('The median of 9 values is 95 ms and the IQR of 19.5 ms is Q3 - Q1 = 107 - 87.5 = 19.5.'), null, 'a count of values and an equation are still skipped');
+});
