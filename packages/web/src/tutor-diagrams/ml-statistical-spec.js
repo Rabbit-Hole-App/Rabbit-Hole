@@ -1,6 +1,6 @@
 // Four bounded teaching schemas. Positions, colors and derived density heights
 // remain renderer-owned; all values here are the author's literal data.
-import { checkDerived, absentFrom, histogramCounts, heatmapRange, withValueStats } from './derived.js';
+import { checkDerived, absentFrom, histogramCounts, heatmapRange } from './derived.js';
 
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const cell = z.strictObject({ row: z.int().min(0).max(5), column: z.int().min(0).max(5) });
@@ -33,8 +33,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     z.strictObject({
       ...titled, kind: z.literal('box-plot'), x: axes,
       boxes: z.array(z.strictObject({
-        // values (BOX-1, optional): the data this box summarises; with it the code computes median, quartiles, whiskers, fences and outliers and rejects written ones that differ (derived.js).
-        label: text(42), values: z.array(numeric).min(4).max(60).optional(), whiskerLow: numeric, q1: numeric, median: numeric, q3: numeric, whiskerHigh: numeric,
+        label: text(42), whiskerLow: numeric, q1: numeric, median: numeric, q3: numeric, whiskerHigh: numeric,
         fences: z.strictObject({ lower: numeric, upper: numeric }).optional(),
         outliers: z.array(z.strictObject({ label: text(36), value: numeric })).min(1).max(8).optional(),
       })).min(1).max(4),
@@ -182,8 +181,7 @@ function checkHistogram(d, issue) {
 function checkBoxes(d, issue) {
   if (!(d.x.min < d.x.max)) issue(['x', 'max'], 'The axis maximum must exceed its minimum');
   unique(d.boxes.map(box => box.label), ['boxes'], issue, 'Box labels');
-  d.boxes.forEach((typed, i) => {
-    const box = withValueStats(typed); // a box with values is checked as the code will draw it (derived.js overwrites what the author typed)
+  d.boxes.forEach((box, i) => {
     const fields = ['whiskerLow', 'q1', 'median', 'q3', 'whiskerHigh'];
     fields.forEach((field, j) => {
       if (!within(box[field], d.x.min, d.x.max)) issue(['boxes', i, field], 'Summary is outside the shared axis domain');
