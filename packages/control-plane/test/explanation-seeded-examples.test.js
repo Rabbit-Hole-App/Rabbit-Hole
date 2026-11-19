@@ -17,7 +17,7 @@ const answers = kind => ({
   depthTreatment: { choice: 'mechanism', confidence: 0.8, probabilities: {} },
   needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 },
 });
-const request = (args, kind, extra = {}) => ({ command: 'explain', args, depth: 'balanced', planned: true, plan: planFromAnswers(answers(kind)), ...extra });
+const request = (args, kind, { noProbabilities = false, ...extra } = {}) => { const plan = planFromAnswers(answers(kind)); return { command: 'explain', args, depth: 'balanced', planned: true, plan: noProbabilities ? { ...plan, probabilities: { ...plan.probabilities, kind: null } } : plan, ...extra }; };
 const NO_MATCH = 'how does a bakery decide how much dough to prepare for the next morning?';
 const prep = (args, kind, extra) => { const { log } = console; console.log = () => {}; try { return prepareArtifactAuthorRequest(FAST, request(args, kind, extra)); } finally { console.log = log; } };
 const description = p => p.body.tools.find(t => t.name === 'make_explanation').description;
@@ -60,8 +60,8 @@ test('no seed: the request is the one of main (one gallery example under the old
   assert.ok(system.includes('Approved diagram references') && !system.includes(SEEDED_EXAMPLES_HEADING));
 });
 
-test('a topical reference (R3 territory) keeps today\'s request even with a seed', () => {
-  const p = prep('how does a random forest combine the predictions of its trees into one answer?', 'flow', { requestSeed: 'seed-a' });
+test('a topical reference keeps today\'s request when the plan carries no kind probabilities (with probabilities R3 draws: explanation-r3-draw.test.js)', () => {
+  const p = prep('how does a random forest combine the predictions of its trees into one answer?', 'flow', { requestSeed: 'seed-a', noProbabilities: true });
   assert.ok(p.diagramReferences.some(r => !r.shape && !r.seededExample), 'a stored reference is selected');
   assert.ok(p.diagramReferences.every(r => !r.seededExample));
   assert.ok([].concat(p.body.system).join('\n').includes('Approved diagram references'));

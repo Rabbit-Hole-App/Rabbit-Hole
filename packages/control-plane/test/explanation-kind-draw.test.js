@@ -29,12 +29,14 @@ test('GEN-1 G4: renormalised weights, the 0.2 floor drops a kind and the draw us
   assert.equal(flat.drawn, 'a', 'ties go to the first name, so the draw is deterministic');
 });
 
-test('GEN-1 G4: an on-topic reference adds 0.5 to its kind (1.0 more at an exact documented prompt), also for a kind the planner gave no probability', () => {
+test('GEN-1 G4 (v1.6): an on-topic reference adds 0.5 to its kind, also for a kind the planner gave no probability; an EXACT reference fixes the kind (no draw) and still reports the weights the draw would have used', () => {
   const plain = { flow: 0.5, tree: 0.5 };
   const near = drawKind(plain, { seed: 'x', onTopicKind: 'tree' }).weights;
   assert.ok(close(near.tree, 1 / 1.5) && close(near.flow, 0.5 / 1.5));
-  const exact = drawKind(plain, { seed: 'x', onTopicKind: 'tree', exact: true }).weights;
-  assert.ok(close(exact.tree, 2 / 2.5) && close(exact.flow, 0.5 / 2.5));
+  const exact = drawKind(plain, { seed: 'x', onTopicKind: 'tree', exact: true });
+  assert.ok(close(exact.weights.tree, 1 / 1.5) && close(exact.weights.flow, 0.5 / 1.5), 'the weights are those of a non-exact reference (the +1.0 is withdrawn)');
+  assert.equal(exact.drawn, 'tree'); assert.equal(exact.exact, true);
+  for (let i = 0; i < 200; i++) assert.equal(drawKind({ flow: 0.95, tree: 0.05 }, { seed: `s${i}`, onTopicKind: 'tree', exact: true }).drawn, 'tree', 'an exact reference fixes the kind whatever the seed');
   const absent = drawKind({ flow: 1 }, { seed: 'x', onTopicKind: 'heatmap' }).weights;
   assert.ok(close(absent.heatmap, 0.5 / 1.5) && close(absent.flow, 1 / 1.5));
 });
@@ -55,6 +57,6 @@ test('GEN-1 G4: over many seeds the drawn kinds approach the weights', () => {
   for (let i = 0; i < N; i++) { const { drawn } = drawKind({ flow: 0.5, tree: 0.3, cycle: 0.2 }, { seed: `request-${i}` }); count[drawn] = (count[drawn] ?? 0) + 1; }
   for (const [kind, want] of [['flow', 0.5], ['tree', 0.3], ['cycle', 0.2]]) assert.ok(Math.abs(count[kind] / N - want) < 0.03, `${kind}: ${count[kind] / N} against ${want}`);
   const boosted = {};
-  for (let i = 0; i < N; i++) { const { drawn } = drawKind({ flow: 0.7, tree: 0.3 }, { seed: `request-${i}`, onTopicKind: 'tree', exact: true }); boosted[drawn] = (boosted[drawn] ?? 0) + 1; }
-  assert.ok(Math.abs(boosted.tree / N - 1.8 / 2.5) < 0.03, `exact on-topic tree: ${boosted.tree / N}`);
+  for (let i = 0; i < N; i++) { const { drawn } = drawKind({ flow: 0.7, tree: 0.3 }, { seed: `request-${i}`, onTopicKind: 'tree' }); boosted[drawn] = (boosted[drawn] ?? 0) + 1; }
+  assert.ok(Math.abs(boosted.tree / N - 0.8 / 1.5) < 0.03, `non-exact on-topic tree: ${boosted.tree / N}`);
 });

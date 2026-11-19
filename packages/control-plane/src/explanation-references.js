@@ -173,17 +173,19 @@ export function selectForAuthor({ prompt, context = '', depth, plan = null, aske
 export const REFERENCE_MARK = '\n# Examples\n'; // GEN-1 G2: the block's first line only, so the seeded examples may carry another second line (the old mark 'Approved diagram references' stays a prefix of today's heading)
 // GEN-1 G2 (R2, wording for the Reviewer to approve): the heading of the seeded examples (GEN-1 G1), starting text from the spec; `# Examples` stays the first line. No number wording here (owner N1): the inputs sentence goes after the number rule (agents/learn-artifact.js INPUTS_RULE).
 export const SEEDED_EXAMPLES_HEADING = '\n# Examples\nDiagram examples on other subjects. They show what a good diagram of this kind looks like: several concrete items, real values, short labels. Do not reuse their subject, labels or values. Build this card\'s diagram from the concrete things in the learner\'s question and its context (the names, sizes and values given there); where none are given, choose a small concrete example of your own. Do not exceed this card\'s visual count.\n';
+// GEN-1 R3 (G3, wording for the Reviewer to approve): added to the seeded heading when the first example is the on-topic reference.
+export const CLOSEST_SENTENCE = 'The example marked closest is on this card\'s subject. Keep what it gets right about structure and write your own version.';
 export function diagramReferenceContext(references) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING + (references.some(ref => ref.closest) ? CLOSEST_SENTENCE + '\n' : '') : '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
   }
   for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones
     const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec,
-      ...(ref.detailSpec ? { detailSpec: ref.detailSpec } : {}) }) + '\n';
+      ...(ref.detailSpec ? { detailSpec: ref.detailSpec } : {}), ...(ref.closest ? { closest: true } : {}) }) + '\n';
     if (out.length + line.length <= MAX_CONTEXT) out += line;
   }
   return out === heading ? '' : out;

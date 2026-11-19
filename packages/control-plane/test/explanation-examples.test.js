@@ -70,7 +70,7 @@ test('GEN-1 G1: the block stays inside MAX_CONTEXT for every kind, depth and 25 
   console.log(`worst examples block over 24 kinds x 3 depths x 25 seeds: ${worst} of 14000`);
 });
 
-test('GEN-1 G1 and G4: only the R2 wiring (learn-artifact.js) imports explanation-examples.js; drawKind (explanation-kind-draw.js) is still unused until R3', () => {
+test('GEN-1 G1 and G4: only learn-artifact.js (the R2 and R3 wiring) imports explanation-examples.js and explanation-kind-draw.js', () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const hits = [], drawHits = [];
   const walk = dir => { for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -81,5 +81,5 @@ test('GEN-1 G1 and G4: only the R2 wiring (learn-artifact.js) imports explanatio
   } };
   walk(path.join(root, 'control-plane', 'src')); walk(path.join(root, 'web', 'src'));
   assert.deepEqual(hits, ['control-plane/src/learn-artifact.js']);
-  assert.deepEqual(drawHits, []);
+  assert.deepEqual(drawHits, ['control-plane/src/learn-artifact.js']);
 });

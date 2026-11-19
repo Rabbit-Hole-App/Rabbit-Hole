@@ -58,6 +58,7 @@ const lengths = schema => Object.entries(schema.properties || {}).filter(([, fie
 
 import { ARTIFACT_SYSTEM, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
 import { capExampleList, exampleReferences } from './explanation-examples.js';
+import { drawKind } from './explanation-kind-draw.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
 // the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
@@ -146,7 +147,10 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
   // GEN-1 G1 (R2): a SEEDED request with a planned kind and no topical reference gets up to three seeded library examples of that kind (explanation-examples.js, the block capped at EXAMPLES_CAP_CHARS) in place of the one gallery example; no seed, no plan or a topical reference (R3): unchanged.
   const planKind = input.plan && visualKinds(resolved)[0];
-  const seeded = requestSeed && planKind && !topicalReferences.length && ready.includes('explanation') ? capExampleList(exampleReferences(planKind, input.depth, requestSeed).examples).map(example => ({ ...example, seededExample: true })) : [];
+  // GEN-1 R3 (G3): when the kind was drawn (or fixed by an exact reference) and it is the reference's kind, that reference is the FIRST example, marked closest, plus two from the pool; a drawn kind that is not the reference's: the reference is not shown.
+  const decided = ['draw', 'reference-exact'].includes(input.plan?.kindSource), closest = decided && input.plan.closestId ? topicalReferences.find(r => r.id === input.plan.closestId) ?? null : null;
+  const seeded = requestSeed && planKind && ready.includes('explanation') && (decided || !topicalReferences.length)
+    ? capExampleList([...(closest ? [{ id: closest.id, spec: closest.spec, closest: true }] : []), ...exampleReferences(planKind, input.depth, requestSeed).examples.filter(e => e.id !== closest?.id).slice(0, closest ? 2 : 3)]).map(example => ({ ...example, seededExample: true })) : [];
   const shape = planKind ? planShape({ kind: planKind }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = seeded.length ? seeded : shape ? [shape, ...topicalReferences] : topicalReferences;
   // GEN-1 G2 (R2): the seeded examples come with the inputs sentence right after the number rule (agents/learn-artifact.js INPUTS_RULE); every other request is untouched.
   const withInputsRule = text => (seeded.length ? text.replace(NUMBER_RULE, () => `${NUMBER_RULE} ${INPUTS_RULE}`) : text);
@@ -172,6 +176,14 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
   const diagrams = (plan.visuals ?? []).filter(v => v?.type === 'diagram');
   if (diagrams.length !== 1) return input;
   const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], plannedKinds: [], shapeFallback: false, depth: input.depth, excludeReferencePrefixes }).steer;
+  // GEN-1 R3 (G3 + G4, spec v1.6): a SEEDED request whose plan carries the planner's kind probabilities draws its kind instead of letting a reference replace it: an EXACT on-topic reference fixes the kind (kindSource 'reference-exact', no draw),
+  // a non-exact one adds 0.5 to its kind in the draw, with no reference the planner's probabilities are the weights (floor 0.2); kindDraw keeps the weights and the drawn kind. No seed, or no probabilities: the release-118 rule below, unchanged.
+  const draw = input.requestSeed && plan.probabilities?.kind ? drawKind(plan.probabilities.kind, { seed: input.requestSeed, onTopicKind: hit?.kind ?? null, exact: !!hit?.exact, depth: input.depth }) : null;
+  if (draw) {
+    const source = hit?.exact ? 'reference-exact' : 'draw';
+    console.log(JSON.stringify({ event: 'explanation_kind_draw', plannerKind: plan.kind ?? null, drawn: draw.drawn, source, reference: hit?.id ?? null, weights: draw.weights }));
+    return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: draw.drawn, kindSource: source, fixed: true, kindDraw: { weights: draw.weights, drawn: draw.drawn }, closestId: hit && draw.drawn === hit.kind ? hit.id : null, visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: draw.drawn } : v)) } };
+  }
   if (!hit || [hit.kind, hit.referenceKind].includes(plan.kind)) return input; // a planned comparison with a two-panel comparison reference agrees: the comparison is the point
   console.log(JSON.stringify({ event: 'explanation_plan_kind_from_reference', plannerKind: plan.kind ?? null, reference: hit.id, referenceKind: hit.kind, steerSource: hit.source, score: hit.score }));
   return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: hit.kind, kindSource: 'reference', visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: hit.kind } : v)) } };
@@ -207,7 +219,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   // Card archive: what this card was made from, on the caller's `trace` option (artifactFetch). A fast-chain step overwrites it with the step that ran last.
-  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape && !r.seededExample).map(r => r.id), examples: (prepared.diagramReferences ?? []).filter(r => r.seededExample).map(r => r.id), examplesKind: (prepared.diagramReferences ?? []).find(r => r.seededExample)?.spec?.diagram?.kind ?? null, shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null }, requestSeed: prepared.requestSeed ?? null });
+  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape && !r.seededExample).map(r => r.id), examples: (prepared.diagramReferences ?? []).filter(r => r.seededExample).map(r => r.id), closest: (prepared.diagramReferences ?? []).find(r => r.closest)?.id ?? null, kindSource: input.plan?.kindSource ?? null, kindDraw: input.plan?.kindDraw ?? null, examplesKind: (prepared.diagramReferences ?? []).find(r => r.seededExample)?.spec?.diagram?.kind ?? null, shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null }, requestSeed: prepared.requestSeed ?? null });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
   if ((!injected || meterStep) && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace, meterStep }, generateArtifact);
