@@ -1,0 +1,221 @@
+{
+  "commit": "8cf1613cce57bad779ea840bf4d8ce3a21451a13",
+  "tree": "efc93cff02117eb402c402356b61c6ee42cdb262",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-bert-supervised-class-pairs",
+    "ml-bert-summary-token-readout",
+    "ml-transfer-learning-modality-feature-classifier",
+    "ml-bert-pretraining-families",
+    "ml-bert-masked-token",
+    "ml-bert-next-sentence",
+    "ml-bert-task-heads"
+  ],
+  "additionalReusedIds": [],
+  "references": [
+    {
+      "id": "ml-bert-masked-token",
+      "inventory": "reused",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Read around a hidden word",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "left",
+                "to": "mask",
+                "label": "Article cue",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "right",
+                "to": "mask",
+                "label": "Motion cue",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "mask",
+                "to": "answer",
+                "label": "Scores the target",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Masked language modelling in BERT",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "left",
+                "to": "mask",
+                "label": "Article cue",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "right",
+                "to": "mask",
+                "label": "Motion cue",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "mask",
+                "to": "answer",
+                "label": "Scores the target",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Masked language modelling in BERT",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "left",
+                "to": "mask",
+                "label": "Article cue",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "right",
+                "to": "mask",
+                "label": "Motion cue",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "mask",
+                "to": "answer",
+                "label": "Scores the target",
+                "words": 3
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    }
+  ],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "review": {
+    "authoredLabelsCompliant": true,
+    "authoredLabels": [
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "Article cue"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "Motion cue"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "overview",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "Scores the target"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "Article cue"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "Motion cue"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "standard",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "Scores the target"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "deep",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 0,
+        "label": "Article cue"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "deep",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 1,
+        "label": "Motion cue"
+      },
+      {
+        "referenceId": "ml-bert-masked-token",
+        "depth": "deep",
+        "role": "main",
+        "path": [
+          "diagram"
+        ],
+        "edgeIndex": 2,
+        "label": "Scores the target"
+      }
+    ]
+  },
+  "publishedCommit": "c967dc54c0f00f5c50a61c609c2e30efce52f9ab",
+  "publishedTree": "efc93cff02117eb402c402356b61c6ee42cdb262"
+}

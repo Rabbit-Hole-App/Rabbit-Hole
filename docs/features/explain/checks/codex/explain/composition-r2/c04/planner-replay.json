@@ -1,0 +1,1124 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "148d17602f9d6d1ecb9f776b1cb6550694126f83",
+    "tree": "322c8cff1bb9a740f4a999378245f2f408b0fff7",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "8cf1613cce57bad779ea840bf4d8ce3a21451a13",
+    "tree": "efc93cff02117eb402c402356b61c6ee42cdb262",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3144,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 93,
+    "newOwnPromptFirstPicks": 93,
+    "newOwnExactPromptFirstPicks": 81
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3322,
+    "reusedBaseCaseInputs": 0,
+    "computedBaseCaseInputs": 3322,
+    "computedCandidateCaseInputs": 3322
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "c967dc54c0f00f5c50a61c609c2e30efce52f9ab",
+  "publishedTree": "efc93cff02117eb402c402356b61c6ee42cdb262",
+  "publishedBaseline": "4dd3fe85f27231134b5fe28fb2c2315f13a156ac",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "prompt": "Supervised task adaptation needs examples paired with their correct classes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "prompt": "Show adaptation message pairs with supplied Request and Notice classes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "prompt": "How does text class supervision attach targets to messages?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "prompt": "Reorder adaptation message pairs without changing their classes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "prompt": "Explain text class supervision without showing model guesses.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "prompt": "Keep the input and class attached in adaptation message pairs.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-supervised-class-pairs",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-supervised-class-pairs",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "A classifier can read the contextual output at the designated summary token.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "A classification head converts one contextual vector into scores for the task classes.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "Show summary row projection from contextual states to class scores.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "How are contextual readout scores computed from a selected CLS row?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "Keep the CLS row fixed while checking summary row projection.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "Explain contextual readout scores without calling logits probabilities.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "softmax-probabilities",
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": "softmax-probabilities",
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-summary-token-readout",
+      "prompt": "Why can summary row projection leave other contextual output rows unused?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-summary-token-readout",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-summary-token-readout",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "A visual backbone can pass a learned vector to a classifier just as a text encoder does.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "Compare the modality classifier pattern for a note and an image.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "Show a feature extractor analogy without merging the feature spaces.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "How does the modality classifier pattern keep separate task heads?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "Explain a feature extractor analogy with different feature widths.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "Keep vision and text parameters separate in the modality classifier pattern.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-transfer-learning-modality-feature-classifier",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "beforePlannerKind": "block-stack",
+          "afterPlannerKind": "block-stack"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-pretraining-families",
+      "prompt": "How did BERT build on the ideas behind the original Transformer, ELMo, and GPT?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-pretraining-families",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-bert-pretraining-families",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-pretraining-families",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-bert-pretraining-families",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-pretraining-families",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-bert-pretraining-families",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-pretraining-families",
+      "prompt": "BERT belongs to a line of work that combines reusable language representations with Transformer encoders.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-transformer-attention",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-transformer-attention",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-attention",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-transformer-attention",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-attention",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-transformer-attention",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-pretraining-families",
+      "prompt": "What is different about BERT, ELMo, ULMFiT, and the original GPT?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-pretraining-families",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-bert-pretraining-families",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-pretraining-families",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-bert-pretraining-families",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-pretraining-families",
+          "afterId": "ml-bert-pretraining-families",
+          "beforeReferenceId": "ml-bert-pretraining-families",
+          "afterReferenceId": "ml-bert-pretraining-families",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-masked-token",
+      "prompt": "How does BERT learn by filling in a masked word?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-masked-token",
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": "ml-bert-masked-token",
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-masked-token",
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": "ml-bert-masked-token",
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-masked-token",
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": "ml-bert-masked-token",
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-masked-token",
+      "prompt": "Masked language modelling recovers a selected missing token from the rest of a bidirectional context.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-masked-token",
+      "prompt": "Why can BERT look on both sides of a masked token?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-masked-token",
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": "ml-bert-masked-token",
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-masked-token",
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": "ml-bert-masked-token",
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-masked-token",
+          "afterId": "ml-bert-masked-token",
+          "beforeReferenceId": "ml-bert-masked-token",
+          "afterReferenceId": "ml-bert-masked-token",
+          "beforePlannerKind": "relationship",
+          "afterPlannerKind": "relationship"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-next-sentence",
+      "prompt": "What was BERT next sentence prediction trying to learn?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-next-sentence",
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": "ml-bert-next-sentence",
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-next-sentence",
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": "ml-bert-next-sentence",
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-next-sentence",
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": "ml-bert-next-sentence",
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-next-sentence",
+      "prompt": "The original BERT training setup includes deciding whether a second passage follows a first passage.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-next-sentence",
+      "prompt": "How did original BERT tell whether two sentences were next to each other during training?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-next-sentence",
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": "ml-bert-next-sentence",
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-next-sentence",
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": "ml-bert-next-sentence",
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-next-sentence",
+          "afterId": "ml-bert-next-sentence",
+          "beforeReferenceId": "ml-bert-next-sentence",
+          "afterReferenceId": "ml-bert-next-sentence",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-task-heads",
+      "prompt": "How does BERT use different outputs for classification, tagging, and question answering?",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-task-heads",
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": "ml-bert-task-heads",
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-task-heads",
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": "ml-bert-task-heads",
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-task-heads",
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": "ml-bert-task-heads",
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-task-heads",
+      "prompt": "Different BERT tasks read different positions in the same encoder outputs or attach different task heads.",
+      "promptType": "exact",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-bert-task-heads",
+      "prompt": "Which BERT output states do the task heads read?",
+      "promptType": "paraphrase",
+      "newReference": false,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "ml-bert-task-heads",
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": "ml-bert-task-heads",
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-bert-task-heads",
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": "ml-bert-task-heads",
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-bert-task-heads",
+          "afterId": "ml-bert-task-heads",
+          "beforeReferenceId": "ml-bert-task-heads",
+          "afterReferenceId": "ml-bert-task-heads",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    }
+  ]
+}

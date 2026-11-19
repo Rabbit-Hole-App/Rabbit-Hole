@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-bert-references.js",
+    "packages/web/src/tutor-diagrams/composition-transfer-learning-references.js",
+    "packages/web/src/tutor-diagrams/topic-bert-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-bert-data.js",
+    "packages/web/src/tutor-diagrams/topic-bert-overlays.js",
+    "packages/web/src/tutor-diagrams/topic-bert-sources.json",
+    "packages/web/src/tutor-diagrams/topic-transfer-learning-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-transfer-learning-data.js"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-bert-references.js",
+      "ids": [
+        "ml-bert-supervised-class-pairs",
+        "ml-bert-summary-token-readout"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-transfer-learning-references.js",
+      "ids": [
+        "ml-transfer-learning-modality-feature-classifier"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/topic-bert-overlays.js",
+      "ids": [
+        "ml-bert-pretraining-families",
+        "ml-bert-masked-token",
+        "ml-bert-next-sentence",
+        "ml-bert-task-heads"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "c967dc54c0f00f5c50a61c609c2e30efce52f9ab",
+  "publishedTree": "efc93cff02117eb402c402356b61c6ee42cdb262"
+}

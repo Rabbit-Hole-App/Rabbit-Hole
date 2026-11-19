@@ -1,0 +1,35 @@
+{
+  "commit": "8cf1613cce57bad779ea840bf4d8ce3a21451a13",
+  "tree": "efc93cff02117eb402c402356b61c6ee42cdb262",
+  "viewsRead": 25,
+  "noteExceptions": [
+    {
+      "referenceId": "ml-bert-masked-token",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 9,
+      "reason": "The current relationship renderer puts the arrow labels into 6 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-bert-masked-token",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 9,
+      "reason": "The current relationship renderer puts the arrow labels into 6 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-bert-masked-token",
+      "depth": "deep",
+      "role": "main",
+      "visibleLines": 9,
+      "reason": "The current relationship renderer puts the arrow labels into 6 numbered-list text lines below the diagram. The caption takes 3."
+    }
+  ],
+  "observations": [
+    "The relationship graph renderer leaves node boxes unfilled and numbers its arrow labels in these references: `ml-bert-masked-token`. These views are listed for the renderer review.",
+    "`ml-bert-summary-token-readout` Detailed keeps the logits and operands in a shorter caption. The PNG uses plain subscript notation for some formulas.",
+    "`ml-transfer-learning-modality-feature-classifier` shows labelled feature groups of widths two and three. The cells show the differing widths of the text and image feature vectors."
+  ],
+  "publishedCommit": "c967dc54c0f00f5c50a61c609c2e30efce52f9ab",
+  "publishedTree": "efc93cff02117eb402c402356b61c6ee42cdb262"
+}

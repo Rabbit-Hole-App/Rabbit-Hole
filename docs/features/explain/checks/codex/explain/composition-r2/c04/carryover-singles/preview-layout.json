@@ -1,0 +1,233 @@
+{
+  "ref": "4da7d85dc3356700923dc9a6cab676a132f2009a",
+  "checkout": "b1cc1eeb3347bedc914983ed0a55dc12af33ef83",
+  "tree": "43236c46963cc270c609928e0081b71f81931587",
+  "requestedWidth": 408,
+  "sheetWidth": 870,
+  "sheetHeight": 2431,
+  "views": 10,
+  "scaled": 0,
+  "foreignObjects": 5,
+  "referenceRecords": [
+    {
+      "id": "ml-linear-regression-linear-unit",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack",
+          "x": 18,
+          "y": 146,
+          "nativeWidth": 408,
+          "nativeHeight": 161,
+          "displayWidth": 408,
+          "displayHeight": 161,
+          "scale": 1,
+          "tokens": 63,
+          "foreignObjects": 1,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "8a45e72f25123ffea94f2fffcf561e35c9defa4adcd4c46bd9706f4f7518a779"
+        }
+      ]
+    },
+    {
+      "id": "ml-neural-networks-hidden-layer",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart",
+          "x": 444,
+          "y": 146,
+          "nativeWidth": 408,
+          "nativeHeight": 332,
+          "displayWidth": 408,
+          "displayHeight": 332,
+          "scale": 1,
+          "tokens": 53,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "41cd83fb5e6c5067922117eb9e504d0b16c81280179c79c7ab1b6ff8a8f04459"
+        }
+      ]
+    },
+    {
+      "id": "ml-regularization-regularized-objective",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart",
+          "x": 18,
+          "y": 540,
+          "nativeWidth": 408,
+          "nativeHeight": 300,
+          "displayWidth": 408,
+          "displayHeight": 300,
+          "scale": 1,
+          "tokens": 66,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "8debba862985a7ae75e9095a4f3669cd50d306ba51f2b710739710774653f22d"
+        }
+      ]
+    },
+    {
+      "id": "ml-regularization-dropout-mask",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot",
+          "x": 444,
+          "y": 540,
+          "nativeWidth": 408,
+          "nativeHeight": 430.5,
+          "displayWidth": 408,
+          "displayHeight": 430.5,
+          "scale": 1,
+          "tokens": 133,
+          "foreignObjects": 2,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "78514f1c3984a017e941d7f8d8447994fc68ae86115f2cbbf48c5043af765ced"
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-scaled-score-normalization",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart",
+          "x": 18,
+          "y": 1059,
+          "nativeWidth": 408,
+          "nativeHeight": 365,
+          "displayWidth": 408,
+          "displayHeight": 365,
+          "scale": 1,
+          "tokens": 131,
+          "foreignObjects": 2,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "fab7006b325e9820c4db6bf91121433aeec2497a1d304ad1146b4067bd9305e5"
+        }
+      ]
+    },
+    {
+      "id": "ml-model-evaluation-training-diagnostics",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot",
+          "x": 444,
+          "y": 1059,
+          "nativeWidth": 408,
+          "nativeHeight": 382.5,
+          "displayWidth": 408,
+          "displayHeight": 382.5,
+          "scale": 1,
+          "tokens": 155,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "1918b38559b0013e735b5721e7b36dd335afe0f1d7a7e8563f6dff9fa7827a6d"
+        }
+      ]
+    },
+    {
+      "id": "ml-model-evaluation-schedule-run-diagnostics",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot",
+          "x": 18,
+          "y": 1504,
+          "nativeWidth": 408,
+          "nativeHeight": 420.5,
+          "displayWidth": 408,
+          "displayHeight": 420.5,
+          "scale": 1,
+          "tokens": 161,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "fbc848225ec612ca26e4a83f5cfd997fbe9ada8900d6e42934b61e305fdfb8d2"
+        }
+      ]
+    },
+    {
+      "id": "ml-time-series-recursive-rollout",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot",
+          "x": 444,
+          "y": 1504,
+          "nativeWidth": 408,
+          "nativeHeight": 420.5,
+          "displayWidth": 408,
+          "displayHeight": 420.5,
+          "scale": 1,
+          "tokens": 209,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "424bdb4da7e6135e18753260f01b4aed0475300cbd89f275c47a79515b6e50a8"
+        }
+      ]
+    },
+    {
+      "id": "ml-distribution-shift-input-distribution-shift",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart",
+          "x": 18,
+          "y": 1987,
+          "nativeWidth": 408,
+          "nativeHeight": 414,
+          "displayWidth": 408,
+          "displayHeight": 414,
+          "scale": 1,
+          "tokens": 89,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "54fc2e2a3b31791dd928fb32fb03e0edeb73db83cbd605e3fff77dd63bb8fca2"
+        }
+      ]
+    },
+    {
+      "id": "ml-distribution-shift-concept-shift",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart",
+          "x": 444,
+          "y": 1987,
+          "nativeWidth": 408,
+          "nativeHeight": 397,
+          "displayWidth": 408,
+          "displayHeight": 397,
+          "scale": 1,
+          "tokens": 83,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "774136592b8c5b868305316f4db5a9743f96817402e6f6aa3f26150803a13a0c"
+        }
+      ]
+    }
+  ]
+}

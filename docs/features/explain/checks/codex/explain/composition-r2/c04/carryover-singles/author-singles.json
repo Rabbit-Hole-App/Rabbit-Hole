@@ -1,0 +1,494 @@
+{
+  "ref": "4da7d85dc3356700923dc9a6cab676a132f2009a",
+  "checkout": "b1cc1eeb3347bedc914983ed0a55dc12af33ef83",
+  "tree": "43236c46963cc270c609928e0081b71f81931587",
+  "depth": "balanced",
+  "payloads": [
+    {
+      "parentId": "ml-linear-regression-linear-unit",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "id": "ml-linear-regression-linear-unit-single",
+      "authorReference": {
+        "id": "ml-linear-regression-linear-unit-single",
+        "useWhen": "Show input features feeding one affine weighted-sum unit with weights and bias; not a fitted-line residual plot or a nonlinear hidden layer.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Linear unit",
+            "kind": "block-stack",
+            "blocks": [
+              {
+                "id": "x",
+                "label": "Input features"
+              },
+              {
+                "id": "y",
+                "label": "Weighted sum",
+                "inputs": [
+                  {
+                    "label": "$w,b$"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 63,
+      "authorReferenceSha256": "80a43578c6f3a54dd73cf0809d3e25cd5467a5ccc0a59a6b44ca3eed813f2d4d"
+    },
+    {
+      "parentId": "ml-neural-networks-hidden-layer",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "id": "ml-neural-networks-hidden-layer-single",
+      "authorReference": {
+        "id": "ml-neural-networks-hidden-layer-single",
+        "useWhen": "Show the nonlinear hidden features after ReLU and before the readout; not the final prediction alone, an activation-function curve, or an optimizer loop.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "After ReLU",
+            "kind": "bar-chart",
+            "bars": [
+              {
+                "label": "Hidden A",
+                "value": 3
+              },
+              {
+                "label": "Hidden B",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 53,
+      "authorReferenceSha256": "83f6497c8363ce34c157b365b62a1d6b75c61fc4fc6e8aa3ca459a5b60c74263"
+    },
+    {
+      "parentId": "ml-regularization-regularized-objective",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "id": "ml-regularization-regularized-objective-single",
+      "authorReference": {
+        "id": "ml-regularization-regularized-objective-single",
+        "useWhen": "Show data fit and the weight penalty stacked into the total regularized objective for fixed predictions; not an optimizer update or an overfitting curve.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Objective parts",
+            "kind": "bar-chart",
+            "unit": "Objective",
+            "bars": [
+              {
+                "label": "Data fit",
+                "value": 2.5
+              },
+              {
+                "label": "Penalty",
+                "value": 1
+              }
+            ],
+            "variant": "stacked"
+          }
+        }
+      },
+      "tokens": 66,
+      "authorReferenceSha256": "9fb80182a63926814cb6b7d4de64a1650359e0b9f99a4d71d4626b18032c66d5"
+    },
+    {
+      "parentId": "ml-regularization-dropout-mask",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "id": "ml-regularization-dropout-mask-single",
+      "authorReference": {
+        "id": "ml-regularization-dropout-mask-single",
+        "useWhen": "Show hidden activations after a temporary training mask and keep-probability rescaling; not unscaled masked activations, permanent neuron pruning, or inference output.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Training output",
+            "caption": "Toy $h=(3,1)$, $m=(1,0)$, $q=0.5$. Training uses $m\\odot h/q$; inference keeps $h$.",
+            "kind": "coordinate-plot",
+            "x": {
+              "label": "Hidden unit",
+              "min": 0,
+              "max": 3
+            },
+            "y": {
+              "label": "Activation",
+              "min": 0,
+              "max": 6
+            },
+            "series": [
+              {
+                "label": "A then B",
+                "kind": "stem",
+                "samples": {
+                  "x": [
+                    1,
+                    2
+                  ],
+                  "y": [
+                    6,
+                    0
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 133,
+      "authorReferenceSha256": "04adb835bbedc272818ca2c2e25666f8359b529929b61225f56d28737a41c6de"
+    },
+    {
+      "parentId": "ml-attention-scaled-score-normalization",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "id": "ml-attention-scaled-score-normalization-single",
+      "authorReference": {
+        "id": "ml-attention-scaled-score-normalization-single",
+        "useWhen": "Show normalized position weights after head-width scaling and softmax for one query; not raw matches, value-vector mixing, a full score matrix, or next-token probabilities.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Position weights",
+            "caption": "Toy $q=(1,1)$; keys A $(2,0)$, B $(0,1)$, C $(1,2)$. Raw matches are dot products; head width $d_k=2$. Divide by $\\sqrt{d_k}$, then softmax.",
+            "kind": "bar-chart",
+            "bars": [
+              {
+                "label": "A",
+                "value": 0.284
+              },
+              {
+                "label": "B",
+                "value": 0.14
+              },
+              {
+                "label": "C",
+                "value": 0.576
+              }
+            ],
+            "variant": "stacked"
+          }
+        }
+      },
+      "tokens": 131,
+      "authorReferenceSha256": "8856e0cb1f7bd9e2126b64c111f6d5bc1b04ff01b3eb7c4defa788828d77027f"
+    },
+    {
+      "parentId": "ml-model-evaluation-training-diagnostics",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "id": "ml-model-evaluation-training-diagnostics-single",
+      "authorReference": {
+        "id": "ml-model-evaluation-training-diagnostics-single",
+        "useWhen": "Compare illustrative training and held-out dropout loss over the same epochs; not a dropout mask, an accuracy scale, or a guarantee of better generalization.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Loss",
+            "kind": "coordinate-plot",
+            "x": {
+              "label": "Epoch",
+              "min": 1,
+              "max": 4,
+              "integerTicks": true
+            },
+            "y": {
+              "label": "BCE loss",
+              "min": 0,
+              "max": 1,
+              "unit": "nats"
+            },
+            "series": [
+              {
+                "label": "Training",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    0.714,
+                    0.456,
+                    0.359,
+                    0.29
+                  ]
+                }
+              },
+              {
+                "label": "Held-out",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    0.714,
+                    0.506,
+                    0.399,
+                    0.317
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 155,
+      "authorReferenceSha256": "86d3808db06438c8833ae19da08f34a0476625428a9ee0572a82c9d801880b12"
+    },
+    {
+      "parentId": "ml-model-evaluation-schedule-run-diagnostics",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+      "authorReference": {
+        "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+        "useWhen": "Show the illustrative training and held-out accuracy gap as held-out accuracy plateaus at a fixed learning rate; not a learning-rate decay curve or a schedule guarantee.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Accuracy",
+            "kind": "coordinate-plot",
+            "x": {
+              "label": "Epoch",
+              "min": 1,
+              "max": 4,
+              "integerTicks": true
+            },
+            "y": {
+              "label": "Accuracy",
+              "min": 0,
+              "max": 100,
+              "unit": "%"
+            },
+            "series": [
+              {
+                "label": "Training",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    50,
+                    75,
+                    100,
+                    100
+                  ]
+                }
+              },
+              {
+                "label": "Held-out",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    50,
+                    75,
+                    75,
+                    75
+                  ]
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "band",
+                "label": "Gap opens",
+                "axis": "x",
+                "from": 2,
+                "to": 4
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 161,
+      "authorReferenceSha256": "370cc48100b8ee0307fc9b0108253271c77bc2b9860f52be1dd8e4c24258f2bb"
+    },
+    {
+      "parentId": "ml-time-series-recursive-rollout",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "id": "ml-time-series-recursive-rollout-single",
+      "authorReference": {
+        "id": "ml-time-series-recursive-rollout-single",
+        "useWhen": "Compare recursive forecasts that reuse predictions with observed readings and refreshed one-step forecasts; not one-step forecasting alone or a horizon-only comparison.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Traces",
+            "kind": "coordinate-plot",
+            "x": {
+              "label": "Time",
+              "min": 1,
+              "max": 8
+            },
+            "y": {
+              "label": "Reading",
+              "min": 0,
+              "max": 10
+            },
+            "series": [
+              {
+                "label": "Observed",
+                "kind": "line",
+                "samples": {
+                  "x": {
+                    "start": 1,
+                    "step": 1
+                  },
+                  "y": [
+                    4,
+                    6,
+                    8,
+                    6,
+                    8,
+                    10,
+                    8,
+                    10
+                  ]
+                }
+              },
+              {
+                "label": "Recursive",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "y": [
+                    4,
+                    3,
+                    2.5,
+                    2.25
+                  ]
+                }
+              },
+              {
+                "label": "One-step",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "y": [
+                    4,
+                    5,
+                    6,
+                    5
+                  ]
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "reference-line",
+                "label": "Origin",
+                "axis": "x",
+                "value": 4
+              },
+              {
+                "kind": "reference-line",
+                "label": "Mean",
+                "axis": "y",
+                "value": 7.5
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 209,
+      "authorReferenceSha256": "11cb1a9ff0d64ce59bf7cfbc3e48273e3e2b08cc5323d1da80e6810dc4f3ad96"
+    },
+    {
+      "parentId": "ml-distribution-shift-input-distribution-shift",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "id": "ml-distribution-shift-input-distribution-shift-single",
+      "authorReference": {
+        "id": "ml-distribution-shift-input-distribution-shift-single",
+        "useWhen": "Compare input-style counts across independent training and deployment domains while the class rule stays fixed; not changed label meanings or class imbalance.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Count input styles in each domain",
+            "caption": "Count dark and light cards in each independently drawn domain.",
+            "kind": "bar-chart",
+            "unit": "Cards",
+            "variant": "grouped",
+            "categories": [
+              "Dark",
+              "Light"
+            ],
+            "series": [
+              {
+                "label": "Training",
+                "values": [
+                  3,
+                  1
+                ]
+              },
+              {
+                "label": "Deployment",
+                "values": [
+                  1,
+                  3
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 89,
+      "authorReferenceSha256": "9083a2f7dd2faa2a80501ab3b1479f7c9650868fcc92160bde6854b1fc2be388"
+    },
+    {
+      "parentId": "ml-distribution-shift-concept-shift",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "id": "ml-distribution-shift-concept-shift-single",
+      "authorReference": {
+        "id": "ml-distribution-shift-concept-shift-single",
+        "useWhen": "Show the changed naming rule on the same fixed dark-round input slice, with both studio rules stated; not changed input frequencies or a shift in overall class balance.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Ash",
+            "caption": "Same dark round cards, different names. Elm: Round is A; square is B. Ash: Round is B; square is A.",
+            "kind": "bar-chart",
+            "unit": "Cards",
+            "bars": [
+              {
+                "label": "A",
+                "value": 0
+              },
+              {
+                "label": "B",
+                "value": 3
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 83,
+      "authorReferenceSha256": "6a6fe17e9cb6678cc1555a67f7569b85cfe6899887121ecc2b50c7605bac2727"
+    }
+  ]
+}

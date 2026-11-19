@@ -1,0 +1,27 @@
+{
+  "added": [
+    "ml-bert-summary-token-readout/320",
+    "ml-bert-summary-token-readout/408",
+    "ml-bert-summary-token-readout/720",
+    "ml-bert-supervised-class-pairs/320",
+    "ml-bert-supervised-class-pairs/408",
+    "ml-bert-supervised-class-pairs/720",
+    "ml-transfer-learning-modality-feature-classifier/320",
+    "ml-transfer-learning-modality-feature-classifier/408",
+    "ml-transfer-learning-modality-feature-classifier/720"
+  ],
+  "changed": [
+    "ml-bert-masked-token-brief/408",
+    "ml-bert-masked-token-brief/960",
+    "ml-bert-masked-token-brief/natural",
+    "ml-bert-masked-token-detailed/408",
+    "ml-bert-masked-token-detailed/960",
+    "ml-bert-masked-token-detailed/natural",
+    "ml-bert-masked-token/408",
+    "ml-bert-masked-token/960",
+    "ml-bert-masked-token/natural"
+  ],
+  "removed": [],
+  "publishedCommit": "c967dc54c0f00f5c50a61c609c2e30efce52f9ab",
+  "publishedTree": "efc93cff02117eb402c402356b61c6ee42cdb262"
+}
