@@ -28,11 +28,18 @@ test('C03 cross-attention renders explicit translation axes without half-width c
   }
 });
 
-test('C03 shape-only layer states name parameter sets without asserting matrix inequality', () => {
+test('C03 layer states render slot names and changed-vector highlights at 408', () => {
   const reference = diagramReferences.find(ref => ref.id === 'ml-transformer-contextual-layer-states');
-  const caption = reference.depths.deep.spec.diagram.caption;
-  assert.match(caption, /parameter sets/iu);
-  assert.doesNotMatch(caption, /\\ne|≠/u);
+  for (const spec of [...Object.values(reference.depths).map(view => view.spec), reference.depths.deep.detailSpec]) {
+    const svg = renderTutorDiagram(spec, 408);
+    const markup = renderToStaticMarkup(svg.element);
+    assert.equal(svg.width, 408);
+    assert.match(markup, /<tspan[^>]*>\[CLS\]<\/tspan>/u);
+    assert.match(markup, /<tspan[^>]*>we<\/tspan>/u);
+    assert.match(markup, /<tspan[^>]*>read<\/tspan>/u);
+    assert.match(markup, /<tspan[^>]*>\[SEP\]<\/tspan>/u);
+    assert.equal([...markup.matchAll(/data-state="changed"/gu)].length, 2);
+  }
 });
 
 test('C03 source prompts reach the intended native or single author examples at every production depth', () => {

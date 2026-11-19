@@ -31,14 +31,28 @@ const rules = deep => ({ kind: 'comparison', variant: 'panels', title: 'Same wor
 const memoryProbe = { ...mask('Prior segment plus causal current', d.masks.memory, true),
   caption: 'Transformer-XL permissions: Past columns are old-segment memory. Current future keys remain unavailable.' };
 
-const tensor = rows => ({ kind: 'tensor', tensor: { rows, columns: d.counts.features, dimensions: `${rows}x${d.counts.features}` } });
-const layer = (id, label, rows = d.counts.slots) => ({ id, label, diagram: tensor(rows) });
-const states = depth => ({ kind: 'block-stack', title: 'Lookup becomes contextual state',
-  caption: depth === 'deep' ? `Toy bidirectional encoder; [CLS], we, read, [SEP] keep order and width. Layers have distinct learned parameter sets $${p.layers.join(',')}$.` : 'Toy bidirectional encoder; rows [CLS], we, read, [SEP]. Later layers consume contextual states, not fresh lookups.',
-  blocks: [layer('lookup', 'Lookup slots'), ...(depth === 'overview' ? [layer('context', 'Contextual output slots')] : p.layers.map((weights, i) => layer(`layer${i}`, `Layer ${i + 1}: mix then FFN ($${weights}$)`)))] });
-const causalSlots = { kind: 'block-stack', title: 'Causal layers keep the slots too',
-  caption: 'Toy GPT-style causal case: rows we, read, maps keep one output slot each. Layer parameter sets are separate; future words stay hidden.',
-  blocks: [layer('input', 'Prior contextual states', p.current.length), layer('output', 'Next contextual states', p.current.length)] };
+const slotMatrix = (title, layers, caption) => {
+  const focus = p.slots.indexOf(p.focus);
+  const rowId = i => `slot${i}`;
+  return {
+    kind: 'matrix', layout: 'teaching', title, caption,
+    columns: layers.map((_, i) => i === 0 ? 'Lookup' : `Layer ${i}`),
+    rows: p.slots.map((heading, i) => ({
+      id: rowId(i), heading, cells: layers.map(layer => `$(${layer[i].join(', ')})$`),
+    })),
+    states: layers.flatMap((layer, column) => column > 0 &&
+      layer[focus].some((value, feature) => value !== layers[column - 1][focus][feature])
+      ? [{ row: rowId(focus), column, state: 'changed' }] : []),
+  };
+};
+const slotCaptions = {
+  overview: 'Each token keeps its row. The numbers change when the encoder adds context.',
+  standard: 'Each pair is a state vector. Each layer mixes nearby states while keeping one output per position.',
+  deep: `The toy layers use $${p.layers.join('$ and $')}$. Follow “read” through both updates.`,
+};
+const states = depth => slotMatrix('Same positions, new states', d.slotStates.bidirectional, slotCaptions[depth]);
+const causalSlots = slotMatrix('Causal updates keep the slots', d.slotStates.causal,
+  'This toy causal mask mixes in only the previous slot. “read” uses “we” and cannot see [SEP].');
 
 const keywords = {
   'ml-transformer-cross-attention-alignment': ['target source alignment', 'cross attention axes'],
