@@ -1,11 +1,12 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
+import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wire, wrap } from './primitives.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
 import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topology-spec.js';
 import { dotTree } from './dot-tree-layout.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12, TEXT = 15, SMALL = 13, GAP = 18;
+const T = { body: TEXT, small: SMALL, strict: false }; // the top-down tree's text sizes: today's unless a fitted call gives sizes (kinds-fit)
 const TREE_NODE_FLOOR = 100; // the narrowest node width cap of a top-down tree that has to fit the width budget (at 100 learning-families fits in 714 px, three labels one font step smaller, nothing clipped)
 const childrenFor = nodes => new Map(nodes.map(n => [n.id, nodes.filter(child => child.parent === n.id)]));
 const pathEdge = (d, from, to) => d.highlightPath?.some((id, i) => id === from && d.highlightPath[i + 1] === to);
@@ -24,10 +25,10 @@ function pruning(nodes) {
 }
 
 function measure(node, width, extra = []) {
-  const lines = wrap(node.label ?? '', width - 20, TEXT);
-  const details = [...extra, ...nodeMetadata(node)].flatMap(value => wrap(value, width - 20, SMALL));
-  const mainHeight = lines.length * lineHeight(TEXT);
-  const detailHeight = details.length * lineHeight(SMALL);
+  const lines = wrap(node.label ?? '', width - 20, T.body);
+  const details = [...extra, ...nodeMetadata(node)].flatMap(value => wrap(value, width - 20, T.small));
+  const mainHeight = lines.length * lineHeight(T.body);
+  const detailHeight = details.length * lineHeight(T.small);
   const textHeight = mainHeight + detailHeight + (details.length ? 5 : 0);
   const strip = node.tensor ? layoutTensorStrip(node.tensor, width - 20) : null;
   const bodyHeight = textHeight + (strip ? strip.height + (textHeight ? 6 : 0) : 0);
@@ -37,7 +38,7 @@ function measure(node, width, extra = []) {
 function nodeWidth(node, maximum = 150) {
   const values = [node.label ?? '', ...nodeMetadata(node)];
   const textMinimum = Math.max(86, ...values.map((text, i) => Math.ceil(Math.max(
-    Math.min(maximum - 20, textWidth(text, i ? SMALL : TEXT)), widestFormula(text, i ? SMALL : TEXT)) + 20)));
+    Math.min(maximum - 20, textWidth(text, i ? T.small : T.body)), widestFormula(text, i ? T.small : T.body), T.strict ? longestWordWidth(text, i ? T.small : T.body) : 0) + 20)));
   return node.tensor ? Math.max(textMinimum, tensorMinimumWidth(node.tensor) + 20) : textMinimum;
 }
 
@@ -49,16 +50,16 @@ function card(node, pos, { active = false, pruned = false, align = 'middle' } = 
   return h('g', { 'data-tutor-node': node.id, ...(active ? { 'data-tutor-path': '' } : {}), ...(pruned ? { 'data-tutor-pruned': '' } : {}),
     ...(strip ? { 'aria-label': nodeName(node) } : {}) },
     cloneElement(teachingBox(x, y, width, content.height, { active }), { strokeDasharray: pruned ? '4 4' : undefined }),
-    ...(content.lines.length ? [label(content.lines, center, top + content.mainHeight / 2, { weight: 700, anchor: align })] : []),
+    ...(content.lines.length ? [label(content.lines, center, top + content.mainHeight / 2, { weight: 700, size: T.body, anchor: align })] : []),
     ...(content.details.length ? [label(content.details, center, top + content.mainHeight + 5 + content.detailHeight / 2,
-      { size: SMALL, tone: 'muted', anchor: align })] : []),
+      { size: T.small, tone: 'muted', anchor: align })] : []),
     ...(strip ? [h('g', { 'data-tutor-node-tensor': '', transform: `translate(${x + (width - strip.width) / 2} ${top + bodyHeight - strip.height})` },
       ...strip.elements)] : []));
 }
 
 // This is the approved binary-tree arrangement extended with measured metadata.
 // Unextended trees still call the original implementation byte-for-byte.
-function topDown(d, preferredWidth) {
+function topDown(d, preferredWidth, gapExtra = () => 0) {
   const children = childrenFor(d.nodes);
   const pruned = pruning(d.nodes), onPath = new Set(d.highlightPath ?? []);
   const natural = Math.min(150, Math.floor((preferredWidth - 2 * PAD - GAP) / 2));
@@ -69,8 +70,8 @@ function topDown(d, preferredWidth) {
   const positions = new Map(), rows = [];
   function arrange(node, depth) {
     const width = nodeWidth(node, wrapAt);
-    const edgeWidth = node.edgeLabel ? Math.max(width, widestFormula(node.edgeLabel, SMALL) + 12) : width;
-    const edgeLines = node.edgeLabel ? wrap(node.edgeLabel, edgeWidth - 12, SMALL) : [];
+    const edgeWidth = node.edgeLabel ? Math.max(width, widestFormula(node.edgeLabel, T.small) + 12) : width;
+    const edgeLines = node.edgeLabel ? wrap(node.edgeLabel, edgeWidth - 12, T.small) : [];
     const pos = { x: 0, width, content: measure(node, width), edgeWidth, edgeLines, node };
     positions.set(node.id, pos);
     (rows[depth] ??= []).push(pos);
@@ -105,33 +106,39 @@ function topDown(d, preferredWidth) {
   const { positions, rows, min, max } = placed;
   const width = Math.max(preferredWidth, Math.ceil(max - min + 2 * PAD));
   const shift = (width - max + min) / 2 - min;
-  let y = PAD;
+  let y = PAD, rowsPx = 0, gapsPx = 0;
   rows.forEach((row, depth) => {
     row.forEach(p => { p.x += shift; p.y = y; });
     y += Math.max(...row.map(p => p.content.height));
-    if (depth < rows.length - 1) y += 30 + Math.max(0, ...rows[depth + 1].map(p => p.edgeLines.length * lineHeight(SMALL)));
+    if (depth < rows.length - 1) { const gap = 30 + Math.max(0, ...rows[depth + 1].map(p => p.edgeLines.length * lineHeight(T.small))) + gapExtra(depth); y += gap; gapsPx += gap; }
+    rowsPx += Math.max(...row.map(p => p.content.height));
   });
-  const wires = [], annotations = [], cards = [];
+  const wires = [], annotations = [], cards = [], geometry = { nodes: [], links: [] };
   for (const node of d.nodes) {
     const pos = positions.get(node.id);
     if (node.parent !== undefined) {
       const parent = positions.get(node.parent);
       const previousRowBottom = Math.max(...rows[rows.findIndex(row => row.includes(pos)) - 1].map(p => p.y + p.content.height));
       const elbow = previousRowBottom + 12;
+      geometry.links.push({ from: node.parent, to: node.id, points: [[parent.x, parent.y + parent.content.height], [parent.x, elbow], [pos.x, elbow], [pos.x, pos.y]] });
       wires.push(h('g', { 'data-tutor-edge': `${node.parent}:${node.id}`, ...(pathEdge(d, node.parent, node.id) ? { 'data-tutor-path': '' } : {}) },
         teachingConnector([[parent.x, parent.y + parent.content.height], [parent.x, elbow], [pos.x, elbow], [pos.x, pos.y]],
           { active: pathEdge(d, node.parent, node.id), dashed: pruned.has(node.id) })));
       if (pos.edgeLines.length) {
-        const height = pos.edgeLines.length * lineHeight(SMALL) + 4;
+        const height = pos.edgeLines.length * lineHeight(T.small) + 4;
         const cy = pos.y - 7 - height / 2;
         annotations.push(h('g', { 'data-tutor-edge-label': node.id },
           h('rect', { x: pos.x - pos.edgeWidth / 2, y: cy - height / 2, width: pos.edgeWidth, height, fill: TEACHING.surface }),
-          label(pos.edgeLines, pos.x, cy, { size: SMALL })));
+          label(pos.edgeLines, pos.x, cy, { size: T.small })));
       }
     }
     cards.push(card(node, { ...pos, x: pos.x - pos.width / 2 }, { active: onPath.has(node.id), pruned: pruned.has(node.id) }));
+    geometry.nodes.push({ id: node.id, x: pos.x - pos.width / 2, y: pos.y, width: pos.width, height: pos.content.height });
   }
-  return { width, height: y + PAD, elements: [...wires, ...annotations, ...cards] };
+  const spare = width - (max - min) - 2 * PAD;
+  const parts = [{ part: 'top margin', px: PAD }, { part: 'node rows', px: rowsPx }, ...(gapsPx ? [{ part: 'gaps between the rows (elbows and edge labels)', px: gapsPx }] : []), { part: 'bottom margin', px: PAD }];
+  const widthParts = [{ part: 'margins', px: 2 * PAD }, { part: 'widest row of nodes and the gaps between them', px: Math.ceil(max - min) }, ...(spare > 1e-9 ? [{ part: 'spare width', px: spare }] : [])];
+  return { width, height: y + PAD, rankCount: rows.length, parts, widthParts, geometry, elements: [...wires, ...annotations, ...cards] };
 }
 
 function outline(d, preferredWidth) {
@@ -328,17 +335,33 @@ function restyleFlow(element, roles, active = false, role) {
 export function createLayouts({ legacy }) {
   return {
     tree: (d, width, options) => isDotTree(d) ? dotTree(d, width, options) : !extendedTree(d) ? legacy.tree(d, width) : d.layout === 'dendrogram' ? dendrogram(d, width)
-      : d.layout === 'binary' || d.layout === 'hierarchy' ? topDown(d, width) : outline(d, width),
+      : d.layout === 'binary' || d.layout === 'hierarchy' ? fittedTree(d, width, options) : outline(d, width),
     relationship: (d, width) => {
       const hasTensor = d.nodes.some(n => n.tensor);
       return d.layout === 'graph' || hasTensor ? graph(d, width, hasTensor) : legacy.relationship(d, width);
     },
-    flow: (d, width) => {
-      if (!extendedFlow(d)) return legacy.flow(d, width);
+    flow: (d, width, options) => {
+      if (!extendedFlow(d)) return legacy.flow(d, width, options);
       const roles = new Map(d.nodes.map(n => [n.id, n.role]));
       const rendered = legacy.flow({ ...d, nodes: d.nodes.map(n => ({ ...n,
-        role: n.role === 'fork' || n.role === 'merge' ? 'process' : n.role })) }, width);
+        role: n.role === 'fork' || n.role === 'merge' ? 'process' : n.role })) }, width, options);
       return { ...rendered, elements: rendered.elements.map(e => restyleFlow(e, roles)) };
     },
   };
+}
+
+// kinds-fit: a decision tree (binary or hierarchy layout, drawn top down) takes sizes.body (node labels, 15 today) and sizes.small (details and edge labels, 13 today) and a box (the gaps between the rows share the height that is left),
+// reports its nodes and parent links, and never draws a text smaller than asked (a node is as wide as its longest word).
+function fittedTree(d, width, options) {
+  const { box, sizes, contentHeight, floor } = options ?? {};
+  const saved = { ...T };
+  try {
+    if (sizes?.body) T.body = sizes.body;
+    if (sizes?.small) T.small = sizes.small;
+    T.strict = Boolean(sizes);
+    const first = topDown(d, width);
+    if (!box || floor || contentHeight === undefined || first.rankCount < 2) return first;
+    const extra = Math.floor(contentHeight - first.height), gaps = first.rankCount - 1;
+    return extra > 0 ? topDown(d, width, rank => Math.floor(extra / gaps) + (rank < extra % gaps ? 1 : 0)) : first;
+  } finally { Object.assign(T, saved); }
 }
