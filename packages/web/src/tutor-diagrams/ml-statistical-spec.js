@@ -47,6 +47,24 @@ function unique(values, path, issue, name) {
 function within(value, min, max) { return value >= min && value <= max; }
 function sameMembers(a, b) { return a.length === b.length && a.every(value => b.includes(value)); }
 
+// HEAT-1 (Reviewer 2026-11-18), both tagged arithmetic so a card that keeps them is repaired and then fails the step, never delivered. No words: only the cells are read.
+// Contrast: every numeric cell has one value AND it is the value the renderer draws with no fill (ml-statistical-layouts.js heatColor: range.min, or 0 for a signed range, or range.max at or below 0).
+// A blocked (null) cell is a drawn state of its own, so a 0 to 1 grid of 1s and blanks passes. Diagonal: a square grid whose every cell above the diagonal is blocked keeps its own cell in each row.
+// shortcut: the mirror pattern (blocked cells below the diagonal) is not checked, add it only on the Reviewer's word.
+function checkHeatmapDrawn(d, range, issue) {
+  const numbers = d.rows.flatMap(row => row.cells).filter(value => value !== null);
+  const blank = range.min < 0 && range.max > 0 ? 0 : range.max <= 0 ? range.max : range.min;
+  if (numbers.length && numbers.every(value => value === numbers[0]) && (numbers[0] === blank || range.min === range.max)) {
+    issue(['rows'], `Every numeric cell is ${numbers[0]}, the value drawn with no fill, so no cell stands out. Give the cells different values, or put the cells that count on a value that is drawn (for a 0 to 1 range, 1).`, { code: 'arithmetic' });
+  }
+  const n = d.rows.length;
+  const triangle = n >= 2 && n === d.columns.length && d.rows.every(row => row.cells.length === n) && numbers.length > 0 && d.rows.every((row, i) => row.cells.every((value, j) => j <= i || value === null));
+  const blocked = triangle ? d.rows.filter((row, i) => row.cells[i] === null).map(row => row.label) : [];
+  if (blocked.length) {
+    issue(['rows'], `Every cell above the diagonal is blocked, so each row i keeps its own cell i: the diagonal is blocked in rows ${blocked.join(', ')}. Give those cells a number; row i holds columns 1 to i.`, { code: 'arithmetic' });
+  }
+}
+
 function checkHeatmap(d, issue) {
   // An absent range is the cells' own extent (derived.js reports a range that cannot be computed); the explicit-range checks run on a written one.
   const range = d.range ?? heatmapRange(d) ?? { min: 0, max: 1 };
@@ -59,6 +77,7 @@ function checkHeatmap(d, issue) {
       if (value !== null && !within(value, range.min, range.max)) issue(['rows', i, 'cells', j], 'Cell value is outside the explicit range');
     });
   });
+  checkHeatmapDrawn(d, range, issue);
   unique((d.highlights ?? []).map(({ row, column }) => `${row}:${column}`), ['highlights'], issue, 'Highlighted cells');
   (d.highlights ?? []).forEach(({ row, column }, i) => {
     if (row >= d.rows.length || column >= d.columns.length) issue(['highlights', i], 'Highlight refers to an unknown cell');
