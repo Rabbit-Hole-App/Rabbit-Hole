@@ -1,7 +1,7 @@
-// Phase 0 real calls (owner approved 2026-11-19 08:26 PT: four images incl. F2, about US$0.13, hard cap US$15 total). Loads RECRAFT_API_KEY by NAME from small-deploy/.env into the child's environment only; never printed.
+// Phase 0 real calls (owner approved 2026-11-19 08:26 PT: four images incl. F2, about US$0.13, hard cap US$15 total). Loads RECRAFT_API_KEY by NAME from the .env file named in ILLB_ENV_FILE into the child's environment only; never printed.
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-const t = fs.readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');
+const t = fs.readFileSync((process.env.ILLB_ENV_FILE || (console.error("STOP: set ILLB_ENV_FILE to the .env file that holds RECRAFT_API_KEY"), process.exit(2))), 'utf8');
 const m = t.match(/^\s*(?:export\s+)?RECRAFT_API_KEY\s*=\s*(.*?)\s*$/m);
 if (!m) { console.error('STOP: RECRAFT_API_KEY not in .env (name checked)'); process.exit(2); }
 const key = m[1].replace(/^(['"])(.*)\1$/, '$2');

@@ -1,0 +1,36 @@
+the two F2 calls DIFFER: seeds are not repeatable; both stay in Phase 1
+[
+ {
+  "id": "seed-F",
+  "model": "recraftv4_1_flash",
+  "seed": 1299344522,
+  "httpStatus": 200,
+  "requestSeconds": 1.196,
+  "credits": 7,
+  "file": "seed-F.webp",
+  "bytes": 642298,
+  "sha256": "f328c8d486f5b047ea875627686b76dbaba80493341738131b5fcc4a3ccb81de"
+ },
+ {
+  "id": "seed-F2-a",
+  "model": "recraftv4_1_flash_v2",
+  "seed": 1299344522,
+  "httpStatus": 200,
+  "requestSeconds": 0.928,
+  "credits": 7,
+  "file": "seed-F2-a.webp",
+  "bytes": 489718,
+  "sha256": "a97b83cac29b3776185c1db31b3b502cf74f29d532e52848a8eabcbdb7bb8154"
+ },
+ {
+  "id": "seed-F2-b",
+  "model": "recraftv4_1_flash_v2",
+  "seed": 1299344522,
+  "httpStatus": 200,
+  "requestSeconds": 0.87,
+  "credits": 7,
+  "file": "seed-F2-b.webp",
+  "bytes": 607248,
+  "sha256": "c30621c1f3a4e5f1bdcf99e3b1bfa3532010b6eac76cab87fdff9141daa7bd75"
+ }
+]
