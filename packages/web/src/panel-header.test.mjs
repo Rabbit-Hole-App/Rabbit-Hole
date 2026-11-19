@@ -172,9 +172,9 @@ test('the Table of contents has its own conversation (owner approved 2026-11-07)
   assert.doesNotMatch(history, /tocThread/, 'History lists the former TOC conversations, so they reopen in ordinary Chat');
   assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
   assert.match(workspace, /export function TocWorkspace\(\{ children \}\)/, 'the contents conversation has its own workspace (owner approved 2026-11-07)');
-  assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation \{\.\.\.chatAskProps\}/, 'the contents conversation is mounted under the outline (owner approved 2026-11-07)');
+  assert.doesNotMatch(page, /<TocConversation|<TocWorkspace/, 'the contents conversation is removed (owner 2026-11-18)');
   assert.doesNotMatch(page, /RoadmapToc|RoadmapChat/, 'the removed roadmap panels stay removed: roadmap talk, parameters and actions are in Chat');
-  assert.ok(existsSync(new URL('./TocConversation.jsx', import.meta.url)));
+  assert.ok(!existsSync(new URL('./TocConversation.jsx', import.meta.url)));
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
   assert.ok(toc > 0 && chatPane > toc, 'Chat after the contents tab');
   assert.equal(page.match(/<ChatPane\b/g).length, 1);

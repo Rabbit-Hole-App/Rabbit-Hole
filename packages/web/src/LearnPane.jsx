@@ -3,17 +3,21 @@
 // canvas frame only gets margins (never another parent, so a notebook's iframe never reloads) and the split is Study's (study-state.js studyLayout).
 // The rows are fixed to the canvas column as it is with the right panel closed, so TOC and Chat (the right panel, widened to the split) open under them.
 import { useEffect, useLayoutEffect, useState } from 'react';
+import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { ChevronLeft as Back, ChevronRight as Forward } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from './ui.jsx';
 import { SWITCH_ROW } from './study-ref.js';
-import { studyLayout } from './study-state.js';
+import { SPLIT_MAX, SPLIT_MIN, studyLayout } from './study-state.js';
 import { GUIDE_MAX, LEARN_TABS, LEARN_TOP } from './learn-mode.js';
 import { walkProgress } from './learn-walk.js';
 
 // walk: AdaptiveCanvas onState walk ({ at, total, heading, lead, follow }). onGeometry({ width, guide }): the column's width and the guide's (LearnPage
-// widens the right panel to the rest). toggle: the Learn | Canvas pill (LearnPage's, the one the header shows outside Learn mode).
-export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, split, panelOpen, toggle, onGeometry }) {
+// widens the right panel to the rest). toggle: the Learn | Canvas pill (LearnPage's, the one the header shows outside Learn mode). onSplit: Study's setSplit
+// (the divider). stripRef / windowRef: the chat composer's hosts (ask.jsx stripHost, windowHost), the one composer docked where the canvas has it, in every tab.
+const STEP = 0.05;
+export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, split, onSplit, panelOpen, toggle, onGeometry, stripRef, windowRef }) {
   const [box, setBox] = useState(null);
+  const [drag, setDrag] = useState(null); // the divider's share while it is dragged
   // The canvas column's place on screen, read while the right panel is closed (open, the column is only the guide's width).
   useEffect(() => {
     const host = canvasFrame.current?.parentElement;
@@ -28,7 +32,8 @@ export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, sp
     window.addEventListener('resize', measure);
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
   }, [canvasFrame, panelOpen]);
-  const layout = box && studyLayout({ width: box.width, height: box.height, split });
+  const share = drag ?? split;
+  const layout = box && studyLayout({ width: box.width, height: box.height, split: share });
   const guide = layout ? (layout.stacked ? Math.round(box.width * 0.4) : layout.size) : 0;
   useEffect(() => { if (box) onGeometry?.({ width: Math.round(box.width), guide }); }, [box?.width, guide]); // eslint-disable-line react-hooks/exhaustive-deps
   // The frame's margins (StudyPane's way): beside the guide, under the two rows; the composer strip centred on the whole column (--study-shift).
@@ -65,13 +70,29 @@ export default function LearnPane({ walk, tab, onTab, canvasApi, canvasFrame, sp
       {toggle}
     </div>
     <aside aria-label="Guide" data-learn-guide className="fixed z-20 overflow-y-auto border-r border-line bg-white" style={{ left: box.left, top: box.top + LEARN_TOP, width: guide, bottom }}>
-      <div className="px-8 pt-6 pb-40" style={{ maxWidth: GUIDE_MAX }}>
+      <div className="px-8 pt-6 pb-48" style={{ maxWidth: GUIDE_MAX }}>
         <h2 data-learn-guide-heading className="text-lg font-semibold text-ink">{walk.heading}</h2>
         {walk.lead && <p data-learn-guide-lead className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-ink">{walk.lead}</p>}
         {walk.lead && walk.follow && <hr className="my-5 border-line" />}
         {walk.follow && <p data-learn-guide-follow className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{walk.follow}</p>}
       </div>
     </aside>
+    {/* The divider (owner 2026-11-18): drag or arrow keys move it; the share is Study's split (study-state.js, this browser). */}
+    <div role="separator" tabIndex={0} aria-label="Resize the guide" aria-orientation="vertical" aria-valuemin={SPLIT_MIN * 100} aria-valuemax={SPLIT_MAX * 100} aria-valuenow={Math.round(share * 100)} data-learn-divider
+      onKeyDown={event => { const by = { ArrowLeft: -STEP, ArrowRight: STEP }[event.key]; if (!by) return; event.preventDefault(); onSplit?.(share + by); }}
+      onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); setDrag(share); }}
+      onPointerMove={event => { if (drag == null) return; setDrag(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, (event.clientX - box.left) / box.width))); }}
+      onPointerUp={() => { if (drag != null) onSplit?.(drag); setDrag(null); }} onPointerCancel={() => setDrag(null)}
+      className="fixed z-[45] w-2 -translate-x-1 cursor-col-resize touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/40 focus-visible:outline-none"
+      style={{ left: box.left + guide, top: box.top + LEARN_TOP, bottom }} />
+    {/* The chat composer, where the canvas has it (bottom, centred on the column), in every tab (owner 2026-11-18): the same composer moves here once when
+        Learn mode starts; the window over it holds the conversation while the right panel is closed, the Chat tab holds it while open. */}
+    <div data-learn-dock className={`pointer-events-none fixed z-50 ${DOCK_PAD} [&>*]:pointer-events-auto`} style={{ left: box.left, width: box.width, bottom: Math.max(0, window.innerHeight - (box.top + box.height)) }}>
+      <div data-canvas-composer className={`${DOCK_WIDTH} relative min-w-0`}>
+        {!panelOpen && <div ref={windowRef} data-canvas-chat-window className="empty:hidden" />}
+        <div ref={stripRef} data-canvas-chat-strip />
+      </div>
+    </div>
     <div data-learn-tabs={tab} className="fixed z-50 flex items-center border-b border-line bg-white" style={{ left: box.left + guide, top: box.top + LEARN_TOP, width: box.width - guide, height: SWITCH_ROW }}>
       <Tabs value={tab} onValueChange={onTab} className="w-full">
         <TabsList aria-label="Learn views" className="h-[42px] shrink-0 gap-4 px-3">

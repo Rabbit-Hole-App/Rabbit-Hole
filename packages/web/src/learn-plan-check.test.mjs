@@ -35,6 +35,5 @@ test('every message key, row word and selector the check reads exists in the sou
   assert.ok(text.includes('Plan accepted · '), 'the accepted line');
   for (const attribute of ['data-toc-proposal', 'data-toc-entry', 'data-level', 'data-active', 'data-toc-delete', 'data-toc-more', 'data-toc-add-link', 'data-toc-editor', 'draggable', 'aria-current', 'cursor-grab', 'Proposed: ']) assert.ok(toc.includes(attribute), attribute);
   assert.ok(chatComposer.includes('data-toc-composer'));
-  assert.ok(page.includes('Describe your goal or refine the outline'), 'TocConversation placeholder');
-  assert.ok(page.includes('!planDone'), 'TocConversation is unmounted once the plan is done');
+  assert.ok(!page.includes('Describe your goal or refine the outline'), 'the contents conversation is removed (owner 2026-11-18)');
 });

@@ -82,7 +82,6 @@ test('the saved goal brings the plan back after a reload; an accepted plan is fo
 test('wiring: the contents go read-only with no composer after Accept; the draft reaches the contents panel through the one proposal path; no repository word in the plan sources', () => {
   const page = read('LearnPage.jsx'), flow = read('TutorRehearsal.jsx');
   assert.match(page, /readOnly=\{!canEditCanvas \|\| planDone\}/);
-  assert.match(page, /\{!setupChat && !planDone && \(app\.hosting !== 'aws'/, 'no TocConversation after Accept');
   assert.match(page, /proposeOutline: proposal => setProposal\(proposal\)/);
   assert.match(page, /applyOutline\(ops, \{ base, source: 'learn-plan' \}\)/);
   assert.match(page, /const first = canvasOutline\.find\(entry => entry\.level >= 2\)/, 'section 1.1 is current on Accept');

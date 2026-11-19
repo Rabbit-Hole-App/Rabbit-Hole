@@ -62,7 +62,6 @@ test('import and model paths select their real checks while pointer diagnostics 
   assert.ok(sel('packages/web/src/FileDocCard.jsx').notCovered.includes('file-doc-cards-check.mjs'));
   assert.ok(sel('packages/web/src/ModelCard.jsx').notCovered.includes('model-viewer-check.mjs'));
   assert.ok(sel('packages/web/src/file-source-client.js').notCovered.includes('file-sources-check.mjs'));
-  assert.ok(sel('packages/web/src/TocConversation.jsx').notCovered.includes('toc-tutor-check.mjs'));
   assert.deepEqual(sel('packages/web/e2e/pointer-diagnostics.mjs').checks, ['project-menu-check.mjs', 'workspace-check.mjs']);
 });
 test('markdown that the bundles import at run time is broad, not docs', () => {

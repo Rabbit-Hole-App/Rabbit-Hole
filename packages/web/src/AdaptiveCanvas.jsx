@@ -2072,6 +2072,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [curious, setCurious] = useState(() => uiPrefs().curious);
   // View > Show / hide > Toolbar (owner brief 2026-10-22): the drawing toolbar; this person's choice on this device, never the canvas.
   const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);
+  // The toolbar minimized to one button (owner 2026-11-18): a view of it, kept in this browser; View > Toolbar still hides it outright.
+  const [toolsMin, setToolsMin] = useState(() => { try { return localStorage.getItem('rh.toolbar.min') === '1'; } catch { return false; } });
+  const minimizeTools = on => { setToolsMin(on); try { localStorage.setItem('rh.toolbar.min', on ? '1' : '0'); } catch { /* private mode: this visit only */ } };
   // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
   // Learn mode (learn-mode-spec.md §1) is a walk running: Study's repository-canvas rules, so the toolbar, both maps and the zoom controls stand down.
@@ -2084,7 +2087,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [focus, dispatchFocus] = useReducer(focusReducer, null);
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
-  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
+  // Learn mode (owner 2026-11-18): the toolbar is drawn on the Canvas tab as View > Toolbar says, never over the Cards tab's card.
+  const toolbarShown = walk ? !!toolbar && !learnCards : toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
   // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
   // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
   const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
@@ -7014,7 +7018,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {insertOpen && <BlockMenu className={`top-0 ${toolSide === 'left' ? 'left-10' : 'right-10'}`} filter={insertFilter} onFilter={setInsertFilter} onPick={type => (type === 'notebook' ? (snapshot(), insertAtView(newNotebookBlock()), setInsertOpen(false)) : type === 'youtube' ? (setInsertOpen(false), onSearch?.('youtube')) : insertBlock(type))} />}
           </div>
         )}
-        {!readOnly && toolbarShown && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
+        {/* Minimized (owner 2026-11-18): the palette is one button that brings it back; this browser remembers it. */}
+        {!readOnly && toolbarShown && toolsMin && <button type="button" data-toolbar-restore aria-label="Show the toolbar" title="Show the toolbar" onClick={() => minimizeTools(false)}
+          className="z-20 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink"><Pencil size={15} strokeWidth={1.7} aria-hidden /></button>}
+        {!readOnly && toolbarShown && !toolsMin && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
           style={toolDrag ? { position: 'absolute', left: toolDrag.x, top: toolDrag.y } : toolCap != null ? { maxHeight: toolCap } : undefined}
           className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
           {/* The handle: drag the palette and it parks on whichever edge you let
@@ -7041,6 +7048,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             }}>
             <GripHorizontal size={13} />
           </div>
+          <button type="button" data-toolbar-minimize aria-label="Minimize the toolbar" title="Minimize the toolbar" onClick={() => minimizeTools(true)}
+            className="col-span-2 flex h-5 items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink"><Minus size={13} aria-hidden /></button>
           {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
           {drawTarget && <div data-sketch-badge title="These tools draw in the Practice sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase">Sketch</div>}
@@ -7104,7 +7113,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           under the composer, with no Focus. A second instance of the card: edits go through changeBlock like the canvas's; nothing moves or resizes the canvas's copy. */}
       {learnCards && walk && (() => {
         const block = blocks.find(entry => entry.id === walk.stops[walk.at]);
-        return block && <div key={block.id} data-learn-card-view={block.id} className="absolute inset-0 z-[25] overflow-y-auto overscroll-contain bg-white px-6 pt-4 pb-40">
+        return block && <div key={block.id} data-learn-card-view={block.id} className="absolute inset-0 z-[25] overflow-y-auto overscroll-contain bg-white px-6 pt-4 pb-48">
           <LessonBlockCard block={block} zoom={1} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={noop} onConnect={noop} onSnap={noop} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} />
         </div>;
       })()}
