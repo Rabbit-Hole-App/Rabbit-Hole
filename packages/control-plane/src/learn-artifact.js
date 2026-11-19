@@ -1,6 +1,5 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
-import { referenceLibraryReady } from './reference-library-lazy.js';
-import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle, plannedBundleKinds } from './explanation-references.js';
+import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -146,7 +145,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
-  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds, plannedKinds: input.plan ? plannedBundleKinds(resolved) : [] })); }
+  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds })); }
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
   const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
@@ -180,7 +179,6 @@ const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fall
 export const ARITHMETIC_REPAIRS_SAME_MODEL = 2;
 
 export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null, nextCanWrite = null } = {}) {
-  await referenceLibraryReady(); // START-3: the reference library is loaded on first use: every async owner of a library read awaits it first (reference-library-lazy.js)
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls. `nextCanWrite(kind)` (the fast chain's, see ARITHMETIC_REPAIRS_SAME_MODEL) says whether the next provider can write a diagram kind.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.

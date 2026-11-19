@@ -12,7 +12,6 @@ import { codebaseUseId, composeTutorPrompt, logTutorCall, tutorRecord } from './
 import { parseCodeRef, repositoryTool } from './repository-context.js';
 import { symbolEnd } from './learn-codebase-source-map.js';
 import { selectForAuthor } from './explanation-references.js';
-import { referenceLibraryReady } from './reference-library-lazy.js';
 import { LEARN_TASKS, costUsd, loggedModel } from './learn-models.js';
 import { creditsOf } from './pricing-registry.js';
 import { anthropic } from './ask.js';
@@ -304,7 +303,6 @@ const REASONS = {
 // -> { answer, codeExplain, reason?, tutor, attempts, firstTry, usage: { input, output, usd } }. answer null: nothing usable was produced (the caller answers as ordinary chat).
 export async function runCodeExplain({ env = {}, snapshot, question, refs, use = null, route = null, callModel = loggedModel('code_explain', anthropic), now, log = logTutorCall }) {
   if (!snapshot?.files) return refusal(REASONS.snapshot);
-  await referenceLibraryReady(); // START-3: the reference library is loaded on first use: every async owner of a library read awaits it first (reference-library-lazy.js)
   const composed = composeTutorPrompt({ task: 'code-explain', use: codebaseUseId(use) });
   const record = tutorRecord(composed, { route, model: CODE_EXPLAIN_MODEL });
   const code = gatherCode(snapshot, refs);

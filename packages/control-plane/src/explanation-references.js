@@ -1,7 +1,8 @@
-import { referenceLibrary } from './reference-library-lazy.js'; // START-3: the library is loaded on first use, not at worker start
+import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { resolveTokens, varySpec } from '../../web/src/tutor-diagrams/vary.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
+import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { cardVisuals, visualKinds } from './explanation-planner.js';
 
@@ -9,8 +10,7 @@ const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
 const normalized = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const shapesByKind = new Map(kindGallery.map(spec => [spec.diagram.kind, spec]));
-let legacyKinds;
-const legacyShapeKinds = () => (legacyKinds ??= [...new Set(referenceLibrary().diagramReferences.filter(ref => ref.id.startsWith('general-')).map(ref => ref.spec.diagram.kind))]);
+const legacyShapeKinds = [...new Set(diagramReferences.filter(ref => ref.id.startsWith('general-')).map(ref => ref.spec.diagram.kind))];
 
 // Codex's learner-word fallback (set 1-7): the kind the learner's own words name ("show a sequence diagram", "the water cycle"). Used ONLY when no planner kind is
 // available (the planner timed out, failed or is off; learn-artifact.js passes shapeFallback: false when a plan exists, because then the gallery example comes
@@ -22,7 +22,7 @@ export function fallbackKind(prompt) {
     .replace(/^(?:a|an|the|one) /, '')
     .replace(/ (?:diagram|example)$/, '');
   return [...shapesByKind.keys()].find(kind => normalized(kind) === named) ??
-    legacyShapeKinds().find(kind => matches(query, normalized(kind)));
+    legacyShapeKinds.find(kind => matches(query, normalized(kind)));
 }
 
 function shapeExamples(prompt, required) {
@@ -101,7 +101,7 @@ export const selectDiagramReferences = options => selectWithSteer(options).refer
 // short learner phrases). It is then kept whole whatever the planner's kind (and goes first), and its kind comes back as steer { kind, source: 'reference', id, referenceKind, score }; a
 // two-panel reference is read through its single-diagram variant (preferSingleVariants), so its kind is that variant's. A learner-named kind (requiredKinds) is never steered: null.
 export const TOPICAL_STEER_MIN = 12;
-export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard', excludeReferencePrefixes = [], seed = null, from = referenceLibrary().diagramReferences } = {}) {
+export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard', excludeReferencePrefixes = [], seed = null, from = diagramReferences } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   // Broad lesson aliases resolve a whole direct topic, including concise requests such as “show me the forest vote”.
   const shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
@@ -146,8 +146,7 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
 // Owner 2026-11-08 (Codex set 3): a selected two-panel reference (comparison panels, visual transformation) is sent as its one-diagram `-single` variant (about half the
 // tokens), unless the planner's kind is comparison or transformation (the comparison is then the point) or the learner required that panel kind. The variant shares the
 // panel's keywords, so selection and its bench are unchanged: the swap happens after the pick. A leaf excerpt (sourceId) is never swapped.
-let singleMap;
-const singleByPanel = { get: id => (singleMap ??= new Map(referenceLibrary().singleDiagramReferences.map(single => [single.panelReferenceId, single]))).get(id) };
+const singleByPanel = new Map(singleDiagramReferences.map(single => [single.panelReferenceId, single]));
 export function preferSingleVariants(references, { plannedKind = null, requiredKinds = [], seed = null } = {}) {
   const whole = plannedKind === 'comparison' || plannedKind === 'transformation';
   return references.map(ref => {
@@ -205,19 +204,11 @@ export const listForm = branch => {
   for (const side of ['before', 'after']) if (childDiagram(properties[side])) properties[side] = (properties[side].anyOf ?? properties[side].oneOf).find(b => !b.properties?.diagram);
   return { ...branch, properties };
 };
-// GEN-1 G5: the diagram kinds a card with a plan is to hold (the planner's kind, the two offered kinds, or the learner-named kinds the plan was overridden by): the
-// diagram union of its schema is exactly these kinds (`only`). [] when there is no diagram, a diagram has no kind or offer yet, or the rules decide: today's bundles.
-export function plannedBundleKinds({ source, visuals } = {}) {
-  if (source === 'rules') return [];
-  const diagrams = (visuals ?? []).filter(v => v.type === 'diagram');
-  if (!diagrams.length || diagrams.some(v => !v.kind && !v.choose?.length)) return [];
-  return [...new Set(diagrams.flatMap(v => (v.kind ? [v.kind] : v.choose)))];
-}
-export function diagramBundle({ references = [], requiredKinds = [], plannedKinds = [] } = {}) {
+export function diagramBundle({ references = [], requiredKinds = [] } = {}) {
   const diagrams = references.flatMap(ref => [ref.spec.diagram, ...(ref.detailSpec ? [ref.detailSpec.diagram] : [])]);
   const kinds = new Set([...requiredKinds, ...diagrams.map(d => d.kind)]);
   const tensorHosts = ['flow', 'relationship', 'transformation'].filter(kind => diagrams.some(d => d.kind === kind && (usesNodeTensors(d) || usesTensorItems(d))));
-  return { ...(plannedKinds.length ? { only: [...plannedKinds] } : {}), quant: QUANT_KINDS.some(k => kinds.has(k)), fresh: NEW_KINDS.some(k => kinds.has(k)),
+  return { quant: QUANT_KINDS.some(k => kinds.has(k)), fresh: NEW_KINDS.some(k => kinds.has(k)),
     panels: diagrams.some(d => d.variant === 'panels'), states: diagrams.some(d => d.kind === 'transformation' && d.variant === 'visual'),
     ...(kinds.has('tensor') ? { tensor: true } : {}),
     ...(kinds.has('token-links') ? { tokenLinks: true } : {}),
@@ -274,7 +265,7 @@ function keepExplicitPlotPoints(schema) {
 const withoutSmooth = branch => { const series = branch.properties?.series?.items; if (series?.properties?.smooth) delete series.properties.smooth; return branch; };
 export function bundledAuthorSchema(schema, bundle) {
   const { quant, fresh, panels, states, tensor, tokenLinks, blockStack } = bundle;
-  const allowed = bundle.only?.length ? new Set(bundle.only) : new Set([...CORE_KINDS, ...(quant ? QUANT_KINDS : []), ...(fresh ? NEW_KINDS : []),
+  const allowed = new Set([...CORE_KINDS, ...(quant ? QUANT_KINDS : []), ...(fresh ? NEW_KINDS : []),
     ...(tensor ? ['tensor'] : []), ...(tokenLinks ? ['token-links'] : []), ...(blockStack ? ['block-stack'] : [])]);
   const out = structuredClone(schema);
   const visuals = out.properties.visuals.items;
@@ -290,17 +281,7 @@ export function bundledAuthorSchema(schema, bundle) {
   // for one two-panel comparison). The validator still reads a saved three-panel card.
   const comparison = union[key].find(b => b.properties.kind.const === 'comparison');
   if (comparison?.properties.panels) comparison.properties.panels = { ...comparison.properties.panels, maxItems: 2 };
-  // GEN-1 G5: a one-kind union is sent as an anyOf: the provider adapter turns a oneOf into an anyOf only for two or more alternatives that differ by a const (interact-model-adapters.js exclusiveOneOfToAnyOf).
-  if (key === 'oneOf' && union.oneOf.length === 1) { union.anyOf = union.oneOf; delete union.oneOf; }
   return out;
-}
-
-// The diagram kinds of a schema that a plan narrowed (bundledAuthorSchema `only`), else null. Every other bundle starts from the CORE kinds, so a union that lacks one of them
-// was narrowed; the Gemini step reads this to keep the planned kinds and the code-computed fields (explanation-fast-chain.js), without the request carrying anything extra.
-export function narrowedKinds(schema) {
-  const visuals = schema?.properties?.visuals?.items, spec = (visuals?.oneOf ?? visuals?.anyOf)?.find(v => v?.properties?.spec)?.properties.spec;
-  const union = spec?.properties?.diagram, kinds = (union?.oneOf ?? union?.anyOf ?? []).map(diagramKindOf).filter(Boolean);
-  return kinds.length && CORE_KINDS.some(kind => !kinds.includes(kind)) ? kinds : null;
 }
 
 export const PHASE02_DIAGRAM_GUIDANCE = 'Additional teaching layouts: heatmap for numerical grids with an explicit scale; sample-set for identifiable samples, membership, replacement and weights; histogram for numeric bin distributions; box-plot for quartiles, whiskers, fences and outliers. Use coordinate-plot for regression, decision boundaries, distances, loss, uncertainty and distributions on axes; its supported annotations are data coordinates, never pixels. Use grouped or stacked bar-chart for votes, importance and category proportions. Use a scaled-lanes timeline for numeric time windows, cutoffs, availability and TTL, and a teaching matrix for highlighted data cells. Tree hierarchy, binary and dendrogram layouts are distinct: dendrogram heights are numerical merge distances; a family tree or folders are not automatically binary. An operation on a binary tree or BST must show the structure itself; an optional flow can explain additional steps but cannot replace it. Connected feedback and lineage use relationship layout graph. Concurrent preprocessing, ensembles and store branches use flow fork/merge roles, not decision diamonds. Name block-stack components, including role-tagged inset steps, with noun phrases. For token-links, show the value of the heaviest weight on its link and say in the caption that the weights sum to one. Start action labels in a flow with verbs. Use comparison visual panels for actual diagrams on coordinated axes, and transformation visual states when showing how the same records or points change. These compositions contain only bounded leaf diagrams; never nest comparisons or transformations. Follow the tool schema and the selected reference JSON for exact fields; no invented kind, SVG, CSS, colour or position fields.';
