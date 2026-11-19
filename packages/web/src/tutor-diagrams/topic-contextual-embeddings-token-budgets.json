@@ -1,0 +1,123 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-contextual-embeddings-contextual-word-vectors": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 117,
+          "sha256": "279e057c49e83d177dacb952cd5e0c485a39db43f613a5e5dd465436932b2781"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 208,
+          "sha256": "328a207dbaabb18f1f8bf2746d17658b2c6fcaacd22db4eea3fcd9f2f1cdfd37"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 221,
+          "sha256": "21536ab813249ffea26468027f68a247feaf67dfd3832a065fa20cfed6a609a3"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 144,
+          "sha256": "f615e0b14a4af8a3a173c03661db28df01c32e1d32384a2e92a2eb025b187dd1"
+        }
+      ]
+    },
+    "ml-contextual-embeddings-two-directional-states": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 103,
+          "sha256": "473f4d88501eb3bb665eac40a50e44984dc7c68a6f0ee08d4829c1355e31e058"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 174,
+          "sha256": "5358c14d0a69e17fd624aa58cbb33b38b045f3a50d3d10bd7ddf28e0945d56ae"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 223,
+          "sha256": "85ec47a70656377b819850b92a70ab6f0fa8585e7a9a06f872d344551564174b"
+        }
+      ]
+    },
+    "ml-contextual-embeddings-weighted-layer-states": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 113,
+          "sha256": "a63f23a223fdad4734f610d99f18597ab90784e83ceede708671727e19e7c050"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 222,
+          "sha256": "725ef93fb457edf649cc9e45aaed93ba3a118af15ba52dcbd2e3980ddfcdcd43"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 184,
+          "sha256": "b2827456d4faab88db809ebef6c6da1797d52be8489811c7285adc5f90dd1a1c"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 201,
+          "sha256": "7874064e90eefcf5e78ecd8eddc9feb2751a49ff237f3feeb8860cb389225ef3"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 181,
+          "sha256": "640bd3b8a6eecd6cf9fba602bd4e60dee2cc31f2b68ffb611b8f272eaafc1d12"
+        }
+      ]
+    },
+    "ml-contextual-embeddings-layer-pooling-evaluation": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 81,
+          "sha256": "d9ce914547c400f2c9866514dfea0c70825dffc151425ca67dabecd2194c00ae"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 106,
+          "sha256": "76c5bc1f3c9e824bb32aacaa56bf1f4a57225c6e9b39e6d2458d82dad1d9112d"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 142,
+          "sha256": "7fd1085a37f2b8d23b97be9f1f009b017a0489bcc3a8d60b36168d304ab1c987"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 135,
+          "sha256": "4ac048e3214b46e0d54ce10066e6de41a7f28de2a9986facf10cd6c4ded9d147"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 179,
+          "sha256": "9867c43354a5a434b03897bc6018f84b050055b3aca3d32e49ac4063f719b4cf"
+        }
+      ]
+    }
+  }
+}

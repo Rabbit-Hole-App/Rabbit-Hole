@@ -1714,5 +1714,21 @@
   "ml-embeddings-embedding-table-lookups": [
     "indexed vector retrieval",
     "independent lookup tables"
+  ],
+  "ml-contextual-embeddings-contextual-word-vectors": [
+    "ambiguous token output rows",
+    "contextual sequence alignment"
+  ],
+  "ml-contextual-embeddings-two-directional-states": [
+    "independent directional states",
+    "opposite read streams"
+  ],
+  "ml-contextual-embeddings-weighted-layer-states": [
+    "task layer mixture products",
+    "direction concat layer sum"
+  ],
+  "ml-contextual-embeddings-layer-pooling-evaluation": [
+    "frozen pooling F1 comparison",
+    "fixed cohort layer readouts"
   ]
 }
