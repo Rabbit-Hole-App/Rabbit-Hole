@@ -2871,6 +2871,21 @@
       "width": 720,
       "height": 253
     },
+    "pool-hilltop-park-map-layers/320": {
+      "sha256": "bb8c1605eded4cf9519880b3ffbf3564f4be039acd385a7c7cf24ef4f9c95583",
+      "width": 320,
+      "height": 382
+    },
+    "pool-hilltop-park-map-layers/408": {
+      "sha256": "dc3fba6a767a3cf01b2607b4db1b1aafab725c33a5ca2eda67f96035be1d68f4",
+      "width": 408,
+      "height": 360
+    },
+    "pool-hilltop-park-map-layers/720": {
+      "sha256": "1e5b869039abfede149013f2f35d44d7de04f4facf305126961c2b5cd17c160a",
+      "width": 720,
+      "height": 343
+    },
     "pool-orchard-packing-expense/320": {
       "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
       "width": 320,
@@ -2900,6 +2915,21 @@
       "sha256": "d08ce58c79320291524fcaa2ff96a5e826629f94fa08037bf62191f010a0311b",
       "width": 720,
       "height": 344
+    },
+    "pool-raspberry-cocoa-slice-layers/320": {
+      "sha256": "a20fd0413d588a8a3d9f2a3a6a658235c47f0d620c92789ee855d8965505bc91",
+      "width": 320,
+      "height": 382
+    },
+    "pool-raspberry-cocoa-slice-layers/408": {
+      "sha256": "6c8773bd58e6a6b196da910dac6213a1868ba1c3120c281f196d5b2b34319877",
+      "width": 408,
+      "height": 360
+    },
+    "pool-raspberry-cocoa-slice-layers/720": {
+      "sha256": "d9494941b20d02286d29ba8259d81ef6d5f9b724c6c6621fff249d5d8576c5c9",
+      "width": 720,
+      "height": 343
     },
     "pool-robotics-parts-payable/320": {
       "sha256": "0a99d089f0cdd64037c4fabb0d53ba600784e0b8538c38b4cff8b47e15beea22",
