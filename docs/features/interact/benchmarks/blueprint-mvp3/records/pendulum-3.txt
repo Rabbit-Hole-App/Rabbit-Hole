@@ -1,4 +1,4 @@
-run ej_e6a824a580c541a68ecc066d7cdb987b: did NOT pass the checker
+run ej_e6a824a580c541a68ecc066d7cdb987b: did NOT pass checks 1 to 9
 prompt: what changes a pendulum swing
 depth: detailed   model: gemini-4-hydrogen (high)   seed: 399439811   seconds: 100.254   cost: $0.1938
 

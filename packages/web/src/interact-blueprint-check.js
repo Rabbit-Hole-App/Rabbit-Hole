@@ -272,7 +272,8 @@ async function checkProgram(blueprint, sampled, measured) {
 
 // ---- the whole checker ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // light: the form, the names, the function run over the grid, and the claims only (MVP 1 as cut by the owner, 2026-11-19): no moves, controls-matter, parts, graph, layout or Program checks and no measured facts.
-export async function checkBlueprint(value, { seeded = null, light = false } = {}) {
+// through: the last check to run. 10 (the default, Build's) builds the Program and tests the frame; the design phase asks for 9 (brief 42): the blueprint is checked as a design, and check 10 is Build's.
+export async function checkBlueprint(value, { seeded = null, light = false, through = 10 } = {}) {
   const notes = [], done = (failed, problems, measured = null) => ({ ok: !failed, failed, problems: problems.slice(0, MAX_PROBLEMS).map(problem => ({ ...problem, check: failed })), notes, measured });
   const form = checkForm(value);
   if (!form.ok) return done(1, form.problems);
@@ -290,6 +291,7 @@ export async function checkBlueprint(value, { seeded = null, light = false } = {
   if (claims.length) return done(8, claims);
   const layout = checkLayout(blueprint, sampled, graph);
   if (layout.problems.length) return done(9, layout.problems, layout.measured);
+  if (through < 10) return { ok: true, failed: 0, problems: [], notes, measured: layout.measured, blueprint };
   const program = await checkProgram(blueprint, sampled, layout.measured);
   const turns = {};
   if (graph.plot) graph.plot.series.forEach((series, k) => { turns[series.value] = Math.max(...graph.curves.map(entry => turnsOf(entry.ys[k]))); });
