@@ -168,6 +168,16 @@ async function enqueue(env,app,repo,branch,resolved=null) {
 // The route catalogue (learn-rehearsal.js) starts itself when a snapshot turns ready, so the Tutor's first line already knows whether the repository can be run.
 // It is the same RepositoryRehearsals object class under the key app|commit|catalogue|cpu; a no-op where that binding or the controller is not configured (production), and it never fails or delays the import.
 const triggerCatalogue=(env,job)=>startCatalogue(env,{id:job.appId,repo:job.repo,commit:job.commit}).catch(error=>console.error('catalogue trigger',error.message));
+// Shared snapshots (codebase-index-spec.md section 1): one snapshot per public repository, commit and indexer version, whoever imported it first.
+// A database without the table (before learn-migrations/0047) reads as a miss and indexes as before.
+const INDEX_VERSION='graphify-0.9.63';
+// Under learn-repositories-dev/ like every import artifact (T02 section 16, D7, owner 2026-11-19): found through repository_versions, written only on a miss, never over an existing object.
+const sharedKey=(repo,commit)=>`learn-repositories-dev/shared/${repo}/${commit}/snapshot-${INDEX_VERSION}.json`;
+const quiet=async run=>{try{return await run();}catch{return null;}};
+const sharedSnapshot=(env,repo,commit)=>quiet(()=>env.LEARN_DB.prepare('SELECT storage_key FROM repository_snapshots WHERE repo=? AND commit_sha=? AND version=?').bind(repo,commit,INDEX_VERSION).first());
+const readyAt=(env,job,key)=>env.LEARN_DB.batch([
+  env.LEARN_DB.prepare('INSERT OR IGNORE INTO repository_versions(app_id,commit_sha,storage_key) VALUES(?,?,?)').bind(job.appId,job.commit,key),
+  env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId)]);
 export class RepositoryImports {
   constructor(state,env){this.state=state;this.env=env;}
   async fetch(req){
@@ -176,6 +186,9 @@ export class RepositoryImports {
       if(previous&&['queued','indexing'].includes(previous.status)) return json({error:'An import is already running'},409);
       const cached=await this.env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(job.appId,job.commit).first();
       if(cached){await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();await triggerCatalogue(this.env,job);return json({status:'ready',commit:job.commit,reused:true});}
+      // Someone indexed this repository at this commit already: this app reads the same snapshot, and the indexer is not asked.
+      const shared=await sharedSnapshot(this.env,job.repo,job.commit);
+      if(shared){await readyAt(this.env,job,shared.storage_key);await triggerCatalogue(this.env,job);return json({status:'ready',commit:job.commit,reused:true,shared:true});}
       const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({...job,attempt:crypto.randomUUID()})));
       job.key=[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join(''); job.status='queued';job.started=Date.now();
       await this.state.storage.put('job',job);
@@ -199,10 +212,10 @@ export class RepositoryImports {
             const asset=await workerRequest(this.env,`/repositories/${job.key}/asset`);if(!asset.ok)throw Error('Index download failed');
             const snapshot=await asset.json();
             if(snapshot.commit!==job.commit||snapshot.repo!==job.repo||!snapshot.graph?.nodes||!snapshot.files)throw Error('Invalid index result');
-            const key=`learn-repositories-dev/${job.appId}/${job.commit}/graphify-0.9.63.json`;
-            await this.env.REPOSITORY_SNAPSHOTS.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'}});
-            await this.env.LEARN_DB.prepare('INSERT OR IGNORE INTO repository_versions(app_id,commit_sha,storage_key) VALUES(?,?,?)').bind(job.appId,job.commit,key).run();
-            await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();job.status='ready';await triggerCatalogue(this.env,job);
+            const key=sharedKey(job.repo,job.commit);
+            if(!await this.env.REPOSITORY_SNAPSHOTS.head(key))await this.env.REPOSITORY_SNAPSHOTS.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'}});
+            await quiet(()=>this.env.LEARN_DB.prepare('INSERT OR IGNORE INTO repository_snapshots(repo,commit_sha,version,storage_key) VALUES(?,?,?,?)').bind(job.repo,job.commit,INDEX_VERSION,key).run());
+            await readyAt(this.env,job,key);job.status='ready';await triggerCatalogue(this.env,job);
           }
         }
       }

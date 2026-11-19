@@ -7,6 +7,11 @@ CREATE TABLE IF NOT EXISTS repository_versions (
  app_id INTEGER NOT NULL, commit_sha TEXT NOT NULL, storage_key TEXT NOT NULL,
  created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(app_id,commit_sha)
 );
+-- Shared snapshots (learn-migrations/0047): one per public repository, commit and indexer version.
+CREATE TABLE IF NOT EXISTS repository_snapshots (
+ repo TEXT NOT NULL, commit_sha TEXT NOT NULL, version TEXT NOT NULL, storage_key TEXT NOT NULL,
+ created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(repo,commit_sha,version)
+);
 CREATE TABLE IF NOT EXISTS threads (
  id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL,
  commit_sha TEXT NOT NULL, title TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))

@@ -913,8 +913,9 @@ the code:
 1. The repository row goes only into `small-learn-dev` (`LEARN_DB`).
 2. Artifacts stay under `learn-repositories-dev/` in the dev bucket `small-repositories-dev`
    (`repositories.js:90`; moved out of the live `small-runs` bucket 2026-09-28).
-3. No existing production artifact can be overwritten. Keys contain the
-   `LEARN_DB` id and the commit, and production writes nothing under that
+3. No existing production artifact can be overwritten. Since 2026-11-19 (shared snapshots, codebase-index-spec.md section 1,
+   owner): a snapshot key is `learn-repositories-dev/shared/<owner>/<repo>/<commit>/snapshot-<indexer version>.json`, written
+   only when no object is at that key (`head` first); older keys contain the `LEARN_DB` id and the commit. Production writes nothing under that
    prefix.
 4. It never calls a live app, share, or member mutation API.
 5. Review-created records can be identified and cleaned up separately

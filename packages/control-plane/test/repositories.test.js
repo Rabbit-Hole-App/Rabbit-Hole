@@ -18,7 +18,7 @@ function fixture(t){
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${sha}','ready'); INSERT INTO repository_versions VALUES(1,'${sha}','snapshot',datetime('now'));`);
   const db={prepare:sql=>{let args=[];const stmt=sqlite.prepare(sql);return{bind(...v){args=v;return this;},first:async()=>stmt.get(...args)||null,all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:stmt.run(...args)})};},batch:async statements=>Promise.all(statements.map(s=>s.run()))};
   const assets=new Map([['snapshot',snapshot]]),data=new Map();
-  const env={SMALL_ENV:'test',LEARN_DB:db,ANTHROPIC_API_KEY:'test',CHAT_MODEL_PROFILE:'anthropic',SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},REPOSITORY_SNAPSHOTS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)},RUNS:{get(){throw Error('live bucket touched');},put(){throw Error('live bucket touched');}}};
+  const env={SMALL_ENV:'test',LEARN_DB:db,ANTHROPIC_API_KEY:'test',CHAT_MODEL_PROFILE:'anthropic',SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},REPOSITORY_SNAPSHOTS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,head:async k=>assets.has(k)?{key:k}:null,put:async(k,v)=>assets.set(k,v)},RUNS:{get(){throw Error('live bucket touched');},put(){throw Error('live bucket touched');}}};
   const state={storage:{get:async k=>structuredClone(data.get(k)),put:async(k,v)=>data.set(k,structuredClone(v)),setAlarm:async()=>{}},blockConcurrencyWhile:async fn=>fn()};
   return{env,sqlite,data,assets,state,actor:new RepositoryImports(state,env),send:(path,body,headers={})=>repositoriesFetch(new Request(`https://dev.test/api/repositories/repo-example/${path}`,{method:body?'POST':'GET',headers, ...(body?{body:JSON.stringify(body)}:{})}),env,{})};
 }
@@ -247,6 +247,32 @@ test('durable indexing queues, persists new snapshot, preserves old version and 
   assert.equal(f.sqlite.prepare('SELECT commit_sha FROM repository_apps').get().commit_sha,newer);
   assert.equal((await(await f.actor.fetch(request())).json()).reused,true);assert.equal(calls,3);
 });
+// Shared snapshots (codebase-index-spec.md section 1): the same public repository and commit imported by a second app is not indexed again.
+test('two apps, same repository and commit: one indexer request, two version rows, one stored object under the shared key',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let indexed=0;
+  globalThis.fetch=async url=>{if(String(url).endsWith('/repositories'))indexed++;return Response.json(String(url).endsWith('/asset')?{...snapshot,commit:newer}:{status:'ready'});};
+  f.sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,status) VALUES(2,'other','repo-copy','second@test','example/project','main','queued');`);
+  const start=appId=>new Request('https://index/start',{method:'POST',body:JSON.stringify({appId,repo:snapshot.repo,branch:'main',commit:newer})});
+  assert.equal((await f.actor.fetch(start(1))).status,202);await f.actor.alarm();await f.actor.alarm();
+  assert.equal(f.data.get('job').status,'ready');assert.equal(indexed,1);
+  const second=new RepositoryImports({storage:{get:async()=>undefined,put:async()=>{},setAlarm:async()=>{throw Error('no alarm for a shared snapshot');}},blockConcurrencyWhile:async fn=>fn()},f.env);
+  const reply=await(await second.fetch(start(2))).json();
+  assert.deepEqual([reply.status,reply.shared,indexed],['ready',true,1],'the indexer is not asked again');
+  const key=`learn-repositories-dev/shared/example/project/${newer}/snapshot-graphify-0.9.63.json`;
+  assert.deepEqual(f.sqlite.prepare('SELECT app_id,storage_key FROM repository_versions WHERE commit_sha=? ORDER BY app_id').all(newer).map(r=>({...r})),[{app_id:1,storage_key:key},{app_id:2,storage_key:key}]);
+  assert.deepEqual({...f.sqlite.prepare("SELECT status,commit_sha FROM repository_apps WHERE id=2").get()},{status:'ready',commit_sha:newer});
+  assert.equal([...f.assets.keys()].filter(k=>k.includes(newer)).length,1,'one object');
+  assert.equal(f.sqlite.prepare('SELECT count(*) n FROM repository_snapshots').get().n,1);
+});
+test('a database without repository_snapshots still indexes and stores the snapshot',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  f.sqlite.exec('DROP TABLE repository_snapshots');
+  globalThis.fetch=async url=>Response.json(String(url).endsWith('/asset')?{...snapshot,commit:newer}:{status:'ready'});
+  assert.equal((await f.actor.fetch(new Request('https://index/start',{method:'POST',body:JSON.stringify({appId:1,repo:snapshot.repo,branch:'main',commit:newer})}))).status,202);
+  await f.actor.alarm();await f.actor.alarm();
+  assert.equal(f.data.get('job').status,'ready');
+  assert.equal(f.sqlite.prepare('SELECT storage_key FROM repository_versions WHERE commit_sha=?').get(newer).storage_key,`learn-repositories-dev/shared/example/project/${newer}/snapshot-graphify-0.9.63.json`);
+});
 test('failed refresh preserves existing usable commit and can be retried',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
   globalThis.fetch=async()=>Response.json({status:'failed',error:'Repository exceeds indexing limit'});
@@ -279,8 +305,11 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
   assert.equal(row.org,'team');assert.equal(row.owner_email,'owner@test');assert.ok(row.created_at); // 16.1, 16.5: a LEARN_DB row, found by org, owner_email, created_at
   assert.equal(f.sqlite.prepare("SELECT version FROM learn_boards WHERE org=? AND owner_email=? AND app=? AND board='main'").get(row.org,row.owner_email,row.name)?.version,0); // made with its empty Learn main board (canvas-persistence.md, 2026-10-08)
   await f.actor.alarm();await f.actor.alarm();
-  const key=`learn-repositories-dev/${row.id}/${newer}/graphify-0.9.63.json`;
-  assert.deepEqual([...f.assets.keys()].filter(k=>k!=='snapshot'),[key]); // 16.2, 16.3: prefix plus LEARN_DB id plus commit
+  // 16.2, 16.3 (owner 2026-11-19, shared snapshots): the prefix plus the public repository, commit and indexer version; found through repository_versions
+  // (16.5) and written only when no object is there, so nothing existing is overwritten.
+  const key=`learn-repositories-dev/shared/example/project/${newer}/snapshot-graphify-0.9.63.json`;
+  assert.deepEqual([...f.assets.keys()].filter(k=>k!=='snapshot'),[key]);
+  assert.equal(f.sqlite.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').get(row.id,newer).storage_key,key);
   assert.equal(f.sqlite.prepare('SELECT storage_key FROM repository_versions WHERE app_id=?').get(row.id).storage_key,key); // 16.5: R2 found through repository_versions
   assert.deepEqual([...new Set(seen)],['GET /api/me']); // 16.4: identity read only (side-effect free, dev-prod-write-barrier.md)
   assert.deepEqual([...hosts],['worker.test']);
