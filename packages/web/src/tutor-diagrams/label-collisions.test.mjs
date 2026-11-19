@@ -15,10 +15,12 @@ test('a negative bar\'s value never overlaps the category names (the bar reaches
   assert.ok(value + 7.5 <= name - 5, `the value (${value}) runs into the name (${name})`);
 });
 
-test('grouped bars: a value wider than its bar that would sit on a taller neighbour drops its unit; the others keep it', () => {
+test('grouped bars: when a value would sit on a taller neighbour no value carries the unit and it is printed once after the top axis number; a chart where none touches keeps it on every value', () => {
   const svg = svgOf({ kind: 'bar-chart', variant: 'grouped', title: 'Full softmax and top-2 sampling', unit: '%', categories: ['on', 'near', 'under', 'by', 'in'],
     series: [{ label: 'Full softmax', values: [42, 28, 16, 8, 6] }, { label: 'Top-2 renormalized', values: [60, 40, 0, 0, 0] }] });
-  for (const bare of ['42', '28']) assert.ok(centreY(svg, bare, 15, 600) > 0, `${bare} is drawn without its unit`);
-  for (const text of ['42 %', '28 %']) assert.ok(!(centreY(svg, text, 15, 600) > 0), `${text} runs over the taller bar next to it`);
-  for (const text of ['60 %', '40 %', '16 %', '0 %']) assert.ok(centreY(svg, text, 15, 600) > 0, `${text} keeps its unit`);
+  for (const bare of ['42', '28', '60', '40', '16', '8', '6', '0']) assert.ok(centreY(svg, bare, 15, 600) > 0, `${bare} is drawn without its unit`);
+  assert.equal((svg.match(/>[\d.]+ %</g) ?? []).length, 1, 'the unit is printed once');
+  assert.ok(centreY(svg, '60 %', 15, 500) > 0, 'after the top axis number');
+  const calm = svgOf({ kind: 'bar-chart', variant: 'grouped', title: 'Label-prior shift', unit: 'samples', categories: ['Class 0', 'Class 1'], series: [{ label: 'Reference window', values: [7, 3] }, { label: 'Current window', values: [3, 7] }] });
+  assert.ok(centreY(calm, '7 samples', 15, 600) > 0, 'a chart where no value touches another bar is not changed');
 });

@@ -600,10 +600,14 @@ function verticalBars(d, requested, options) {
   const given = boxed || sizes ? options?.range : null;
   if (given && Number.isFinite(given.min) && Number.isFinite(given.max) && given.min < given.max) { min = given.min; max = given.max; }
   const clamp = value => Math.min(max, Math.max(min, value));
-  const build = plotExtra => {
+  // unitInTick: the unit is printed once, after the top value-axis number, and no value above a bar carries it (set when a value above a bar would sit on a taller neighbour).
+  const build = (plotExtra, unitInTick = false) => {
     const PLOT = boxed ? PLOT_FLOOR + plotExtra : 210, top = PAD + 24, bottom = top + PLOT;
     const y = scale({ min, max }, bottom, top);
-    const ticks = plotTicks({ min, max }, y, { horizontal: false, size: tickSize });
+    const plain = plotTicks({ min, max }, y, { horizontal: false, size: tickSize });
+    const topTick = plain.reduce((best, tick) => (tick.at < best.at ? tick : best), plain[0]);
+    const ticks = unitInTick ? plain.map(tick => (tick === topTick ? { ...tick, lines: [...tick.lines.slice(0, -1), `${tick.lines.at(-1)} ${d.unit}`] } : tick)) : plain;
+    const unit = unitInTick ? undefined : d.unit;
     const tickWidth = Math.ceil(Math.max(...ticks.map(tick => Math.max(...tick.lines.map(line => textWidth(line, tickSize))))));
     const left = PAD + tickWidth + 10;
     const inner = 2; // 2 px between the bars of one cluster
@@ -623,7 +627,7 @@ function verticalBars(d, requested, options) {
     const showAbove = showValues && n * k <= 12;
     // The value above (below, for a negative bar) a bar: in box mode the unit goes first, then the label itself, when it is wider than its bar (no options: as today); null when none is drawn.
     const valueText = value => {
-      let text = amount(value, d.unit);
+      let text = amount(value, unit);
       if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
       return showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth) ? text : null;
     };
@@ -647,12 +651,10 @@ function verticalBars(d, requested, options) {
         if (text !== null) pending.push({ bar, value, text, cx, at: value < 0 ? end + 12 : end - 12, slot: labels.push(null) - 1 }); // the label keeps its place in the drawing order
       });
     });
-    // With no box a value may be wider than its bar and spill over the neighbouring ones: when it would sit on a taller neighbour the unit goes (the value alone is narrower); a value that touches no other bar is drawn as always.
-    const hitsBar = (text, cx, at, own) => geometryBars.some(bar => bar !== own && bar.height > 0 && cx - textWidth(text, tickSize) / 2 < bar.x + bar.width && bar.x < cx + textWidth(text, tickSize) / 2 && at - tickSize / 2 < bar.y + bar.height && bar.y < at + tickSize / 2);
-    for (const { bar, value, text, cx, at, slot } of pending) {
-      const shown = !boxed && d.unit && hitsBar(text, cx, at, bar) ? amount(value) : text;
-      labels[slot] = label(shown, cx, at, { size: tickSize, weight: 600 });
-    }
+    // With no box a value may be wider than its bar and spill over the neighbouring ones. When any value would sit on a taller neighbour the chart is drawn again with the unit off every value and printed once after the top axis number (one form for the whole chart); a chart where no value touches another bar is drawn as always. Measured with the Arial advances the legend pills use.
+    const hitsBar = (text, cx, at, own) => geometryBars.some(bar => bar !== own && bar.height > 0 && cx - legendTextWidth(text, tickSize) / 2 < bar.x + bar.width && bar.x < cx + legendTextWidth(text, tickSize) / 2 && at - tickSize / 2 < bar.y + bar.height && bar.y < at + tickSize / 2);
+    if (!boxed && d.unit && !unitInTick && pending.some(({ bar, text, cx, at }) => hitsBar(text, cx, at, bar))) return { dropUnit: true };
+    for (const { text, cx, at, slot } of pending) labels[slot] = label(text, cx, at, { size: tickSize, weight: 600 });
     elements.push(...bars);
     // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
     elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
@@ -674,10 +676,11 @@ function verticalBars(d, requested, options) {
     const geometry = { plotArea: { left, right, top, bottom }, y: { min, max }, range: { min, max }, baseline: { y: y(clamp(0)), left, right }, bars: geometryBars };
     return { width, height: bottomOfLabels + PAD, parts: minParts, widthParts, plotHeight: PLOT, elements, geometry };
   };
-  const first = build(0);
+  const draw = extra => { const drawn = build(extra); return drawn.dropUnit ? build(extra, true) : drawn; };
+  const first = draw(0);
   if (!boxed || floor || contentHeight === undefined) return first;
   const extra = Math.floor(contentHeight - first.height);
-  return extra > 0 ? build(extra) : first;
+  return extra > 0 ? draw(extra) : first;
 }
 
 function barChart(d, requested, options) {
