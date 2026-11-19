@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "files": [
+    "packages/web/src/tutor-diagrams/composition-attention-pooling-references.js",
+    "packages/web/src/tutor-diagrams/composition-attention-references.js",
+    "packages/web/src/tutor-diagrams/composition-recurrent-attention-references.js",
+    "packages/web/src/tutor-diagrams/topic-attention-c07-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-attention-data.js",
+    "packages/web/src/tutor-diagrams/topic-attention-overlays.js",
+    "packages/web/src/tutor-diagrams/topic-attention-pooling-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-attention-pooling-data.js",
+    "packages/web/src/tutor-diagrams/topic-attention-sources.json",
+    "packages/web/src/tutor-diagrams/topic-recurrent-attention-composition.test.mjs",
+    "packages/web/src/tutor-diagrams/topic-recurrent-attention-data.js"
+  ],
+  "results": [
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-attention-pooling-references.js",
+      "ids": [
+        "ml-attention-pooling-kernel-weight-concentration"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "ids": [
+        "ml-attention-additive-attention",
+        "ml-attention-query-key-value-roles",
+        "ml-attention-connectivity-and-path-length",
+        "ml-attention-causal-mask-and-weights",
+        "ml-attention-packed-query-key-value-projections",
+        "ml-attention-query-key-dot-products",
+        "ml-attention-weighted-vector-pooling",
+        "ml-attention-all-query-attention"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/composition-recurrent-attention-references.js",
+      "ids": [
+        "ml-recurrent-attention-decoder-context"
+      ],
+      "flags": 0
+    },
+    {
+      "path": "packages/web/src/tutor-diagrams/topic-attention-overlays.js",
+      "ids": [
+        "figure-retro-chunk-embedding"
+      ],
+      "flags": 0
+    }
+  ],
+  "staticFlags": [],
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "publishedCommit": "8c3235710019f258e5cdf196dbf8f4169f341d0e",
+  "publishedTree": "879a8e1af9a21b2e7ba91b7cc588f59499e94ddc"
+}

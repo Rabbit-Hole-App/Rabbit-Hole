@@ -1,0 +1,112 @@
+{
+  "commit": "a2287d506eaab2904378827b535b6aacba48a78a",
+  "tree": "879a8e1af9a21b2e7ba91b7cc588f59499e94ddc",
+  "viewsRead": 54,
+  "noteExceptions": [
+    {
+      "referenceId": "ml-attention-additive-attention",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 10,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 2."
+    },
+    {
+      "referenceId": "ml-attention-additive-attention",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 12,
+      "reason": "The current relationship renderer puts the arrow labels into 9 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-query-key-value-roles",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 10,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 2."
+    },
+    {
+      "referenceId": "ml-attention-query-key-value-roles",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 6,
+      "reason": "The current relationship renderer puts the arrow labels into 4 numbered-list text lines below the diagram. The caption takes 2."
+    },
+    {
+      "referenceId": "ml-attention-query-key-value-roles",
+      "depth": "deep",
+      "role": "main",
+      "visibleLines": 5,
+      "reason": "The current relationship renderer puts the arrow labels into 4 numbered-list text lines below the diagram. The caption takes 1."
+    },
+    {
+      "referenceId": "ml-attention-query-key-value-roles",
+      "depth": "overview",
+      "role": "detail",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-query-key-value-roles",
+      "depth": "standard",
+      "role": "detail",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-query-key-value-roles",
+      "depth": "deep",
+      "role": "detail",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "depth": "deep",
+      "role": "main",
+      "visibleLines": 7,
+      "reason": "The current relationship renderer puts the arrow labels into 4 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 5,
+      "reason": "The current relationship renderer puts the arrow labels into 2 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "depth": "deep",
+      "role": "main",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-attention-decoder-context",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 10,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 2."
+    },
+    {
+      "referenceId": "ml-recurrent-attention-decoder-context",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 12,
+      "reason": "The current relationship renderer puts the arrow labels into 10 numbered-list text lines below the diagram. The caption takes 2."
+    }
+  ],
+  "observations": [
+    "The relationship graph renderer leaves node boxes unfilled and numbers its arrow labels in these references: `ml-attention-additive-attention`, `ml-attention-query-key-value-roles`, `ml-attention-packed-query-key-value-projections`, `ml-attention-weighted-vector-pooling`, `ml-recurrent-attention-decoder-context`. These views are listed for the renderer review.",
+    "The additive-attention Detailed and packed-projection Standard captions fit within three lines. The connectivity plots show shortest-path counts and identify hops in the captions.",
+    "`ml-attention-packed-query-key-value-projections` Detailed companion has a native width of 572 px. Its operand and slice labels appear small in the 408 px column because the full row is fit to width."
+  ],
+  "publishedCommit": "8c3235710019f258e5cdf196dbf8f4169f341d0e",
+  "publishedTree": "879a8e1af9a21b2e7ba91b7cc588f59499e94ddc"
+}
