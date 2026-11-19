@@ -1,0 +1,1045 @@
+{
+ "meta": {
+  "onTopic": 15,
+  "numeric": 7,
+  "r3pre": 29,
+  "items": 95,
+  "runs": 161,
+  "steers": [
+   {
+    "q": "how do I compute the Gini impurity on both sides of a split ",
+    "id": "ml-trees-gini-split",
+    "kind": "matrix",
+    "exact": true
+   },
+   {
+    "q": "how does a random forest combine the predictions of its tree",
+    "id": "ml-trees-majority-vote",
+    "kind": "flow",
+    "exact": true
+   },
+   {
+    "q": "compare impurity-based feature importance with permutation i",
+    "id": "ml-trees-feature-importance",
+    "kind": "bar-chart",
+    "exact": true
+   },
+   {
+    "q": "How does voting combine several weak classifiers?",
+    "id": "ensemble-votes",
+    "kind": "bar-chart",
+    "exact": true
+   },
+   {
+    "q": "How does the transformer decoder avoid looking ahead at late",
+    "id": "ml-transformer-causal-mask",
+    "kind": "heatmap",
+    "exact": true
+   },
+   {
+    "q": "What does a logarithmic axis do to a skewed positive feature",
+    "id": "log-feature-scale",
+    "kind": "coordinate-plot",
+    "exact": true
+   },
+   {
+    "q": "How can learning curves show whether more data may help?",
+    "id": "learning-curves",
+    "kind": "coordinate-plot",
+    "exact": true
+   },
+   {
+    "q": "How do bias, variance and noise contribute to expected squar",
+    "id": "bias-variance-decomposition",
+    "kind": "bar-chart",
+    "exact": true
+   },
+   {
+    "q": "How do positive and negative residual corrections change an ",
+    "id": "boosting-signed-corrections",
+    "kind": "bar-chart",
+    "exact": true
+   },
+   {
+    "q": "How do grid search and random search cover a hyperparameter ",
+    "id": "search-grid-and-random",
+    "kind": "coordinate-plot",
+    "exact": true
+   },
+   {
+    "q": "How can predicted probabilities be checked for calibration?",
+    "id": "probability-calibration",
+    "kind": "coordinate-plot",
+    "exact": true
+   },
+   {
+    "q": "How should I read an ACF stem plot?",
+    "id": "acf-pacf-stems",
+    "kind": "coordinate-plot",
+    "exact": true
+   },
+   {
+    "q": "Why should feature-selection stability be measured across re",
+    "id": "feature-selection-stability",
+    "kind": "bar-chart",
+    "exact": true
+   },
+   {
+    "q": "Explain binary search tree and bst and insertion to me",
+    "id": "tree-bst-insertion",
+    "kind": "tree",
+    "exact": false
+   },
+   {
+    "q": "Explain folder and directory and file hierarchy to me",
+    "id": "tree-folder-hierarchy",
+    "kind": "tree",
+    "exact": false
+   }
+  ]
+ },
+ "items": [
+  {
+   "idx": 0,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 1
+  },
+  {
+   "idx": 1,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O2",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "rep": 1
+  },
+  {
+   "idx": 2,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O3",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 1
+  },
+  {
+   "idx": 3,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O4",
+   "prompt": "How does voting combine several weak classifiers?",
+   "rep": 1
+  },
+  {
+   "idx": 4,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O5",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 1
+  },
+  {
+   "idx": 5,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O6",
+   "prompt": "What does a logarithmic axis do to a skewed positive feature?",
+   "rep": 1
+  },
+  {
+   "idx": 6,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O7",
+   "prompt": "How can learning curves show whether more data may help?",
+   "rep": 1
+  },
+  {
+   "idx": 7,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O8",
+   "prompt": "How do bias, variance and noise contribute to expected squared error?",
+   "rep": 1
+  },
+  {
+   "idx": 8,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O9",
+   "prompt": "How do positive and negative residual corrections change an ensemble?",
+   "rep": 1
+  },
+  {
+   "idx": 9,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O10",
+   "prompt": "How do grid search and random search cover a hyperparameter space?",
+   "rep": 1
+  },
+  {
+   "idx": 10,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O11",
+   "prompt": "How can predicted probabilities be checked for calibration?",
+   "rep": 1
+  },
+  {
+   "idx": 11,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O12",
+   "prompt": "How should I read an ACF stem plot?",
+   "rep": 1
+  },
+  {
+   "idx": 12,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O13",
+   "prompt": "Why should feature-selection stability be measured across resamples?",
+   "rep": 1
+  },
+  {
+   "idx": 13,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O14",
+   "prompt": "Explain binary search tree and bst and insertion to me",
+   "rep": 1
+  },
+  {
+   "idx": 14,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O15",
+   "prompt": "Explain folder and directory and file hierarchy to me",
+   "rep": 1
+  },
+  {
+   "idx": 15,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 1
+  },
+  {
+   "idx": 16,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 1
+  },
+  {
+   "idx": 17,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 1
+  },
+  {
+   "idx": 18,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U4",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "rep": 1
+  },
+  {
+   "idx": 19,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U5",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 1
+  },
+  {
+   "idx": 20,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U6",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "rep": 1
+  },
+  {
+   "idx": 21,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U7",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 1
+  },
+  {
+   "idx": 22,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 2
+  },
+  {
+   "idx": 23,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O2",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "rep": 2
+  },
+  {
+   "idx": 24,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O3",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 2
+  },
+  {
+   "idx": 25,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O4",
+   "prompt": "How does voting combine several weak classifiers?",
+   "rep": 2
+  },
+  {
+   "idx": 26,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O5",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 2
+  },
+  {
+   "idx": 27,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O6",
+   "prompt": "What does a logarithmic axis do to a skewed positive feature?",
+   "rep": 2
+  },
+  {
+   "idx": 28,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O7",
+   "prompt": "How can learning curves show whether more data may help?",
+   "rep": 2
+  },
+  {
+   "idx": 29,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O8",
+   "prompt": "How do bias, variance and noise contribute to expected squared error?",
+   "rep": 2
+  },
+  {
+   "idx": 30,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O9",
+   "prompt": "How do positive and negative residual corrections change an ensemble?",
+   "rep": 2
+  },
+  {
+   "idx": 31,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O10",
+   "prompt": "How do grid search and random search cover a hyperparameter space?",
+   "rep": 2
+  },
+  {
+   "idx": 32,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O11",
+   "prompt": "How can predicted probabilities be checked for calibration?",
+   "rep": 2
+  },
+  {
+   "idx": 33,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O12",
+   "prompt": "How should I read an ACF stem plot?",
+   "rep": 2
+  },
+  {
+   "idx": 34,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O13",
+   "prompt": "Why should feature-selection stability be measured across resamples?",
+   "rep": 2
+  },
+  {
+   "idx": 35,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O14",
+   "prompt": "Explain binary search tree and bst and insertion to me",
+   "rep": 2
+  },
+  {
+   "idx": 36,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O15",
+   "prompt": "Explain folder and directory and file hierarchy to me",
+   "rep": 2
+  },
+  {
+   "idx": 37,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 2
+  },
+  {
+   "idx": 38,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 2
+  },
+  {
+   "idx": 39,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 2
+  },
+  {
+   "idx": 40,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U4",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "rep": 2
+  },
+  {
+   "idx": 41,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U5",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 2
+  },
+  {
+   "idx": 42,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U6",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "rep": 2
+  },
+  {
+   "idx": 43,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U7",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 2
+  },
+  {
+   "idx": 44,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 3
+  },
+  {
+   "idx": 45,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O2",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "rep": 3
+  },
+  {
+   "idx": 46,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O3",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 3
+  },
+  {
+   "idx": 47,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O4",
+   "prompt": "How does voting combine several weak classifiers?",
+   "rep": 3
+  },
+  {
+   "idx": 48,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O5",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 3
+  },
+  {
+   "idx": 49,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O6",
+   "prompt": "What does a logarithmic axis do to a skewed positive feature?",
+   "rep": 3
+  },
+  {
+   "idx": 50,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O7",
+   "prompt": "How can learning curves show whether more data may help?",
+   "rep": 3
+  },
+  {
+   "idx": 51,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O8",
+   "prompt": "How do bias, variance and noise contribute to expected squared error?",
+   "rep": 3
+  },
+  {
+   "idx": 52,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O9",
+   "prompt": "How do positive and negative residual corrections change an ensemble?",
+   "rep": 3
+  },
+  {
+   "idx": 53,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O10",
+   "prompt": "How do grid search and random search cover a hyperparameter space?",
+   "rep": 3
+  },
+  {
+   "idx": 54,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O11",
+   "prompt": "How can predicted probabilities be checked for calibration?",
+   "rep": 3
+  },
+  {
+   "idx": 55,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O12",
+   "prompt": "How should I read an ACF stem plot?",
+   "rep": 3
+  },
+  {
+   "idx": 56,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O13",
+   "prompt": "Why should feature-selection stability be measured across resamples?",
+   "rep": 3
+  },
+  {
+   "idx": 57,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O14",
+   "prompt": "Explain binary search tree and bst and insertion to me",
+   "rep": 3
+  },
+  {
+   "idx": 58,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O15",
+   "prompt": "Explain folder and directory and file hierarchy to me",
+   "rep": 3
+  },
+  {
+   "idx": 59,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 3
+  },
+  {
+   "idx": 60,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 3
+  },
+  {
+   "idx": 61,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 3
+  },
+  {
+   "idx": 62,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U4",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "rep": 3
+  },
+  {
+   "idx": 63,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U5",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 3
+  },
+  {
+   "idx": 64,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U6",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "rep": 3
+  },
+  {
+   "idx": 65,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U7",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 3
+  },
+  {
+   "idx": 66,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C1",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 67,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C2",
+   "prompt": "How does Bayesian optimization decide which setting to try next?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 68,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C3",
+   "prompt": "How does successive halving decide which trials get more training?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 69,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C4",
+   "prompt": "how does attention work in a transformer?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 70,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C5",
+   "prompt": "How do attention scores turn into weights?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 71,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C6",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 72,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C7",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 73,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C8",
+   "prompt": "How does a transformer get a match score between words?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 74,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C9",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 75,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C10",
+   "prompt": "How does a transformer get query, key and value vectors from one token?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 76,
+   "depth": "detailed",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C11",
+   "prompt": "how does cross-validation detect overfitting?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 77,
+   "depth": "detailed",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C12",
+   "prompt": "How do attention scores turn into weights?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 78,
+   "depth": "detailed",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C13",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 79,
+   "depth": "detailed",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C14",
+   "prompt": "Why does a transformer use more than one attention head?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 80,
+   "depth": "detailed",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C15",
+   "prompt": "How does a transformer get a match score between words?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 81,
+   "depth": "detailed",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C16",
+   "prompt": "How does a transformer mix the word values after it has attention weights?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 82,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C17",
+   "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 83,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C18",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 84,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C19",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 85,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C20",
+   "prompt": "How does a transformer turn scores into a guess for the next word?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 86,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C21",
+   "prompt": "How does next-token training compare a probability vector with a one-hot target?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 87,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C22",
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 88,
+   "depth": "brief",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C23",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 89,
+   "depth": "brief",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C24",
+   "prompt": "Show a box plot of exam scores 52, 55, 61, 64, 67, 70, 72, 75, 78, 98 and explain which score is an outlier.",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 90,
+   "depth": "brief",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C25",
+   "prompt": "How do I read a box plot of delivery times 12, 15, 17, 18, 20, 22, 24, 25, 60 minutes?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 91,
+   "depth": "brief",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C26",
+   "prompt": "Explain quartiles, the median and whiskers on a box plot of salaries 30, 32, 35, 38, 40, 45, 48, 52, 150 (in thousands).",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 92,
+   "depth": "brief",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C27",
+   "prompt": "What does the 1.5 x IQR rule do to a box plot of response times 80, 85, 90, 92, 95, 99, 104, 110, 300 ms?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 93,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C28",
+   "prompt": "How can I compare encoder self-attention heatmaps from different heads?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 94,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "r3pre",
+   "tag": "C29",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 1,
+   "arms": [
+    "after"
+   ]
+  }
+ ]
+}
