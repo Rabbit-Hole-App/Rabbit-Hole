@@ -579,7 +579,8 @@ function wordsToNumber(whole, tens, unit, single, decimals) {
   return decimals ? `${value}.${decimals.trim().split(/\s+/).map(w => WORD_VALUES[w.toLowerCase()]).join('')}` : String(value);
 }
 const NOT_OPERAND = /^\s*(?:[+×*/^÷]|-\s*\d|x\s*\d|(?:minus|plus|times|divided|over)\b)|^\w|^\s+(?:values?|numbers?|data|points?|observations?|samples?|items?|elements?|entries|readings?|students?|people|rows|times|more|less|higher|lower|above|below|greater|smaller|larger|bigger|apart|wide|long|away|spread)\b/i;
-const EXPR_RESULT = /^(?:\s*(?:[+×*/÷]|-|x(?=\s*\d))\s*\(?-?\d+(?:\.\d+)?\)?)+\s*=\s*(-?\d+(?:\.\d+)?)/i; // "- 90 = 14", "+ 1.5 × 14 = 125": an expression after the term's first number, and its result
+const BOX_SPAN = /\b(?:the box(?![\s-]*(?:plot|and[\s-]*whisker))|the middle half)\b[^.;:!?\n]{0,60}?\b(?:from|between)\s+(-?\d+(?:\.\d+)?)\s*(?:[a-z%]+\s+)?(?:to|and)\s+(-?\d+(?:\.\d+)?)/gi;
+const EXPR_RESULT =/^(?:\s*(?:[+×*/÷]|-|x(?=\s*\d))\s*\(?-?\d+(?:\.\d+)?\)?)+\s*=\s*(-?\d+(?:\.\d+)?)/i; // "- 90 = 14", "+ 1.5 × 14 = 125": an expression after the term's first number, and its result
 const STAT_KEY = { 'interquartile range': 'iqr', 'first quartile': 'q1', 'lower quartile': 'q1', 'third quartile': 'q3', 'upper quartile': 'q3' };
 const STAT_SAY = [['q1', 'Q1'], ['median', 'median'], ['q3', 'Q3'], ['iqr', 'IQR'], ['lower fence', 'lower fence'], ['upper fence', 'upper fence']];
 // -> [] or ONE message: every wrong statement of the card (at most four named, then "and N more"), then the full drawn set once (per box when the card has several), so the single repair has every
@@ -594,6 +595,12 @@ export function boxTextIssues(boxDiagrams, texts) {
       const said = eq ? eq[1] : m[2], word = m[1].toLowerCase(), key = STAT_KEY[word] ?? word, wrote = Number(said), places = (said.split('.')[1] ?? '').length;
       if (boxes.some(x => Math.abs(x.drawn[key] - wrote) <= 0.5 * 10 ** -places + 1e-9) || seen.has(`${key} ${said}`)) continue;
       seen.add(`${key} ${said}`); wrong.push(`"${m[1]} ${said}"`);
+    }
+    // "the box (spans / covers the middle half of the times,) from A to B" or "between A and B": A and B are Q1 and Q3 of one drawn box, each within half a unit of its own decimals.
+    for (const m of text.matchAll(BOX_SPAN)) {
+      const [a, b] = [m[1], m[2]], half = s => 0.5 * 10 ** -(s.split('.')[1] ?? '').length + 1e-9;
+      if (boxes.some(x => Math.abs(x.drawn.q1 - Number(a)) <= half(a) && Math.abs(x.drawn.q3 - Number(b)) <= half(b)) || seen.has(`box ${a} ${b}`)) continue;
+      seen.add(`box ${a} ${b}`); wrong.push(`"box from ${a} to ${b}"`);
     }
   }
   if (!wrong.length) return [];

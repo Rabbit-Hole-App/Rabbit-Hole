@@ -191,3 +191,25 @@ test('(c) v4-3: number words are read as numbers before the scan (hyphenated, sp
   assert.match(saysResp('The median is twenty four.').problem, /"median 24"/);
   assert.equal(saysResp('The median is one of the values and one box shows it.'), null, 'a lone "one" is a pronoun');
 });
+
+// ---- v4 (4): "the box ... from A to B" ----
+test('(c) v4-4: "the box" / "the middle half" followed by "from A to B" or "between A and B" is compared with Q1 and Q3 of one drawn box (the v3 idx 9 caption)', () => {
+  const delivery = [12, 15, 17, 18, 20, 22, 24, 25, 60]; // Q1 16, median 20, Q3 24.5
+  const says = text => numbersIssue(card('A plain sentence.', box({ values: delivery }, { x: { label: 'Minutes', min: 0, max: 70 }, caption: text })));
+  const bad = says('The box covers the middle half of times, from seventeen to twenty-four minutes, with an outlier at sixty.');
+  assert.match(bad.problem, /"box from 17 to 24" but the box-plot "Scores and the outlier" draws Q1 16, median 20, Q3 24\.5, IQR 8\.5, lower fence 3\.25, upper fence 37\.25/);
+  assert.equal(says('The box covers the middle half of times, from sixteen to twenty-four point five minutes, with an outlier at sixty.'), null);
+  assert.equal(says('The box spans from 16 to 24.5 minutes, with the median at 20 minutes.'), null);
+  assert.equal(says('The middle half of the data lies between 16 and 24.5.'), null);
+  assert.match(says('The middle half of the data lies between 16 and 26.').problem, /"box from 16 to 26"/);
+  assert.equal(says('The whiskers run from 12 to 25, and delivery times range from 12 to 60 minutes.'), null, 'only "the box" and "the middle half" are read');
+  assert.equal(says('The box shows the median and the box edges mark the first quartile at 16.'), null);
+});
+
+test('(c) v4-4: "the box plot shows values from A to B" is the data range, not the box (the v1 idx 10 caption)', () => {
+  const sal = [30, 32, 35, 38, 40, 45, 48, 52, 150];
+  const says = text => numbersIssue(card('A plain sentence.', box({ values: sal }, { x: { label: 'Salary', min: 0, max: 160 }, caption: text })));
+  assert.equal(says('The box plot shows values from 30 to 150 with an outlier.'), null);
+  assert.equal(says('The box-and-whisker plot runs from 30 to 150.'), null);
+  assert.match(says('The box spans from 30 to 150.').problem, /"box from 30 to 150"/);
+});
