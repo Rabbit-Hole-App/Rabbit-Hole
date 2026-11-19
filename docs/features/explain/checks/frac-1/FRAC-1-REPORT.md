@@ -13,3 +13,5 @@ EVIDENCE (real Md in explain mode, headless Chrome, 408 px text column, 14 px Ar
 TESTS: touched module and renderer files 36 pass, 0 fail; full web unit run `node --test "src/**/*.test.mjs"`: 7420 tests, 7392 pass, 0 fail, 27 skipped, 1 todo.
 
 NOT CHECKED: no Vite production build or browser run against the real Inter font and card CSS (Arial approximation); a long inline fraction is wider in a/b form (the sum of the two arguments, not the max) and KaTeX inline math does not wrap, so a very long one can overflow the 408 px column (none of the sampled cards did; the temperature formula, idx 46, was not rendered). Ships as its own small release or with LBL-1 (the Reviewer's order).
+
+POLISH (Reviewer, optional): feat/frac-1 tip 9fe11e26fe06a4fed5919eb02f64fab7d1fa3413 (on 313b7034a): a single \command(...) argument (one function call, no brackets inside) counts as one symbol and gets no extra brackets: the silhouette sentence now prints (b - a)/\max(a, b); compound arguments keep their brackets ((\max(a,b) + 1)/2). Touched tests 36 pass; full web unit run 7420 tests, 7392 pass, 0 fail, 27 skipped. after.png re-rendered.
