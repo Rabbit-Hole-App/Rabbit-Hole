@@ -5,6 +5,7 @@ import { CodeRefs } from './code-refs.js';
 import { colorLine } from './code.jsx';
 import { MathText } from './MathText.jsx';
 import { tokenizeMath } from './math-tokens.js';
+import { slashFractions } from './inline-fractions.js';
 import MermaidDiagram from './MermaidDiagram.jsx';
 import { DIAGRAM_FENCE } from './diagram-fence.js';
 import { ILLUSTRATION_FENCE } from './explanation-lead.js';
@@ -49,7 +50,7 @@ function plain(s, math = [], onFile, sourcePath, has = null) {
     const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
     if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer" data-web-link="">{inline(link[1], math)}</EvidencePill>;
     const token = part.match(/^(\d+)$/);
-    if (token && math[Number(token[1])]) return <MathText key={i} {...math[Number(token[1])]} />;
+    if (token && math[Number(token[1])]) { const m = math[Number(token[1])]; return <MathText key={i} {...m} expression={m.display ? m.expression : slashFractions(m.expression)} />; }
     const reference=onFile&&sourceReference(part,sourcePath);
     if(linkable(reference,has))return <EvidencePill key={i} type="button" data-code-ref={`${reference.path}:${reference.start}-${reference.end}`} aria-label={referenceLabel(reference)} title={referenceLabel(reference)} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
     if (part.startsWith('`') && part.endsWith('`')) {
