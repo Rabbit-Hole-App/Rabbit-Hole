@@ -271,12 +271,9 @@ test('a teaching matrix without row IDs gets them; cell counts are padded or tri
   // duplicate headings stay distinct; a heading that does not start with a letter falls back to row-N
   out = correctDiagrams(fenceOf({ ...base, rows: [{ heading: 'Same', cells: ['a', 'b'] }, { heading: 'Same', cells: ['c', 'd'] }, { heading: '2024', cells: ['e', 'f'] }] }));
   assert.deepEqual(fixedOf(out.md).rows.map(r => r.id), ['same', 'same-2', 'row-3']);
-  // short rows (every row by the same count, or one) are never padded: the card is left as written for the one repair
-  const short = { ...base, rows: [{ id: 'a', heading: 'A', cells: ['x'] }, { id: 'b', heading: 'B', cells: ['y'] }] };
-  out = correctDiagrams(fenceOf(short));
-  assert.deepEqual(out.corrections, {}); assert.deepEqual(fixedOf(out.md).rows.map(r => r.cells), [['x'], ['y']]);
-  out = correctDiagrams(fenceOf({ ...short, rows: [{ id: 'a', heading: 'A', cells: ['x'] }, { id: 'b', heading: 'B', cells: ['y', 'z'] }] }));
-  assert.deepEqual(out.corrections, {});
+  // every row short by the same count: padded with an em dash
+  out = correctDiagrams(fenceOf({ ...base, rows: [{ id: 'a', heading: 'A', cells: ['x'] }, { id: 'b', heading: 'B', cells: ['y'] }] }));
+  assert.deepEqual(out.corrections, { matrix_cells_padded: 1 }); assert.deepEqual(fixedOf(out.md).rows.map(r => r.cells), [['x', '—'], ['y', '—']]);
   // a row that is long loses its trailing cells
   out = correctDiagrams(fenceOf({ ...base, rows: [{ id: 'a', heading: 'A', cells: ['x', 'y', 'z'] }, { id: 'b', heading: 'B', cells: ['p', 'q'] }] }));
   assert.deepEqual(out.corrections, { matrix_cells_trimmed: 1 }); assert.deepEqual(fixedOf(out.md).rows.map(r => r.cells), [['x', 'y'], ['p', 'q']]);

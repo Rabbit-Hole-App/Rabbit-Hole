@@ -232,7 +232,7 @@ function checkBars(d, issue) {
 
 export function validate(diagram, issue) {
   if (diagram.kind === 'coordinate-plot') { checkDerived(diagram, issue); checkPlot(diagram, issue); } // VAR-1: `derive` annotations (derived.js)
-  else if (diagram.kind === 'bar-chart') { checkDerived(diagram, issue); checkBars(diagram, issue); } // NUM-3c: a grouped score/probability pair that says softmax (derived.js)
+  else if (diagram.kind === 'bar-chart') checkBars(diagram, issue);
 }
 
 export const axisName = axis => {

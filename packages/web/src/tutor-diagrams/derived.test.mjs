@@ -14,7 +14,7 @@ const arithmetic = list => list.filter(i => i.code === 'arithmetic');
 
 // ---- the table ----
 test('the table is closed: one row per definition, each with a kind, a path, inputs, a tolerance and a compute', () => {
-  assert.deepEqual(DERIVED_ROWS.map(row => row.kind), ['box-plot', 'transformation', 'token-links', 'histogram', 'heatmap', 'sample-set', 'coordinate-plot', 'bar-chart']);
+  assert.deepEqual(DERIVED_ROWS.map(row => row.kind), ['box-plot', 'transformation', 'token-links', 'histogram', 'heatmap', 'sample-set', 'coordinate-plot']);
   for (const row of DERIVED_ROWS) {
     assert.equal(typeof row.path, 'string'); assert.ok(row.inputs.length); assert.equal(typeof row.tolerance, 'string'); assert.equal(typeof row.compute, 'function');
   }

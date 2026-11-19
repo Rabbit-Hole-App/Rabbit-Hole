@@ -832,8 +832,8 @@ function correctedTimeline(raw) {
   return spec ? { spec, kinds: ['timeline_plain'] } : null;
 }
 // Owner 2026-11-08 (arm E v2: the precision-recall matrix needed a repair at all three depths): a matrix the author wrote with the teaching layout but no row IDs gets
-// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); a row with more cells than columns loses its trailing cells; a row with fewer
-// is left for the one repair (a pad would be a column of dashes, which MAT-E rejects). Kept only when the
+// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); rows with fewer cells than columns, every row short by the same count, are padded
+// with an em dash; a row with more cells than columns loses its trailing cells; rows that disagree with each other are left for the one repair. Kept only when the
 // whole diagram then parses. -> { spec, kinds } or null.
 // Owner 2026-11-09 (figure-chapters 02, demo card 03, the 118 3x): a matrix or heatmap whose columns are objects instead of strings, or a matrix whose rows carry ids without the teaching layout,
 // fails validation for a reason the server can read. Only the fields the parser names are touched, and the result applies only if the whole diagram then validates (else the repair gets the original).
@@ -892,8 +892,10 @@ function correctedMatrix(raw) {
   if (d?.kind !== 'matrix' || !Array.isArray(d.columns) || !Array.isArray(d.rows) || !d.rows.length || !d.rows.every(r => r && typeof r === 'object' && Array.isArray(r.cells))) return null;
   const kinds = [], width = d.columns.length, diffs = d.rows.map(r => width - r.cells.length);
   if (diffs.some(x => x !== 0)) {
-    if (diffs.some(x => x > 0)) return null; // a short row is the repair's
-    d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed');
+    const short = diffs.filter(x => x > 0), long = diffs.filter(x => x < 0);
+    if (short.length && long.length) return null; // rows disagree with each other: the repair's
+    if (short.length) { if (short.length !== diffs.length || new Set(short).size !== 1) return null; d.rows.forEach(r => { while (r.cells.length < width) r.cells.push('—'); }); kinds.push('matrix_cells_padded'); }
+    else { d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed'); }
   }
   if (d.layout === 'teaching' && d.rows.some(r => !r.id || typeof r.id !== 'string') || (d.layout === 'teaching' && new Set(d.rows.map(r => r.id)).size !== d.rows.length)) {
     const used = new Set();

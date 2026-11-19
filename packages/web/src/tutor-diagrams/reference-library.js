@@ -52,15 +52,6 @@ import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 import { mleStepsReference } from './ml-mle-steps-reference.js';
 import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
-import { references as gen1Waterfall } from './gen-1-waterfall-references.js';
-import { references as gen1TAccount } from './gen-1-t-account-references.js';
-import { references as gen1BoxPlot } from './gen-1-box-plot-references.js';
-import { references as gen1NumberLine } from './gen-1-number-line-references.js';
-import { references as gen1Tensor } from './gen-1-tensor-references.js';
-import { references as gen1Layers } from './gen-1-layers-references.js';
-import { references as gen1Transformation } from './gen-1-transformation-references.js';
-import { references as gen1Figure } from './gen-1-figure-references.js';
-import { references as gen1Argument } from './gen-1-argument-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -110,15 +101,6 @@ export const diagramReferences = Object.freeze([
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...estimationEvaluationReferences,
   samplingTopKReference,
-  ...gen1Waterfall,
-  ...gen1TAccount,
-  ...gen1BoxPlot,
-  ...gen1NumberLine,
-  ...gen1Tensor,
-  ...gen1Layers,
-  ...gen1Transformation,
-  ...gen1Figure,
-  ...gen1Argument,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];

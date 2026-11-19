@@ -133,18 +133,6 @@ test('the single repair: invalid then valid keeps the diagram; two bad fences dr
   assert.deepEqual([fits.out.outcome, fits.out.diagramsDropped], ['ok', 1]);
 });
 
-// MAT-E: a matrix whose every row is short by the same count is no longer padded with dashes (that column is rejected); it reaches the one repair, and the repaired matrix is delivered as written.
-test('a matrix with every row short by the same count is not corrected: it goes to the one repair, never delivered with a padded column of dashes', async () => {
-  const matrix = rows => fence({ version: 1, diagram: { kind: 'matrix', title: 'Class balance', columns: ['Class', 'Count', 'Share'], rows } });
-  const prose = body => ({ title: 'T', body: 'Compare the Count and Share of each Class.\n\n' + body + '\n\nLegit is the Class with the larger Share.' });
-  const short = prose(matrix([{ heading: 'Legit', cells: ['999', '99.9%'] }, { heading: 'Fraud', cells: ['1', '0.1%'] }]));
-  const whole = prose(matrix([{ heading: 'Legit', cells: ['Majority', '999', '99.9%'] }, { heading: 'Fraud', cells: ['Rare', '1', '0.1%'] }]));
-  const m = scripted(['make_explanation', short], ['make_explanation', whole]);
-  const out = await generateArtifact({}, { command: 'explanation', args: 'x', depth: 'balanced' }, { callModel: m.callModel });
-  assert.deepEqual([out.result, out.repaired, m.seen.length, out.block.body, out.block.diagramCorrections], ['artifact', true, 2, whole.body, undefined]);
-  assert.ok(!/—/.test(out.block.body), 'no padded dash column');
-});
-
 test('a NEW Mermaid fence is the superseded format: refused under every info string, at both entry points (the card still draws saved ones)', async () => {
   for (const info of ['mermaid', 'mermaid extra', 'Mermaid', 'MERMAID', 'mermaid   ', ' mermaid', 'mermaid {theme: dark}']) {
     const body = '```' + info + '\nflowchart TD\n  A["Go"] --> B["Stop"]\n```';

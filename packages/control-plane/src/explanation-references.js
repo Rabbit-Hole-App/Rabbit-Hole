@@ -84,7 +84,7 @@ function referenceVariants(ref, required) {
 
 // VAR-1 step 3: a reference with `vary`, on a request with a seed, is sampled before it is parsed, so the spec the author copies carries this request's inputs. A seedless request, or a reference
 // without `vary`, is unchanged. A failed draw never fails a request: the reference goes out as written and one log line says why.
-export const sampledSpec = (ref, seed) => {
+const sampledSpec = (ref, seed) => {
   try { return seed && ref.vary ? varySpec(ref.spec, ref.vary, seed, ref.id) : resolveTokens(ref.spec); }
   catch (error) {
     console.log(JSON.stringify({ event: 'explanation_vary_failed', reference: ref.id, error: String(error.message).slice(0, 200) }));
@@ -98,7 +98,7 @@ const DEPTH_KEYS = { brief: 'overview', balanced: 'standard', detailed: 'deep' }
 export const selectDiagramReferences = options => selectWithSteer(options).references;
 // Owner 2026-11-09 (release 118): the planner's kind must not beat a selected worked example. The best TOPICAL reference (never a shape-* or general-* example) by its direct score, read BEFORE the
 // plannedKinds filter and before any shape fallback or kind bonus, qualifies at an exact documented prompt (+50), a short-topic hit (+40) or direct >= TOPICAL_STEER_MIN (12: one long phrase, or two
-// short learner phrases). It is then kept whole whatever the planner's kind (and goes first), and its kind comes back as steer { kind, source: 'reference', id, referenceKind, score, exact (the prompt is one of its documented prompts verbatim; GEN-1 G4) }; a
+// short learner phrases). It is then kept whole whatever the planner's kind (and goes first), and its kind comes back as steer { kind, source: 'reference', id, referenceKind, score }; a
 // two-panel reference is read through its single-diagram variant (preferSingleVariants), so its kind is that variant's. A learner-named kind (requiredKinds) is never steered: null.
 export const TOPICAL_STEER_MIN = 12;
 export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard', excludeReferencePrefixes = [], seed = null, from = referenceLibrary().diagramReferences } = {}) {
@@ -137,7 +137,7 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
     chars += length;
     if (picked.length === MAX_REFERENCES) break;
   }
-  const steer = topical && picked[0]?.id === topical.ref.id ? { kind: (singleByPanel.get(topical.ref.id) ?? topical.ref).spec.diagram.kind, source: 'reference', id: topical.ref.id, referenceKind: topical.ref.spec.diagram.kind, score: topical.score, exact: topical.ref.prompts.some(prompt => normalized(prompt) === query) } : null;
+  const steer = topical && picked[0]?.id === topical.ref.id ? { kind: (singleByPanel.get(topical.ref.id) ?? topical.ref).spec.diagram.kind, source: 'reference', id: topical.ref.id, referenceKind: topical.ref.spec.diagram.kind, score: topical.score } : null;
   // Release 129 (reviewer 2026-11-13): a steered request sends its steered reference alone (the planner's shape example comes with it in learn-artifact.js), never a second worked reference.
   const sent = steer ? picked.slice(0, 1) : picked;
   return { references: sent.length || !shapeFallback ? sent : shapeExamples(prompt, required), steer };
@@ -170,13 +170,11 @@ export function selectForAuthor({ prompt, context = '', depth, plan = null, aske
 }
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).
-export const REFERENCE_MARK = '\n# Examples\n'; // GEN-1 G2: the block's first line only, so the seeded examples may carry another second line (the old mark 'Approved diagram references' stays a prefix of today's heading)
-// GEN-1 G2 (R2, wording for the Reviewer to approve): the heading of the seeded examples (GEN-1 G1), starting text from the spec; `# Examples` stays the first line. No number wording here (owner N1): the inputs sentence goes after the number rule (agents/learn-artifact.js INPUTS_RULE).
-export const SEEDED_EXAMPLES_HEADING = '\n# Examples\nDiagram examples on other subjects. They show what a good diagram of this kind looks like: several concrete items, real values, short labels. Do not reuse their subject, labels or values. Build this card\'s diagram from the concrete things in the learner\'s question and its context (the names, sizes and values given there); where none are given, choose a small concrete example of your own. Do not exceed this card\'s visual count.\n';
+export const REFERENCE_MARK = '\n# Examples\nApproved diagram references';
 export function diagramReferenceContext(references) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+  const heading = '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';

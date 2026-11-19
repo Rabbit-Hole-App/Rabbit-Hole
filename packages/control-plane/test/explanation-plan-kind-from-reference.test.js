@@ -109,15 +109,6 @@ test('selectWithSteer: a qualifying topical reference is kept whole and first wh
   assert.equal(selectWithSteer({ prompt: 'what does gini on both sides mean here', shapeFallback: false }).steer, null);
 });
 
-test('GEN-1 G4: the steer says whether the prompt is one of the documented prompts of the reference verbatim (exact), and nothing else about the steer moves', () => {
-  const [, prompt, , refId] = DEMOS[0];
-  const exact = selectWithSteer({ prompt, shapeFallback: false }).steer;
-  assert.deepEqual([exact.id, exact.exact], [refId, true]);
-  const short = selectWithSteer({ prompt: 'insert into a BST', shapeFallback: false }).steer;
-  assert.deepEqual([short?.id, short?.exact], ['tree-bst-insertion', false], 'a short-topic hit still steers, but is not exact');
-  assert.deepEqual(Object.keys(exact), ['kind', 'source', 'id', 'referenceKind', 'score', 'exact']);
-});
-
 test('demo 11: the planner (flow) and the reference (ml-trees-majority-vote, flow) agree: the steer fires and is a no-op (no override, no event)', t => {
   const events = capture(t), [, prompt, plannerKind, refId, refKind] = DEMOS[1], input = request(prompt, planFromAnswers(answers(plannerKind)));
   const { steer } = selectWithSteer({ prompt, plannedKinds: [plannerKind], shapeFallback: false });
