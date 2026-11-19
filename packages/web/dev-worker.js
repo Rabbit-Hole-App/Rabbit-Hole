@@ -100,6 +100,7 @@ import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 import { isEmbed } from '../control-plane/src/learn-shared-ask.js';
 import { EMBED_SHELL, withFraming } from '../control-plane/src/framing-headers.js';
+import { referenceLibraryReady } from '../control-plane/src/reference-library-lazy.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
 
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
@@ -120,6 +121,8 @@ export default {
 };
 
 async function respond(req, env, ctx) {
+  // START-3: the diagram reference library is built on the first API request of an isolate, not when the worker starts (reference-library-lazy.js).
+  if (new URL(req.url).pathname.startsWith('/api/')) await referenceLibraryReady();
   env = withTrace(req, guardControlPlane(env));
   // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
   // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
