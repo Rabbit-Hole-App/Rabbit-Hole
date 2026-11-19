@@ -21,15 +21,6 @@ const shownLength = value => {
   const { source, math } = tokenizeMath(value);
   return source.replace(/\n?\u{E000}(\d+)\u{E001}\n?/gu, (_, index) => math[index].expression.replace(/\\[A-Za-z]+/g, '#').replace(/[{}\s]/g, '')).length;
 };
-const directions = ['up', 'down', 'left', 'right'];
-const figureAnchors = {
-  cell: ['membrane', 'nucleus', 'cytoplasm', 'mitochondrion'],
-  'free-body': ['body', ...directions],
-  'cross-section': ['top-layer', 'core', 'bottom-layer', 'interface'],
-};
-// START-2: the zod schemas below are built on first use (parseTutorDiagram, or the author JSON schema), not when the module is imported: the worker paid about 45 ms for them at every start.
-const domains = [statistical, plot, topology, data, composition];
-function buildShape() {
 const text = max => z.string().min(1).max(2 * max)
   .refine(value => value.trim().length > 0 && !invalidXmlText.test(value), 'Use nonblank, single-line diagram text')
   .refine(value => shownLength(value) <= max, `Use at most ${max} characters`);
@@ -47,6 +38,12 @@ const tensorItem = z.strictObject({ label: text(70).optional(), tensor: tensorPa
 const itemList = z.strictObject({ label: text(40), items: z.array(z.union([text(70), tensorItem])).min(1).max(5) });
 const evidence = z.strictObject({ label: text(100), source: text(65).optional() });
 const entry = z.strictObject({ label: text(60), amount: numeric });
+const directions = ['up', 'down', 'left', 'right'];
+const figureAnchors = {
+  cell: ['membrane', 'nucleus', 'cytoplasm', 'mitochondrion'],
+  'free-body': ['body', ...directions],
+  'cross-section': ['top-layer', 'core', 'bottom-layer', 'interface'],
+};
 
 
 const baseDiagramShapes = [
@@ -132,6 +129,7 @@ const baseDiagramShapes = [
 
 ];
 const helpers = { z, titled, text, id, numeric, unit, axes, node, itemList, tensorNode, tensorPayload, flowPath: flowPathShape({ z, id }) };
+const domains = [statistical, plot, topology, data, composition];
 const shapeMap = new Map(baseDiagramShapes.map(schema => [schema.shape.kind.value, schema]));
 for (const domain of domains.slice(0, -1)) {
   for (const schema of domain.createShapes(helpers)) shapeMap.set(schema.shape.kind.value, schema);
@@ -148,8 +146,6 @@ for (const schema of composition.createShapes({ ...helpers, leafDiagram, panelDi
 for (const schema of [createTensorShape(helpers), tokenLinks, blockStack]) shapeMap.set(schema.shape.kind.value, schema);
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
-return shape;
-}
 
 export function childDiagrams(diagram) {
   if ((diagram.kind === 'comparison' && diagram.variant === 'panels') || diagram.kind === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
@@ -370,9 +366,7 @@ function validateDiagram(diagram, issue) {
     validateDiagram(child.diagram, at);
   }
 }
-function buildSchemas() {
-const shape = buildShape();
-const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
+export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
   if (diagram.title === undefined) ctx.addIssue({ code: 'custom', path: ['diagram', 'title'], message: 'A diagram needs a title' });
   validateDiagram(diagram, (path, message, params) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message, ...(params && { params }) }));
 });
@@ -383,7 +377,7 @@ const { $schema, ...jsonSchema } = z.toJSONSchema(shape, { target: 'draft-7', io
 // A flow node's title is written by the server only (a trimmed label's full text), so the author is never asked for it.
 const flowNode = (jsonSchema.properties.diagram.oneOf ?? jsonSchema.properties.diagram.anyOf).find(s => s.properties.kind.const === 'flow').properties.nodes.items;
 delete flowNode.properties.title;
-
+export const tutorDiagramJsonSchema = jsonSchema;
 
 // What a model author is asked for. The parser accepts `panels` and a stacked bar's `total`, the renderer draws them, but they stay out of the author's
 // schema until a deliberate step adds them (tier 2): this copy omits the panels kind and the total field, so the author sees the kinds it saw before.
@@ -395,23 +389,9 @@ authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properti
   if (node.properties?.kind?.const === 'bar-chart') delete node.properties.total;
   Object.values(node).forEach(dropTotal);
 })(authorOnlyFree);
-return { tutorDiagramSchema, jsonSchema, authorJsonSchema: authorOnlyFree };
-}
+export const tutorDiagramAuthorJsonSchema = authorOnlyFree;
 
 // A parsed diagram with EVERY derived value on it, silent ones too (derived.js): what a prose token reads and what the reference lint compares against. Not for drawing.
-let built;
-const schemas = () => (built ??= buildSchemas());
-// shortcut: a read-only view (get, has, keys) that forwards to the built object; structuredClone of the view itself is not supported (use authorJsonSchema() for a value to clone), upgrade if a caller needs it.
-const lazy = pick => new Proxy({}, {
-  get: (_, key) => { const target = pick(schemas()), value = target[key]; return typeof value === 'function' ? value.bind(target) : value; },
-  has: (_, key) => key in pick(schemas()),
-  ownKeys: () => Reflect.ownKeys(pick(schemas())),
-  getOwnPropertyDescriptor: (_, key) => { const d = Reflect.getOwnPropertyDescriptor(pick(schemas()), key); return d && { ...d, configurable: true }; },
-});
-export const tutorDiagramSchema = lazy(all => all.tutorDiagramSchema);
-export const tutorDiagramJsonSchema = lazy(all => all.jsonSchema);
-export const tutorDiagramAuthorJsonSchema = lazy(all => all.authorJsonSchema);
-export const authorJsonSchema = () => schemas().authorJsonSchema;
 export function fillAllDerived(diagram) {
   fillDerived(diagram, { all: true });
   for (const child of childDiagrams(diagram)) fillAllDerived(child.diagram);
@@ -427,7 +407,7 @@ export function parseTutorDiagram(value) {
   if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
   // An absent derived field is computed here, before any layout reads the diagram (derived.js); a child diagram inside panels or a visual transformation too.
   const fill = diagram => { fillDerived(diagram); for (const child of childDiagrams(diagram)) fill(child.diagram); return diagram; };
-  const parsed = schemas().tutorDiagramSchema.parse(value);
+  const parsed = tutorDiagramSchema.parse(value);
   fill(parsed.diagram);
   return parsed;
 }
