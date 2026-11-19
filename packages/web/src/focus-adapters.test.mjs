@@ -5,8 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FOCUS_BAR, syncFocus, workspaceFrame } from './focus-adapters.js';
 import { focusAdapters, focusReducer, isFocusEligible, registerFocusAdapter, shouldExitOnEscape } from './focus-controller.js';
-import { actionsFor, runAction } from './canvas-actions.js';
-import { can } from './canvas-permissions.js';
 
 const calls = [];
 const fake = registerFocusAdapter({
@@ -81,23 +79,12 @@ test('syncFocus: the focused card scroll is never put back; a card with no host 
   assert.deepEqual(calls, [['enter', 'a', 900, 0.5], ['exit', 'a']]);
 });
 
-test('the right-click Focus row: only where an adapter claims the object, for a viewer too, running the one focus command', () => {
-  const ran = [];
-  const ctx = role => ({
-    readOnly: role === 'viewer', can: capability => can(capability, { role, shared: role !== 'owner' }), locked: () => false, lockable: () => false,
-    groupOf: () => null, familyOf: () => 'block', commands: {},
-    canvas: { focusable: object => isFocusEligible(object), focus: id => ran.push(id), select: () => {} },
-  });
-  const card = object => ({ kind: 'card', family: 'block', type: object.type, id: object.id, object, ids: [object.id], objects: [object], part: null, group: null });
-  const claimed = card({ id: 'f1', type: 'fake-test' }), other = card({ id: 'h1', type: 'heading' });
-  for (const role of ['owner', 'viewer']) {
-    const row = actionsFor(claimed, ctx(role)).find(entry => entry.id === 'card.focus');
-    assert.ok(row && !row.disabled && row.label === 'Focus' && row.attrs['data-menu-focus'] === '', `${role}: Focus offered`);
-    assert.equal(actionsFor(other, ctx(role)).some(entry => entry.id === 'card.focus'), false, `${role}: no Focus where no adapter claims it`);
-  }
-  assert.equal(runAction('card.focus', claimed, ctx('viewer')).ran, true);
-  assert.deepEqual(ran, ['f1']);
-  assert.equal(isFocusEligible({ id: 'x', type: 'fake-test' }), true);
+test('no way in to Focus from a card: no right-click row, no pill button (owner 2026-11-18 16:13)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const types = readFileSync(new URL('./canvas-actions-types.js', import.meta.url), 'utf8'), bar = readFileSync(new URL('./SelectionActions.jsx', import.meta.url), 'utf8'), canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(types, /card\.focus|data-menu-focus/);
+  assert.doesNotMatch(bar, /data-focus-button|onFocus/);
+  assert.match(canvas, /<SelectionActionsProvider [^>]*hidden=\{!!inline \|\| presenting !== null \|\| !!focus\}/, 'no selection pill while focused (Study)');
 });
 
 test('Escape: an unclaimed press while focused exits and restores; typing in a field, or nothing focused, does nothing', () => {
@@ -135,12 +122,8 @@ test('CAD, wheel and pill: the seam keeps a focused card usable', async () => {
 // fast-e2e 40083477849: the Focus button made the selected card's row 38 px tall (h-8 in a 28 px row), so on a first-row card
 // the row's centre rose under the floating header's buttons (panel-header, focus-adapters step 2), and its visible "Focus" text
 // changed what the card reads (dive). And Study's Locate ran before the exit's restore, which then undid its camera.
-test('the Focus button keeps the row 34 px and adds no words; exitFocus restores at once', async () => {
+test('exitFocus restores at once', async () => {
   const { readFileSync } = await import('node:fs');
-  const bar = readFileSync(new URL('./SelectionActions.jsx', import.meta.url), 'utf8');
-  const button = bar.match(/\{ctx\.focusLabel && <button[^]*?<\/button>\}/)?.[0] || '';
-  assert.match(button, /className="relative -my-0\.5 flex h-8 w-8 /, '32 px visual, a 28 px margin box like the other actions');
-  assert.match(button, /<Maximize size=\{16\} strokeWidth=\{1\.8\} aria-hidden="true" \/>\r?\n\s+<\/button>/, 'icon only: the name is the aria-label');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /exitFocus: \(\) => \{ focusShown\.current = syncFocus\(focusShown\.current, null, \{[^}]*restore: saved => commandsRef\.current\.restoreNavigation\(saved\) \}\); dispatchFocus\(\{ type: 'exit' \}\); \}/);
 });

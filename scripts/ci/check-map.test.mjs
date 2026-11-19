@@ -155,7 +155,7 @@ test('every mapped row names a Linux check or a CI-run unit test, or is a record
 const AREAS = {
   whiteboard: [['packages/control-plane/src/whiteboard-job.js', 'whiteboard-mvp-check.mjs'], ['packages/web/src/WhiteboardVideoCard.jsx', 'whiteboard-mvp-check.mjs']],
   animation: [['packages/control-plane/src/animation-job.js', 'animation-mvp-check.mjs'], ['packages/web/src/Animation3DCard.jsx', 'animation-mvp-check.mjs']],
-  cad: [['packages/control-plane/src/cad-jobs.js', 'focus-cad-check.mjs'], ['packages/web/src/CadCard.jsx', 'focus-cad-check.mjs']],
+  // cad: its own Linux check was focus-cad-check, which went with the Focus controls (owner 2026-11-18 16:13); its other checks are windows-only.
   motion: [['packages/control-plane/src/motion-provider.js', 'motion-command-check.mjs'], ['packages/control-plane/src/learn-video.js', 'motion-command-check.mjs']],
   explain: [['packages/control-plane/src/explain-job.js', 'explain-program-check.mjs'], ['packages/web/src/ExplainBackPanel.jsx', 'explain-back-layout-check.mjs']],
   'chat and proposals': [['packages/control-plane/src/chat-proposal-route.js', 'explain-proposal-card-check.mjs'], ['packages/web/src/ChatPane.jsx', 'chat-generation-check.mjs']],

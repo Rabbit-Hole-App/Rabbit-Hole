@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, Maximize, MessageSquarePlus, Wand } from 'lucide-react';
+import { Check, MessageSquarePlus, Wand } from 'lucide-react';
 import { PromptControl } from './CardPrompt.jsx';
 import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
 import { ariaKey } from './shortcuts.js';
@@ -18,19 +18,17 @@ import { placeBar, usesHost } from './selection-bar-place.js';
 // away while a host shows, while the editor is open, during a drag, resize or marquee, and while text is being typed.
 // On a narrow view (a phone) hosts are not used: an object's row can run off the edge with the object, so the floating bar, kept inside
 // the view and below the selection, is the one bar. Both are the same Actions element, so a press never moves the focus or the selection.
-// Focus (docs/features/focus-study.md) leads the row when an adapter claims the one selected object (focusLabel: the adapter's
-// label, its accessible name); onFocus is the canvas's enterFocus. A view-only board shows it too: Focus changes nothing saved.
-// An Explanation card shows no Focus here (its Focus is in the card's context menu). Cards no longer collapse or expand (owner 2026-11-17): no such button.
+// No Focus control (owner 2026-11-18 16:13: no way in to Focus from a card). Cards no longer collapse or expand (owner 2026-11-17): no such button.
 const Ctx = createContext(null);
 
 // added: the one selected object's ref is already in this chat (pdf-materials-refinement.md section 6), so Add to chat reads
 // Added to chat; pressing it again opens the chat and attaches nothing twice.
-export function SelectionActionsProvider({ sole, hidden = false, narrow = false, pinned = null, cut = null, added = false, focusLabel = null, onFocus = null, onAddToChat, onQuickEdit, promptOf = null, children }) {
+export function SelectionActionsProvider({ sole, hidden = false, narrow = false, pinned = null, cut = null, added = false, onAddToChat, onQuickEdit, promptOf = null, children }) {
   const [hosted, setHosted] = useState(0);
   const busy = useCanvasBusy();
   const register = useCallback(() => { setHosted(count => count + 1); return () => setHosted(count => count - 1); }, []);
   const mac = useMemo(isMac, []);
-  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, pinned, cut, added, focusLabel: onFocus ? focusLabel : null, onFocus, onAddToChat, onQuickEdit, promptOf, mac, hosted, register }), [sole, hidden, busy, narrow, pinned, cut, added, focusLabel, onFocus, onAddToChat, onQuickEdit, promptOf, mac, hosted, register]);
+  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, pinned, cut, added, onAddToChat, onQuickEdit, promptOf, mac, hosted, register }), [sole, hidden, busy, narrow, pinned, cut, added, onAddToChat, onQuickEdit, promptOf, mac, hosted, register]);
   freshest = value; // the newest value, for HoverActions: after it selects a card its own row is gone, and its copy of an action predates the selection
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -58,10 +56,6 @@ function Actions({ ctx, mode, id = null, className = '', style, joined = false }
     <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={barStyle}
       onPointerDown={press}
       className={joined ? 'pointer-events-auto flex w-max items-stretch' : `pointer-events-auto flex h-[34px] w-max items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-md ${barClass}`}>
-      {ctx.focusLabel && <button type="button" aria-label={ctx.focusLabel} title={ctx.focusLabel} onClick={ctx.onFocus} data-focus-button
-        className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
-        <Maximize size={16} strokeWidth={1.8} aria-hidden="true" />
-      </button>}
       {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} joined={joined} data-add-to-chat data-added={ctx.added || undefined} />}
       {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={ctx.onQuickEdit} joined={joined} data-quick-edit />}
       {prompt && <PromptControl text={prompt} action={actionClass(joined)} />}
@@ -78,7 +72,7 @@ export function HoverActions({ id, select, divider = false, joined = false }) {
   // Select this card, let the canvas re-render with it selected, then run the action from the NEWEST context: the action reads the selection, and the copy this row holds was made before it.
   const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => freshest?.[name]?.())); };
   // The very same Actions the selected card's row draws (owner 2026-11-13: hover and click must look and sit the same), with this card's presses.
-  const hoverCtx = { ...ctx, focusLabel: null, onFocus: null, added: false, onAddToChat: ctx.onAddToChat ? () => act('onAddToChat') : null, onQuickEdit: ctx.onQuickEdit ? () => act('onQuickEdit') : null };
+  const hoverCtx = { ...ctx, added: false, onAddToChat: ctx.onAddToChat ? () => act('onAddToChat') : null, onQuickEdit: ctx.onQuickEdit ? () => act('onQuickEdit') : null };
   const actions = <Actions ctx={hoverCtx} mode="host" id={id} joined={joined} />;
   // The rule before it, where other controls of the row come first (as SelectionActionsHost draws it).
   return divider ? <div className={joined ? 'flex items-stretch' : 'flex items-stretch gap-1.5'}><span aria-hidden="true" className={joined ? 'w-px shrink-0 self-stretch bg-line' : 'h-5 w-px shrink-0 self-center bg-line-strong'} />{actions}</div> : actions;
@@ -98,7 +92,7 @@ export function SelectionActionsHost({ id, className = '', style, divider = fals
   return divider ? <div className={joined ? 'flex items-stretch' : 'flex items-stretch gap-1.5'}><span aria-hidden="true" className={joined ? 'w-px shrink-0 self-stretch bg-line' : 'h-5 w-px shrink-0 self-center bg-line-strong'} />{actions}</div> : actions;
 }
 
-const hasActions = ctx => !ctx.hidden && !!(ctx.focusLabel || ctx.onAddToChat || ctx.onQuickEdit);
+const hasActions = ctx => !ctx.hidden && !!(ctx.onAddToChat || ctx.onQuickEdit);
 
 // True while a pointer is down on the canvas (a drag, a resize, a marquee, a pan) and while text is being typed in it.
 function useCanvasBusy() {

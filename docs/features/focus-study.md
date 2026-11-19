@@ -207,10 +207,10 @@ memory only (`focus-controller.js` `readyToReveal`), so a reload, another canvas
 | `wiki` | `WikiCard` > `LearnWiki.jsx` | `[data-scroll]` article | section, highlights, scroll | UNSUPPORTED (not in the brief); reading placement would work, follow-up |
 | `webpage` | `WebpageCard.jsx` | captured tiles scrolled by a CSS transform | scroll, highlights, lock | UNSUPPORTED (not in the brief); its own transform scroll needs checking first |
 | file document kinds (text, Markdown, table, workbook, Word, presentation) | `FileDocCard.jsx` | `[data-scroll]` bodies | slide index, scroll | UNSUPPORTED (not in the brief); reading or fill would work, follow-up |
-| `repo-code`, `snippet` | `CodeCard.jsx`, `SnippetBody` | `pre[data-scroll]` | scroll | **SUPPORTED** "Focus code" (Learn mode, learn-mode-spec.md §5): pane-wide up to `WIDE_MAX` at its own height, scrolling inside when cut to the pane (`focus-adapter-learn.js`) |
+| `repo-code` | `CodeCard.jsx` | `pre[data-scroll]` | scroll | UNSUPPORTED (not in the brief) |
 | `repo-graph` | `GraphCard.jsx` | own graph viewport | pan, zoom, selection | UNSUPPORTED (not in the brief) |
-| `graph`, `plot` (Desmos / Plotly) | `GraphBody` | renderer in a fixed box | sliders, pan, zoom | **SUPPORTED** "Focus graph" (Learn mode): as code; the renderer keeps its own box |
-| `flow`, `mermaid`, `knowledge` | `FlowBody` (React Flow), `MermaidBody`, `KnowledgeBody` (RepositoryGraph) | fixed height, own viewport or `overflow-auto` | pan, zoom, selected node | `flow`, `mermaid`: **SUPPORTED** "Focus diagram" (Learn mode), as code. `knowledge`: UNSUPPORTED. Any other card in Learn mode only: "Focus card", natural size, centred |
+| `graph` (Desmos / Plotly) | `GraphBody` | renderer in a fixed box | sliders, pan, zoom | UNSUPPORTED (not in the brief; third-party renderers need their own resize check) |
+| `flow`, `mermaid`, `knowledge` | `FlowBody` (React Flow), `MermaidBody`, `KnowledgeBody` (RepositoryGraph) | fixed height, own viewport or `overflow-auto` | pan, zoom, selected node | UNSUPPORTED (not in the brief) |
 | `whiteboard` | `WhiteboardBlock.jsx` (tldraw) | fixed height | tldraw camera, drawing | UNSUPPORTED (an embedded canvas inside the canvas; needs its own check) |
 | `quiz`, `flashcards`, `challenge`, `code`, `snippet`, `audio` | `QuizBody`, `FlashcardsBody`, `ChallengeBody`, `CodeBody`, `SnippetBody`, `AudioBody` | `[data-scroll]` or auto height | choice, card side, typed answer, editor draft, audio playback | UNSUPPORTED (not in the brief; short practice cards that already fit) |
 | chat exchanges | `ChatCard` | `[data-scroll]` answer | reply composer | UNSUPPORTED (not a block; not in the brief) |
@@ -277,12 +277,10 @@ the Focus header beside Back to canvas: container Focus and the 3D Fit view stay
 `[data-focus-host]` scrolls the card, Full card layout included (Ctrl/Cmd+wheel still zooms). The selection actions (pill,
 floating bar, Focus button) are all hidden while Focus is active, so no pill sits over the header.
 
-Controls: the Focus button leads the selection actions (`data-focus-button`, Lucide `Maximize` 16 px, 32 px high, 8 px radius,
-8 px before the next action, a 44 x 44 press area, accessible name and tooltip = the adapter's `label`); it shows only when an
-adapter claims the one selected object, on view-only boards too (Add to chat and Quick Edit stay hidden there). The menu row
-`card.focus` ("Focus", `data-menu-focus`, capability `canvas.view`) has the same rule. FocusFrame: `data-focus-frame=<id>`,
-`data-focus-kind`, the title (`objectName`) and "Back to canvas" (`data-focus-back`, Lucide `Minimize`). Browser coverage:
-`packages/web/e2e/focus-chrome-check.mjs` (needs the notebook adapter; CI only).
+Controls: none. The owner removed every way a learner enters Focus from a card (2026-11-18 16:13): the selection pill's Focus button, the
+right-click row `card.focus`, and their checks (`focus-chrome-check.mjs`, `focus-adapters-check.mjs`, `focus-cad-check.mjs`). The machinery stays:
+`enterFocus` on the canvas api (Study's Run, Runbook and Notebook views use it), the adapters, and FocusFrame (`data-focus-frame=<id>`,
+`data-focus-kind`, the title and "Back to canvas", `data-focus-back`).
 
 ## 8. Pinned Study for a codebase canvas (owner decisions 2026-11-15, spec pinned-study-codebase-spec.md v1.1)
 

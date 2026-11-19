@@ -4,11 +4,10 @@
 // Covers: the picture draws from the saved program, Play and Pause, the scrubber, a number control and a choice control, Reset,
 // reload keeping the learner's values, the two fixed error messages with Restart, an old scene card still working, (Task 10.1) a
 // playing card that leaves the view pauses and comes back at the same moment, delete and in-app navigation close its Worker, on the
-// owner's View only shared page a program card saved with no dx/dy (as an /explain job places it) selected by a click, with Focus,
+// owner's View only shared page a program card saved with no dx/dy (as an /explain job places it) selected by a click,
 // and (Task 9.1) an Edit's Proposed program preview: its own player, never saved, Current back, Discard keeping the card. The edit
 // job's ready answer is a route stand-in whose candidate names a fixture program (wiring only; the result-route resolution is unit-tested).
-// Task 10.2 support matrix: Focus after Play, Pause, a scrub, a slider and Notes is placed on the pane (a native reveal had scrolled
-// the clipped surface), and a control taking the keyboard focus under the minimap is revealed clear of it.
+// Task 10.2 support matrix: a control taking the keyboard focus under the minimap is revealed clear of it.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-program-card-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -22,7 +21,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-card-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-card-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 22; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 21; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prog-${run}@example.com`, secret, handle: `prog_${run}` }) })).json();
@@ -291,7 +290,7 @@ try {
     await card('p-nav').locator('[data-program-frame] [data-animation-object^="cell-"]').first().waitFor({ state: 'attached', timeout: 60000 });
     console.log(`measure: in-app navigation to a canvas until its program card's first frame, cold Worker: ${Date.now() - t0} ms (headless Chromium, local stack)`);
   });
-  await check("13b on the owner's View only page a click selects a program card saved with no dx/dy, and Focus opens it; nothing is saved", async () => {
+  await check("13b on the owner's View only page a click selects a program card saved with no dx/dy; nothing is saved", async () => {
     const before = await viewBoard();
     await page.goto(`${BASE}/b/${viewShare.sharing.view}`);
     const placedCard = card('v-placed');
@@ -305,11 +304,6 @@ try {
     for (let i = 0; i < 12; i++) { const { y } = await title(); if (y > 60 && y < height - 200) break; await page.mouse.move(width * 0.35, height - 120); await page.mouse.wheel(0, y >= height - 200 ? 250 : -250); await page.waitForTimeout(250); }
     const at = await title();
     await page.mouse.click(at.x, at.y);
-    await page.locator('[data-focus-button]').waitFor({ timeout: 10000 });
-    await page.locator('[data-focus-button]').click();
-    await page.locator('[data-focus-host][data-block-id="v-placed"]').waitFor({ timeout: 10000 });
-    await shot('F-view-only-focus');
-    await page.locator('[data-focus-back]').first().click();
     await page.waitForTimeout(800);
     assert.equal(await viewBoard(), before, 'the View only page saved nothing');
   });
@@ -355,34 +349,13 @@ try {
     assert.equal(await edit.locator('[data-program-error]').count(), 0);
   });
   // Task 10.2, the support matrix's own sequence at its own size (1440x900, 100%): each control pressed as a learner does (Playwright
-  // scrolls a control into view the way the browser's own reveal does), then Focus from the card's menu.
+  // scrolls a control into view the way the browser's own reveal does), then a control under the minimap.
   const surfaceBox = () => page.locator('[data-canvas-surface]').boundingBox();
   const panBy = async (dx, dy) => { const s = await surfaceBox(); await page.mouse.move(s.x + 8, s.y + s.height - 30); await page.mouse.wheel(dx, dy); await page.waitForTimeout(350); };
-  const bring = async target => { for (let i = 0; i < 6; i++) { const r = await target.boundingBox(), s = await surfaceBox(); const dx = r.x + Math.min(r.width, s.width - 40) / 2 - (s.x + s.width / 2), dy = r.height > s.height - 120 ? r.y - (s.y + 70) : r.y + r.height / 2 - (s.y + s.height / 2); if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; await panBy(dx, dy); } };
-  await check('18 Focus after Play, Pause, a scrub, the slider at its maximum and Notes open is placed whole on the pane', async () => {
+  // 18 (Focus after Play, Pause, a scrub, the slider at its maximum and Notes open) went with the Focus controls (owner 2026-11-18 16:13); its canvas and size stay for 19.
+  await check('19 a card control that takes the keyboard focus under the minimap is revealed clear of it', async () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${BASE}/apps/${focusCanvas.name}`);
-    const growth = card('f-growth');
-    await growth.locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 60000 });
-    await page.waitForTimeout(1500);
-    await bring(growth);
-    const play = growth.locator('[data-animation-play]');
-    await bring(play); await play.click(); await page.waitForTimeout(1500); await play.click(); await page.waitForTimeout(600);
-    await growth.locator('input[aria-label="Explanation time"]').fill('3'); await page.waitForTimeout(900);
-    const rate = growth.locator('input[data-input-control="rate"]'); await rate.fill(await rate.getAttribute('max')); await page.waitForTimeout(900);
-    await growth.locator('[data-program-notes-toggle]').click(); await page.waitForTimeout(900);
-    await bring(growth);
-    await growth.click({ button: 'right', position: { x: 30, y: 10 } });
-    await page.locator('[data-menu-focus]').first().click();
-    await page.locator('[data-focus-host][data-block-id="f-growth"]').waitFor({ timeout: 10000 });
-    await page.waitForTimeout(1200);
-    await shot('G-focus-after-changes');
-    const s = await surfaceBox(), host = await growth.boundingBox(), drawing = await growth.locator('[data-program-frame]').boundingBox();
-    assert.ok(host.x >= s.x - 1 && host.x + host.width <= s.x + s.width + 1, `the focused card on the pane: ${JSON.stringify({ host, surface: s })}`);
-    assert.ok(drawing.x >= s.x - 1, `the drawing's left edge (its axis) on screen: ${JSON.stringify(drawing)}`);
-    await page.locator('[data-focus-back]').first().click(); await page.waitForTimeout(800);
-  });
-  await check('19 a card control that takes the keyboard focus under the minimap is revealed clear of it', async () => {
     const button = card('f-sort').locator('[data-program-action="step"]');
     await button.waitFor({ timeout: 30000 });
     const map = await page.locator('[data-canvas-minimap]').boundingBox();
@@ -400,7 +373,7 @@ try {
     assert.ok(reachable, 'the focused button is not covered by the minimap');
     await page.setViewportSize({ width: 1600, height: 1000 });
   });
-  await check('20 the spectrogram changes heat values, keeps its legend, and restores the chosen window on reload and in Focus', async () => {
+  await check('20 the spectrogram changes heat values, keeps its legend, and restores the chosen window on reload', async () => {
     await page.goto(`${BASE}/apps/${heatCanvas.name}`);
     const heat = card('p-heat');
     const frame = heat.locator('[data-program-frame]');
@@ -423,11 +396,7 @@ try {
     await cells.last().waitFor({ state: 'visible', timeout: 30000 });
     assert.equal(await long.getAttribute('aria-pressed'), 'true');
     assert.equal(await middleFrequency.evaluate(rect => rect.style.fill), longFill);
-    await heat.click({ button: 'right', position: { x: 30, y: 10 } });
-    await page.locator('[data-menu-focus]').first().click();
-    const focused = page.locator('[data-focus-host][data-block-id="p-heat"]');
-    await focused.getByText('Onset 0.40 s', { exact: true }).waitFor({ timeout: 10000 });
-    assert.equal(await focused.locator('[data-animation-object="spectrogram"] rect[style*="color-mix"]').count(), 247);
+    assert.equal(await heat.locator('[data-animation-object="spectrogram"] rect[style*="color-mix"]').count(), 247);
   });
   await check('21 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);

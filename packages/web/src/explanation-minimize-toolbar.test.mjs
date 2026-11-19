@@ -12,9 +12,10 @@ test('the card pill has no Minimize or Expand button, the toolbar has no Minimiz
   const longPill = bar.match(/const bar = \(barClass, barStyle\) => \([^]*?\r?\n  \);/)?.[0] || '';
   assert.ok(longPill.includes('data-add-to-chat') && longPill.includes('data-quick-edit'), 'the pill still holds Add to chat and Quick Edit');
   assert.ok(longPill.indexOf('data-quick-edit') < longPill.indexOf('<PromptControl'), 'Prompt comes after Quick Edit, as the last item');
-  assert.match(bar, /!!\(ctx\.focusLabel || ctx\.onAddToChat || ctx\.onQuickEdit\)/);
+  assert.match(bar, /!!\(ctx\.onAddToChat \|\| ctx\.onQuickEdit\)/);
   assert.doesNotMatch(canvas, /soleMinimize|minimizeCard|onMinimize|minimizable/);
-  assert.match(canvas, /const soleFocus = null;/, 'no card toolbar draws a Focus icon (owner 2026-11-15); Focus stays in the context menu and the keyboard');
+  assert.doesNotMatch(bar, /data-focus-button|focusLabel|Maximize/, 'no Focus button in the pill (owner 2026-11-18 16:13)');
+  assert.doesNotMatch(canvas, /soleFocus|focusSole|focusLabel=/, 'no card toolbar or pill Focus (owner 2026-11-15, 2026-11-18 16:13)');
 });
 
 test('the selected card\'s Open pill reads Enter; its title and name still say what it opens', () => {

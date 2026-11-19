@@ -1718,7 +1718,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, onSuggestSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, onSuggestSignIn = null, roadmap = null, onSkeletonsDropped = null, learnCards = false }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -2087,8 +2087,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
   // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
   // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
-  // Learn mode's Cards tab likewise: the stop's card alone, no Focus header (the tabs are the way back).
-  const cardOnly = (studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state)) || (!!walk && !!focus?.id);
+  const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
   const chromeOff = studyChromeOff({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }); // no zoom controls, no feedback button
   const showWidget = (name, on) => {
     const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
@@ -2251,14 +2250,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // toolbar standing down or coming back while focused (pinned Study notebook, unpin).
   useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown, cardOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
-  useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly, learning: !!walkRef.current })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly, !!walk]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
   const revealing = useRef(new Set());
   useEffect(() => {
     const id = revealing.current.size ? readyToReveal(revealing.current, key => blocksRef.current.find(block => block.id === key)) : null;
     if (id && !focusRef.current) commandsRef.current?.enterFocus(id);
   }, [blocks]);
-  const focusSole = useCallback(() => commandsRef.current?.enterFocus(selectedRef.current[0]), []);
   const commandsRef = useRef(null);
   useEffect(() => {
     commandsRef.current = {
@@ -2680,7 +2678,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // these. enterFocus returns false when no adapter claims the object (nothing happens); the camera and selection are saved
       // first and put back by exitFocus. The card is deselected while focused, so its row and the selection bar stand down.
       enterFocus: id => {
-        const adapter = adapterFor(objectById(id), { view: viewRef.current, readOnly: readOnlyRef.current, learning: !!walkRef.current });
+        const adapter = adapterFor(objectById(id), { view: viewRef.current, readOnly: readOnlyRef.current });
         if (!adapter || !surface.current) return false;
         adoptScroll(); // a surface left scrolled by a native reveal would put the focused card off the pane by that scroll (Task 10.2)
         dispatchFocus({ type: 'enter', id, kind: adapter.kind, saved: commandsRef.current.captureNavigation(), frame: focusWorkspace() });
@@ -6441,9 +6439,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       styleable: ids => ids.length > 0 && ids.every(id => { const found = menuObject(id); return !!found && (found.family === 'link' || found.family === 'shape' || (found.family === 'item' && found.object.kind !== 'section')); }),
       canPaste, canPasteStyle,
       zoomToSelection,
-      // Focus (canvas-actions-types.js card.focus): the same enterFocus as the card toolbar's button; only where an adapter claims it.
-      focus: id => commandsRef.current.enterFocus(id),
-      focusable: object => !!object && object.id !== focusRef.current?.id && !!adapterFor(object, { view: viewRef.current, readOnly }),
       supportsCardLayout: object => !!object && supportsCardLayout(object),
       fullContent: object => object?.cardLayout?.mode === 'full',
       setCardLayout: (id, mode) => setCardLayout(id, mode),
@@ -6594,8 +6589,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
   }), [canAsk, canNote, canQuick, canVisitorAsk]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
-  // The card toolbar draws no Minimize (owner 2026-11-17) and no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard.
-  const soleFocus = null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
   const barCut = id => { if (!permissions?.shared) return false; const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
@@ -6611,7 +6604,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, learnHidden: id => { const block = !readOnly && !localCopy && blocksRef.current.find(entry => entry.id === id); return !!block?.learn?.slot && !block.learn.placed && !block.at; }, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} promptOf={id => blocksRef.current.find(block => block.id === id)?.promptUsed} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} promptOf={id => blocksRef.current.find(block => block.id === id)?.promptUsed} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
@@ -7107,6 +7100,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
+      {/* Learn mode's Cards tab (learn-mode-spec.md section 4, owner 2026-11-18 16:13): the stop's own card component, drawn here at the pane's width over the surface and
+          under the composer, with no Focus. A second instance of the card: edits go through changeBlock like the canvas's; nothing moves or resizes the canvas's copy. */}
+      {learnCards && walk && (() => {
+        const block = blocks.find(entry => entry.id === walk.stops[walk.at]);
+        return block && <div key={block.id} data-learn-card-view={block.id} className="absolute inset-0 z-[25] overflow-y-auto overscroll-contain bg-white px-6 pt-4 pb-40">
+          <LessonBlockCard block={block} zoom={1} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={noop} onConnect={noop} onSnap={noop} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} />
+        </div>;
+      })()}
       {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(min-content,1fr)_minmax(200px,780px)_minmax(min-content,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
         <div className="flex items-end gap-2 md:col-start-1">
         {/* The page's own lower-left control (Learn: the feedback button). */}

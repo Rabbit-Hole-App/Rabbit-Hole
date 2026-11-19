@@ -12,7 +12,6 @@ import './focus-adapter-model.js';
 import './focus-adapter-cad.js';
 import './focus-adapter-run.js';
 import './focus-adapter-doc.js';
-import './focus-adapter-learn.js'; // last: its catch-all (Learn mode only) claims what no adapter above does
 import { exitNavigation, focusAdapters, focusFrame } from './focus-controller.js';
 
 // FocusFrame's header row (44 px) and the gap under it (8 px), taken off the top of the working rectangle.

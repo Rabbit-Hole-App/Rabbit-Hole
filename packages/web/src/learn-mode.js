@@ -18,14 +18,14 @@ export const learnEnter = panel => ({ panelWas: { open: !!panel?.open, tab: pane
 export const learnLeave = held => held?.panelWas ?? null;
 
 // What a tab shows for the current stop:
-//   cards  - the stop's card in Focus (the right panel closed, so the canvas frame is the pane);
-//   canvas - the free canvas, the stop selected and centred at zoom 1, no Focus;
+//   cards  - the stop's own card component drawn in the pane at its width (AdaptiveCanvas learnCards; owner 2026-11-18 16:13: no Focus), the right panel closed;
+//   canvas - the free canvas, the stop selected and centred at zoom 1;
 //   toc, chat - the right panel's own tab, widened to the split (the canvas stays as it was underneath); in Chat the stop is the canvas selection,
 //               which is the chat's selected context (chat-canvas-context.js reads api.selection()).
 export function learnView(tab) {
-  if (tab === 'canvas') return { focus: false, centre: true, select: false, panel: { open: false, tab: null } };
-  if (tab === 'toc' || tab === 'chat') return { focus: null, centre: false, select: tab === 'chat', panel: { open: true, tab } };
-  return { focus: true, centre: false, select: false, panel: { open: false, tab: null } };
+  if (tab === 'canvas') return { cards: false, centre: true, select: false, panel: { open: false, tab: null } };
+  if (tab === 'toc' || tab === 'chat') return { cards: false, centre: false, select: tab === 'chat', panel: { open: true, tab } };
+  return { cards: true, centre: false, select: false, panel: { open: false, tab: null } };
 }
 export const learnTab = tab => (LEARN_TABS.some(entry => entry.id === tab) ? tab : 'cards');
 

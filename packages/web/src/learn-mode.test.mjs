@@ -17,11 +17,11 @@ test('the tabs are Cards, Canvas, TOC and Chat, in that order; anything else rea
   assert.equal(learnTab(undefined), 'cards');
 });
 
-test('a stop in each tab: Cards is Focus with the panel closed, Canvas centres without Focus, TOC and Chat open the panel on that tab', () => {
-  assert.deepEqual(learnView('cards'), { focus: true, centre: false, select: false, panel: { open: false, tab: null } });
-  assert.deepEqual(learnView('canvas'), { focus: false, centre: true, select: false, panel: { open: false, tab: null } });
-  assert.deepEqual(learnView('toc'), { focus: null, centre: false, select: false, panel: { open: true, tab: 'toc' } });
-  assert.deepEqual(learnView('chat'), { focus: null, centre: false, select: true, panel: { open: true, tab: 'chat' } }, 'the stop is the selected context of the chat');
+test('a stop in each tab: Cards draws the card in the pane, Canvas centres it, TOC and Chat open the panel on that tab', () => {
+  assert.deepEqual(learnView('cards'), { cards: true, centre: false, select: false, panel: { open: false, tab: null } });
+  assert.deepEqual(learnView('canvas'), { cards: false, centre: true, select: false, panel: { open: false, tab: null } });
+  assert.deepEqual(learnView('toc'), { cards: false, centre: false, select: false, panel: { open: true, tab: 'toc' } });
+  assert.deepEqual(learnView('chat'), { cards: false, centre: false, select: true, panel: { open: true, tab: 'chat' } }, 'the stop is the selected context of the chat');
 });
 
 test('the Learn side of the pill starts the first section not finished, else the first', () => {
