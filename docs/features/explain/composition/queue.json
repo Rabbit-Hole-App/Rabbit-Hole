@@ -224,8 +224,16 @@
           "references": 1
         }
       ],
-      "approval": "pending corrected-queue and batch id/keyword approval; schema pinned to 1944b48cf",
-      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: transfer-learning (1) into bert."
+      "approval": "Owner authorized the release 164 append-only composition chain on 2026-11-19.",
+      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: transfer-learning (1) into bert.",
+      "verification": {
+        "report": "batches/C04/REPORT.md",
+        "new": 3,
+        "existingUpdated": 4,
+        "snapshotAdded": 9,
+        "snapshotChanged": 0,
+        "snapshotRemoved": 0
+      }
     },
     {
       "id": "C05",

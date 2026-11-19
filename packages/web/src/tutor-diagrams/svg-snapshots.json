@@ -1041,6 +1041,36 @@
       "width": 720,
       "height": 354
     },
+    "ml-bert-summary-token-readout/320": {
+      "sha256": "487c25f44f758051a2d6df9dc04b60a809c369ecf33aaf15ba6a0e901e51c36f",
+      "width": 320,
+      "height": 493
+    },
+    "ml-bert-summary-token-readout/408": {
+      "sha256": "212baa3c7d476f784d9ff2757477b9b83cfd85329c8c24131b45e0a278081c63",
+      "width": 408,
+      "height": 454
+    },
+    "ml-bert-summary-token-readout/720": {
+      "sha256": "66a79d21877803b4683f88340d1083a03caf84ed45095a441860f66ed10e82c6",
+      "width": 720,
+      "height": 437
+    },
+    "ml-bert-supervised-class-pairs/320": {
+      "sha256": "b90e49687091b6361eb657df5c9fc218f521fbd61bd70ea34b5ea09c9f5f1f46",
+      "width": 320,
+      "height": 458
+    },
+    "ml-bert-supervised-class-pairs/408": {
+      "sha256": "25942c16c79a3ae175b178839beff9f8d5349b1b2a0e08bea792cc706983d736",
+      "width": 408,
+      "height": 420
+    },
+    "ml-bert-supervised-class-pairs/720": {
+      "sha256": "c266ed14ae83e2eb64c4d6b3da8b8c5c13cbba14e2258e96a1fd75737d83757b",
+      "width": 720,
+      "height": 309
+    },
     "ml-boosting-correction-transformation/320": {
       "sha256": "7874b8a4938a9a7d70c3eceeddde5b988ee6bd4aab2ec3c00bd5b72e3076bab2",
       "width": 432,
@@ -2375,6 +2405,21 @@
       "sha256": "9e2ae3e54d4083e70e8b33ac06ee3a4a0809d7d86324b7ef2b546f568a033c67",
       "width": 720,
       "height": 727.5
+    },
+    "ml-transfer-learning-modality-feature-classifier/320": {
+      "sha256": "ae9ba08a307b9cbb7e511805f194e3559143d89151bc8bce1ca7ab19ff22989a",
+      "width": 412,
+      "height": 358
+    },
+    "ml-transfer-learning-modality-feature-classifier/408": {
+      "sha256": "ae9ba08a307b9cbb7e511805f194e3559143d89151bc8bce1ca7ab19ff22989a",
+      "width": 412,
+      "height": 358
+    },
+    "ml-transfer-learning-modality-feature-classifier/720": {
+      "sha256": "1c6d28ca561b7d7d9e76c152a9211f41966e79706cdc4bccb03ab4a35c580b74",
+      "width": 720,
+      "height": 281
     },
     "ml-transformer-attention/320": {
       "sha256": "ba69142937b1f70ef4fc9858f5fc8f6509858f95104e22ae6d075803e6c1470f",
