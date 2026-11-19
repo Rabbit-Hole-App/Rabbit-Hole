@@ -17,7 +17,7 @@ import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
-import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm, narrowedKinds } from './explanation-references.js';
+import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm } from './explanation-references.js';
 import { parseModelJson } from './latex-escapes.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
@@ -86,39 +86,31 @@ const withoutDerived = o => {
   if (kind === 'transformation') properties.after = again(properties.after, ['items']);
   return { ...o, properties, ...(REQUIRED_AGAIN[kind] && { required: [...o.required, ...REQUIRED_AGAIN[kind]] }) };
 };
-// derived (GEN-1 G5): a schema a plan narrowed to one or two kinds is small, so Gemini keeps `derive`, `op` and `t` there (and the fields they make optional stay optional); every other bundle is unchanged.
-export const forGemini = (o, keep = new Set(), derived = false) => {
-  if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep, derived));
+export const forGemini = (o, keep = new Set()) => {
+  if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep));
   if (!o || typeof o !== 'object') return o;
-  if (o.properties?.kind?.const === 'transformation') return derived ? listForm(o) : withoutDerived(listForm(o));
+  if (o.properties?.kind?.const === 'transformation') return withoutDerived(listForm(o));
   if (o.properties?.kind?.const === 'comparison') return listForm(o);
-  if (o.properties?.derive && o.properties.kind && !derived) o = withoutDerived(o); // an annotation that carries `derive`
-  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep, derived)]));
+  if (o.properties?.derive && o.properties.kind) o = withoutDerived(o); // an annotation that carries `derive`
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
 };
 
 // The recorded Gemini request accepts up to 362 properties. Scoped
 // illustration bundles fit. If a broader schema exceeds that size, preserve
 // the legacy kinds and explicitly requested illustrations.
-export const GEMINI_PROPERTY_LIMIT = 362;
-export function schemaProperties(schema) {
+const GEMINI_PROPERTY_LIMIT = 362;
+function schemaProperties(schema) {
   if (!schema || typeof schema !== 'object') return 0;
   return Object.keys(schema.properties ?? {}).length + Object.values(schema).reduce((count, child) => count + schemaProperties(child), 0);
 }
-// narrowed: the kinds a plan narrowed the schema to (narrowedKinds), else null. GEN-1 G5: those kinds are all kept for Gemini (a planned box-plot is no longer dropped) and carry
-// derive / op / t; if that schema is ever over the limit it is re-checked here and loses them again before anything else is cut. Every other schema takes today's path unchanged.
-export function geminiRequestSchema(schema, keep, narrowed = null, limit = GEMINI_PROPERTY_LIMIT) {
-  const bare = withoutBounds(schema);
-  if (narrowed) { const withFields = forGemini(bare, keep, true); if (schemaProperties(withFields) <= limit) return withFields; }
-  const reduced = forGemini(bare, keep);
-  if (schemaProperties(reduced) <= limit) return reduced;
+function geminiRequestSchema(schema, keep) {
+  const reduced = forGemini(withoutBounds(schema), keep);
+  if (schemaProperties(reduced) <= GEMINI_PROPERTY_LIMIT) return reduced;
   return bundledAuthorSchema(reduced, {
     quant: true, fresh: true,
     tensor: keep.has('tensor'), tokenLinks: keep.has('token-links'), blockStack: keep.has('block-stack'),
   });
 }
-
-// What Gemini is sent for a request: the learner-named kinds and the kinds a plan narrowed the schema to are kept (GEN-1 G5).
-const geminiSchemaFor = (schema, body) => { const narrowed = narrowedKinds(schema); return geminiRequestSchema(schema, new Set([...requiredKinds(body), ...(narrowed ?? [])]), narrowed); };
 
 // Sampling (owner item 47, 2026-11-08): the author call is greedy, temperature 0, so the same request gives the same card. A fixed seed is sent only where the
 // provider documents it: Fireworks ("Random seed for deterministic sampling", https://docs.fireworks.ai/api-reference/post-chatcompletions) and Cerebras ("make a
@@ -150,7 +142,7 @@ export function stepRequest(step, effort, body, stream = false) {
   const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : step.provider === 'google' ? {} : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
     messages: [{ role: 'system', content: system }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
-    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? geminiSchemaFor(schema, body) : schema } } };
+    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? geminiRequestSchema(schema, requiredKinds(body)) : schema } } };
 }
 
 // OpenAI-shaped reply -> the Anthropic shape generateArtifact and spend settlement read. An unreadable answer is an empty input: the validator names what
@@ -220,8 +212,6 @@ export function stepCall(step, effort, seen = {}, onVisual = null) {
   return async (env, body, _model, org) => {
     if (env.SUBSCRIPTION_ONLY === 'true') throw final('subscription_only', 'Subscription mode runs only the subscription model, so the explanation model was not called.');
     const request = stepRequest(step, effort, body, streaming(env));
-    // GEN-1 G5: a Gemini schema past the recorded limit is detected here (it was sent unchecked before); the log is the only effect.
-    if (step.provider === 'google') { const n = schemaProperties(request.response_format.json_schema.schema); if (n > GEMINI_PROPERTY_LIMIT) console.warn(JSON.stringify({ event: 'explanation_gemini_schema_over_limit', properties: n, limit: GEMINI_PROPERTY_LIMIT })); }
     const id = `${step.provider}_${++calls}`;
     let late = false;
     // The admission bounds and reserves the request actually sent; the transport hands settlement the Anthropic-shaped usage it prices.

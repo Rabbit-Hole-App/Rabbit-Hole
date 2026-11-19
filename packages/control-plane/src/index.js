@@ -9,7 +9,6 @@ import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
 import { CANVAS_UNAVAILABLE, canvasMentions } from './canvas-refs.js';
 import { codeExplainTurn } from './learn-code-explain.js';
-import { referenceLibraryReady } from './reference-library-lazy.js';
 import { chatContext, chatFields, chatSystem, codebaseUseId, docIds, logTutorCall, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, tutorRecord, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
 import { progressQuestionContext } from './learn-progress-context.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
@@ -2545,7 +2544,6 @@ export default {
     const url = new URL(req.url);
     const baseUrl = `${url.protocol}//${url.host}`;
     const path = url.pathname;
-    if (path.startsWith('/api/')) await referenceLibraryReady(); // START-3: the diagram reference library is loaded on the first API request of an isolate (reference-library-lazy.js)
     try {
       if (path === '/api/cli/login' && req.method === 'POST') return await apiLogin(req, env);
       if (path === '/api/cli/verify' && req.method === 'POST') return await apiVerify(req, env);
