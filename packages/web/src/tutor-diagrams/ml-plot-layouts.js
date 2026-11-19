@@ -146,7 +146,8 @@ function segmentHitsBox([ax, ay], [bx, by], box) {
   }
   return true;
 }
-function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
+// sides: also try the four straight directions at each sample (up, down, right, left) when the outward one is blocked.
+function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE, sides = false) {
   if (series.length > CURVE_LABEL_MAX_SERIES || !series.every(s => s.kind === 'line' && !s.closed && !s.endLabel && s.points[0].low === undefined)) return null;
   const boxes = [], labels = [];
   for (const [i, s] of series.entries()) {
@@ -159,8 +160,9 @@ function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
     let placed = null;
     for (const { p: [px, py], from } of candidates) {
       // Outward is away from the nearest other curve (straight up when there is none).
-      let ox = 0, oy = -1;
-      if (from) { const run = Math.hypot(px - from[0], py - from[1]); if (run > 1) { ox = (px - from[0]) / run; oy = (py - from[1]) / run; } }
+      let ox0 = 0, oy0 = -1;
+      if (from) { const run = Math.hypot(px - from[0], py - from[1]); if (run > 1) { ox0 = (px - from[0]) / run; oy0 = (py - from[1]) / run; } }
+      for (const [ox, oy] of sides ? [[ox0, oy0], [0, -1], [0, 1], [1, 0], [-1, 0]] : [[ox0, oy0]]) {
       const vertical = Math.abs(oy) >= Math.abs(ox);
       const free = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       // The name is 18 px off the curve along the outward axis and slides along the edge of the plot area when it would stick out, the leader staying on the sample.
@@ -176,6 +178,8 @@ function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
       const start = vertical ? [free(px, box.x + 6, box.x + w - 6), oy < 0 ? box.y + hgt : box.y] : [ox < 0 ? box.x + w : box.x, free(py, box.y + 4, box.y + hgt - 4)];
       placed = { padded, label: { i, text, center, start, end: [px, py] } };
       break;
+      }
+      if (placed) break;
     }
     if (!placed) return null;
     boxes.push(placed.padded);
@@ -480,7 +484,7 @@ function plotLayout(diagram, requested, options = {}) {
   for (const [anchor, text] of pointCallouts) callout(anchor, text, 7);
   // A line series draws no marker where a scatter series has a point (within 0.5 px): the scatter's marker stays, drawn last (on top).
   const scatterAt = d.series.flatMap((series, k) => series.kind === 'scatter' ? curves[k] : []);
-  const marks = [], scatterMarks = [], legend = [];
+  const marks = [], scatterMarks = [], legend = [], valueBoxes = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
@@ -518,13 +522,19 @@ function plotLayout(diagram, requested, options = {}) {
         const half = textWidth(String(p.y), body) * 0.55 + 2;
         // A sample on the y axis prints its value to the right of the marker, centred on it (above would sit on the line, below beside the tick labels).
         const onAxis = cx < left + half + 6;
-        foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: body, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
+        const valueX = onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), valueY = onAxis ? cy : cy - MARKER - 11;
+        foreground.push(cloneElement(label(String(p.y), valueX, valueY, { size: body, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
+        // The curve's name is placed after this and keeps clear of every printed value when it can (its own 3 px margin is counted there, so the box is the text's).
+        valueBoxes.push({ x: valueX - textWidth(String(p.y), body) / 2 + 3, y: valueY - lineHeight(body) / 2 + 3, width: textWidth(String(p.y), body) - 6, height: lineHeight(body) - 6 });
       }
     });
     // A plot of one series has no legend: its title and axes name it (a legend pill is for telling two or more series apart).
     if (d.series.length > 1 || legendMode === 'always') legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
   }
-  const callouts = legendMode === 'auto' ? curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied, curveSize) : null; // 'none' and 'always' never name the curves
+  const curveLines = d.series.map(series => series.points.map(xy));
+  // Where the names stand today (callouts), or, when that leaves a name on a printed value, the first place that keeps clear of the values (outward, then straight up, down, right, left); with none, today's.
+  const named = legendMode === 'auto' ? curveLabels(d.series, curveLines, bounds, occupied, curveSize) : null;
+  const callouts = named && valueBoxes.length ? curveLabels(d.series, curveLines, bounds, [...occupied, ...valueBoxes], curveSize) ?? curveLabels(d.series, curveLines, bounds, [...occupied, ...valueBoxes], curveSize, true) ?? named : named; // 'none' and 'always' never name the curves
   if (callouts) {
     legend.length = 0;
     for (const { i, text, center, start, end } of callouts) {
@@ -600,10 +610,14 @@ function verticalBars(d, requested, options) {
   const given = boxed || sizes ? options?.range : null;
   if (given && Number.isFinite(given.min) && Number.isFinite(given.max) && given.min < given.max) { min = given.min; max = given.max; }
   const clamp = value => Math.min(max, Math.max(min, value));
-  const build = plotExtra => {
+  // unitInTick: the unit is printed once, after the top value-axis number, and no value above a bar carries it (set when a value above a bar would sit on a taller neighbour).
+  const build = (plotExtra, unitInTick = false) => {
     const PLOT = boxed ? PLOT_FLOOR + plotExtra : 210, top = PAD + 24, bottom = top + PLOT;
     const y = scale({ min, max }, bottom, top);
-    const ticks = plotTicks({ min, max }, y, { horizontal: false, size: tickSize });
+    const plain = plotTicks({ min, max }, y, { horizontal: false, size: tickSize });
+    const topTick = plain.reduce((best, tick) => (tick.at < best.at ? tick : best), plain[0]);
+    const ticks = unitInTick ? plain.map(tick => (tick === topTick ? { ...tick, lines: [...tick.lines.slice(0, -1), `${tick.lines.at(-1)} ${d.unit}`] } : tick)) : plain;
+    const unit = unitInTick ? undefined : d.unit;
     const tickWidth = Math.ceil(Math.max(...ticks.map(tick => Math.max(...tick.lines.map(line => textWidth(line, tickSize))))));
     const left = PAD + tickWidth + 10;
     const inner = 2; // 2 px between the bars of one cluster
@@ -621,11 +635,19 @@ function verticalBars(d, requested, options) {
       elements.push(label(tick.lines, left - 8, tick.at, { anchor: 'end', size: tickSize }));
     }
     const showAbove = showValues && n * k <= 12;
-    const bars = [], labels = [], geometryBars = [];
+    // The value above (below, for a negative bar) a bar: in box mode the unit goes first, then the label itself, when it is wider than its bar (no options: as today); null when none is drawn.
+    const valueText = value => {
+      let text = amount(value, unit);
+      if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
+      return showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth) ? text : null;
+    };
+    // A negative bar's value stands 12 px under its end; when that reaches the category names (a bar down to the axis end) the names move down by what it takes, so the two never overlap.
+    const nameDrop = Math.ceil(Math.max(0, ...values.filter(value => value < 0 && valueText(value) !== null).map(value => y(clamp(value)) + 12 + tickSize / 2 - (bottom + 10))));
+    const bars = [], labels = [], geometryBars = [], pending = [];
     categories.forEach((category, i) => {
       const start = left + slot * i + (slot - cluster) / 2;
       const name = wrap(category, slot - 4, nameSize);
-      labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(nameSize) / 2, { size: nameSize }));
+      labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + nameDrop + name.length * lineHeight(nameSize) / 2, { size: nameSize }));
       series.forEach((entry, j) => {
         const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(clamp(0)), end = y(clamp(value));
         const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? TEACHING_SERIES[i % TEACHING_SERIES.length];
@@ -633,19 +655,22 @@ function verticalBars(d, requested, options) {
           : { 'data-tutor-bar': value };
         if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
         else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
-        geometryBars.push({ label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) });
-        // In box mode the value above a bar never runs over its neighbour: the unit goes first, then the label itself, when it is wider than its bar (no options: as today).
-        let text = amount(value, d.unit);
-        if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
-        if (showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth)) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: tickSize, weight: 600 }));
+        const bar = { label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) };
+        geometryBars.push(bar);
+        const text = valueText(value);
+        if (text !== null) pending.push({ bar, value, text, cx, at: value < 0 ? end + 12 : end - 12, slot: labels.push(null) - 1 }); // the label keeps its place in the drawing order
       });
     });
+    // With no box a value may be wider than its bar and spill over the neighbouring ones. When any value would sit on a taller neighbour the chart is drawn again with the unit off every value and printed once after the top axis number (one form for the whole chart); a chart where no value touches another bar is drawn as always. Measured with the Arial advances the legend pills use.
+    const hitsBar = (text, cx, at, own) => geometryBars.some(bar => bar !== own && bar.height > 0 && cx - legendTextWidth(text, tickSize) / 2 < bar.x + bar.width && bar.x < cx + legendTextWidth(text, tickSize) / 2 && at - tickSize / 2 < bar.y + bar.height && bar.y < at + tickSize / 2);
+    if (!boxed && d.unit && !unitInTick && pending.some(({ bar, text, cx, at }) => hitsBar(text, cx, at, bar))) return { dropUnit: true };
+    for (const { text, cx, at, slot } of pending) labels[slot] = label(text, cx, at, { size: tickSize, weight: 600 });
     elements.push(...bars);
     // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
     elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
       h('line', { x1: left, x2: right, y1: y(clamp(0)), y2: y(clamp(0)), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
     const labelsHeight = Math.max(1, ...categories.map(category => wrap(category, slot - 4, nameSize).length)) * lineHeight(nameSize);
-    let bottomOfLabels = bottom + 10 + labelsHeight + 8, legendRows = 0;
+    let bottomOfLabels = bottom + 10 + nameDrop + labelsHeight + 8, legendRows = 0;
     const pills = legendMode === 'none' ? [] : grouped || legendMode === 'always' ? series.map((entry, i) => ({ i, text: entry.label })) : [];
     if (pills.length) {
       const drawn = legendPills(pills, width, bottomOfLabels + 4, pillSize);
@@ -653,7 +678,7 @@ function verticalBars(d, requested, options) {
       legendRows = 4 + drawn.height + 8;
       bottomOfLabels += legendRows;
     }
-    const minParts = [{ part: 'top margin and value axis end', px: top }, { part: 'plot area', px: PLOT }, { part: 'category names', px: 10 + labelsHeight + 8 },
+    const minParts = [{ part: 'top margin and value axis end', px: top }, { part: 'plot area', px: PLOT }, { part: 'category names', px: 10 + nameDrop + labelsHeight + 8 },
       ...(legendRows ? [{ part: 'legend rows', px: legendRows }] : []), { part: 'bottom margin', px: PAD }];
     const widthCore = [{ part: 'value axis numbers and margin', px: left }, { part: `bars (${n} categories, each at least ${boxed ? slotMin : 0} px)`, px: n * slotMin }, { part: 'right margin', px: PAD + 10 }];
     const spare = width - widthCore.reduce((all, item) => all + item.px, 0);
@@ -661,10 +686,11 @@ function verticalBars(d, requested, options) {
     const geometry = { plotArea: { left, right, top, bottom }, y: { min, max }, range: { min, max }, baseline: { y: y(clamp(0)), left, right }, bars: geometryBars };
     return { width, height: bottomOfLabels + PAD, parts: minParts, widthParts, plotHeight: PLOT, elements, geometry };
   };
-  const first = build(0);
+  const draw = extra => { const drawn = build(extra); return drawn.dropUnit ? build(extra, true) : drawn; };
+  const first = draw(0);
   if (!boxed || floor || contentHeight === undefined) return first;
   const extra = Math.floor(contentHeight - first.height);
-  return extra > 0 ? build(extra) : first;
+  return extra > 0 ? draw(extra) : first;
 }
 
 function barChart(d, requested, options) {
