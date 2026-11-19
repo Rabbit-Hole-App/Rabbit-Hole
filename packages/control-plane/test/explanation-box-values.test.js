@@ -106,3 +106,14 @@ test('(c) the saved bench cards\' own typography: a non-breaking hyphen, a middl
   for (const text of ['The IQR is Q3‑Q1 = 17.5 - 11.5.', 'The fences are Q1‑1.5·IQR (‑3.5) and Q3+1.5·IQR (20.5).', 'Q1-1.5×IQR = -3.5 and Q3+1.5×IQR = 20.5.', 'IQR is 11.5 minus 5.5, giving 6.', 'The IQR is 6; 1.5·IQR = 9.'])
     assert.equal(says(text), null, text);
 });
+
+// ---- guidance: the author is told to fill values, only when a box plot is planned or asked for ----
+import { visualsStatement } from '../src/explanation-planner.js';
+test('guidance: the visuals statement tells the author to copy the numbers into values when a box plot is on the card, and says nothing of it otherwise', () => {
+  const said = visuals => visualsStatement(null, { source: 'required', visuals });
+  assert.match(said([{ type: 'diagram', kind: 'box-plot' }]), /For a box plot, copy the learner's numbers into each box's values/);
+  assert.match(said([{ type: 'diagram', choose: ['bar-chart', 'box-plot'] }]), /into each box's values/);
+  assert.doesNotMatch(said([{ type: 'diagram', kind: 'flow' }]), /box's values/);
+  assert.doesNotMatch(said([{ type: 'picture' }]), /box's values/);
+  assert.equal(visualsStatement(null, { source: 'rules', visuals: [] }), null);
+});

@@ -102,11 +102,13 @@ export function cardVisuals(plan, asked = []) {
 // The diagram kinds the card is to hold: the first diagram's kind, or both offered kinds. [] when the rules decide.
 export const visualKinds = ({ visuals }) => { const d = visuals.find(v => v.type === 'diagram'); return d ? (d.kind ? [d.kind] : d.choose ?? []) : []; };
 
+// BOX-1: the author fills each box's `values` with the learner's numbers; the server computes median, quartiles, whiskers, fences and outliers from them and rejects any typed statistic that differs (derived.js).
+const BOX_VALUES_GUIDANCE = "For a box plot, copy the learner's numbers into each box's values and write q1, median, q3, the whiskers and the fences as the data gives them (Q1 and Q3 are the medians of the lower and upper halves with the middle value left out when the count is odd; a value past 1.5 IQR from the box is an outlier, not a whisker); the server recomputes all of them from values and rejects a card whose numbers differ.";
 // The "# Visuals for this card" section the author reads: the decisions made for this card, stated as fact (no plan, no required item: null, the rules block goes instead).
 export function visualsStatement(plan, { source, visuals }) {
   if (source === 'rules') return null;
   const parts = visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? 'a picture' : v.kind ? `a ${v.kind} diagram` : v.choose ? `a diagram of one of these kinds, the one that teaches the answer: ${v.choose.join(' or ')}` : 'a diagram'}`);
-  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.secondVisual && source === 'plan' ? ' The question names two things: draw each one on its own, one visual per thing.' : ''}${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''} ${visuals.some(v => v.type !== 'picture') ? VISUAL_COMPLETE : VISUAL_COMPLETE_BASE}`; // the token sentence only when the card has a diagram
+  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.secondVisual && source === 'plan' ? ' The question names two things: draw each one on its own, one visual per thing.' : ''}${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''} ${visuals.some(v => v.type !== 'picture') ? VISUAL_COMPLETE : VISUAL_COMPLETE_BASE}${visualKinds({ visuals }).includes('box-plot') ? ` ${BOX_VALUES_GUIDANCE}` : ''}`; // the token sentence only when the card has a diagram; the box-plot sentence only when a box plot is planned or asked for
 }
 
 // The gallery example for the planned diagram (owner 2026-11-08): the kind-gallery-depths.json spec of its kind at the card's depth (Standard when the depth is
