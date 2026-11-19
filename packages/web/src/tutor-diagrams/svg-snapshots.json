@@ -2796,6 +2796,156 @@
       "width": 720,
       "height": 451.5
     },
+    "pool-apron-fabric-stock/320": {
+      "sha256": "3de1409cc873889419b41a76096ad3181d8429680fe780c8f7b4acfee979e6cd",
+      "width": 362,
+      "height": 345
+    },
+    "pool-apron-fabric-stock/408": {
+      "sha256": "a41c20c987e244e522888f3679d3f2c23894524e6cdfdcfb7ae4911661e3fb09",
+      "width": 408,
+      "height": 345
+    },
+    "pool-apron-fabric-stock/720": {
+      "sha256": "5847cac5c3ff427a4178d1494903b27be0274ad19bea442d5dd6f84692547897",
+      "width": 720,
+      "height": 311
+    },
+    "pool-exhibit-tank-refill/320": {
+      "sha256": "8f65293be0768e98ca22324e6cb9c9ca257797995445bb9423f44e2705cbc0f1",
+      "width": 362,
+      "height": 350
+    },
+    "pool-exhibit-tank-refill/408": {
+      "sha256": "a28eac83b313c6e51c264cf15060871af86e75edf962a24fa05c64cc90fac122",
+      "width": 408,
+      "height": 328
+    },
+    "pool-exhibit-tank-refill/720": {
+      "sha256": "e9fca29794663f6708329b16135512269f4a148c775fe054c4e9f1e1984f3280",
+      "width": 720,
+      "height": 311
+    },
+    "pool-fired-tile-widths/320": {
+      "sha256": "eb05028422c539ee49db03c408d2135cdb2b3b3ebdb91ccb91588ec4c753e462",
+      "width": 360,
+      "height": 471.5
+    },
+    "pool-fired-tile-widths/408": {
+      "sha256": "d84d235e943361f1896853bede01fd45c72d6621a076a830a3f49800e7a9d821",
+      "width": 408,
+      "height": 420.5
+    },
+    "pool-fired-tile-widths/720": {
+      "sha256": "04b29eaf0efd964dc6c6cc6192fab8e682c30ca19183e2989fb0f3dbcddd95d4",
+      "width": 720,
+      "height": 420.5
+    },
+    "pool-orchard-packing-expense/320": {
+      "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
+      "width": 320,
+      "height": 502
+    },
+    "pool-orchard-packing-expense/408": {
+      "sha256": "d6f8843c4b92276d6ebd9c1995a67d60743264cf9b0f2fb5c9d9a306a3f376ae",
+      "width": 408,
+      "height": 429
+    },
+    "pool-orchard-packing-expense/720": {
+      "sha256": "7ea82210a33bee1038b4ac0cd4aa4f62ee8352fc4fb3c2e53bceafa7fc786eb0",
+      "width": 720,
+      "height": 361
+    },
+    "pool-prepaid-recital-venue/320": {
+      "sha256": "ae2b5797f04767ed730f627fa3310a0cd63fe8e2f86875511050d51a0e482652",
+      "width": 320,
+      "height": 468
+    },
+    "pool-prepaid-recital-venue/408": {
+      "sha256": "6e48cc252898c5750c40cddeaeb42b1748e4043a8347dbaece75086e7df0835a",
+      "width": 408,
+      "height": 378
+    },
+    "pool-prepaid-recital-venue/720": {
+      "sha256": "d08ce58c79320291524fcaa2ff96a5e826629f94fa08037bf62191f010a0311b",
+      "width": 720,
+      "height": 344
+    },
+    "pool-robotics-parts-payable/320": {
+      "sha256": "0a99d089f0cdd64037c4fabb0d53ba600784e0b8538c38b4cff8b47e15beea22",
+      "width": 320,
+      "height": 451
+    },
+    "pool-robotics-parts-payable/408": {
+      "sha256": "baaa8deceb0d9a9f069ca091118545dd3a94837f59495803ff23f7c737030ec2",
+      "width": 408,
+      "height": 400
+    },
+    "pool-robotics-parts-payable/720": {
+      "sha256": "f15e8d0cb99edd923748a87478873c5632bc97880821ea1b054849e2512f7126",
+      "width": 720,
+      "height": 344
+    },
+    "pool-soundcheck-time-window/320": {
+      "sha256": "0d4d5151ec33e8696e6973f35dbfb0d4183427d6ff3a8e8a396f4ffc8a711358",
+      "width": 320,
+      "height": 395
+    },
+    "pool-soundcheck-time-window/408": {
+      "sha256": "a3367115a18817e304f2e041f42bc6385a1d48212f731b0ee1a2a441f5a60fce",
+      "width": 408,
+      "height": 356
+    },
+    "pool-soundcheck-time-window/720": {
+      "sha256": "e9cbf72ff6593b806e0d57da76eed319bb650feebb22b5547168fb1f95854d29",
+      "width": 720,
+      "height": 339
+    },
+    "pool-sunflower-tray-heights/320": {
+      "sha256": "cba2e23f8ac2c32e4f1f8b13cc31ea651e3ad4d01453884c210acd8716db871a",
+      "width": 360,
+      "height": 498.5
+    },
+    "pool-sunflower-tray-heights/408": {
+      "sha256": "1106c6c4d0841fa1bbcd18f6247f05701d061f822baa6325f3201644d2785f26",
+      "width": 408,
+      "height": 464.5
+    },
+    "pool-sunflower-tray-heights/720": {
+      "sha256": "57484da8cb1d1dcd50441fc8bf298d3576f2291405d469638f3fc7860afec43b",
+      "width": 720,
+      "height": 447.5
+    },
+    "pool-trailhead-elevation-offsets/320": {
+      "sha256": "adfdc2c9ab08f953bc9d72b46314fa82c7fe0873a707e212edf2da8c717200ab",
+      "width": 320,
+      "height": 343
+    },
+    "pool-trailhead-elevation-offsets/408": {
+      "sha256": "cd723ee8ccec1728fa0861e211f906db9729427d481ab90bf7e443bb80aa745c",
+      "width": 408,
+      "height": 304
+    },
+    "pool-trailhead-elevation-offsets/720": {
+      "sha256": "5748fa78c49d41828afa2319e7df2152152d5c9b9104eccca4a1f2c8d7c9d315",
+      "width": 720,
+      "height": 287
+    },
+    "pool-trivia-team-score/320": {
+      "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
+      "width": 442,
+      "height": 350
+    },
+    "pool-trivia-team-score/408": {
+      "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
+      "width": 442,
+      "height": 350
+    },
+    "pool-trivia-team-score/720": {
+      "sha256": "96fb36160b3f350ede951e7c8bf330ab436c85ba15cf2f2682612713929f2d9b",
+      "width": 720,
+      "height": 311
+    },
     "precision-recall-thresholds/320": {
       "sha256": "48bb4af84aff27699fd568616f766021da53c60cdcb80dc25e59ba99e0aba48f",
       "width": 408,
