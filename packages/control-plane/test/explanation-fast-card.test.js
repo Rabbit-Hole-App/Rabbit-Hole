@@ -22,8 +22,9 @@ const PICTURE = { k: 'picture', p: 'An ice cube floating in a glass of water, si
 const answer = (visuals, body = `${ICE}\n\n[[visual:1]]\n\n${AFTER}`, title = 'Why ice floats') => ({ title, visuals, body });
 // The plan transport double (Anthropic tool call): each call answers the next input.
 const scripted = (...inputs) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name: 'make_explanation', input: inputs[Math.min(seen.length, inputs.length) - 1] }] }); } }; };
-const direct = async (inputs, args = 'Why does ice float?', extra = {}) => { const m = scripted(...inputs); const r = deriveVisualRequirements(args);
-  const out = await generateArtifact({}, { command: 'explanation', args, ...(r.items?.length ? { visualRequirements: r } : {}) }, { callModel: m.callModel, ...extra }); return { out, m }; };
+const direct = async (inputs, args = 'Why does ice float?', extra = {}, input = {}) => { const m = scripted(...inputs); const r = deriveVisualRequirements(args);
+  const out = await generateArtifact({}, { command: 'explanation', args, ...(r.items?.length ? { visualRequirements: r } : {}), ...input }, { callModel: m.callModel, ...extra }); return { out, m }; };
+const implied = n => ({ version: 1, items: Array.from({ length: n }, (_, i) => ({ id: `vr-${i + 1}`, kind: 'illustration', implied: true, purpose: 'a picture of it' })) }); // ILL-2: no plan caps pictures at the ones the learner's words imply
 const kinds = body => ({ diagrams: markdownVisuals(body).diagrams.length, pictures: markdownIllustrations(body).length });
 
 // ---- fix 2: structured visuals ---------------------------------------------------------------------------------------------------------------------------
@@ -91,9 +92,9 @@ test('fix 1c: a visual first, last or next to the other is moved to the nearest 
 test('three visuals: a diagram, a diagram and a picture pass in one call; a fourth is dropped, the first three by position kept; a third picture is dropped first', async () => {
   const second = { ...DIAGRAM, spec: cycleSpec('Water and ice') }, fourth = { ...DIAGRAM, spec: cycleSpec('Ice and water again') };
   const three = `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:2]]\n\nIt rises.\n\n[[visual:3]]\n\n${AFTER}`;
-  const ok = await direct([answer([DIAGRAM, second, PICTURE], three)]);
+  const ok = await direct([answer([DIAGRAM, second, PICTURE], three)], undefined, {}, { visualRequirements: implied(1) });
   assert.deepEqual([ok.out.result, ok.m.seen.length, kinds(ok.out.block.body).diagrams], ['artifact', 1, 2], 'diagram, diagram, picture: no repair (the picture fence then goes, as no store is given)');
-  const { out, m } = await direct([answer([DIAGRAM, fourth, second, PICTURE], `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:3]]\n\nIt rises.\n\n[[visual:4]]\n\nIt stays up.\n\n[[visual:2]]\n\n${AFTER}`)]);
+  const { out, m } = await direct([answer([DIAGRAM, fourth, second, PICTURE], `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:3]]\n\nIt rises.\n\n[[visual:4]]\n\nIt stays up.\n\n[[visual:2]]\n\n${AFTER}`)], undefined, {}, { visualRequirements: implied(1) });
   assert.deepEqual([out.result, m.seen.length], ['artifact', 1], 'the author is asked for three (maxItems 3), and a fourth that arrives anyway is dropped, not repaired');
   assert.equal(m.seen[0].tools.find(t => t.name === 'make_explanation').input_schema.properties.visuals.maxItems, 3);
   assert.ok(!out.block.body.includes('Ice and water again'), 'the fourth by position in the body is the one dropped');
@@ -232,7 +233,7 @@ test('fix 3: a streamed answer starts its picture before the body has arrived; t
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
   const { env, rows } = fastEnv(t), image = recraft(2000);
   const sent = fireworks(t, { content: STREAMED, at: [300, 2500] });
-  const { out, doneAt } = await onClock(t, () => generateArtifact(env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: image } }));
+  const { out, doneAt } = await onClock(t, () => generateArtifact(env, { command: 'explanation', args: 'Why does ice float?', visualRequirements: implied(1) }, { figures: { store: STORE, adapter: image } }));
   const asked = sent[0].at, bodyEnd = asked + 2500;
   assert.equal(sent[0].body.stream, true);
   assert.deepEqual([out.result, out.repaired, image.calls.length], ['artifact', false, 1]);
@@ -254,7 +255,7 @@ test('fix 3: EXPLANATION_STREAM=off sends stream:false and makes the picture aft
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
   const { env } = fastEnv(t, { [STREAM_SETTING]: 'off' }), image = recraft(2000);
   const sent = fireworks(t, { content: STREAMED, at: [0, 2500] });
-  const { out, doneAt } = await onClock(t, () => generateArtifact(env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: image } }));
+  const { out, doneAt } = await onClock(t, () => generateArtifact(env, { command: 'explanation', args: 'Why does ice float?', visualRequirements: implied(1) }, { figures: { store: STORE, adapter: image } }));
   assert.deepEqual([sent[0].body.stream, out.result, image.calls.length], [false, 'artifact', 1]);
   assert.ok(image.calls[0].at - sent[0].at >= 2500, 'the picture waits for the whole answer');
   assert.ok(doneAt - sent[0].at >= 4500, 'so the card takes the sum');
@@ -265,13 +266,13 @@ test('fix 3: after a repair, a picture whose prompt is unchanged is reused; a ch
   const bad = answer([PICTURE, { k: 'diagram', spec: { version: 1, diagram: { kind: 'flow', title: 'Ice', nodes: [], edges: [] } } }], `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:2]]\n\n${AFTER}`);
   const same = fastEnv(t), keep = recraft();
   fireworks(t, { content: bad }, { content: STREAMED });
-  const reused = await generateArtifact(same.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: keep } });
+  const reused = await generateArtifact(same.env, { command: 'explanation', args: 'Why does ice float?', visualRequirements: implied(1) }, { figures: { store: STORE, adapter: keep } });
   assert.deepEqual([reused.result, reused.repaired, keep.calls.length], ['artifact', true, 1], 'one picture for both answers');
   assert.equal(reused.block.figures['pic-1'].status, 'ready');
   const moved = fastEnv(t), fresh = recraft();
   const changed = answer([{ ...PICTURE, p: 'A block of ice in a lake, seen from the shore' }]);
   fireworks(t, { content: bad }, { content: changed });
-  const out = await generateArtifact(moved.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: fresh } });
+  const out = await generateArtifact(moved.env, { command: 'explanation', args: 'Why does ice float?', visualRequirements: implied(1) }, { figures: { store: STORE, adapter: fresh } });
   assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [figurePrompt(withNoTextSuffix(PICTURE.p)), figurePrompt(withNoTextSuffix('A block of ice in a lake, seen from the shore'))]]);
   assert.deepEqual(Object.keys(out.block.figures), ['pic-1']);
   assert.equal(moved.rows("SELECT * FROM usage_attempts WHERE provider = 'recraft' AND status = 'settled'").length, 2, 'both pictures are on the ledger');
@@ -283,11 +284,11 @@ test('fix 3 with three visuals: a picture at visuals[2] starts early as pic-3; a
   const body = `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:2]]\n\nIt rises.\n\n[[visual:3]]\n\n${AFTER}`;
   const a = fastEnv(t), one = recraft();
   fireworks(t, { content: answer([DIAGRAM, { ...DIAGRAM, spec: cycleSpec('Water and ice') }, PICTURE], body) });
-  const out = await generateArtifact(a.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: one } });
+  const out = await generateArtifact(a.env, { command: 'explanation', args: 'Why does ice float?', visualRequirements: implied(1) }, { figures: { store: STORE, adapter: one } });
   assert.deepEqual([out.result, one.calls.length, Object.keys(out.block.figures)], ['artifact', 1, ['pic-3']]);
   const b = fastEnv(t), two = recraft();
   fireworks(t, { content: answer([pic(1), pic(2), pic(3)], body) });
-  const kept = await generateArtifact(b.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: two } });
+  const kept = await generateArtifact(b.env, { command: 'explanation', args: 'Why does ice float?', visualRequirements: implied(2) }, { figures: { store: STORE, adapter: two } });
   assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [figurePrompt(withNoTextSuffix(pic(1).p)), figurePrompt(withNoTextSuffix(pic(2).p))], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
 });
 

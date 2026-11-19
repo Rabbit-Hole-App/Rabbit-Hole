@@ -130,6 +130,15 @@ test('affected tests: a changed test runs itself, a changed module runs the test
   assert.deepEqual(affectedTests(['packages/web/src/c/none.test.mjs'], tests)[0].ran, ['packages/web/src/c/none.test.mjs']);
 });
 
+test('affected tests: a test that scans the source tree runs with the selected tests of its suite (TEST-3)', () => {
+  const tests = T(['packages/web/src/a/card.test.mjs', "import { x } from './card.js';"], ['packages/web/src/scan.test.mjs', "for (const n of readdirSync(new URL('web/src', root), { recursive: true })) {}"],
+    ['packages/control-plane/test/scan-cp.test.js', "readdirSync(dir, { recursive: true })"]);
+  const out = affectedTests(['packages/web/src/a/card.js'], tests);
+  assert.deepEqual(out.map(o => o.ran), [['packages/web/src/a/card.test.mjs', 'packages/web/src/scan.test.mjs']], 'the scanner of the web suite runs, the control-plane suite has no changed file so its scanner does not');
+  const lone = affectedTests(['packages/web/src/lonely/view.jsx'], tests)[0];
+  assert.deepEqual(lone.ran, ['all packages/web'], 'a changed file nothing imports still falls back to the whole suite, which holds the scanner');
+});
+
 test('affected tests: a code change that no test imports runs the whole suite, never zero tests, and says what was uncovered', () => {
   const [w] = affectedTests(['packages/web/src/lonely/view.jsx'], T(['packages/web/src/a.test.mjs', "import './b.js'"]));
   assert.deepEqual(w.args, web.all);

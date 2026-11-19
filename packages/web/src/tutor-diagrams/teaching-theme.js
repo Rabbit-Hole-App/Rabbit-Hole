@@ -25,6 +25,8 @@ export const TEACHING_DEPTH_FILLS = DEPTH_FILLS;
 // Tokens of the approved Codex /interactive reference cards (docs/features/interact/references) that the written card's TEACHING set has no name for: the blue ink of a heading
 // or a button label, and the border of a blue chip. Additive: TEACHING itself is unchanged.
 export const TEACHING_ACCENT = Object.freeze({ blueInk: LEGACY.blueInk, blueBorder: LEGACY.blueBorder });
+// 'Inter' is not the loaded family: index.css loads @fontsource-variable/inter, family 'Inter Variable', so figures draw in Liberation Sans / Arial. The Arial width
+// table in ml-plot-layouts.js (legendTextWidth) depends on that; renaming this to the loaded family needs that table re-measured.
 export const TEACHING_FONT = 'Inter, Liberation Sans, Arial, sans-serif';
 // The written card's text classes (tutor-diagrams/TutorDiagram.js and primitives.js: a 17 px / 700 title, 14 px labels, 13 px captions). A composed /interactive
 // card takes these sizes and floors (interact-style.js); the legacy scene floors (scene-layout.js LEGIBILITY_FLOORS) are not touched.

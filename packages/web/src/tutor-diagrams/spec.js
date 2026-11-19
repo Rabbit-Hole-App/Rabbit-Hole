@@ -10,6 +10,7 @@ import { flowPathShape, flowPaths, validateFlowPaths } from './flow-paths.js';
 import { z } from 'zod';
 import { formatMinor, sumMinor, toMinor } from './balance-values.js';
 import { tokenizeMath } from '../math-tokens.js';
+import { checkDerived, derivedAfterItems, fillDerived } from './derived.js';
 
 const MAX_JSON_LENGTH = 16_384;
 // Text is rendered literally. The SVG renderer must escape XML punctuation.
@@ -20,6 +21,15 @@ const shownLength = value => {
   const { source, math } = tokenizeMath(value);
   return source.replace(/\n?\u{E000}(\d+)\u{E001}\n?/gu, (_, index) => math[index].expression.replace(/\\[A-Za-z]+/g, '#').replace(/[{}\s]/g, '')).length;
 };
+const directions = ['up', 'down', 'left', 'right'];
+const figureAnchors = {
+  cell: ['membrane', 'nucleus', 'cytoplasm', 'mitochondrion'],
+  'free-body': ['body', ...directions],
+  'cross-section': ['top-layer', 'core', 'bottom-layer', 'interface'],
+};
+// START-2: the zod schemas below are built on first use (parseTutorDiagram, or the author JSON schema), not when the module is imported: the worker paid about 45 ms for them at every start.
+const domains = [statistical, plot, topology, data, composition];
+function buildShape() {
 const text = max => z.string().min(1).max(2 * max)
   .refine(value => value.trim().length > 0 && !invalidXmlText.test(value), 'Use nonblank, single-line diagram text')
   .refine(value => shownLength(value) <= max, `Use at most ${max} characters`);
@@ -37,12 +47,6 @@ const tensorItem = z.strictObject({ label: text(70).optional(), tensor: tensorPa
 const itemList = z.strictObject({ label: text(40), items: z.array(z.union([text(70), tensorItem])).min(1).max(5) });
 const evidence = z.strictObject({ label: text(100), source: text(65).optional() });
 const entry = z.strictObject({ label: text(60), amount: numeric });
-const directions = ['up', 'down', 'left', 'right'];
-const figureAnchors = {
-  cell: ['membrane', 'nucleus', 'cytoplasm', 'mitochondrion'],
-  'free-body': ['body', ...directions],
-  'cross-section': ['top-layer', 'core', 'bottom-layer', 'interface'],
-};
 
 
 const baseDiagramShapes = [
@@ -128,7 +132,6 @@ const baseDiagramShapes = [
 
 ];
 const helpers = { z, titled, text, id, numeric, unit, axes, node, itemList, tensorNode, tensorPayload, flowPath: flowPathShape({ z, id }) };
-const domains = [statistical, plot, topology, data, composition];
 const shapeMap = new Map(baseDiagramShapes.map(schema => [schema.shape.kind.value, schema]));
 for (const domain of domains.slice(0, -1)) {
   for (const schema of domain.createShapes(helpers)) shapeMap.set(schema.shape.kind.value, schema);
@@ -145,8 +148,10 @@ for (const schema of composition.createShapes({ ...helpers, leafDiagram, panelDi
 for (const schema of [createTensorShape(helpers), tokenLinks, blockStack]) shapeMap.set(schema.shape.kind.value, schema);
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
+return shape;
+}
 
-function childDiagrams(diagram) {
+export function childDiagrams(diagram) {
   if ((diagram.kind === 'comparison' && diagram.variant === 'panels') || diagram.kind === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
   if (diagram.kind === 'transformation' && diagram.variant === 'visual') return ['before', 'after'].filter(side => diagram[side]?.diagram).map(side => ({ diagram: diagram[side].diagram, path: [side, 'diagram'] }));
   return [];
@@ -302,43 +307,6 @@ function checkAmount(value, path, issue, nonnegative = false) {
 
 const atPath = (issue, prefix) => (path, message) => issue([...prefix, ...path], message);
 
-// List-transformation softmax rule (item 3, Reviewer 2026-11-17). A card whose title or operation says softmax and whose before and after items are ALL plain numbers must have
-// after_i = softmax(before)_i within half a unit of the decimals the author wrote for THAT item (0.7 against the true 0.659 passes at one decimal; 0.04 against 0.099 fails at two), plus 1e-9
-// float slack: the same allowance as the box-plot fences. The issue names the correct value of every item and is tagged arithmetic. It is OFF when the title, caption or any label says
-// temperature, scaled, scaling, masked, causal, log-softmax or "T =" (after = softmax(before / T), a scaled or masked score: the plain recompute would flag a correct card); then the only check
-// is that the after values sum to 1 (within the sum of their half-units) when the title or caption calls them probabilities. Items that are not plain numbers ("h1", tensors, "2.0 (cat)") skip the rule.
-// Why here: this is where the schema already reads a list transformation's items and links (the composition validator only checks its structure).
-const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
-// "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
-function listNumber(item) {
-  if (typeof item !== 'string') return null;
-  const m = item.replace(/\$/g, '').split(/[=:]/).pop().trim().replace(/−/g, '-').match(/^(-?\d+(?:\.(\d+))?)\s*(%?)$/);
-  if (!m) return null;
-  const places = (m[2] ?? '').length, scale = m[3] ? 100 : 1;
-  return { value: Number(m[1]) / scale, places, half: 0.5 * 10 ** -places / scale, text: m[1] + m[3] };
-}
-function checkSoftmaxList(d, issue) {
-  if (!/softmax/i.test(`${d.title} ${d.operation}`)) return;
-  const before = d.before.items.map(listNumber), after = d.after.items.map(listNumber);
-  if (before.length !== after.length || [...before, ...after].some(x => !x)) return;
-  const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
-  if (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels)) {
-    const sum = after.reduce((s, x) => s + x.value, 0), slack = after.reduce((s, x) => s + x.half, 0);
-    if (/probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(sum - 1) > slack + 1e-9) {
-      issue(['after', 'items'], `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(sum.toFixed(6))}.`, { code: 'arithmetic' });
-    }
-    return;
-  }
-  const top = Math.max(...before.map(x => x.value)), e = before.map(x => Math.exp(x.value - top)), z = e.reduce((s, x) => s + x, 0), p = e.map(x => x / z);
-  const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;
-  // Rounding clause (Reviewer 2026-11-17, tightened): values written to sum to exactly 1 pass when at most ONE value is past its half-unit and that one is within a full unit (1/1/1 as 0.33/0.33/0.34); otherwise the half-unit rule decides.
-  const roundedToOne = Math.abs(after.reduce((s, x) => s + x.value, 0) - 1) <= 1e-9 && beyond(1) <= 1 && beyond(2) === 0;
-  if (beyond(1) && !roundedToOne) {
-    const shown = p.map((x, i) => (after[i].text.endsWith('%') ? `${(100 * x).toFixed(Math.max(after[i].places, 0))}%` : x.toFixed(Math.max(after[i].places, 2))));
-    issue(['after', 'items'], `After values must be softmax of the before values: softmax(${before.map(x => x.text).join(', ')}) = ${shown.join(', ')}, not ${after.map(x => x.text).join(', ')}.`, { code: 'arithmetic' });
-  }
-}
-
 function checkTensorNodes({ nodes }, issue) {
   nodes.forEach((node, index) => {
     if (node.tensor) validateTensor(node.tensor, atPath(issue, ['nodes', index, 'tensor']));
@@ -364,16 +332,21 @@ function validateDiagram(diagram, issue) {
     case 'transformation':
       // The composition validator reports a mixed representation. Do not read
       // list fields on a visual state before it can return that useful error.
-      if (diagram.variant === 'visual' || !diagram.before.items || !diagram.after.items) break;
-      for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
+      // An `op: 'softmax'` card may leave its after items out: they are computed (derived.js), and the links are read against the computed count.
+      checkDerived(diagram, issue); // VAR-1: the softmax rule (derived.js); the other kinds call it from their own validators
+      if (diagram.variant === 'visual' || !diagram.before.items || !(diagram.after.items ?? derivedAfterItems(diagram))) break;
+      for (const side of ['before', 'after']) (diagram[side].items ?? []).forEach((item, index) => {
         if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
       });
+      // SAME-1 b (Reviewer, narrowed): exactly one text item before and one after shows nothing (a box pointing at a box); tensor items are exempt, and 2 -> 1, 1 -> 3, 1 -> 2 pass.
+      if (diagram.before.items.length === 1 && diagram.after.items.length === 1 && typeof diagram.before.items[0] === 'string' && typeof diagram.after.items[0] === 'string') {
+        issue(['before', 'items'], 'A transformation of one item into one item shows nothing: write the concrete items before and after the operation, with their values, or use the kind the plan names.');
+      }
       diagram.links?.forEach(({ from, to }, index) => {
-        if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
+        if (from >= diagram.before.items.length || to >= (diagram.after.items ?? derivedAfterItems(diagram)).length) {
           issue(['links', index], 'Mapping indices must refer to existing items');
         }
       });
-      checkSoftmaxList(diagram, issue);
       break;
     case 'number-line': checkNumberLine(diagram, issue); break;
     case 'coordinate-plot': checkPlot(diagram, issue); break;
@@ -397,7 +370,9 @@ function validateDiagram(diagram, issue) {
     validateDiagram(child.diagram, at);
   }
 }
-export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
+function buildSchemas() {
+const shape = buildShape();
+const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
   if (diagram.title === undefined) ctx.addIssue({ code: 'custom', path: ['diagram', 'title'], message: 'A diagram needs a title' });
   validateDiagram(diagram, (path, message, params) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message, ...(params && { params }) }));
 });
@@ -408,7 +383,7 @@ const { $schema, ...jsonSchema } = z.toJSONSchema(shape, { target: 'draft-7', io
 // A flow node's title is written by the server only (a trimmed label's full text), so the author is never asked for it.
 const flowNode = (jsonSchema.properties.diagram.oneOf ?? jsonSchema.properties.diagram.anyOf).find(s => s.properties.kind.const === 'flow').properties.nodes.items;
 delete flowNode.properties.title;
-export const tutorDiagramJsonSchema = jsonSchema;
+
 
 // What a model author is asked for. The parser accepts `panels` and a stacked bar's `total`, the renderer draws them, but they stay out of the author's
 // schema until a deliberate step adds them (tier 2): this copy omits the panels kind and the total field, so the author sees the kinds it saw before.
@@ -420,7 +395,28 @@ authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properti
   if (node.properties?.kind?.const === 'bar-chart') delete node.properties.total;
   Object.values(node).forEach(dropTotal);
 })(authorOnlyFree);
-export const tutorDiagramAuthorJsonSchema = authorOnlyFree;
+return { tutorDiagramSchema, jsonSchema, authorJsonSchema: authorOnlyFree };
+}
+
+// A parsed diagram with EVERY derived value on it, silent ones too (derived.js): what a prose token reads and what the reference lint compares against. Not for drawing.
+let built;
+const schemas = () => (built ??= buildSchemas());
+// shortcut: a read-only view (get, has, keys) that forwards to the built object; structuredClone of the view itself is not supported (use authorJsonSchema() for a value to clone), upgrade if a caller needs it.
+const lazy = pick => new Proxy({}, {
+  get: (_, key) => { const target = pick(schemas()), value = target[key]; return typeof value === 'function' ? value.bind(target) : value; },
+  has: (_, key) => key in pick(schemas()),
+  ownKeys: () => Reflect.ownKeys(pick(schemas())),
+  getOwnPropertyDescriptor: (_, key) => { const d = Reflect.getOwnPropertyDescriptor(pick(schemas()), key); return d && { ...d, configurable: true }; },
+});
+export const tutorDiagramSchema = lazy(all => all.tutorDiagramSchema);
+export const tutorDiagramJsonSchema = lazy(all => all.jsonSchema);
+export const tutorDiagramAuthorJsonSchema = lazy(all => all.authorJsonSchema);
+export const authorJsonSchema = () => schemas().authorJsonSchema;
+export function fillAllDerived(diagram) {
+  fillDerived(diagram, { all: true });
+  for (const child of childDiagrams(diagram)) fillAllDerived(child.diagram);
+  return diagram;
+}
 
 export function parseTutorDiagram(value) {
   if (typeof value === 'string') {
@@ -429,7 +425,11 @@ export function parseTutorDiagram(value) {
     catch { throw new Error('Invalid diagram JSON'); }
   }
   if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
-  return tutorDiagramSchema.parse(value);
+  // An absent derived field is computed here, before any layout reads the diagram (derived.js); a child diagram inside panels or a visual transformation too.
+  const fill = diagram => { fillDerived(diagram); for (const child of childDiagrams(diagram)) fill(child.diagram); return diagram; };
+  const parsed = schemas().tutorDiagramSchema.parse(value);
+  fill(parsed.diagram);
+  return parsed;
 }
 
 // BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read

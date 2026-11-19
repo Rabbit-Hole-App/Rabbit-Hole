@@ -1,5 +1,6 @@
 import originalExamples from './examples.json' with { type: 'json' };
 import learnerKeywords from './reference-learner-keywords.json' with { type: 'json' };
+import { referenceVary } from './reference-vary.js';
 import { references as batch1Followups } from './batch-1-followup-references.js';
 import { references as statistical } from './ml-statistical-references.js';
 import { references as plot } from './ml-plot-references.js';
@@ -50,6 +51,7 @@ import { references as compositionDistributionShift } from './composition-distri
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 import { mleStepsReference } from './ml-mle-steps-reference.js';
+import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -98,13 +100,15 @@ export const diagramReferences = Object.freeze([
   ...compositionAttention, ...compositionModelEvaluation,
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...estimationEvaluationReferences,
+  samplingTopKReference,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
-  if (!topics) return ref;
+  const vary = referenceVary[ref.id];
+  if (!topics && !vary) return ref;
   return {
     ...ref,
-    keywords: [...ref.keywords, ...topics],
-    shortKeywords: [...(ref.shortKeywords ?? []), ...topics],
+    ...(vary ? { vary } : {}),
+    ...(topics ? { keywords: [...ref.keywords, ...topics], shortKeywords: [...(ref.shortKeywords ?? []), ...topics] } : {}),
   };
 }));
 

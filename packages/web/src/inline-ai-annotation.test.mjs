@@ -113,6 +113,7 @@ const READERS = {
   'web/src/explain-back-service.js': 'focuses the source named by the recorded connection of a cited input (EvidenceRef.connection), not board links',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
   'web/src/tutor-diagrams/spec.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
+  'web/src/tutor-diagrams/derived.js': 'VAR-1 derived fields: the transformation links of a before-to-after diagram (softmax op), not board links',
   'web/src/tutor-diagrams/ml-composition-spec.js': 'Phase 02 transformation links (before-item to after-item), not board links',
   'control-plane/src/learn-primitives.js': 'TutorDiagram transformation links (before-item to after-item): the server correction drops a link that names a missing item, not board links',
   'web/src/tutor-diagrams/content-contract.js': 'TutorDiagram transformation links (before-item to after-item) in the reference content linter, not board links',
