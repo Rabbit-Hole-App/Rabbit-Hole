@@ -189,6 +189,27 @@ test('a card capability runs its /command handler, only with a proceed, and paid
   assert.deepEqual([video.body.route.outcome, video.body.paid], ['media', true]);
 });
 
+test('GEN-1 G6: an explanation card made from Ctrl+K passes its own requestSeed and trace and is archived; other card routes pass none', async () => {
+  const puts = [], seen = [];
+  const env = { ...KEY_ENV, RUNS: { put: async (key, text) => { puts.push({ key, record: JSON.parse(text) }); } } };
+  const artifact = async (e, input, options) => { seen.push({ input, options }); return { result: 'artifact', primitive: 'explanation', block: { type: 'explanation' } }; };
+  for (const [slash, route] of [['explanation', 'explain'], ['code', 'code']]) {
+    const request = pick('how does softmax turn scores into probabilities', { slash });
+    const { body } = await run(request, jevSays('proceed', route), KEY_ENV, { enabled: ['note', 'shapes', 'code', 'video', 'explain'] });
+    const out = await (await inlineGenerateFetch(post('/api/learn/inline/generate', { app: APP, request_id: RID, request, token: body.token }), env, { authorize, artifact, documents: async () => [] })).json();
+    assert.equal(out.result, 'artifact');
+  }
+  assert.equal(seen.length, 2);
+  const [card, code] = seen;
+  assert.equal(card.input.command, 'explain');
+  assert.ok(typeof card.input.requestSeed === 'string' && card.input.requestSeed.length >= 16, 'the explanation card has a seed');
+  assert.equal(card.options.trace.requestSeed, card.input.requestSeed);
+  assert.equal('requestSeed' in code.input, false, 'a code card has none');
+  assert.equal(puts.length, 1, 'one archive record, for the explanation card only');
+  assert.match(puts[0].key, /^explain-archive\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.json$/);
+  assert.deepEqual([puts[0].record.requestSeed, puts[0].record.source, puts[0].record.outcome, puts[0].record.request.command], [card.input.requestSeed, 'inline', 'artifact', 'explain']);
+});
+
 test('the endpoint: auth first, then the check; the response is the validated schema', async () => {
   const refused = await inlineDecideFetch(post('/api/learn/inline/decide', { app: APP, request_id: RID, request: pick('why') }), KEY_ENV, { authorize: async () => Response.json({ error: 'Sign in first.' }, { status: 401 }), ask: async () => assert.fail('no call') });
   assert.equal(refused.status, 401);

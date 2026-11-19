@@ -193,7 +193,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   // `early` (EXP-13 fix 3, trusted, the fast chain only): explanation-figures.js figureStarter, the pictures already started from the streamed answer.
   // JEV planner prototype (owner 2026-11-08, dev flag EXPLANATION_PLANNER=jev): planned once per card, before the first author call; the plan rides in `input` through every provider step and repair.
   if (!input.planned && (input.command === 'explain' || input.command === 'explanation') && String(input.args || '').trim() && plannerEnabled(env)) {
-    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: validDepth(input.depth) || DEFAULT_DEPTH, context: input.context || null }) };
+    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: validDepth(input.depth) || DEFAULT_DEPTH, context: 'planContext' in input ? input.planContext : input.context || null }) };
   }
   input = planWithReferenceKind(input); // the reference's kind over the planner's guess (a plan the caller supplied too; idempotent)
   // Owner 2026-11-08 (clean-up): the 6a/6b word heuristics (repeat words -> cycle, looks-like -> picture) run only when the planner made no plan; one log line says which source decided the visuals.

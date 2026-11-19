@@ -8,6 +8,8 @@ import { BOARD, ID_B, INSTRUCTION, KEY, answer, loop, planInput } from './roadma
 import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { withVisual } from './explanation-layout-fixture.js'; // EXP-13, owner 2026-11-08: prose, a visual, prose
 import { authorRoute, requestFingerprint } from '../src/roadmap/roadmap-generate.js';
+import { requestSpendBound } from '../src/learn-spend.js';
+import { toMicros } from '../src/learn-usage.js';
 
 // A document longer than the 8,000-character public artifact limit but inside the 40,000-character whole-source limit. The fact the
 // first step needs ("Gini and entropy nearly always agree") sits far outside that step's highlighted passage.
@@ -114,7 +116,7 @@ async function revisedAndAccepted(h) {
 }
 const snapshotOf = h => JSON.parse(rows(h.w.sqlite, "SELECT payload_json FROM learn_roadmap_outbox WHERE kind = 'step_accepted'")[0].payload_json).snapshot;
 
-test('CORE.03/05: one request carries the accepted plan version, the original instruction and accepted revisions only, frozen Depth; quote = dispatch', async t => {
+test('CORE.03/05: one request carries the accepted plan version, the original instruction and accepted revisions only, frozen Depth; the quote bounds the dispatch', async t => {
   const h = await loop(t, { plans: [claimed(1), claimed(2), claimed(3)], script: [CARD_1], md: MD });
   const { id, view } = await revisedAndAccepted(h);
   h.deps.onAccepted = async () => true; // generation waits so later changes can be made before it runs
@@ -140,13 +142,18 @@ test('CORE.03/05: one request carries the accepted plan version, the original in
   assert.deepEqual(snap.learnerInstruction.revisions.map(r => r.text), ['Spend longer on entropy.', 'Compare them at the end.']);
   const route = authorRoute(h.env, h.p.models[0]);
   assert.deepEqual([snap.provider, snap.model], [route.provider, route.model]);
-  assert.equal(await requestFingerprint(body, route), snap.requestFingerprint, 'the dispatched body hashes to the quoted fingerprint');
+  // GEN-1 G6: the dispatched body need not be the quoted one (it carries the card's own seed); the quote is the audit (stored, in the content fingerprint) and its bound is the guard.
+  assert.ok(typeof snap.requestFingerprint === 'string' && snap.requestFingerprint.length === 64, 'the quote-time fingerprint is stored as an audit field');
+  assert.ok(toMicros(requestSpendBound(body, h.p.models[0], route.provider === 'subscription' ? 'anthropic' : route.provider)) <= snap.boundMicros, 'the dispatched body costs no more than the quoted bound');
   const [call] = rows(h.w.sqlite, "SELECT provider, model, request_fingerprint, op_id FROM learn_roadmap_calls WHERE payer = 'learner'");
-  assert.deepEqual([call.provider, call.model, call.request_fingerprint], [snap.provider, snap.model, snap.requestFingerprint]);
+  assert.deepEqual([call.provider, call.model, call.request_fingerprint], [snap.provider, snap.model, await requestFingerprint(body, route)], 'the call row hashes the body actually sent');
   const [auth] = rows(h.w.sqlite, 'SELECT per_card_bound_micros, aggregate_micros, content_fingerprint FROM learn_step_authorizations');
   assert.deepEqual([auth.per_card_bound_micros, auth.aggregate_micros], [snap.boundMicros, snap.boundMicros], 'one exact one-call bound');
   assert.notEqual(auth.content_fingerprint, rows(h.w.sqlite, 'SELECT content_hash FROM learn_step_proposals')[0].content_hash);
-  assert.equal(rows(h.w.sqlite, 'SELECT reserved_micros FROM usage_attempts WHERE attempt_id = ?', call.op_id)[0].reserved_micros, snap.boundMicros, 'the call reserved exactly the quoted bound');
+  // GEN-1 G6: the hold is the worst-case quote; the call reserves what the body actually sent costs, inside that hold (the rest of the hold is released when the card settles).
+  const reserved = rows(h.w.sqlite, 'SELECT reserved_micros FROM usage_attempts WHERE attempt_id = ?', call.op_id)[0].reserved_micros;
+  assert.ok(reserved > 0 && reserved <= snap.boundMicros, 'the call reserved inside the quoted bound');
+  assert.equal(reserved, toMicros(requestSpendBound(body, h.p.models[0], route.provider === 'subscription' ? 'anthropic' : route.provider)), 'and exactly the cost of the body sent');
   assert.equal(rows(h.w.sqlite, 'SELECT generation FROM learn_step_results')[0].generation, 'generated');
 });
 
@@ -180,7 +187,9 @@ test('CORE.05: an allowance of exactly the quoted bound admits the card; one mic
   const bound = snapshotOf(probe).boundMicros;
   // Phase 02 diagram library (2026-11-08): the whole diagram schema raised this plan-model bound from 304,195 to 685,300 micro-USD. Owner C: the limit stays;
   // the roadmap gets the same schema-bundle logic as the fast chain (learn-artifact.js bundledAuthorSchema) when it is turned back on.
-  assert.ok(bound > 0 && bound < 800000, `a real-body bound: ${bound}`);
+  // GEN-1 G6: the quote bounds the WORST dispatch body: the bare body plus room for a 4,500-character examples block at 2 bytes and a 26,000-byte plan delta (35,000 bytes; 5 micro-USD a byte on the plan model,
+  // 175,000 micro-USD over the bare body), up from 797,395 for the bare body; still far under the four-call envelope this test guards against.
+  assert.ok(bound > 797395 && bound < 1200000, `a worst-case-body bound: ${bound}`);
   for (const [allowance, status] of [[bound - 1, 429], [bound, 202]]) {
     const h = await loop(t, { plans: [claimed(1)], script: [CARD_1], md: MD, allowanceMicros: allowance });
     const s = await start(h);
