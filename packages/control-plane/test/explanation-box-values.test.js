@@ -173,3 +173,11 @@ test('(c) v4-1: the result of "<term> is a - b = c" is compared with the drawn s
   assert.equal(saysResp('We take Q3 - Q1 = 107 - 87.5 = 19.5, then 1.5 x IQR = 29.25 and the fence is Q3 + 29.25 = 136.25.'), null, 'operands and equations without a term-first number stay skipped');
   assert.match(saysResp('The median is 95 - 3 = 92.').problem, /"median 92"/);
 });
+
+// ---- v4 (2): more connectors ----
+test('(c) v4-2: "lands at", "comes to", "works out to" (and "sits at") connect a term to its number (the v3 idx 15 prose)', () => {
+  assert.match(saysResp('Here, the upper fence lands at 125 milliseconds, so the 300 millisecond time sits far past it.').problem, /"upper fence 125"/);
+  assert.match(saysResp('The IQR comes to 14 and the median works out to 90.').problem, /"IQR 14", "median 90"/);
+  assert.match(saysResp('The lower fence sits at 60.').problem, /"lower fence 60"/);
+  assert.equal(saysResp('The upper fence lands at 136.25 milliseconds. The IQR comes to 19.5 and the median works out to 95.'), null);
+});
