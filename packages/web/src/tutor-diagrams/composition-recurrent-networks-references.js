@@ -18,7 +18,7 @@ const rectified = { kind: 'coordinate-plot', title: 'Activation can remove a neg
   x: { label: 'Step', min: 0, max: u.rows.length + 1, integerTicks: true }, y: { label: 'Cell value', min: -2, max: 2 },
   series: [['Before ReLU', 'z'], ['After ReLU', 'h']].map(([label, key]) => ({ label, kind: 'stem', points: u.rows.map(row => ({ x: row.step, y: row[key] })) })),
   caption: `Same $h_0=${u.parameters.h0}$, $x=(${u.parameters.inputs.join(',')})$; $z=${u.parameters.a}h_{prev}+x$. ReLU gives $max(0,z)$; negative second combination becomes zero.` };
-const outputs = { kind: 'bar-chart', title: 'Readout follows the activated state', unit: 'Output',
+const outputs = { kind: 'bar-chart', title: 'Readout follows the activated state',
   bars: u.rows.map(row => ({ label: 'y' + row.step, value: row.y })),
   caption: '$y_t=2h_t$ after ReLU. The zero second output follows the activation, not a missing input or state handoff.' };
 const alignment = { kind: 'matrix', title: 'Observed prefix, internal state, next target', columns: ['Observed input', 'Prefix in state', 'Next target'],
@@ -28,10 +28,10 @@ const training = { kind: 'relationship', layout: 'graph', title: 'Marked first p
   nodes: l.rows.flatMap(row => [{ id: 'x' + row.step, label: 'Observed ' + row.input }, { id: 'h' + row.step, label: 'h' + row.step + ': ' + row.prefix + ' prefix' }, { id: 'p' + row.step, label: 'Prediction p' + row.step }, { id: 'l' + row.step, label: 'Target ' + row.target }]),
   edges: [edge('x1', 'h1', 'encode observation'), edge('h1', 'h2', 'carry state'), edge('x2', 'h2', 'encode observation'), edge('h1', 'p1', 'softmax readout'), edge('h2', 'p2', 'softmax readout'), edge('p1', 'l1', 'worked example loss'), edge('p2', 'l2', 'next-token loss')],
   caption: `Observed inputs. $h=ReLU(${l.parameters.a}h_{prev}+x),h_0=${l.parameters.h0},x=(${l.rows.map(row=>l.parameters.features[row.input]).join(',')})$. $softmax(Uh+b)$ scores the next target.` };
-const probabilities = { kind: 'bar-chart', title: 'First prefix trains a hidden representation', unit: 'Probability',
+const probabilities = { kind: 'bar-chart', title: 'First prefix trains a hidden representation',
   bars: l.parameters.vocabulary.map((label, j) => ({ label, value: l.rows[0].probabilityBars[j] })),
   caption: `$h=${l.rows[0].state}$; $U=(${l.parameters.slopes.join(',')})$, $b=(${l.parameters.biases.join(',')})$. $p=softmax(Uh+b)$; target cross. $dL/dh=${l.rows[0].stateGradientShown}$; no quality guarantee.` };
-const counterfactual = { kind: 'bar-chart', title: 'Keep the observed input after a sampled guess', unit: 'State h2',
+const counterfactual = { kind: 'bar-chart', title: 'Keep the observed input after a sampled guess',
   bars: [{ label: 'Observed ' + l.counterfactual.actualInput, value: l.counterfactual.observedState },
     { label: 'Hypothetical ' + l.counterfactual.guess, value: l.counterfactual.guessState }],
   caption: `Same first state; $h_{next}=ReLU(${l.parameters.a}h_{prev}+x)$. Training uses observed ${l.counterfactual.actualInput}, target ${l.rows[1].target}, even after a sampled ${l.counterfactual.guess} guess.` };

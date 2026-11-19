@@ -35,8 +35,8 @@
         },
         {
           "field": "detailSpec",
-          "tokens": 81,
-          "sha256": "3ca3ffe3c2b04ad53194bcb29bfe728649107ed10a1d206ea400a3b200715dea"
+          "tokens": 77,
+          "sha256": "aebc7b4d39fb27968ad6f5e45226e7c16432ea4ed6e39b676067694b356413e8"
         }
       ]
     },
@@ -58,13 +58,13 @@
       "deep": [
         {
           "field": "spec",
-          "tokens": 120,
-          "sha256": "737ee087d7485d2e1833bd1818f7a81cdb96ac09b764791a65ca59f3ec38e0f2"
+          "tokens": 116,
+          "sha256": "7d3f32662b4c1e12705c980f15fb6d5283926e24e2e8c0d18a9c15139b8caf69"
         },
         {
           "field": "detailSpec",
-          "tokens": 99,
-          "sha256": "8b4835b5f639e1ca789bb5417564b15db8dac049b141a1f7ade76e098b1e1b1e"
+          "tokens": 93,
+          "sha256": "fb56f1201c7f4d2be7d9b76ef8bc389a6ac3e61641c5c83d105e3341278cfca8"
         }
       ]
     }

@@ -24,7 +24,7 @@ const stop = { kind: 'relationship', layout: 'graph', title: 'Backward signal st
   nodes: [...h.steps.map(i => ({ id: 'h' + i, label: 'h' + i })), { id: 'loss', label: 'Loss at h' + h.steps.at(-1) }, { id: 'detach', label: 'Detach' }],
   edges: [...h.steps.slice(0, -1).map(i => edge('h' + i, 'h' + (i + 1), 'forward')), edge('loss', 'h6', 'gradient'), edge('h6', 'h5', 'gradient'), edge('h5', 'detach', 'gradient')],
   caption: `Fixed final segment: gradient ends at Detach before h${h.schedules[1].boundaries.at(-2)}. Forward h${h.schedules[1].boundaries.at(-2)} to h${h.schedules[1].boundaries.at(-2)+1} still passes its value.` };
-const overviewSum = { kind: 'bar-chart', title: 'Shared weight receives both time-use gradients', unit: 'dL/da',
+const overviewSum = { kind: 'bar-chart', title: 'Shared weight receives both time-use gradients',
   bars: g.perUse.map((value, i) => ({ label: 'Use ' + (i + 1), value })),
   caption: `Toy shared $a=${g.parameters.a}$; $h=ah_{prev}+x$. Per-use contributions add to ${g.totalGradient}; they are not separate weights.` };
 const unroll = { kind: 'relationship', layout: 'graph', title: 'Shared recurrence and losses',
