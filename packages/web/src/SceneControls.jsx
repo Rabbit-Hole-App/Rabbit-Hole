@@ -96,21 +96,23 @@ export function StepPager({ steps, index, onStep }) {
   );
 }
 
-function IndexSlider({ declaration, value, data, onInput }) {
-  const length = (data?.[declaration.of] || []).length;
+// fill (brief 36, a program card with a scene layout): the row takes the width its cell gives it like a number slider does (the slider grows, the text is 14 px) and the readout is the picked item's own
+// label ("sat") instead of "3 of 6". Every other card passes no fill and draws exactly as before.
+function IndexSlider({ declaration, value, data, onInput, fill = false }) {
+  const items = data?.[declaration.of] || [], length = items.length, size = fill ? { fontSize: 14 } : undefined;
   const stepButton = 'flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-40';
   return (
-    <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs font-medium text-ink-2">{declaration.label}:</span>
+    <div role="group" aria-label={declaration.label} className={fill ? 'flex min-w-0 items-center gap-1.5' : 'flex flex-wrap items-center gap-1.5'}>
+      <span className="text-xs font-medium text-ink-2" style={size}>{declaration.label}:</span>
       <button type="button" data-input-step={`${declaration.name}:previous`} disabled={value <= 0}
-        onClick={() => onInput(declaration.name, value - 1)} className={stepButton}>Previous</button>
+        onClick={() => onInput(declaration.name, value - 1)} className={stepButton} style={size}>Previous</button>
       <input type="range" data-input-control={declaration.name} min={0} max={length - 1} step={1} value={value}
-        aria-label={declaration.label} aria-valuetext={`${value + 1} of ${length}`}
+        aria-label={declaration.label} aria-valuetext={fill ? items[value] : `${value + 1} of ${length}`}
         onChange={event => onInput(declaration.name, Number(event.target.value), { live: true })}
-        className="h-8 w-44 accent-accent" />
+        className={fill ? 'h-8 min-w-0 flex-1 accent-accent' : 'h-8 w-44 accent-accent'} />
       <button type="button" data-input-step={`${declaration.name}:next`} disabled={value >= length - 1}
-        onClick={() => onInput(declaration.name, value + 1)} className={stepButton}>Next</button>
-      <span data-input-readout={declaration.name} className="text-xs tabular-nums text-ink-2">{value + 1} of {length}</span>
+        onClick={() => onInput(declaration.name, value + 1)} className={stepButton} style={size}>Next</button>
+      <span data-input-readout={declaration.name} className={fill ? 'w-16 shrink-0 text-xs text-ink-2' : 'text-xs tabular-nums text-ink-2'} style={size}>{fill ? items[value] : `${value + 1} of ${length}`}</span>
     </div>
   );
 }
@@ -189,12 +191,12 @@ const WIDGETS = {
 // One typed input, one widget - the same registry the experiment strip uses,
 // exported so the practice section renders its answer input through the
 // exact same code path (spec T09: no second widget family for answers).
-export function InputWidget({ declaration, value, data, onInput, disabled = false }) {
+export function InputWidget({ declaration, value, data, onInput, disabled = false, fill = false }) {
   const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];
   if (!Widget) return null;
   return (
     <fieldset disabled={disabled} className="contents">
-      <Widget declaration={declaration} value={value} data={data} onInput={onInput} committed={disabled} />
+      <Widget declaration={declaration} value={value} data={data} onInput={onInput} committed={disabled} fill={fill} />
     </fieldset>
   );
 }

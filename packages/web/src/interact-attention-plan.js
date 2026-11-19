@@ -22,11 +22,11 @@ Object.assign(plan, {
 });
 Object.assign(plan.scene, {
   layout: LAYOUT,
-  description: 'Family stepper-states. One token-links diagram drawn by the written renderer with a ring round the picked word and a dot on the word it looks at most, three values, a formula and a note.\nA 640 x 400 px adjustable still scene on the wide layout with six ordered states. No elapsed time or playback.',
-  entities: [{ id: 'tokens', label: 'Attention picture', purpose: 'Show the weights the picked word gives to every word of the sentence.' }, { id: 'values', label: 'Values', purpose: 'Name the picked word, the word it looks at most and that weight.' }],
+  description: 'Family stepper-states. One token-links diagram drawn by the written renderer, which marks the picked word and the word with the largest weight, three values, a formula and a note.\nA 640 x 400 px adjustable still scene on the wide layout with six ordered states. No elapsed time or playback.',
+  entities: [{ id: 'tokens', label: 'Attention picture', purpose: 'Show the weights the picked word gives to every word of the sentence.' }, { id: 'values', label: 'Values', purpose: 'Name the picked word, the word it attends to most and that weight.' }],
   template: 'stepper-attention', words: {}, slots: {}, readoutIds: [],
   data: { title: 'How does a word attend to the others?', start: START, words: WORDS, weights: WEIGHTS, layout: LAYOUT,
-    values: [{ quantity: 'word', label: 'Word', role: 'input' }, { quantity: 'target', label: 'Looks most at', role: 'warning' }, { quantity: 'weight', label: 'Weight', role: 'warning' }],
+    values: [{ quantity: 'word', label: 'Word', role: 'input' }, { quantity: 'target', label: 'Attends to', role: 'warning' }, { quantity: 'weight', label: 'Weight', role: 'warning' }],
     formula: String.raw`\alpha_j = \mathrm{softmax}_j(q \cdot k_j)`, note: '{word} looks most at {target}.', geometry: ATTENTION_GEOMETRY },
   observations: [{ id: 'aha', text: 'Each word spreads one unit of weight over the sentence; the largest share shows what it looks at most.', quantityIds: [], readoutIds: [] }],
   checkpoints: [2, 5].map(i => ({ id: `state${i}`, label: WORDS[i], time: null, inputOverrides: { step: i }, actions: [], expected: `"${WORDS[i]}" is picked: its largest weight is ${Math.max(...WEIGHTS[i]).toFixed(2)}.` })),

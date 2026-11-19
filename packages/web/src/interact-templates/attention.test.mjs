@@ -4,6 +4,7 @@ import { attentionSchema, source } from './attention.js';
 import { ATTENTION_PLAN } from '../interact-attention-plan.js';
 import { figureOptions } from '../interact-layout.js';
 import { renderTutorDiagram } from '../tutor-diagrams/TutorDiagram.js';
+import { textWidth } from '../tutor-diagrams/primitives.js';
 
 // Brief 36: the attention card. The program run with a recording sdk; the renderer-side checks (token positions, ring and dot, text sizes) are scripts/interact/bake-attention-geometry.mjs --measure.
 const data = ATTENTION_PLAN.scene.data;
@@ -29,30 +30,26 @@ test('one token-links diagram in the stage box at its width, one query (the pick
   }
 });
 
-test('the baked geometry is what the renderer returns now (least size, the same token boxes at every pick); the picture is drawn in the box, no title and no caption', () => {
+test('the baked least size is what the renderer returns now at every pick; the picture is drawn in the box, no title and no caption', () => {
   const figure = figureOptions(data.layout);
   for (let step = 0; step < 6; step++) {
-    const rendered = renderTutorDiagram(diagramOf(step).args[0], figure.options.box.width, figure.options), [panel] = rendered.geometry.panels;
-    assert.deepEqual(data.geometry.min, rendered.min); assert.deepEqual(data.geometry.sources, panel.sources); assert.deepEqual(data.geometry.targets, panel.targets);
+    const rendered = renderTutorDiagram(diagramOf(step).args[0], figure.options.box.width, figure.options);
+    assert.deepEqual(data.geometry.min, rendered.min);
     assert.ok(rendered.width <= figure.options.box.width && rendered.height <= figure.options.box.height);
   }
 });
 
-test('the ring is round the picked source token and the dot under the target with the largest weight', () => {
-  for (let step = 0; step < 6; step++) {
-    const objects = run(step), row = data.weights[step], target = row.indexOf(Math.max(...row)), S = data.geometry.sources[step], D = data.geometry.targets[target], [ax, ay] = figureOptions(data.layout).at;
-    const ring = objects.find(o => o.fn === 'polyline' && o.args[0] === 'ring').args[1], dot = objects.find(o => o.fn === 'circle' && o.args[0] === 'dot');
-    assert.deepEqual([ring[0][0], ring[0][1], ring[2][0], ring[2][1]], [ax + S.x - 2, ay + S.y - 2, ax + S.x + S.width + 2, ay + S.y + S.height + 2]);
-    assert.deepEqual([dot.args[1], dot.args[2]], [ax + D.x + D.width / 2, ay + D.y + D.height + 11]);
-  }
+test('amendment A: the program draws no ring and no dot, only the diagram, the values, the formula and the note', () => {
+  for (let step = 0; step < 6; step++) assert.deepEqual(run(step).filter(o => !(o.fn === 'circle' && o.args[0].startsWith('chip.')) && !(o.fn === 'box' && o.args[0].startsWith('value.'))).map(o => o.fn), ['diagram', 'math', 'box']);
 });
 
-test('the values, in order, then the formula and the note; the layout drops the last value when the rest do not fit (here "Weight": "Looks most at: mat" is 162 px, a box allows 150)', () => {
-  const objects = run(2), text = id => objects.find(o => o.fn === 'box' && o.args[0] === id)?.args[5]?.text;
-  assert.equal(text('value.0'), 'Word: sat'); assert.equal(text('value.1'), 'Looks most at: cat'); assert.equal(text('value.2'), undefined);
-  assert.equal(text('note'), 'sat looks most at cat.');
-  assert.equal(objects.find(o => o.fn === 'math' && o.args[0] === 'formula').args[3], '\\alpha_j = \\mathrm{softmax}_j(q \\cdot k_j)');
-  assert.equal(run(5).find(o => o.fn === 'box' && o.args[0] === 'value.1').args[5].text, 'Looks most at: the');
+test('the three values, in order, with the label "Attends to", then the formula and the note; each text fits its box at every pick', () => {
+  const text = (objects, id) => objects.find(o => o.fn === 'box' && o.args[0] === id)?.args[5]?.text;
+  assert.deepEqual([0, 1, 2].map(k => text(run(2), `value.${k}`)), ['Word: sat', 'Attends to: cat', 'Weight: 0.40']);
+  assert.deepEqual([0, 1, 2].map(k => text(run(5), `value.${k}`)), ['Word: mat', 'Attends to: the', 'Weight: 0.35']);
+  assert.equal(text(run(2), 'note'), 'sat looks most at cat.');
+  assert.equal(run(2).find(o => o.fn === 'math' && o.args[0] === 'formula').args[3], String.raw`\alpha_j = \mathrm{softmax}_j(q \cdot k_j)`);
+  for (let step = 0; step < 6; step++) for (const k of [0, 1, 2]) { const box = run(step).find(o => o.fn === 'box' && o.args[0] === `value.${k}`); assert.ok(textWidth(box.args[5].text, 14) <= box.args[3] - 50, `pick ${step} value ${k}`); }
 });
 
 test('a diagram whose least size is larger than the stage box is refused, with both sizes in the message', () => {
