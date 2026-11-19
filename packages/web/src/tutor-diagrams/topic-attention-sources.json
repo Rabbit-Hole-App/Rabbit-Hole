@@ -1,0 +1,1418 @@
+{
+  "batch": "C07",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "4a5a9aa5f74f671b64810adb4b97604d22190ebb",
+  "families": [
+    {
+      "rank": 32,
+      "source": "d2l-attention-pooling",
+      "figure": "09",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-09",
+      "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "kinds": [
+        "comparison",
+        "heatmap"
+      ],
+      "proposedReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "proposedTopicSlug": "attention-pooling",
+      "lessons": [
+        "06",
+        "12"
+      ],
+      "batch": "C07",
+      "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 1/4",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "comparison"
+      ],
+      "representativeLessons": [
+        "06"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-pooling-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "10",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-10",
+          "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06"
+          ],
+          "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "11",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-11",
+          "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06"
+          ],
+          "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "12",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-12",
+          "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06"
+          ],
+          "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "17",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-17",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 1/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "18",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-18",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "19",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-19",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "20",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-20",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same query/key weight-grid comparison across bandwidth settings and the uniform baseline. Preserve narrow versus broad weighting and row sums; the uniform control is not claimed to equal a finite-width kernel.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 33,
+      "source": "d2l-bahdanau-attention",
+      "figure": "02",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bahdanau-attention/briefs.md#figure-02",
+      "summary": "The decoder can retrieve a different context at each step by querying the encoder states with its previous state.",
+      "kinds": [
+        "relationship",
+        "token-links"
+      ],
+      "proposedReferenceId": "ml-recurrent-attention-decoder-context",
+      "proposedTopicSlug": "recurrent-attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Bahdanau attention 2/4. Change the context as the target evolves",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "relationship",
+        "token-links"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-recurrent-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Target-dependent attention context entering successive recurrent steps.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 34,
+      "source": "d2l-attention-scoring-functions",
+      "figure": "06",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-06",
+      "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "kinds": [
+        "block-stack",
+        "heatmap"
+      ],
+      "proposedReferenceId": "ml-attention-additive-attention",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 1/4",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "block-stack",
+        "heatmap"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-07",
+          "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+          "kinds": [
+            "block-stack",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "08",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-08",
+          "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+          "kinds": [
+            "block-stack",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "09",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-09",
+          "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+          "kinds": [
+            "block-stack",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Four implementation renderings of the same unlike-width projection and additive score.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 35,
+      "source": "d2l-queries-keys-values",
+      "figure": "01",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-queries-keys-values/briefs.md#figure-01",
+      "summary": "A query uses keys to determine how strongly each associated value contributes to the result.",
+      "kinds": [
+        "relationship",
+        "tensor",
+        "token-links",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-attention-query-key-value-roles",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Attention framework 1/2. Separate the lookup signal from the returned contents",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "token-links",
+        "tensor"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-01",
+          "summary": "Attention converts query-to-key scores into weights and then uses those weights to combine values.",
+          "kinds": [
+            "token-links",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 1/3. Trace the entire score-to-value calculation",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "22",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-22",
+          "summary": "A query is matched against keys and the associated values are the material returned.",
+          "kinds": [
+            "relationship",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 8",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same query-to-key matching and associated-value retrieval diagram; preserve the score, weight and value roles.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 36,
+      "source": "d2l-self-attention-and-positional-encoding",
+      "figure": "01",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-self-attention-and-positional-encoding/briefs.md#figure-01",
+      "summary": "The communication path between distant positions is different in a local convolution, recurrence and global self-attention.",
+      "kinds": [
+        "comparison",
+        "heatmap"
+      ],
+      "proposedReferenceId": "ml-attention-connectivity-and-path-length",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Self-attention and position 1/3. Contrast connectivity and path length",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "comparison",
+        "heatmap"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Three genuinely different communication rules: convolution, recurrence and global attention.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 37,
+      "source": "illustrated-gpt2",
+      "figure": "11",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-11",
+      "summary": "Causal self-attention makes a position depend only on itself and positions to its left.",
+      "kinds": [
+        "flow",
+        "heatmap",
+        "token-links"
+      ],
+      "proposedReferenceId": "ml-attention-causal-mask-and-weights",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 3",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "token-links",
+        "heatmap"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "29",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-29",
+          "summary": "Masked attention lets a token collect context from allowed positions inside a single decoder layer.",
+          "kinds": [
+            "token-links",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "35",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-35",
+          "summary": "Masking future positions leaves their weights at zero without changing how scores for eligible positions are computed.",
+          "kinds": [
+            "flow",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 7",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated causal eligibility view; retain blocked logits before softmax and zero future weights afterward.",
+      "batchTopic": "attention",
+      "flowReturnRequirement": "not-required-by-brief"
+    },
+    {
+      "rank": 38,
+      "source": "illustrated-transformer",
+      "figure": "10",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-10",
+      "summary": "A token's hidden vector is projected separately into a query, key, and value.",
+      "kinds": [
+        "block-stack",
+        "matrix",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-attention-packed-query-key-value-projections",
+      "proposedTopicSlug": "attention",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C07",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 2",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "tensor"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "14",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-14",
+          "summary": "Packing token vectors into rows computes all query, key, and value rows with three matrix products.",
+          "kinds": [
+            "matrix",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Attention for a full sequence \u00b7 step 1",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "31",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-31",
+          "summary": "Each token's hidden representation has separate query, key and value projections.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 3",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "40",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-40",
+          "summary": "GPT-2 computes a separate query, key and value for the current token at every decoder layer.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 1",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "44",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-44",
+          "summary": "A combined learned matrix can project one input into the components for queries, keys, and values.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 5",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "45",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-45",
+          "summary": "The joint projection result is sliced into the separate vectors used by attention.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 6",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive single-row, token-batched and joint-QKV views of the same learned projection workflow. Retain separate Q/K/V outputs, matrix dimensions and joint-output slice boundaries; packing is not a new scoring operation.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 39,
+      "source": "illustrated-transformer",
+      "figure": "11",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-11",
+      "summary": "A query scores each candidate key by multiplying corresponding components and summing them.",
+      "kinds": [
+        "matrix",
+        "tensor"
+      ],
+      "proposedReferenceId": "ml-attention-query-key-dot-products",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 3",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "matrix",
+        "tensor"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "32",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-32",
+          "summary": "Each query compares with all eligible keys before weights are computed.",
+          "kinds": [
+            "matrix",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same displayed component products and sum for each query-key match.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 40,
+      "source": "illustrated-transformer",
+      "figure": "13",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-13",
+      "summary": "Attention forms the output for one token by weighting every value vector and adding corresponding entries.",
+      "kinds": [
+        "block-stack",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-attention-weighted-vector-pooling",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 5",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "block-stack"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "24",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-24",
+          "summary": "A weighted sum of values creates the new context for one token position.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 10",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "33",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-33",
+          "summary": "Values contribute to the result in proportion to their attention weights.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 5",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "50",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-50",
+          "summary": "A head mixes its values using the corresponding normalized weights.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 11",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-retrieval-transformer",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-retrieval-transformer/briefs.md#figure-07",
+          "summary": "Averaging contextual token vectors gives one fixed-length representation for an input chunk.",
+          "kinds": [
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Building and querying the index \u00b7 step 2",
+          "gapTypes": [
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same coordinate-wise weighted vector sum, with equal weights giving the chunk-mean special case. Keep attention-derived weights separate from fixed uniform pooling; the mean is not presented as learned attention.",
+      "batchTopic": "attention"
+    },
+    {
+      "rank": 41,
+      "source": "illustrated-transformer",
+      "figure": "15",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-15",
+      "summary": "The same attention calculation processes all query positions by scoring a query-by-key matrix and normalizing each query row before mixing values.",
+      "kinds": [
+        "flow",
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-attention-all-query-attention",
+      "proposedTopicSlug": "attention",
+      "lessons": [],
+      "batch": "C07",
+      "sequence": "Illustrated Transformer \u00b7 Attention for a full sequence \u00b7 step 2",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "34",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-34",
+          "summary": "Repeating the same attention stages for each query gives one contextual vector per position.",
+          "kinds": [
+            "flow",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "37",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-37",
+          "summary": "Packing queries and keys lets the model compute every pairwise score in one matrix operation.",
+          "kinds": [
+            "heatmap",
+            "matrix"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 9",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same all-query score grid, row normalization and position-aligned context; the packed score product is its intermediate view.",
+      "batchTopic": "attention",
+      "flowReturnRequirement": "not-required-by-brief"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "topic": "attention-pooling",
+      "lessons": [
+        "06",
+        "12"
+      ],
+      "source": {
+        "source": "d2l-attention-pooling",
+        "figure": "09",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-09",
+        "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+        "lessons": [
+          "06"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "10",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-10",
+          "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06"
+          ],
+          "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "11",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-11",
+          "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06"
+          ],
+          "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "12",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-12",
+          "summary": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06"
+          ],
+          "sequence": "Attention pooling 3/5. Locate the influential neighbors. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "17",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-17",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 1/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "18",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-18",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "19",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-19",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-pooling",
+          "figure": "20",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-20",
+          "summary": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [
+            "06",
+            "12"
+          ],
+          "sequence": "Attention pooling 5/5. Verify the bandwidth effect in the weights. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same query/key weight-grid comparison across bandwidth settings and the uniform baseline. Preserve narrow versus broad weighting and row sums; the uniform control is not claimed to equal a finite-width kernel."
+    },
+    {
+      "queueId": "ml-recurrent-attention-decoder-context",
+      "referenceId": "ml-recurrent-attention-decoder-context",
+      "mode": "NEW",
+      "topic": "recurrent-attention",
+      "lessons": [],
+      "source": {
+        "source": "d2l-bahdanau-attention",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bahdanau-attention/briefs.md#figure-02",
+        "summary": "The decoder can retrieve a different context at each step by querying the encoder states with its previous state.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Target-dependent attention context entering successive recurrent steps."
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "referenceId": "ml-attention-additive-attention",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "d2l-attention-scoring-functions",
+        "figure": "06",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-06",
+        "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-07",
+          "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+          "kinds": [
+            "block-stack",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "08",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-08",
+          "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+          "kinds": [
+            "block-stack",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "09",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-09",
+          "summary": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+          "kinds": [
+            "block-stack",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 3/3. Score projected queries and keys with a learned function. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Four implementation renderings of the same unlike-width projection and additive score."
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "referenceId": "ml-attention-query-key-value-roles",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "d2l-queries-keys-values",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-queries-keys-values/briefs.md#figure-01",
+        "summary": "A query uses keys to determine how strongly each associated value contributes to the result.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-attention-scoring-functions",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-01",
+          "summary": "Attention converts query-to-key scores into weights and then uses those weights to combine values.",
+          "kinds": [
+            "token-links",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Attention scoring 1/3. Trace the entire score-to-value calculation",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "22",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-22",
+          "summary": "A query is matched against keys and the associated values are the material returned.",
+          "kinds": [
+            "relationship",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 8",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same query-to-key matching and associated-value retrieval diagram; preserve the score, weight and value roles."
+    },
+    {
+      "queueId": "ml-attention-connectivity-and-path-length",
+      "referenceId": "ml-attention-connectivity-and-path-length",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "d2l-self-attention-and-positional-encoding",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-self-attention-and-positional-encoding/briefs.md#figure-01",
+        "summary": "The communication path between distant positions is different in a local convolution, recurrence and global self-attention.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Three genuinely different communication rules: convolution, recurrence and global attention."
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "referenceId": "ml-attention-causal-mask-and-weights",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "11",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-11",
+        "summary": "Causal self-attention makes a position depend only on itself and positions to its left.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "29",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-29",
+          "summary": "Masked attention lets a token collect context from allowed positions inside a single decoder layer.",
+          "kinds": [
+            "token-links",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "35",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-35",
+          "summary": "Masking future positions leaves their weights at zero without changing how scores for eligible positions are computed.",
+          "kinds": [
+            "flow",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 7",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated causal eligibility view; retain blocked logits before softmax and zero future weights afterward."
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "10",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-10",
+        "summary": "A token's hidden vector is projected separately into a query, key, and value.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "14",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-14",
+          "summary": "Packing token vectors into rows computes all query, key, and value rows with three matrix products.",
+          "kinds": [
+            "matrix",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Attention for a full sequence \u00b7 step 1",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "31",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-31",
+          "summary": "Each token's hidden representation has separate query, key and value projections.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 3",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "40",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-40",
+          "summary": "GPT-2 computes a separate query, key and value for the current token at every decoder layer.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 1",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "44",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-44",
+          "summary": "A combined learned matrix can project one input into the components for queries, keys, and values.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 5",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "45",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-45",
+          "summary": "The joint projection result is sliced into the separate vectors used by attention.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 6",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive single-row, token-batched and joint-QKV views of the same learned projection workflow. Retain separate Q/K/V outputs, matrix dimensions and joint-output slice boundaries; packing is not a new scoring operation."
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "referenceId": "ml-attention-query-key-dot-products",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "11",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-11",
+        "summary": "A query scores each candidate key by multiplying corresponding components and summing them.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "32",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-32",
+          "summary": "Each query compares with all eligible keys before weights are computed.",
+          "kinds": [
+            "matrix",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same displayed component products and sum for each query-key match."
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "13",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-13",
+        "summary": "Attention forms the output for one token by weighting every value vector and adding corresponding entries.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "24",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-24",
+          "summary": "A weighted sum of values creates the new context for one token position.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 10",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "33",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-33",
+          "summary": "Values contribute to the result in proportion to their attention weights.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 5",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "50",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-50",
+          "summary": "A head mixes its values using the corresponding normalized weights.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 11",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same coordinate-wise weighted vector sum, with equal weights giving the chunk-mean special case. Keep attention-derived weights separate from fixed uniform pooling; the mean is not presented as learned attention."
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "figure-retro-chunk-embedding",
+      "mode": "REUSE",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-retrieval-transformer",
+        "figure": "07",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-retrieval-transformer/briefs.md#figure-07",
+        "summary": "Averaging contextual token vectors gives one fixed-length representation for an input chunk.",
+        "kinds": [
+          "transformation"
+        ],
+        "lessons": [],
+        "sequence": "Building and querying the index \u00b7 step 2",
+        "gapTypes": [
+          "numeric-transformation"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Fixed uniform contextual-token mean; not learned attention."
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "referenceId": "ml-attention-all-query-attention",
+      "mode": "NEW",
+      "topic": "attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "15",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-15",
+        "summary": "The same attention calculation processes all query positions by scoring a query-by-key matrix and normalizing each query row before mixing values.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "34",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-34",
+          "summary": "Repeating the same attention stages for each query gives one contextual vector per position.",
+          "kinds": [
+            "flow",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "37",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-37",
+          "summary": "Packing queries and keys lets the model compute every pairwise score in one matrix operation.",
+          "kinds": [
+            "heatmap",
+            "matrix"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 9",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same all-query score grid, row normalization and position-aligned context; the packed score product is its intermediate view."
+    }
+  ]
+}

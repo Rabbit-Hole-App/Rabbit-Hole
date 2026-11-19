@@ -1,0 +1,44 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-recurrent-attention-decoder-context": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 223,
+          "sha256": "bcd698900ea0eecdbe0efa4adb1e96d885fd4aa5d4e899a788833b18a2346a58"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 145,
+          "sha256": "d0bc43c3563d10974e3a428ac891894c5daab5814f60f9f2f27fd13768e9e5c2"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 287,
+          "sha256": "859bb0062b59239839a50d73388fe64c133f851f6b426f901c8ccf8557d160f9"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 145,
+          "sha256": "d0bc43c3563d10974e3a428ac891894c5daab5814f60f9f2f27fd13768e9e5c2"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 119,
+          "sha256": "e7f21e2ba63a62f33a60357d6b09767e93ae9fd5077d455f1e1caf2e0eedeaf4"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 126,
+          "sha256": "31c11d745385b3f5eb6965d13776aaa9d9d89d2f365e651cdbecf26bf929c3cf"
+        }
+      ]
+    }
+  }
+}

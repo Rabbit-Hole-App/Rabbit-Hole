@@ -356,8 +356,16 @@
           "references": 1
         }
       ],
-      "approval": "pending corrected-queue and batch id/keyword approval; schema pinned to 1944b48cf",
-      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: attention-pooling (1), recurrent-attention (1) into attention."
+      "approval": "Owner authorized the release 164 append-only composition chain on 2026-11-19.",
+      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: attention-pooling (1), recurrent-attention (1) into attention.",
+      "verification": {
+        "report": "batches/C07/REPORT.md",
+        "new": 10,
+        "existingUpdated": 1,
+        "snapshotAdded": 30,
+        "snapshotChanged": 0,
+        "snapshotRemoved": 0
+      }
     },
     {
       "id": "C08",
@@ -8636,5 +8644,13 @@
         "elementsEvidence": "Show width reduction, selected expert outputs, per-output normalization, and the return to the residual width. Do not add a shared branch."
       }
     ]
+  },
+  "ownerOverride": {
+    "date": "2026-11-14",
+    "precedence": "Current owner directions supersede the earlier rules.hold and authoringGate approval/rebase waits retained below as history.",
+    "authorization": "Continue C03 and C04 onward sequentially without waiting for releases134/135 or another batch approval, while every batch verifies tests, prior replay0moved, per-visual compact token receipts<=300, applicable linter0 and inspected sheets.",
+    "base": "Release133 a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36; C01/C02 rebased as-r1 and correctness fixes pushed.",
+    "scope": "Data/reference authoring only; preserve old visual/data payloads and prior picks; no renderer/schema/tooling/author-prompt changes, force-push or branch rename. Record unexpressible requirements in batch reports.",
+    "delivery": "Push verified batch branches and one consolidated morning report with branches/SHAs/counts/expressibility; Claude Code owns release gating."
   }
 }

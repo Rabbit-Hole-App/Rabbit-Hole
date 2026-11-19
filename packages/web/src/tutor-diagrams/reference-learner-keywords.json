@@ -1658,5 +1658,45 @@
   "ml-summarization-supervised-summary-pair": [
     "raw summarization pairs",
     "body lead supervision"
+  ],
+  "ml-attention-pooling-kernel-weight-concentration": [
+    "kernel control grids",
+    "bandwidth concentration rows"
+  ],
+  "ml-recurrent-attention-decoder-context": [
+    "recurrent context handoff",
+    "decoder context recurrence"
+  ],
+  "ml-attention-additive-attention": [
+    "additive projection branches",
+    "unlike width matching"
+  ],
+  "ml-attention-query-key-value-roles": [
+    "matching retrieved content",
+    "paired value retrieval"
+  ],
+  "ml-attention-connectivity-and-path-length": [
+    "position communication hops",
+    "local global hops"
+  ],
+  "ml-attention-causal-mask-and-weights": [
+    "masked row normalization",
+    "interior causal query"
+  ],
+  "ml-attention-packed-query-key-value-projections": [
+    "packed projection identity",
+    "joint slice boundaries"
+  ],
+  "ml-attention-query-key-dot-products": [
+    "component match products",
+    "unnormalized key sums"
+  ],
+  "ml-attention-weighted-vector-pooling": [
+    "value contribution products",
+    "coordinate weighted pooling"
+  ],
+  "ml-attention-all-query-attention": [
+    "query row normalization",
+    "position aligned outputs"
   ]
 }
