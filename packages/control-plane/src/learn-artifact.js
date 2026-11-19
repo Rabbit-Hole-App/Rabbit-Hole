@@ -177,6 +177,7 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
   return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: hit.kind, kindSource: 'reference', visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: hit.kind } : v)) } };
 }
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
+const plannedDiagram = input => { const { source, visuals } = cardVisuals(input.plan, askedItems(input)); return { diagram: source === 'plan' && visuals.some(v => v.type === 'diagram') }; }; // NOVIS-1: the plan (not the learner's named kinds, requiredVisualProblem's) names a diagram
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
 // Why a wrong number gets one more repair on the same model (owner/Reviewer 2026-11-17): an arithmetic-tagged diagram issue (params.code 'arithmetic', e.g. a box-plot fence that is not
@@ -318,7 +319,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
             const named = requiredMix(wanted)?.diagramKind;
             const simple = dropInvalidDiagrams(block, { simplify: true, prefer: ['flow', 'cycle', 'sequence'].includes(named) ? named : simplifiedKind(input) });
             // The simpler diagram must pass the card's own checks too (it may name nothing the prose names); if not, the prose card goes without it.
-            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
+            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args, plannedDiagram(input))) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
             // Owner 2026-11-08: a card whose plan had a visual never goes out with none. Nothing could be built from the author's own labels: the card fails here (a validation error, so
             // the chain's next step gets its turn) instead of delivering empty. Without a plan (planner off or failed) the older rule stands: the prose card is delivered.
             if (fallback === 'dropped' && input.plan?.visuals?.length) throw new Error('explanation_missing_visual: the card must keep one to three visuals; every diagram was invalid and none could be rebuilt in its own kind from its labels.');          }
@@ -335,7 +336,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // E2 + fix 1b: the questions and term anchors are read against the FINAL text (accepted title applied, diagrams settled); what is not valid is dropped, never repaired.
         const interactive = interactionsEnabled(env);
         if (interactive) ({ questions, terms } = keptInteractions(block, { questions, terms }));
-        const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        const problem = [explanationProblem(block, input.depth, input.args, plannedDiagram(input)), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         { const left = leftoverToken(block, questions); if (left) throw new Error(left); } // a token of an invalid diagram (dropped above) or inside a diagram or a question is never delivered
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
