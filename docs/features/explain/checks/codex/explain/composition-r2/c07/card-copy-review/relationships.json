@@ -1,0 +1,650 @@
+{
+  "commit": "fc33620a6fafbadcd7126abdd583f84e0b516c36",
+  "tree": "5fa3c67396bfdeeb703132d7de8401e89c7a8d2b",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-attention-additive-attention",
+    "ml-attention-query-key-value-roles",
+    "ml-attention-connectivity-and-path-length",
+    "ml-attention-causal-mask-and-weights",
+    "ml-attention-packed-query-key-value-projections",
+    "ml-attention-query-key-dot-products",
+    "ml-attention-weighted-vector-pooling",
+    "ml-attention-all-query-attention",
+    "ml-attention-pooling-kernel-weight-concentration",
+    "ml-recurrent-attention-decoder-context",
+    "figure-retro-chunk-embedding"
+  ],
+  "additionalReusedIds": [],
+  "references": [
+    {
+      "id": "ml-attention-additive-attention",
+      "inventory": "added",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Two projections meet in one hidden space",
+            "edgeCount": 4,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "pq",
+                "to": "sum",
+                "label": "broadcast to keys",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "pk",
+                "to": "sum",
+                "label": "varies by key",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "sum",
+                "to": "score",
+                "label": "nonlinear match",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "score",
+                "to": "w",
+                "label": "exclude padding",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Project independently, combine, score and mask",
+            "edgeCount": 6,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "q",
+                "to": "pq",
+                "label": "Wq",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "k",
+                "to": "pk",
+                "label": "Wk",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "pq",
+                "to": "sum",
+                "label": "broadcast to keys",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "pk",
+                "to": "sum",
+                "label": "varies by key",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "sum",
+                "to": "tanh",
+                "label": "elementwise",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "tanh",
+                "to": "score",
+                "label": "v then softmax",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-attention-query-key-value-roles",
+      "inventory": "added",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Keys match; paired values supply content",
+            "edgeCount": 4,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "q",
+                "to": "a",
+                "label": "compare",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "pairs",
+                "to": "a",
+                "label": "keys only",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "pairs",
+                "to": "c",
+                "label": "values only",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "a",
+                "to": "c",
+                "label": "weighted sum",
+                "words": 2
+              }
+            ]
+          },
+          {
+            "role": "detail",
+            "path": [
+              "diagram"
+            ],
+            "title": "Multiply matching values, then sum coordinates",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "t",
+                "label": "scale each pair",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "v",
+                "to": "t",
+                "label": "pair by label",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "t",
+                "to": "c",
+                "label": "sum coordinates",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Match keys, retrieve values",
+            "edgeCount": 4,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "q",
+                "to": "a",
+                "label": "probe",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "k",
+                "to": "a",
+                "label": "candidates",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "a",
+                "to": "c",
+                "label": "scale",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "v",
+                "to": "c",
+                "label": "mix",
+                "words": 1
+              }
+            ]
+          },
+          {
+            "role": "detail",
+            "path": [
+              "diagram"
+            ],
+            "title": "Multiply matching values, then sum coordinates",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "t",
+                "label": "scale each pair",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "v",
+                "to": "t",
+                "label": "pair by label",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "t",
+                "to": "c",
+                "label": "sum coordinates",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Match keys, retrieve values",
+            "edgeCount": 4,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "q",
+                "to": "a",
+                "label": "probe",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "k",
+                "to": "a",
+                "label": "candidates",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "a",
+                "to": "c",
+                "label": "scale",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "v",
+                "to": "c",
+                "label": "mix",
+                "words": 1
+              }
+            ]
+          },
+          {
+            "role": "detail",
+            "path": [
+              "diagram"
+            ],
+            "title": "Multiply matching values, then sum coordinates",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "t",
+                "label": "scale each pair",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "v",
+                "to": "t",
+                "label": "pair by label",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "t",
+                "to": "c",
+                "label": "sum coordinates",
+                "words": 2
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-attention-packed-query-key-value-projections",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Toy QKV",
+            "edgeCount": 4,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "p",
+                "to": "h0",
+                "label": "given",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "p",
+                "to": "h1",
+                "label": "given",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "h0",
+                "to": "o0",
+                "label": "project",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h1",
+                "to": "o1",
+                "label": "project",
+                "words": 1
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-attention-weighted-vector-pooling",
+      "inventory": "added",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Weights and values supply one output",
+            "edgeCount": 2,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "c",
+                "label": "scale values",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "v",
+                "to": "c",
+                "label": "mix by weight",
+                "words": 3
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Multiply matching values, then sum coordinates",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "t",
+                "label": "scale each pair",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "v",
+                "to": "t",
+                "label": "pair by label",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "t",
+                "to": "c",
+                "label": "sum coordinates",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Permute whole coefficient/value pairs",
+            "edgeCount": 3,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "t",
+                "label": "scale each pair",
+                "words": 3
+              },
+              {
+                "edgeIndex": 1,
+                "from": "v",
+                "to": "t",
+                "label": "pair by label",
+                "words": 3
+              },
+              {
+                "edgeIndex": 2,
+                "from": "t",
+                "to": "c",
+                "label": "sum coordinates",
+                "words": 2
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-attention-decoder-context",
+      "inventory": "added",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Two reads enter two recurrent updates",
+            "edgeCount": 8,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "enc",
+                "to": "c1",
+                "label": "memory",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "s0",
+                "to": "c1",
+                "label": "query",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "c1",
+                "to": "s1",
+                "label": "add",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "s0",
+                "to": "s1",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "enc",
+                "to": "c2",
+                "label": "memory",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "s1",
+                "to": "c2",
+                "label": "query",
+                "words": 1
+              },
+              {
+                "edgeIndex": 6,
+                "from": "c2",
+                "to": "s2",
+                "label": "add",
+                "words": 1
+              },
+              {
+                "edgeIndex": 7,
+                "from": "s1",
+                "to": "s2",
+                "label": "scale carry",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Context enters each update",
+            "edgeCount": 10,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "enc",
+                "to": "read1",
+                "label": "memory",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "s0",
+                "to": "read1",
+                "label": "query",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "read1",
+                "to": "c1",
+                "label": "weighted sum",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "c1",
+                "to": "s1",
+                "label": "add",
+                "words": 1
+              },
+              {
+                "edgeIndex": 4,
+                "from": "s0",
+                "to": "s1",
+                "label": "scale",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "enc",
+                "to": "read2",
+                "label": "memory",
+                "words": 1
+              },
+              {
+                "edgeIndex": 6,
+                "from": "s1",
+                "to": "read2",
+                "label": "query",
+                "words": 1
+              },
+              {
+                "edgeIndex": 7,
+                "from": "read2",
+                "to": "c2",
+                "label": "weighted sum",
+                "words": 2
+              },
+              {
+                "edgeIndex": 8,
+                "from": "c2",
+                "to": "s2",
+                "label": "add",
+                "words": 1
+              },
+              {
+                "edgeIndex": 9,
+                "from": "s1",
+                "to": "s2",
+                "label": "scale",
+                "words": 1
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    }
+  ],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label"
+}
