@@ -1,0 +1,42 @@
+{
+ "A": [
+  {
+   "total": 519.704,
+   "idle": 143.281,
+   "active": 376.423,
+   "prof": "C:/s/spec/startup/lead2-A1.cpuprofile"
+  },
+  {
+   "total": 407.632,
+   "idle": 116.808,
+   "active": 290.824,
+   "prof": "C:/s/spec/startup/lead2-A2.cpuprofile"
+  },
+  {
+   "total": 503.804,
+   "idle": 117.418,
+   "active": 386.386,
+   "prof": "C:/s/spec/startup/lead2-A3.cpuprofile"
+  }
+ ],
+ "B": [
+  {
+   "total": 433.991,
+   "idle": 131.509,
+   "active": 302.482,
+   "prof": "C:/s/spec/startup/lead2-B1.cpuprofile"
+  },
+  {
+   "total": 369.807,
+   "idle": 117.893,
+   "active": 251.914,
+   "prof": "C:/s/spec/startup/lead2-B2.cpuprofile"
+  },
+  {
+   "total": 325.224,
+   "idle": 109.71,
+   "active": 215.514,
+   "prof": "C:/s/spec/startup/lead2-B3.cpuprofile"
+  }
+ ]
+}
