@@ -14,8 +14,9 @@ function group(tex, i) {
   }
   return null;
 }
-// One symbol reads without brackets: a number, a letter or \command, optionally with ^/_ groups (e^{z_i}, p_i, x^2).
-const ATOM = /^(?:\d+(?:\.\d+)?|[A-Za-z]|\\[A-Za-z]+)(?:[_^](?:\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}|[A-Za-z0-9]))*$/;
+// One symbol reads without brackets: a number, a letter or \command, optionally with ^/_ groups (e^{z_i}, p_i, x^2), or one function
+// call (a \command and one bracketed group with no brackets inside: \max(a, b)).
+const ATOM = /^(?:(?:\d+(?:\.\d+)?|[A-Za-z]|\\[A-Za-z]+)(?:[_^](?:\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}|[A-Za-z0-9]))*|\\[A-Za-z]+\([^()]*\))$/;
 const arg = s => { const t = slashFractions(s).trim(); return ATOM.test(t) ? t : `(${t})`; };
 
 export function slashFractions(tex) {

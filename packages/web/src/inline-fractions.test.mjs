@@ -12,7 +12,11 @@ test('simple fractions become a/b; a symbol with a sub or superscript needs no b
 test('a compound argument is bracketed: the softmax sentence and the silhouette coefficient', () => {
   assert.equal(f(String.raw`p_i=\frac{e^{s_i}}{\sum_j e^{s_j}}`), String.raw`p_i=e^{s_i}/(\sum_j e^{s_j})`);
   assert.equal(f(String.raw`\sigma(\mathbf{z})_i = \frac{e^{z_i}}{\sum_{j} e^{z_j}}`), String.raw`\sigma(\mathbf{z})_i = e^{z_i}/(\sum_{j} e^{z_j})`);
-  assert.equal(f(String.raw`\frac{b - a}{\max(a, b)}`), String.raw`(b - a)/(\max(a, b))`);
+  assert.equal(f(String.raw`\frac{b - a}{\max(a, b)}`), String.raw`(b - a)/\max(a, b)`);
+  // One function call is one symbol; anything compound around it keeps its brackets.
+  assert.equal(f(String.raw`\frac{\max(a,b)}{\log(x)}`), String.raw`\max(a,b)/\log(x)`);
+  assert.equal(f(String.raw`\frac{\max(a,b) + 1}{2}`), String.raw`(\max(a,b) + 1)/2`);
+  assert.equal(f(String.raw`\frac{1}{\max(a,(b))}`), String.raw`1/(\max(a,(b)))`);
 });
 
 test('nested braces and nested fractions', () => {
