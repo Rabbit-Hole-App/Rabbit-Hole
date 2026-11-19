@@ -19,7 +19,7 @@ import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
 import { fillTokens, leftoverToken } from './explanation-tokens.js';
-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, boxValuesFromQuestion, boxFieldsChanged, boxStatsApplied, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -297,11 +297,18 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
         { const hier = treesAsHierarchy(block.body); if (hier.count) { block = { ...block, body: hier.md }; corrections.tree_hierarchy_layout = hier.count; } } // batch-1 audit 2026-11-09: a short-key tree is drawn top-down, not as an outline
         block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
+        // BOX-1: the learner's data, read by code, becomes the `values` of a one-box box plot (one list in the question), before any derived field or token is filled; derived.js then writes the
+        // statistics over whatever the author typed. Several lists or boxes are only counted. The trace and the card's corrections record what was set, what was unmatched and which fields changed.
+        { const sources = [block.body, ...(block.more || []).map(s => s?.text)], from = sources.map(md => boxValuesFromQuestion(md, input.args)), set = from.reduce((sum, f) => sum + f.count, 0), unmatched = from.flatMap(f => f.unmatched);
+          if (set) { block = { ...block, body: from[0].md, ...(block.more ? { more: block.more.map((s, i) => (typeof s?.text === 'string' ? { ...s, text: from[i + 1].md } : s)) } : {}) }; corrections.box_values_from_question = set; }
+          const changed = [block.body, ...(block.more || []).map(s => s?.text)].flatMap(md => boxFieldsChanged(md)); // typed statistics the code replaces, read before it writes them
+          block = { ...block, body: boxStatsApplied(block.body), ...(block.more ? { more: block.more.map(s => (typeof s?.text === 'string' ? { ...s, text: boxStatsApplied(s.text) } : s)) } : {}) }; // the saved card text carries the computed numbers too
+          if (trace) Object.assign(trace, { box_values_from_question: set, box_values_unmatched: unmatched, box_fields_changed: changed }); }
         // VAR-1 step 2: a {{d:N.path}} in the prose becomes the figure's own number before any check reads the text; the archive keeps the body as written (trace.bodyWithTokens).
         { const tokens = fillTokens(block); if (tokens.problem) throw new Error(tokens.problem); block = tokens.block; if (trace) Object.assign(trace, { tokensFilled: tokens.filled, bodyWithTokens: tokens.authored }); }
         if (attempt >= limit) {
           // An arithmetic-tagged issue is never dropped or simplified away, and the prose is never delivered with the wrong number: the step fails (explanation_bad_numbers) and the chain's next provider runs.
-          const numbers = numbersIssue(block, input.args); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
+          const numbers = numbersIssue(block); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
           let trimmed = dropInvalidDiagrams(block), fallback = null;
           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback

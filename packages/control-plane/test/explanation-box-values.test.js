@@ -1,16 +1,19 @@
-// BOX-1 (Reviewer order D), offline. (b) the learner's question lists five or more numbers and the card is a box plot: the box carries `values` equal to them, else the card is
-// rejected (explanation_bad_numbers) with a message naming the learner's data. (c) a number written after "upper fence", "lower fence", "IQR", "median", "Q1" or "Q3" in the
-// diagram caption or the prose equals the drawn statistic. The numbers are the R2 bench question: 3, 5, 6, 7, 8, 9, 11, 12, 40 gives Q1 5.5, median 8, Q3 11.5, fences -3.5 and 20.5.
+// BOX-1 (Reviewer's revision), offline. (b) the learner's data is read BY CODE: one list in the question and a box plot with one box set that box's `values` before anything is filled; the statistics
+// (derived.js) are then written over what the author typed, never rejected; several lists or boxes are counted, not filled and not rejected. (c) a number written after "upper fence", "lower fence",
+// "IQR", "median", "Q1"/"first or lower quartile", "Q3"/"third or upper quartile" in the diagram caption or the prose must equal the drawn statistic: ONE message names every wrong statement and gives
+// the full drawn set. The numbers are the R2 bench question: 3, 5, 6, 7, 8, 9, 11, 12, 40 gives Q1 5.5, median 8, Q3 11.5, fences -3.5 and 20.5.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { numbersIssue, explanationProblem, learnerDatasets } from '../src/learn-primitives.js';
+import { numbersIssue, explanationProblem, learnerDatasets, boxValuesFromQuestion, boxFieldsChanged, boxTextIssues } from '../src/learn-primitives.js';
 import { fillTokens } from '../src/explanation-tokens.js';
+import { generateArtifact } from '../src/learn-artifact.js';
 
 const DATA = [3, 5, 6, 7, 8, 9, 11, 12, 40];
 const QUESTION = 'Draw a box plot of the data 3, 5, 6, 7, 8, 9, 11, 12, 40 and show the outlier.';
 const fence = spec => '```rh-diagram\n' + JSON.stringify(spec) + '\n```';
 const box = (extra = {}, diagram = {}) => ({ version: 1, diagram: { kind: 'box-plot', title: 'Scores and the outlier', x: { label: 'Score', min: 0, max: 45 }, boxes: [{ label: 'Scores', whiskerLow: 3, q1: 5.5, median: 8, q3: 11.5, whiskerHigh: 12, ...extra }], ...diagram } });
 const card = (text, spec) => ({ title: 'Box plot', body: `${text}\n\n${fence(spec)}\n\nA closing sentence that states nothing numeric.` });
+const diagramOf = md => JSON.parse(/```rh-diagram\n([\s\S]*?)\n```/.exec(md)[1]).diagram;
 
 test('(b) learnerDatasets reads a run of five or more numbers; thousands, short lists and prose numbers are not data', () => {
   assert.deepEqual(learnerDatasets(QUESTION), [DATA]);
@@ -22,87 +25,128 @@ test('(b) learnerDatasets reads a run of five or more numbers; thousands, short 
   assert.deepEqual(learnerDatasets(''), []);
 });
 
-test('(b) a box plot with no values for a question that lists the data is rejected, naming the learner\'s data', () => {
-  const issue = numbersIssue(card('The five-number summary of the scores.', box()), QUESTION);
-  assert.match(issue.problem, /^explanation_bad_numbers: the card states wrong numbers \(the box-plot "Scores and the outlier" must carry the learner's data: the question lists \(3, 5, 6, 7, 8, 9, 11, 12, 40\), so give the box "Scores" values equal to those numbers /);
-  assert.deepEqual(issue.kinds, ['box-plot']);
-  assert.match(explanationProblem(card('The five-number summary of the scores.', box()), 'standard', QUESTION), /explanation_bad_numbers: .*learner's data/);
-  assert.equal(numbersIssue(card('The five-number summary of the scores.', box())), null, 'no question: nothing to compare');
+test('(b) one list and one box: the box gets the list as its values, replacing values the author wrote that differ; nothing else is touched', () => {
+  const none = boxValuesFromQuestion(card('Summary.', box()).body, QUESTION);
+  assert.equal(none.count, 1);
+  assert.deepEqual(diagramOf(none.md).boxes[0].values, DATA);
+  const wrong = boxValuesFromQuestion(card('Summary.', box({ values: [3, 5, 6, 7, 8, 9, 11, 12, 13] })).body, QUESTION);
+  assert.equal(wrong.count, 1);
+  assert.deepEqual(diagramOf(wrong.md).boxes[0].values, DATA);
+  const same = card('Summary.', box({ values: DATA })).body;
+  assert.deepEqual(boxValuesFromQuestion(same, QUESTION), { md: same, count: 0, unmatched: [] }, 'the same list: unchanged');
+  const bars = card('Bars.', { version: 1, diagram: { kind: 'bar-chart', title: 'Scores', unit: 'value', bars: DATA.map((value, i) => ({ label: `S${i + 1}`, value })) } }).body;
+  assert.deepEqual(boxValuesFromQuestion(bars, QUESTION), { md: bars, count: 0, unmatched: [] }, 'not a box plot');
+  const plain = card('Summary.', box()).body;
+  assert.equal(boxValuesFromQuestion(plain, 'Draw a box plot with median 8, Q1 5.5 and Q3 11.5.').md, plain, 'no list in the question');
 });
 
-test('(b) the right values pass (in any order); different values are rejected naming both lists; the arithmetic rule of (a) still runs on the statistics', () => {
-  assert.equal(numbersIssue(card('The summary.', box({ values: DATA })), QUESTION), null);
-  assert.equal(numbersIssue(card('The summary.', box({ values: [...DATA].reverse() })), QUESTION), null);
-  const other = numbersIssue(card('The summary.', box({ values: [3, 5, 6, 7, 8, 9, 11, 12, 13], whiskerHigh: 13 })), QUESTION);
-  assert.match(other.problem, /holds values \(3, 5, 6, 7, 8, 9, 11, 12, 13\), but the learner's data is \(3, 5, 6, 7, 8, 9, 11, 12, 40\): set the values of the box that shows it to exactly those numbers/);
-  const wrong = numbersIssue(card('The summary.', box({ values: DATA, median: 8.5, q3: 10.5 })), QUESTION);
-  assert.match(wrong.problem, /its 9 values give median 8 \(not 8.5\), Q3 11.5 \(not 10.5\)/);
-});
-
-test('(b) two datasets and two boxes: each list must be the values of a box; a card with fewer than five numbers in the question is not checked', () => {
+test('(b) several lists or several boxes: nothing is filled and nothing is rejected, the counts are recorded; a box the author gave values keeps them', () => {
   const A = [10, 12, 13, 15, 18, 21], B = [30, 33, 35, 38, 41, 44], q = `Compare group A: ${A.join(', ')} with group B: ${B.join(', ')} using box plots.`;
-  const two = (a, b) => box({}, { x: { label: 'Score', min: 0, max: 70 }, boxes: [
-    { label: 'A', values: a, whiskerLow: 10, q1: 12, median: 14, q3: 18, whiskerHigh: 21 },
-    { label: 'B', values: b, whiskerLow: 30, q1: 33, median: 36.5, q3: 41, whiskerHigh: 44 }] });
-  assert.equal(numbersIssue(card('Two groups.', two(A, B)), q), null);
-  assert.match(numbersIssue(card('Two groups.', two(A, [30, 33, 34, 39, 41, 44])), q).problem, /but the learner's data is \(30, 33, 35, 38, 41, 44\)/);
-  assert.equal(numbersIssue(card('A summary.', box()), 'Draw a box plot with median 8, Q1 5.5 and Q3 11.5.'), null);
+  const two = (a, b) => box({}, { x: { label: 'Score', min: 0, max: 70 }, boxes: [{ label: 'A', ...(a ? { values: a } : {}), whiskerLow: 10, q1: 12, median: 14, q3: 18, whiskerHigh: 21 }, { label: 'B', ...(b ? { values: b } : {}), whiskerLow: 30, q1: 33, median: 36.5, q3: 41, whiskerHigh: 44 }] });
+  const body = card('Two groups.', two(A, [1, 2, 3, 4, 5])).body, got = boxValuesFromQuestion(body, q);
+  assert.equal(got.md, body);
+  assert.deepEqual(got.unmatched, [{ lists: 2, boxes: 2, withoutValues: 0, listsMatched: 1 }]);
+  assert.deepEqual(boxValuesFromQuestion(card('Two groups.', two()).body, q).unmatched, [{ lists: 2, boxes: 2, withoutValues: 2, listsMatched: 0 }]);
+  assert.deepEqual(boxValuesFromQuestion(card('One group.', two()).body, QUESTION).unmatched, [{ lists: 1, boxes: 2, withoutValues: 2, listsMatched: 0 }], 'one list, two boxes');
+  assert.equal(numbersIssue(card('Two groups.', two(A, [1, 2, 3, 4, 5]))), null, 'no rejection either');
 });
 
-test('(b) a card that is not a box plot is not read against the question\'s numbers', () => {
-  const bars = { version: 1, diagram: { kind: 'bar-chart', title: 'Scores', unit: 'value', bars: DATA.map((value, i) => ({ label: `S${i + 1}`, value })) } };
-  assert.equal(numbersIssue(card('The bars.', bars), QUESTION), null);
+test('(2) boxFieldsChanged names the typed statistics the code replaces', () => {
+  assert.deepEqual(boxFieldsChanged(card('S.', box({ values: DATA })).body), [{ box: 'Scores', fields: ['outliers'] }], 'the typed statistics are right; the outlier 40 is filled');
+  assert.deepEqual(boxFieldsChanged(card('S.', box({ values: DATA, outliers: [{ label: 'x', value: 40 }] })).body), []);
+  assert.deepEqual(boxFieldsChanged(card('S.', box({ values: DATA, median: 8.5, q3: 10.5, fences: { lower: -2, upper: 18 }, outliers: [{ label: 'x', value: 12 }] })).body), [{ box: 'Scores', fields: ['median', 'q3', 'fences', 'outliers'] }]);
+  assert.deepEqual(boxFieldsChanged(card('S.', box()).body), [], 'no values: not a valued box');
 });
 
-// ---- (c) numbers written next to a statistic's name ----
-const withText = (text, extra = {}, diagram = {}) => card(text, box({ values: DATA, ...extra }, diagram));
-const says = (text, diagram) => numbersIssue(withText(text, {}, diagram), QUESTION);
+test('(c) the bench captions: "upper fence at 19" and "IQR 4.5" against the drawn numbers are ONE message that names both and gives the full drawn set', () => {
+  const issue = numbersIssue(card('The upper fence is 19, so 40 is an outlier.', box({ values: DATA }, { caption: 'IQR is 4.5.' })));
+  assert.equal(issue.problem, 'explanation_bad_numbers: the card states wrong numbers (the text states "IQR 4.5", "upper fence 19" but the box-plot "Scores and the outlier" draws Q1 5.5, median 8, Q3 11.5, IQR 6, lower fence -3.5, upper fence 20.5: write these drawn numbers, or change the box and every sentence that states it)');
+  assert.deepEqual(issue.kinds, ['box-plot']);
+  assert.match(explanationProblem(card('The median is 8.5 and Q3 = 10.5.', box({ values: DATA }))), /"median 8\.5", "Q3 10\.5" but the box-plot/);
+  for (const text of ['The upper fence is 20.5 and the lower fence -3.5.', 'IQR = 6, median 8, Q1 = 5.5, Q3: 11.5.', 'Here $Q_1 = 5.5$, $\\text{IQR} = 6$ and the median of the data is 8.', 'The upper fence sits at 21.'])
+    assert.equal(numbersIssue(card(text, box({ values: DATA }))), null, text);
+});
 
-test('(c) the bench captions: "upper fence at 19" and "IQR 4.5" against the drawn 20.5 and 6 are rejected with the drawn numbers; the right ones pass', () => {
-  const wrong = numbersIssue(withText('The upper fence is 19, so 40 is an outlier.'), QUESTION);
-  assert.match(wrong.problem, /the text states "upper fence 19" but the box-plot "Scores and the outlier" draws a upper fence of 20\.5: state the drawn number/);
-  assert.deepEqual(wrong.kinds, ['box-plot']);
-  assert.match(says('The IQR is 4.5.').problem, /"IQR 4\.5" .* draws an IQR of 6:/);
-  assert.match(says('The median is 8.5 and Q3 = 10.5.').problem, /"median 8\.5".*"Q3 10\.5"/);
-  for (const text of ['The upper fence is 20.5 and the lower fence -3.5.', 'IQR = 6, median 8, Q1 = 5.5, Q3: 11.5.', 'Here $Q_1 = 5.5$, $\text{IQR} = 6$ and the median of the data is 8.', 'The upper fence sits at 21.'])
+test('(c) first / lower quartile read as Q1 and third / upper quartile as Q3', () => {
+  const says = text => numbersIssue(card(text, box({ values: DATA })));
+  assert.match(says('The first quartile is 7 and the upper quartile is 10.').problem, /"first quartile 7", "upper quartile 10" but the box-plot/);
+  assert.match(says('The lower quartile 5.7 and the third quartile 11.').problem, /"lower quartile 5\.7" but/);
+  assert.equal(says('The first quartile is 5.5, the lower quartile 5.5, the third quartile 11.5 and the upper quartile is 11.5.'), null);
+});
+
+test('(c) the message is truncate-safe: every wrong statement, then the full drawn set once, whole inside the repair problem even with other numbers problems after it', () => {
+  const text = 'The IQR is 5, the median is 9, Q1 is 4, Q3 is 13, the upper fence is 19 and the lower fence is 1.';
+  const issue = numbersIssue(card(`${text} Also 2 + 2 = 5.`, box({ values: DATA })));
+  assert.ok(issue.problem.includes('draws Q1 5.5, median 8, Q3 11.5, IQR 6, lower fence -3.5, upper fence 20.5: write these drawn numbers'), issue.problem);
+  assert.match(issue.problem, /"IQR 5", "median 9", "Q1 4", "Q3 13" and 2 more but the box-plot/);
+  const four = { x: { label: 'Score', min: 0, max: 70 }, boxes: [
+    { label: 'Group A with a long name', values: [10, 12, 13, 15, 18, 21], whiskerLow: 10, q1: 12, median: 14, q3: 18, whiskerHigh: 21 },
+    { label: 'Group B', values: [30, 33, 35, 38, 41, 44], whiskerLow: 30, q1: 33, median: 36.5, q3: 41, whiskerHigh: 44 },
+    { label: 'Group C', values: [20, 22, 23, 25, 28, 31], whiskerLow: 20, q1: 22, median: 24, q3: 28, whiskerHigh: 31 },
+    { label: 'Group D', values: [40, 42, 43, 45, 48, 51], whiskerLow: 40, q1: 42, median: 44, q3: 48, whiskerHigh: 51 }] };
+  const many = numbersIssue(card('The median is 99, the IQR is 77, Q1 is 1, Q3 is 2, 2 + 2 = 5.', { version: 1, diagram: { kind: 'box-plot', title: 'Four groups', ...four } }));
+  assert.ok(many.problem.includes('Group D: Q1 42, median 44, Q3 48, IQR 6, lower fence 33, upper fence 57'), 'the last box of four is not cut: ' + many.problem);
+  assert.ok(many.problem.includes('2 + 2 = 5'), 'the other message follows, cut on its own');
+});
+
+test('(c) operands, a following word and equations are not read as the statistic; the typography of the saved bench cards neither', () => {
+  const says = text => numbersIssue(card(text, box({ values: DATA })));
+  for (const text of ['The IQR is Q3 - Q1 = 11.5 - 5.5 = 6.', 'So 1.5 x IQR = 9 and the fence is Q3 + 9 = 20.5.', 'The median of 9 values is 8.', 'The median of 9 values, 3 to 40, is 8.', 'Q1 and Q3 are the medians of the halves.',
+    'The median is robust: 3 is not the median.', 'IQR 6 points wide.', 'A fence is Q3 + 1.5 x IQR.', 'The IQR is Q3‑Q1 = 17.5 - 11.5.', 'The fences are Q1‑1.5·IQR (‑3.5) and Q3+1.5·IQR (20.5).',
+    'Q1-1.5×IQR = -3.5 and Q3+1.5×IQR = 20.5.', 'IQR is 11.5 minus 5.5, giving 6.', 'The IQR is 6; 1.5·IQR = 9.'])
     assert.equal(says(text), null, text);
 });
 
-test('(c) the caption of the diagram is read too', () => {
-  assert.match(numbersIssue(card('A summary.', box({ values: DATA }, { caption: 'Upper fence at 19 flags 40.' })), QUESTION).problem, /"Upper fence 19"/);
-  assert.equal(numbersIssue(card('A summary.', box({ values: DATA }, { caption: 'Upper fence at 20.5 flags 40.' })), QUESTION), null);
-});
-
-test('(c) half a unit of the decimals written: 21 for 20.5 and 6 for 5.5 pass, 5.6 and 5.7 do not', () => {
+test('(c) half a unit of the decimals written; with two boxes a number may name any box; a card with no box plot is not read; IQR is a derived path a token can name', () => {
+  const says = text => numbersIssue(card(text, box({ values: DATA })));
   assert.equal(says('The upper fence is 21.'), null);
   assert.equal(says('Q1 is 6.'), null);
-  assert.match(says('Q1 is 5.6.').problem, /"Q1 5.6"/);
-  assert.match(says('Q1 is 5.7.').problem, /"Q1 5\.7"/);
-});
-
-test('(c) operands, a following word and equations are not read as the statistic', () => {
-  for (const text of ['The IQR is Q3 - Q1 = 11.5 - 5.5 = 6.', 'So 1.5 x IQR = 9 and the fence is Q3 + 9 = 20.5.', 'The median of 9 values is 8.', 'The median of 9 values, 3 to 40, is 8.', 'Q1 and Q3 are the medians of the halves.', 'The median is robust: 3 is not the median.', 'IQR 6 points wide.', 'A fence is Q3 + 1.5 x IQR.'])
-    assert.equal(says(text), null, text);
-});
-
-test('(c) with two boxes a number may name any box; a number that matches none is named with each box\'s value', () => {
-  const x = { x: { label: 'Score', min: 0, max: 70 }, boxes: [
-    { label: 'A', values: [10, 12, 13, 15, 18, 21], whiskerLow: 10, q1: 12, median: 14, q3: 18, whiskerHigh: 21 },
-    { label: 'B', values: [30, 33, 35, 38, 41, 44], whiskerLow: 30, q1: 33, median: 36.5, q3: 41, whiskerHigh: 44 }] };
-  const two = text => numbersIssue(card(text, { version: 1, diagram: { kind: 'box-plot', title: 'Two groups', ...x } }), 'Compare 10, 12, 13, 15, 18, 21 with 30, 33, 35, 38, 41, 44.');
+  assert.match(says('Q1 is 5.6.').problem, /"Q1 5\.6"/);
+  assert.equal(numbersIssue(card('A summary.', box({ values: DATA }, { caption: 'Upper fence at 20.5 flags 40.' }))), null);
+  assert.match(numbersIssue(card('A summary.', box({ values: DATA }, { caption: 'Upper fence at 19 flags 40.' }))).problem, /"Upper fence 19"/);
+  const x = { x: { label: 'Score', min: 0, max: 70 }, boxes: [{ label: 'A', values: [10, 12, 13, 15, 18, 21], whiskerLow: 10, q1: 12, median: 14, q3: 18, whiskerHigh: 21 }, { label: 'B', values: [30, 33, 35, 38, 41, 44], whiskerLow: 30, q1: 33, median: 36.5, q3: 41, whiskerHigh: 44 }] };
+  const two = text => numbersIssue(card(text, { version: 1, diagram: { kind: 'box-plot', title: 'Two groups', ...x } }));
   assert.equal(two('Group A has median 14 and group B has median 36.5.'), null);
-  assert.match(two('The median is 20.').problem, /"median 20" .* a median of 14 \(A\), 36\.5 \(B\)/);
-});
-
-test('(c) a card with no box plot is not read; IQR is a derived path a prose token can name', () => {
+  assert.match(two('The median is 20.').problem, /"median 20" but the box-plot "Two groups" draws A: Q1 12, median 14, Q3 18, IQR 6, lower fence 3, upper fence 27; B: Q1 33/);
+  const bars = { version: 1, diagram: { kind: 'bar-chart', title: 'Scores', unit: 'value', bars: DATA.map((value, i) => ({ label: `S${i + 1}`, value })) } };
+  assert.equal(numbersIssue(card('The median is 99 and the IQR is 77.', bars)), null);
   const token = fillTokens(card('The IQR is {{d:boxes.0.iqr}} and Q3 is {{d:boxes.0.q3}}.', box({ values: DATA })));
   assert.equal(token.problem, null);
-  assert.match(token.block.body, /^The IQR is 6 and Q3 is 11.5./);
-  const bars = { version: 1, diagram: { kind: 'bar-chart', title: 'Scores', unit: 'value', bars: DATA.map((value, i) => ({ label: `S${i + 1}`, value })) } };
-  assert.equal(numbersIssue(card('The median is 99 and the IQR is 77.', bars), ''), null);
+  assert.match(token.block.body, /^The IQR is 6 and Q3 is 11\.5\./);
 });
 
-test('(c) the saved bench cards\' own typography: a non-breaking hyphen, a middle dot, "minus" and a glued sign never make an operand the statistic', () => {
-  for (const text of ['The IQR is Q3‑Q1 = 17.5 - 11.5.', 'The fences are Q1‑1.5·IQR (‑3.5) and Q3+1.5·IQR (20.5).', 'Q1-1.5×IQR = -3.5 and Q3+1.5×IQR = 20.5.', 'IQR is 11.5 minus 5.5, giving 6.', 'The IQR is 6; 1.5·IQR = 9.'])
-    assert.equal(says(text), null, text);
+test('(c) the one message of a one-box card fits the 480-character cut that applies to the other messages (measured)', () => {
+  const [one] = boxTextIssues([{ title: 'A title that is long enough to be cut at forty characters', boxes: [{ label: 'Scores', q1: 5.5, median: 8, q3: 11.5, whiskerLow: 3, whiskerHigh: 12, fences: { lower: -3.5, upper: 20.5 } }] }], ['IQR 4, IQR 5, median 9, Q1 4, Q3 12, upper fence 19, lower fence 1.']);
+  assert.ok(one.length < 480, String(one.length));
+});
+
+// ---- the whole route: a card whose box plot has no values and wrong statistics is delivered with the computed ones ----
+const FAST = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'google-low', GEMINI_API_KEY: 'x', FIREWORKS_API_KEY: 'x' };
+const quiet = async fn => { const log = console.log; console.log = () => {}; try { return await fn(); } finally { console.log = log; } };
+const model = input => async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c', name: 'make_explanation', input }] });
+
+test('the route: no values and wrong typed statistics come out with the learner\'s values and the computed statistics; the trace says what was set and changed', async () => {
+  const wrong = box({ median: 8.5, q3: 10.5, whiskerLow: 3, whiskerHigh: 40, fences: { lower: -2, upper: 18 }, outliers: [{ label: 'Spike', value: 12 }] });
+  const cardIn = card('A box plot of the scores shows the middle half of the data as a box, with whiskers to the most extreme values that are not outliers.', wrong);
+  const trace = {};
+  const out = await quiet(() => generateArtifact(FAST, { command: 'explanation', args: QUESTION, planned: true, plan: null }, { callModel: model(cardIn), repairs: 1, trace }));
+  assert.equal(out.result, 'artifact', JSON.stringify(out).slice(0, 400));
+  const d = diagramOf(out.block.body);
+  assert.deepEqual(d.boxes[0].values, DATA);
+  assert.deepEqual([d.boxes[0].q1, d.boxes[0].median, d.boxes[0].q3, d.boxes[0].whiskerLow, d.boxes[0].whiskerHigh], [5.5, 8, 11.5, 3, 12]);
+  assert.equal(out.block.diagramCorrections.box_values_from_question, 1);
+  assert.equal(trace.box_values_from_question, 1);
+  assert.deepEqual(trace.box_values_unmatched, []);
+  assert.deepEqual(trace.box_fields_changed, [{ box: 'Scores', fields: ['median', 'q3', 'whiskerHigh', 'fences', 'outliers'] }]);
+});
+
+test('the route: two lists in the question fill nothing and reject nothing; the trace counts them', async () => {
+  const q = 'Compare 10, 12, 13, 15, 18, 21 with 30, 33, 35, 38, 41, 44 in box plots.';
+  const spec = box({}, { title: 'Two groups compared in box plots', x: { label: 'Score', min: 0, max: 70 }, boxes: [{ label: 'A', whiskerLow: 10, q1: 12, median: 14, q3: 18, whiskerHigh: 21 }] });
+  const trace = {};
+  const out = await quiet(() => generateArtifact(FAST, { command: 'explanation', args: q, planned: true, plan: null }, { callModel: model(card('Two groups compared in box plots: each group is a box for its middle half, with whiskers to the most extreme values.', spec)), repairs: 1, trace }));
+  assert.equal(out.result, 'artifact', JSON.stringify(out).slice(0, 400));
+  assert.equal(diagramOf(out.block.body).boxes[0].values, undefined);
+  assert.deepEqual(trace.box_values_unmatched, [{ lists: 2, boxes: 1, withoutValues: 1, listsMatched: 0 }]);
+  assert.equal(trace.box_values_from_question, 0);
 });
