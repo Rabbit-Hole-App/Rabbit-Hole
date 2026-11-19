@@ -33,3 +33,21 @@ test('coordinate plot: the curve\'s name keeps clear of the printed values (it s
   assert.equal(values.length, 5);
   for (const [vx, vy] of values) assert.ok(Math.abs(nx - vx) >= 55 || Math.abs(ny - vy) >= 16, `the name (${nx}, ${ny}) is on the value at (${vx}, ${vy})`);
 });
+
+// LBL-2: one rule per chart: every bar carries its value or none does.
+const valueLabels = svg => (svg.match(/font-size="15" font-weight="600"/g) ?? []).length;
+test('grouped bars: a value that does not fit its bar ("0.65" where "0.2" does) takes every other value with it: none is printed', () => {
+  const heads = { kind: 'bar-chart', variant: 'grouped', title: 'Attention weights by head and token', categories: ['the_1', 'cat', 'sat', 'on', 'the_2', 'mat'],
+    series: [{ label: 'Head A', values: [0.05, 0.65, 0.2, 0.05, 0.02, 0.03] }, { label: 'Head B', values: [0.38, 0.17, 0.09, 0.05, 0.08, 0.23] }] };
+  assert.equal(valueLabels(svgOf(heads)), 0, 'mixed labelling (0.2 on one bar of twelve) is gone');
+});
+
+test('bars: when every value fits every one is printed, and a unit that does not fit moves to the top axis number with the bare values', () => {
+  const fits = { kind: 'bar-chart', variant: 'grouped', title: 'Label-prior shift', unit: 'samples', categories: ['Class 0', 'Class 1'], series: [{ label: 'Reference window', values: [7, 3] }, { label: 'Current window', values: [3, 7] }] };
+  assert.equal(valueLabels(svgOf(fits)), 4);
+  const loans = svgOf({ kind: 'bar-chart', variant: 'grouped', title: 'Loans', unit: 'books', categories: ['Mon', 'Tue', 'Wed'], series: [{ label: 'Town', values: [9, 7, 11] }, { label: 'Park', values: [7, 12, 8] }] });
+  assert.equal(valueLabels(loans), 6, 'the bare values all fit');
+  assert.ok(centreY(loans, '12.5 books', 15, 500) > 0, 'the unit is printed once, after the top axis number');
+  const logits = { kind: 'bar-chart', title: 'Vocabulary logits', bars: [{ label: 'the', value: 0.501 }, { label: 'cat', value: -0.108 }, { label: 'sat', value: 0.78 }, { label: 'on', value: 1.745 }, { label: 'mat', value: 0.201 }, { label: 'slept', value: -0.495 }] };
+  assert.equal(valueLabels(svgOf(logits)), 0, 'the negative values do not fit at 408: none is printed');
+});

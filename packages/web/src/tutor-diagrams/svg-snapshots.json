@@ -4767,7 +4767,7 @@
       "height": 380
     },
     "ml-transformer-vocabulary-softmax/408": {
-      "sha256": "6ae7c1af74b92a6b98c85ca3a44848945d6f7d1c7714bdd61abf99c77176c7bb",
+      "sha256": "f52195cc0f8a170a697bd99013eff36d404f5b9cc8e0b5efe94b6106e723d9af",
       "width": 408,
       "height": 380
     },
@@ -4777,7 +4777,7 @@
       "height": 373
     },
     "ml-transformer-vocabulary-softmax/natural": {
-      "sha256": "6ae7c1af74b92a6b98c85ca3a44848945d6f7d1c7714bdd61abf99c77176c7bb",
+      "sha256": "f52195cc0f8a170a697bd99013eff36d404f5b9cc8e0b5efe94b6106e723d9af",
       "width": 408,
       "height": 380
     },
@@ -4822,7 +4822,7 @@
       "height": 208
     },
     "ml-transformer-vocabulary-softmax-detailed/408": {
-      "sha256": "c0656bc7c67046946cfdfc1da48c5951f3265ebdadfad63c04829320ba4d3ea2",
+      "sha256": "004c562162022c07e815c902bcabc22666c4f309371d1f212705fe03ffd0c456",
       "width": 408,
       "height": 419
     },
@@ -4832,7 +4832,7 @@
       "height": 390
     },
     "ml-transformer-vocabulary-softmax-detailed/natural": {
-      "sha256": "c0656bc7c67046946cfdfc1da48c5951f3265ebdadfad63c04829320ba4d3ea2",
+      "sha256": "004c562162022c07e815c902bcabc22666c4f309371d1f212705fe03ffd0c456",
       "width": 408,
       "height": 419
     },
