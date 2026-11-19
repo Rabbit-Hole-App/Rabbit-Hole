@@ -16,9 +16,11 @@ const CAPTION_GUTTER = 32;
 const TITLE_STYLE = { size: 17, weight: 700 }; // the written card draws its title at TEACHING_TEXT.display (interact-style.test.mjs pins this line)
 
 // kinds-fit: the kinds that take a box, sizes and legend/parts switches; every other kind ignores them and is drawn as always (its `min` is its drawn size).
-const FITTED_KINDS = new Set(['coordinate-plot', 'token-links']);
+const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix']);
+// A bar chart is fitted in its plain and grouped forms (vertical bars) and a matrix in its plain layout; a stacked bar chart (a stacked series chart or one stacked bar) and a matrix with layout teaching are drawn as always: min is their drawn size, geometry null.
+const isFitted = diagram => FITTED_KINDS.has(diagram.kind) && !(diagram.kind === 'bar-chart' && diagram.variant === 'stacked') && !(diagram.kind === 'matrix' && diagram.layout === 'teaching');
 // The kinds whose layout reports positions: `geometry` is an object for these (in the picture's coordinates, the title block counted) and null for every other kind.
-const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'flow']);
+const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
 
 // Moves every y of a geometry (a box, a point pair, a plot area) down by the title block.
 function shiftGeometry(node, dy) {
@@ -39,7 +41,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
   const illustration = usesIllustrations(diagram);
   const fit = options && typeof options === 'object' ? options : null;
-  const fitted = fit !== null && FITTED_KINDS.has(diagram.kind);
+  const fitted = fit !== null && isFitted(diagram);
   const boxed = fitted && Boolean(fit.box);
   const showTitle = fit?.parts?.title !== false, showCaption = fit?.parts?.caption !== false;
   const titleSize = fit?.sizes?.title ?? TITLE_STYLE.size, captionSize = fit?.sizes?.small ?? CAPTION_SIZE;
@@ -85,12 +87,21 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
   let min;
   Object.defineProperty(result, 'min', { enumerable: true, configurable: true, get() {
     if (min) return min;
-    if (!FITTED_KINDS.has(diagram.kind)) return (min = { width, height });
+    if (!isFitted(diagram)) return (min = { width, height });
     const floorLayout = at => layouts[diagram.kind](diagram, at, { ...(fit ?? {}), box: { width: at, height: 1 }, floor: true });
     const captionMin = showCaption && diagram.caption ? Math.ceil(widestFormula(diagram.caption, captionSize)) + CAPTION_GUTTER : 0;
-    const narrowest = Math.max(floorLayout(1).width, captionMin);
+    const narrow = floorLayout(1), atWidth = floorLayout(width);
+    const narrowest = Math.max(narrow.width, captionMin);
     const atDrawn = blocks(width);
-    return (min = { width: narrowest, height: Math.ceil(floorLayout(width).height + atDrawn.titleHeight + atDrawn.captionHeight) });
+    const total = atWidth.height + atDrawn.titleHeight + atDrawn.captionHeight;
+    min = { width: narrowest, height: Math.ceil(total) };
+    // min.parts: what each px of min is made of, per axis (the parts of an axis add up to min.width / min.height). A layout lists its own parts; the title block, the caption block and the rounding up are added here.
+    const sum = list => list.reduce((all, item) => all + item.px, 0);
+    const heights = [...(atDrawn.titleHeight ? [{ part: 'title', px: atDrawn.titleHeight }] : []), ...(atWidth.parts ?? []), ...(atDrawn.captionHeight ? [{ part: 'caption', px: atDrawn.captionHeight }] : [])];
+    const widths = captionMin > narrow.width ? [{ part: 'caption (its widest formula)', px: captionMin }] : (narrow.widthParts ?? []);
+    const round = (list, wanted) => (wanted - sum(list) > 1e-9 ? [...list, { part: 'rounding up', px: wanted - sum(list) }] : list);
+    min.parts = [...round(heights, min.height).map(item => ({ axis: 'height', ...item })), ...round(widths, min.width).map(item => ({ axis: 'width', ...item }))];
+    return min;
   } });
   Object.defineProperty(result, 'geometry', { enumerable: true, configurable: true, get() {
     return GEOMETRY_KINDS.has(diagram.kind) && layout.geometry ? shiftGeometry(layout.geometry, titleHeight) : null;

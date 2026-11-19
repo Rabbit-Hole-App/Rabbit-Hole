@@ -533,10 +533,12 @@ function plotLayout(diagram, requested, options = {}) {
     }
   }
   if (legendMode === 'none') legend.length = 0;
+  let legendRows = 0;
   if (legend.length) {
     const drawn = legendPills(legend, width, legendY, small);
     elements.push(...drawn.elements);
     legendY += drawn.height;
+    legendRows = drawn.height + 16;
   }
   // No numbered note list under the figure: a badge on the chart is the whole note (its text stays in the card's prose). PLOT_NOTES_MAX caps the badges.
   if (legend.length) legendY += 16;
@@ -553,7 +555,14 @@ function plotLayout(diagram, requested, options = {}) {
   // The labels above the plot area are counted: lay the plot out again, once, with its top margin grown by their rows.
   if (aboveRows.length && !lift) return plotLayout(diagram, requested, { ...options, lift: aboveRows.length * ROW });
   const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i], body)[1] + 4 - tickSpan(tick, body)[0]));
-  return { width, height: legendY, plotBounds: bounds, plotHeight: bounds.bottom - bounds.top, crowded,
+  // kinds-fit: what the height and the width are made of (min.parts of the entry point lists these; a part is in px and the parts add up to height and width).
+  const xTitleRows = xTitle.length * lineHeight(heading) + 12;
+  const minParts = [{ part: 'top margin and y axis title', px: top0 }, { part: 'plot area', px: plotAreaHeight }, { part: 'x tick numbers', px: 22 + tickHeight / 2 },
+    { part: 'x axis title', px: xTitleRows }, ...(legendRows ? [{ part: 'legend rows', px: legendRows }] : [])];
+  const widthCore = [{ part: 'y axis title band and tick numbers', px: leftEdge }, { part: 'plot area floor', px: PLOT_MIN_WIDTH }, { part: 'right margin', px: 24 }, ...(endGutter ? [{ part: 'curve end labels', px: endGutter }] : [])];
+  const spare = width - widthCore.reduce((all, item) => all + item.px, 0);
+  const widthParts = boxed ? [...widthCore, ...(spare > 1e-9 ? [{ part: 'tick and label spacing', px: spare }] : [])] : undefined;
+  return { width, height: legendY, parts: minParts, widthParts, plotBounds: bounds, plotHeight: bounds.bottom - bounds.top, crowded,
     geometry: { plotArea: { left, right, top, bottom }, x: { min: d.x.min, max: d.x.max, scale: d.x.scale ?? 'linear' }, y: { min: d.y.min, max: d.y.max, scale: d.y.scale ?? 'linear' } }, elements: [...elements, ...geometry, ...marks, ...scatterMarks, ...foreground] };
 }
 
@@ -570,60 +579,86 @@ function roundedUp(value) {
   }
   return value;
 }
+// kinds-fit: the plain and grouped bar chart take a box (the plot area takes the height that is left, 210 tall today, at least 120 with a box), sizes (body: tick numbers and the value above a bar, 15;
+// small: the category names, 13, and the legend pills, 12), parts.legend ('auto' as today: pills for a grouped chart only; 'none'; 'always': pills for a plain chart too) and parts.values (false leaves out the
+// value above each bar). They report the plot area, the value axis range, the baseline and every bar. min is the width with every bar at least BAR_MIN wide, and the height at the width drawn.
+const BAR_MIN = 10;
 function verticalBars(d, requested, options) {
+  const { box, sizes, parts, contentHeight, floor } = options ?? {};
+  const boxed = Boolean(box), tickSize = sizes?.body ?? TICK, nameSize = sizes?.small ?? SMALL + 1, pillSize = sizes?.small ?? 12;
+  const legendMode = parts?.legend ?? 'auto', showValues = parts?.values !== false;
   const grouped = d.variant === 'grouped';
   const categories = grouped ? d.categories : d.bars.map(bar => bar.label);
   const series = grouped ? d.series : [{ label: d.title ?? '', values: d.bars.map(bar => bar.value) }];
   const n = categories.length, k = series.length;
-  const width = bodyWidth(d, requested);
   const values = series.flatMap(entry => entry.values);
   let min = Math.min(0, ...values), max = Math.max(0, ...values);
   if (min === max) { min = -1; max = 1; }
   max = roundedUp(max);
   min = -roundedUp(-min);
-  const PLOT = 210, top = PAD + 24, bottom = top + PLOT;
-  const y = scale({ min, max }, bottom, top);
-  const ticks = plotTicks({ min, max }, y, { horizontal: false });
-  const tickWidth = Math.ceil(Math.max(...ticks.map(tick => Math.max(...tick.lines.map(line => textWidth(line, TICK))))));
-  const left = PAD + tickWidth + 10, right = width - PAD - 10;
-  const slot = (right - left) / n, inner = 2; // 2 px between the bars of one cluster
-  const barWidth = (slot - inner * (k - 1)) / (k + 0.4);
-  const cluster = k * barWidth + (k - 1) * inner;
-  const elements = [];
-  // Dotted gridlines behind everything, at the value ticks (the baseline stands at zero).
-  for (const tick of ticks) {
-    elements.push(h('line', { x1: left, x2: right, y1: tick.at, y2: tick.at, stroke: T.outline, strokeOpacity: 0.3, strokeWidth: GRID, strokeDasharray: '1.5 4', strokeLinecap: 'round', 'data-tutor-plot-grid': '' }));
-    elements.push(label(tick.lines, left - 8, tick.at, { anchor: 'end', size: TICK }));
-  }
-  const showValues = n * k <= 12;
-  const bars = [], labels = [];
-  categories.forEach((category, i) => {
-    const start = left + slot * i + (slot - cluster) / 2;
-    const name = wrap(category, slot - 4, SMALL + 1);
-    labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(SMALL + 1) / 2, { size: SMALL + 1 }));
-    series.forEach((entry, j) => {
-      const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(0), end = y(value);
-      const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? TEACHING_SERIES[i % TEACHING_SERIES.length];
-      const attrs = grouped ? { 'data-tutor-grouped-bar': value, 'data-tutor-bar-category': category, 'data-tutor-bar-series': entry.label, 'data-tutor-stack-from': 0, 'data-tutor-stack-to': value }
-        : { 'data-tutor-bar': value };
-      if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
-      else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
-      const text = amount(value, d.unit);
-      if (showValues && textWidth(text, TICK) <= barWidth + inner + 0.4 * barWidth) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: TICK, weight: 600 }));
+  const build = plotExtra => {
+    const PLOT = boxed ? PLOT_FLOOR + plotExtra : 210, top = PAD + 24, bottom = top + PLOT;
+    const y = scale({ min, max }, bottom, top);
+    const ticks = plotTicks({ min, max }, y, { horizontal: false, size: tickSize });
+    const tickWidth = Math.ceil(Math.max(...ticks.map(tick => Math.max(...tick.lines.map(line => textWidth(line, tickSize))))));
+    const left = PAD + tickWidth + 10;
+    const inner = 2; // 2 px between the bars of one cluster
+    const slotMin = boxed ? Math.ceil(Math.max(k * BAR_MIN + (k - 1) * inner + 0.4 * BAR_MIN, ...categories.map(category => Math.max(widestFormula(category, nameSize), ...String(category).split(/\s+/).map(word => textWidth(word, nameSize))) + 4))) : 0;
+    const width = boxed ? Math.max(requested, left + n * slotMin + PAD + 10, ...[...categories, ...series.map(entry => entry.label)].filter(Boolean).map(text => (widestFormula(text, nameSize) ? widestFormula(text, nameSize) + 2 * PAD + 52 : 0)))
+      : bodyWidth(d, requested);
+    const right = width - PAD - 10;
+    const slot = (right - left) / n;
+    const barWidth = (slot - inner * (k - 1)) / (k + 0.4);
+    const cluster = k * barWidth + (k - 1) * inner;
+    const elements = [];
+    // Dotted gridlines behind everything, at the value ticks (the baseline stands at zero).
+    for (const tick of ticks) {
+      elements.push(h('line', { x1: left, x2: right, y1: tick.at, y2: tick.at, stroke: T.outline, strokeOpacity: 0.3, strokeWidth: GRID, strokeDasharray: '1.5 4', strokeLinecap: 'round', 'data-tutor-plot-grid': '' }));
+      elements.push(label(tick.lines, left - 8, tick.at, { anchor: 'end', size: tickSize }));
+    }
+    const showAbove = showValues && n * k <= 12;
+    const bars = [], labels = [], geometryBars = [];
+    categories.forEach((category, i) => {
+      const start = left + slot * i + (slot - cluster) / 2;
+      const name = wrap(category, slot - 4, nameSize);
+      labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(nameSize) / 2, { size: nameSize }));
+      series.forEach((entry, j) => {
+        const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(0), end = y(value);
+        const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? TEACHING_SERIES[i % TEACHING_SERIES.length];
+        const attrs = grouped ? { 'data-tutor-grouped-bar': value, 'data-tutor-bar-category': category, 'data-tutor-bar-series': entry.label, 'data-tutor-stack-from': 0, 'data-tutor-stack-to': value }
+          : { 'data-tutor-bar': value };
+        if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
+        else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
+        geometryBars.push({ label: category, ...(grouped ? { series: entry.label } : {}), value, x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) });
+        const text = amount(value, d.unit);
+        if (showAbove && textWidth(text, tickSize) <= barWidth + inner + 0.4 * barWidth) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: tickSize, weight: 600 }));
+      });
     });
-  });
-  elements.push(...bars);
-  // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
-  elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
-    h('line', { x1: left, x2: right, y1: y(0), y2: y(0), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
-  const labelsHeight = Math.max(1, ...categories.map(category => wrap(category, slot - 4, SMALL + 1).length)) * lineHeight(SMALL + 1);
-  let bottomOfLabels = bottom + 10 + labelsHeight + 8;
-  if (grouped) {
-    const drawn = legendPills(series.map((entry, i) => ({ i, text: entry.label })), width, bottomOfLabels + 4);
-    elements.push(...drawn.elements);
-    bottomOfLabels += 4 + drawn.height + 8;
-  }
-  return { width, height: bottomOfLabels + PAD, elements };
+    elements.push(...bars);
+    // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
+    elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
+      h('line', { x1: left, x2: right, y1: y(0), y2: y(0), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
+    const labelsHeight = Math.max(1, ...categories.map(category => wrap(category, slot - 4, nameSize).length)) * lineHeight(nameSize);
+    let bottomOfLabels = bottom + 10 + labelsHeight + 8, legendRows = 0;
+    const pills = legendMode === 'none' ? [] : grouped || legendMode === 'always' ? series.map((entry, i) => ({ i, text: entry.label })) : [];
+    if (pills.length) {
+      const drawn = legendPills(pills, width, bottomOfLabels + 4, pillSize);
+      elements.push(...drawn.elements);
+      legendRows = 4 + drawn.height + 8;
+      bottomOfLabels += legendRows;
+    }
+    const minParts = [{ part: 'top margin and value axis end', px: top }, { part: 'plot area', px: PLOT }, { part: 'category names', px: 10 + labelsHeight + 8 },
+      ...(legendRows ? [{ part: 'legend rows', px: legendRows }] : []), { part: 'bottom margin', px: PAD }];
+    const widthCore = [{ part: 'value axis numbers and margin', px: left }, { part: `bars (${n} categories, each at least ${boxed ? slotMin : 0} px)`, px: n * slotMin }, { part: 'right margin', px: PAD + 10 }];
+    const spare = width - widthCore.reduce((all, item) => all + item.px, 0);
+    const widthParts = boxed ? [...widthCore, ...(spare > 1e-9 ? [{ part: 'spare width', px: spare }] : [])] : undefined;
+    const geometry = { plotArea: { left, right, top, bottom }, y: { min, max }, baseline: { y: y(0), left, right }, bars: geometryBars };
+    return { width, height: bottomOfLabels + PAD, parts: minParts, widthParts, plotHeight: PLOT, elements, geometry };
+  };
+  const first = build(0);
+  if (!boxed || floor || contentHeight === undefined) return first;
+  const extra = Math.floor(contentHeight - first.height);
+  return extra > 0 ? build(extra) : first;
 }
 
 function barChart(d, requested, options) {

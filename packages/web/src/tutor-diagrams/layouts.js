@@ -193,32 +193,51 @@ function sequence(diagram, width) {
   return { width: grid.width, height: y + PAD, elements: [...lifelines, ...elements] };
 }
 
-function matrix(diagram, width) {
-  // A tuple cell is plain text that wraps at its comma: the column holds its widest piece (the other cells keep the 72 px minimum).
-  const tupleCell = Math.ceil(Math.max(0, ...diagram.rows.flatMap(row => row.cells).map(cell => tuplePieceWidth(cell, text => textWidth(text, TEXT))))) + 14;
-  const grid = columnsFor(width, diagram.columns.length + 1, Math.max(72, tupleCell), 7);
-  const elements = [];
-  const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12));
-  const headerHeight = rowHeight(headings);
-  for (let index = 0; index < headings.length; index++) {
-    const x = grid.xAt(index + 1);
-    elements.push(box(x, PAD, grid.cell, headerHeight, { role: 'process' }));
-    elements.push(label(headings[index], x + grid.cell / 2, PAD + headerHeight / 2, { weight: 700, tone: 'onFill' }));
-  }
-  let y = PAD + headerHeight + 7;
-  for (const row of diagram.rows) {
-    const cells = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), grid.cell - 12));
-    const height = rowHeight(cells);
-    for (let index = 0; index < cells.length; index++) {
-      const x = grid.xAt(index);
-      const isHeading = index === 0;
-      elements.push(box(x, y, grid.cell, height, { role: isHeading ? 'outcome' : 'plain' }));
-      elements.push(label(cells[index], x + grid.cell / 2, y + height / 2,
-        { weight: isHeading ? 700 : 400, tone: isHeading ? 'onFill' : 'ink' }));
+// kinds-fit: a matrix takes a box (the rows share the height that is left), sizes.body for every text (15 today) and reports its cells; min is the natural size (rows at their text height).
+function matrix(diagram, width, options) {
+  const { box: boxed, sizes, contentHeight, floor } = options ?? {};
+  const body = sizes?.body ?? TEXT;
+  const build = rowExtra => {
+    // A tuple cell is plain text that wraps at its comma: the column holds its widest piece (the other cells keep the 72 px minimum).
+    const tupleCell = Math.ceil(Math.max(0, ...diagram.rows.flatMap(row => row.cells).map(cell => tuplePieceWidth(cell, text => textWidth(text, body))))) + 14;
+    const grid = columnsFor(width, diagram.columns.length + 1, Math.max(72, tupleCell), 7);
+    const elements = [];
+    const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12, body));
+    const headerHeight = rowHeight(headings, body);
+    const geometry = { cells: [], rowHeadings: [], columnHeadings: [] };
+    for (let index = 0; index < headings.length; index++) {
+      const x = grid.xAt(index + 1);
+      elements.push(box(x, PAD, grid.cell, headerHeight, { role: 'process' }));
+      elements.push(label(headings[index], x + grid.cell / 2, PAD + headerHeight / 2, { weight: 700, tone: 'onFill', size: body }));
+      geometry.columnHeadings.push({ col: index, x, y: PAD, width: grid.cell, height: headerHeight });
     }
-    y += height + 7;
-  }
-  return { width: grid.width, height: y - 7 + PAD, elements };
+    let y = PAD + headerHeight + 7, rowsHeight = 0;
+    diagram.rows.forEach((row, rowIndex) => {
+      const cells = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), grid.cell - 12, body));
+      const height = rowHeight(cells, body) + rowExtra(rowIndex);
+      for (let index = 0; index < cells.length; index++) {
+        const x = grid.xAt(index);
+        const isHeading = index === 0;
+        elements.push(box(x, y, grid.cell, height, { role: isHeading ? 'outcome' : 'plain' }));
+        elements.push(label(cells[index], x + grid.cell / 2, y + height / 2,
+          { weight: isHeading ? 700 : 400, tone: isHeading ? 'onFill' : 'ink', size: body }));
+        if (isHeading) geometry.rowHeadings.push({ row: rowIndex, x, y, width: grid.cell, height });
+        else geometry.cells.push({ row: rowIndex, col: index - 1, x, y, width: grid.cell, height });
+      }
+      rowsHeight += height;
+      y += height + 7;
+    });
+    const count = diagram.columns.length + 1;
+    const parts = [{ part: 'outer margins', px: 2 * PAD }, { part: 'column headings', px: headerHeight }, { part: 'rows', px: rowsHeight }, { part: 'gaps between the rows', px: 7 * diagram.rows.length }];
+    const cellsWidth = grid.width - 2 * PAD - (count - 1) * 7, minCell = Math.max(72, tupleCell);
+    const widthParts = [{ part: 'margins', px: 2 * PAD }, { part: 'columns (the widest tuple piece, at least 72)', px: count * minCell }, { part: 'gaps between the columns', px: (count - 1) * 7 },
+      ...(cellsWidth - count * minCell > 1e-9 ? [{ part: 'spare width', px: cellsWidth - count * minCell }] : [])];
+    return { width: grid.width, height: y - 7 + PAD, parts, widthParts, elements, geometry };
+  };
+  const first = build(() => 0);
+  if (!boxed || floor || contentHeight === undefined) return first;
+  const extra = Math.floor(contentHeight - first.height), n = diagram.rows.length;
+  return extra > 0 ? build(i => Math.floor(extra / n) + (i < extra % n ? 1 : 0)) : first;
 }
 
 function layers(diagram, width) {

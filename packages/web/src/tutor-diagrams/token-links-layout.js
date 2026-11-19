@@ -119,6 +119,8 @@ function tokenLinksCore(diagram, requestedWidth, options, extraGap) {
   }
 
   let y = PAD;
+  // kinds-fit: what the height is made of, summed over the panels (min.parts of the entry point lists these).
+  const tally = { heading: 0, source: 0, gap: 0, target: 0, footer: 0 };
   const elements = queries.map(({ index, weights }, panelIndex) => {
     const top = y;
     const targetY = sourceBottom + rowGapFor(panelIndex);
@@ -133,6 +135,8 @@ function tokenLinksCore(diagram, requestedWidth, options, extraGap) {
     const footerHeight = footer.length * lineHeight(small);
     const footerTop = targetBottom + (compact ? 24 : 8);
     const panelHeight = footerTop + footerHeight + INSET;
+    tally.heading += sourceY; tally.source += sourceRows * cellHeight + (sourceRows - 1) * ROW_GAP; tally.gap += rowGapFor(panelIndex);
+    tally.target += targetRows * cellHeight + (targetRows - 1) * ROW_GAP; tally.footer += (compact ? 24 : 8) + footerHeight + INSET;
     const from = [center(index), sourceTop(index) + cellHeight + 3];
     const to = targetIndex => [center(targetIndex), targetTop(targetIndex) - 3];
     // Links across wrapped rows: down to a lane, along it to the gap right of the target's column, down that gap to the lane above the target's row, along it, down into the chip. A source chip on
@@ -173,5 +177,10 @@ function tokenLinksCore(diagram, requestedWidth, options, extraGap) {
     y += panelHeight + GAP;
     return panel;
   });
-  return { width, height: y - GAP + PAD, elements, geometry: { panels } };
+  const parts = [{ part: 'outer margins', px: 2 * PAD }, { part: 'query heading', px: tally.heading }, { part: 'source chips', px: tally.source }, { part: 'gap between the chip rows', px: tally.gap },
+    { part: 'target chips', px: tally.target }, { part: 'footer notes and panel padding', px: tally.footer }, ...(queries.length > 1 ? [{ part: 'space between panels', px: (queries.length - 1) * GAP }] : [])];
+  const widthCore = [{ part: 'margins', px: 2 * (PAD + INSET) }, ...(metrics.gutter ? [{ part: 'row label gutter', px: metrics.gutter }] : []), { part: 'token chips', px: columns * metrics.preferred }, { part: 'gaps between chips', px: (columns - 1) * gap }];
+  const spare = width - widthCore.reduce((all, item) => all + item.px, 0);
+  const widthParts = [...widthCore, ...(spare > 1e-9 ? [{ part: 'spare width', px: spare }] : [])];
+  return { width, height: y - GAP + PAD, parts, widthParts, elements, geometry: { panels } };
 }

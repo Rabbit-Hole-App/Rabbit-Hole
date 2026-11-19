@@ -1,4 +1,4 @@
-// kinds-fit R1: the entry point takes { box, sizes, parts } and returns { width, height, element, min, geometry }; coordinate-plot and token-links are fitted, every other kind is drawn as always.
+// kinds-fit R1 and R2: the entry point takes { box, sizes, parts } and returns { width, height, element, min, geometry }; coordinate-plot, token-links, bar-chart (plain and grouped), heatmap and matrix are fitted, every other kind is drawn as always.
 // The old callers' output is pinned by svg-snapshots.test.mjs (svg-snapshots.json is untouched by this lane); here: the new inputs and outputs.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -32,7 +32,7 @@ function insidePicture(geometry, { width, height }, where) {
     if (Array.isArray(node)) return node.forEach(walk);
     if (!node || typeof node !== 'object') return;
     if (typeof node.x === 'number' && typeof node.y === 'number') check(node.x, node.y, node.width ?? 0, node.height ?? 0);
-    if (typeof node.left === 'number') check(node.left, node.top, node.right - node.left, node.bottom - node.top);
+    if (typeof node.left === 'number' && typeof node.top === 'number') check(node.left, node.top, node.right - node.left, node.bottom - node.top);
     for (const key of ['from', 'to']) if (Array.isArray(node[key]) && typeof node[key][0] === 'number') check(node[key][0], node[key][1]);
     if (Array.isArray(node.points)) node.points.forEach(([x, y]) => check(x, y));
     for (const value of Object.values(node)) if (value && typeof value === 'object') walk(value);
@@ -40,7 +40,8 @@ function insidePicture(geometry, { width, height }, where) {
   walk(geometry);
 }
 
-for (const kind of ['coordinate-plot', 'token-links']) {
+const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix'];
+for (const kind of FITTED) {
   test(`${kind}: the neutral example in every box at sizes 14, 12 and 16 equals the box when the box is at least min, else min; nothing text is larger than asked; geometry lies inside the picture`, () => {
     const spec = neutral(kind);
     for (const [boxWidth, boxHeight] of BOXES) for (const size of SIZES) {
@@ -124,12 +125,12 @@ test('parts: title false takes no room; legend none, always and auto on a two-se
 });
 
 test('a kind that is not fitted ignores box and sizes, returns min equal to its drawn size and geometry null (flow returns its geometry object)', () => {
-  const bars = neutral('bar-chart');
+  const bars = { version: 1, diagram: { kind: 'bar-chart', title: 'One stacked bar', variant: 'stacked', unit: 'share', bars: [{ label: 'A', value: 0.6 }, { label: 'B', value: 0.4 }], total: 1 } };
   const plain = renderTutorDiagram(bars, 408), asked = renderTutorDiagram(bars, 408, { box: { width: 200, height: 100 }, sizes: { body: 30, heading: 30 } });
   assert.equal(markup(asked), markup(plain));
   assert.deepEqual(plain.min, { width: plain.width, height: plain.height });
   assert.equal(plain.geometry, null);
-  for (const kind of ['tensor', 'heatmap', 'layers']) assert.equal(renderTutorDiagram(neutral(kind), 408).geometry, null, kind);
+  for (const kind of ['tensor', 'layers', 'cycle']) assert.equal(renderTutorDiagram(neutral(kind), 408).geometry, null, kind);
   const flow = neutral('flow'), rendered = renderTutorDiagram(flow, 408);
   assert.ok(rendered.geometry && Array.isArray(rendered.geometry.nodes) && Array.isArray(rendered.geometry.edges));
   // the title block is counted: each node is lower than in the layout's own coordinates by the title height
@@ -145,4 +146,91 @@ test('parts: caption false leaves the caption out and takes no room', () => {
   const withCaption = renderTutorDiagram(spec, 408), without = renderTutorDiagram(spec, 408, { parts: { caption: false } });
   assert.ok(withCaption.height > without.height);
   assert.ok(!/>The same swing/.test(markup(without)) && />The same swing/.test(markup(withCaption)));
+});
+
+// ---- batch 2: min.parts, bar-chart, heatmap, matrix ----
+const grouped = { version: 1, diagram: { kind: 'bar-chart', title: 'Loans by season', variant: 'grouped', unit: 'books', categories: ['Spring', 'Summer', 'Autumn'], series: [{ label: 'Adults', values: [12, 18, 9] }, { label: 'Children', values: [7, 15, 11] }] } };
+const sumOf = (parts, axis) => parts.filter(part => part.axis === axis).reduce((all, part) => all + part.px, 0);
+
+test('min.parts: the parts of an axis add up to min.width and min.height, for every fitted kind in several boxes and caption/title on or off', () => {
+  for (const kind of FITTED) for (const [boxWidth, boxHeight] of BOXES) for (const partsOpt of [{ title: false }, {}]) {
+    const rendered = renderTutorDiagram(neutral(kind), boxWidth, { box: { width: boxWidth, height: boxHeight }, sizes: all(14), parts: partsOpt });
+    const { min } = rendered, where = `${kind} ${boxWidth}x${boxHeight} ${JSON.stringify(partsOpt)}`;
+    assert.ok(Array.isArray(min.parts) && min.parts.length > 0, `${where}: parts`);
+    assert.ok(min.parts.every(part => (part.axis === 'height' || part.axis === 'width') && typeof part.part === 'string' && Number.isFinite(part.px) && part.px >= 0), `${where}: shape`);
+    assert.ok(Math.abs(sumOf(min.parts, 'height') - min.height) < 1e-6, `${where}: height parts ${sumOf(min.parts, 'height')} vs ${min.height}`);
+    assert.ok(Math.abs(sumOf(min.parts, 'width') - min.width) < 1e-6, `${where}: width parts ${sumOf(min.parts, 'width')} vs ${min.width}`);
+  }
+  // a title and a caption are parts of the height
+  const spec = { version: 1, diagram: { ...pendulum.diagram, caption: 'The same swing, two angles' } };
+  const names = renderTutorDiagram(spec, 408, { box: { width: 408, height: 100 } }).min.parts.filter(part => part.axis === 'height').map(part => part.part);
+  assert.ok(names.includes('title') && names.includes('caption') && names.includes('plot area'), names.join(', '));
+  // a kind that is not fitted has no parts: min is its drawn size
+  assert.equal(renderTutorDiagram(neutral('tensor'), 408).min.parts, undefined);
+});
+
+test('what sets min.height of a plot: a legend that needs a second row grows min.height by that row, and min.parts names it', () => {
+  const short = renderTutorDiagram(pendulum, 304, { box: { width: 304, height: 299 }, sizes: all(14), parts: { title: false, legend: 'always' } });
+  const longName = { version: 1, diagram: { ...pendulum.diagram, series: pendulum.diagram.series.map((s, i) => ({ ...s, label: i ? 'Large swing released from a greater height' : s.label })) } };
+  const long = renderTutorDiagram(longName, 304, { box: { width: 304, height: 299 }, sizes: all(14), parts: { title: false, legend: 'always' } });
+  const rows = spec => spec.min.parts.find(part => part.axis === 'height' && part.part === 'legend rows').px;
+  assert.ok(rows(long) > rows(short), `legend rows ${rows(short)} -> ${rows(long)}`);
+  assert.equal(long.min.height - short.min.height, rows(long) - rows(short));
+});
+
+test('bar-chart: plain and grouped bars fill the box, report the plot area, the value axis, the baseline and every bar; the stacked forms are not fitted', () => {
+  for (const spec of [neutral('bar-chart'), grouped]) {
+    const rendered = renderTutorDiagram(spec, 408, { box: { width: 408, height: 360 }, sizes: all(14), parts: { title: false } });
+    assert.equal(rendered.height, 360);
+    const { plotArea, y, baseline, bars } = rendered.geometry;
+    assert.equal(bars.length, spec.diagram.series ? spec.diagram.categories.length * spec.diagram.series.length : spec.diagram.bars.length);
+    assert.ok(y.min <= 0 && y.max > 0 && baseline.y >= plotArea.top && baseline.y <= plotArea.bottom);
+    for (const bar of bars) assert.ok(bar.x >= plotArea.left - 0.5 && bar.x + bar.width <= plotArea.right + 0.5 && bar.height >= 0);
+    insidePicture(rendered.geometry, rendered, 'bar-chart');
+  }
+  // the taller the box, the taller the plot area; below the floor the plot area stays at 120
+  const tall = renderTutorDiagram(grouped, 408, { box: { width: 408, height: 500 }, sizes: all(14), parts: { title: false } }).geometry.plotArea;
+  const low = renderTutorDiagram(grouped, 408, { box: { width: 408, height: 100 }, sizes: all(14), parts: { title: false } }).geometry.plotArea;
+  assert.equal(low.bottom - low.top, 120);
+  assert.ok(tall.bottom - tall.top > 200);
+});
+
+test('bar-chart parts: legend none, auto and always (a plain chart draws a pill for its one series under always); values false leaves out the value above each bar', () => {
+  const pills = svg => />Adults</.test(svg) && />Children</.test(svg);
+  const groupedAuto = markup(renderTutorDiagram(grouped, 408)), groupedNone = markup(renderTutorDiagram(grouped, 408, { parts: { legend: 'none' } }));
+  assert.ok(pills(groupedAuto) && !pills(groupedNone), 'a grouped chart: pills under auto, none under none');
+  const plain = neutral('bar-chart');
+  const plainAuto = renderTutorDiagram(plain, 408), plainAlways = renderTutorDiagram(plain, 408, { parts: { legend: 'always' } });
+  assert.ok(plainAlways.height > plainAuto.height, 'always adds a legend row to a plain chart');
+  const withValues = markup(renderTutorDiagram(plain, 408)), noValues = markup(renderTutorDiagram(plain, 408, { parts: { values: false } }));
+  assert.ok(withValues.length > noValues.length);
+});
+
+test('heatmap: the rows share the height that is left, cells and ranges are reported; parts.scale false leaves out the range line and the colour scale and takes no room', () => {
+  const spec = neutral('heatmap');
+  const tall = renderTutorDiagram(spec, 408, { box: { width: 408, height: 520 }, sizes: all(14), parts: { title: false } });
+  assert.equal(tall.height, 520);
+  const { cells, rowHeadings, columnHeadings, range } = tall.geometry;
+  assert.equal(cells.length, spec.diagram.rows.length * spec.diagram.columns.length);
+  assert.equal(rowHeadings.length, spec.diagram.rows.length);
+  assert.equal(columnHeadings.length, spec.diagram.columns.length);
+  assert.deepEqual(range, spec.diagram.range);
+  assert.deepEqual(cells.map(cell => [cell.row, cell.col]), cells.map(cell => [cell.row, cell.col]).sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+  const natural = renderTutorDiagram(spec, 408, { box: { width: 408, height: 1 }, sizes: all(14), parts: { title: false } });
+  assert.ok(tall.geometry.cells[0].height > natural.geometry.cells[0].height);
+  const withScale = renderTutorDiagram(spec, 408, { parts: { title: false } }), without = renderTutorDiagram(spec, 408, { parts: { title: false, scale: false } });
+  assert.ok(withScale.height > without.height && />Range: /.test(markup(withScale)) && !/>Range: /.test(markup(without)));
+});
+
+test('matrix: the rows share the height that is left; every body cell and heading is reported; sizes.body sets every text', () => {
+  const spec = neutral('matrix');
+  const tall = renderTutorDiagram(spec, 408, { box: { width: 408, height: 400 }, sizes: all(16), parts: { title: false } });
+  assert.equal(tall.height, 400);
+  assert.deepEqual(fontSizes(markup(tall)), [16]);
+  const { cells, rowHeadings, columnHeadings } = tall.geometry;
+  assert.equal(cells.length, spec.diagram.rows.length * spec.diagram.columns.length);
+  assert.equal(rowHeadings.length, spec.diagram.rows.length);
+  assert.equal(columnHeadings.length, spec.diagram.columns.length);
+  const first = cells[0], right = cells.find(cell => cell.row === 0 && cell.col === 1);
+  assert.ok(right.x > first.x && Math.abs(right.y - first.y) < 0.5, 'cells are in row and column order');
 });
