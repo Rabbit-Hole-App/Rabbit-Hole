@@ -291,21 +291,14 @@ test('production /whiteboard: bound, on (W1), its own renderer, no secret in the
 
 // Tutor R4 roadmap (docs/features/explain-on-canvas): ROADMAP_JOBS and roadmap-jobs-1 are bound last on the app Worker, dev and the parallel clone configs, and the feature is
 // ON in production only (owner's production GO, candidate 65; ROADMAP_AUTO_ENABLED, candidate 76): ROADMAP_ENABLED and ROADMAP_AUTO_ENABLED are exactly 'true' on the app Worker; dev, the parallel clone config and the control plane leave it unset (a dev clone qualifies separately).
-test('production roadmap: ROADMAP_JOBS bound last with roadmap-jobs-1, ROADMAP_ENABLED and ROADMAP_AUTO_ENABLED exactly true in production and unset in dev, parallel and the control plane', () => {
+test('production roadmap: ROADMAP_JOBS stays bound last with roadmap-jobs-1; ROADMAP_ENABLED and its sub-flags are set nowhere (the roadmap is unplugged, owner 2026-11-19)', () => {
   const app = config(APP), dev = config('../../web/wrangler.dev.jsonc'), parallel = config('../../web/wrangler.parallel.jsonc'), cp = config(CP);
   for (const [name, c] of [['app', app], ['dev', dev], ['parallel', parallel]]) {
     assert.deepEqual(c.durable_objects.bindings.filter(b => b.class_name === 'RoadmapJobs'), [{ name: 'ROADMAP_JOBS', class_name: 'RoadmapJobs' }], name);
     assert.deepEqual(c.migrations.at(-1), { tag: 'roadmap-jobs-1', new_sqlite_classes: ['RoadmapJobs'] }, `${name}: a new tag goes after every applied one`);
   }
-  assert.equal(app.vars?.ROADMAP_ENABLED, 'true', 'production: the owner GO turns the roadmap on, as the exact string true');
-  for (const [name, c] of [['dev', dev], ['parallel', parallel]]) assert.equal(c.vars?.ROADMAP_ENABLED, undefined, `${name}: stays unset, a dev clone qualifies separately`);
-  assert.equal(cp.vars?.ROADMAP_ENABLED, undefined);
-  assert.equal(app.vars?.ROADMAP_AUTO_ENABLED, 'true', 'production: the automatic next-step suggestion is on, as the exact string true');
-  for (const [name, c] of [['dev', dev], ['parallel', parallel], ['control plane', cp]]) assert.equal(c.vars?.ROADMAP_AUTO_ENABLED, undefined, `${name}: stays unset`);
-  // Release 91 (owner 2026-11-06): R5 proposal editing and R7a long Markdown are on in production, as the exact string true.
-  for (const flag of ['ROADMAP_EDIT_ENABLED', 'ROADMAP_LONG_MARKDOWN_ENABLED']) {
-    assert.equal(app.vars?.[flag], 'true', `production: ${flag} is on`);
-    for (const [name, c] of [['dev', dev], ['parallel', parallel], ['control plane', cp]]) assert.equal(c.vars?.[flag], undefined, `${name}: ${flag} stays unset`);
+  for (const flag of ['ROADMAP_ENABLED', 'ROADMAP_AUTO_ENABLED', 'ROADMAP_EDIT_ENABLED', 'ROADMAP_LONG_MARKDOWN_ENABLED', 'ROADMAP_ON_DROP_ENABLED']) {
+    for (const [name, c] of [['production', app], ['dev', dev], ['parallel', parallel], ['control plane', cp]]) assert.equal(c.vars?.[flag], undefined, `${name}: ${flag} is set nowhere`);
   }
   assert.equal(new Set(app.migrations.map(m => m.tag)).size, app.migrations.length, 'every tag is unique');
 });

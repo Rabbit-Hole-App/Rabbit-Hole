@@ -595,7 +595,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
     const depthSnapshot = depthField(chat?.settings);
-    const lessonSources = roadmap?.lessonSources?.() || null;
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
@@ -690,7 +689,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
     const replyId = crypto.randomUUID();
-    let lessonRequest = null;
     let timed = 'pending'; // the outcome of this turn's chat_first_chunk_ms / chat_total_ms (client-timing.js)
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
     // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
@@ -828,8 +826,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
         ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')) : {}),
-        // Explain on canvas from typed words (CHAT.02, flag-gated on the server): the authorized sources a lesson could start from, only when no roadmap is unfinished.
-        ...(chat && learnChat && !tocView && !commandName && !regenerate && !edit && lessonSources?.length ? { lesson: { sources: lessonSources } } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -864,7 +860,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           if (offer.handled) { setMsgs(m => m.slice(0, -2)); return; }
           Object.assign(outcome, { send: true, token: null, answerOnly: false, direct: null }); // an ordinary turn with its tools: answer-only would strip the repository and paper tools from a plain question
         }
-        if (!outcome.send && outcome.direct?.command === 'course' && chat?.canvasOps?.startCourse) { const done = chat.canvasOps.startCourse(outcome.direct.args); setMsgs(m => m.slice(0, -2)); say(done?.notice?.text || 'Making the plan. It appears in Chat for you to review.'); return; }
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
         if (!outcome.send) {
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
@@ -941,14 +936,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           else if (type === 'answer_meta') {
             setMsgs(messages => withAnswerMeta(messages, replyId, d));
             // CHAT.02: the answer asked for a tool. The server already checked it; the command's own handler runs it, as a router decision would.
-            if (d.toolRequest?.command === 'explain-on-canvas') lessonRequest = d.toolRequest.args || {}; // started at 'done', when the thread is saved (a new chat has no id yet)
-            else if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
+            if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
           }
           else if (type === 'done' && d.threadId) {
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
             threadId.current = d.threadId;
-            if (lessonRequest) { const { instruction, source, scope } = lessonRequest; lessonRequest = null; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'balanced', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: d.threadId, scope: scope && typeof scope === 'object' ? scope : null }); } // BE.01a: bound to the durable thread before it starts
             if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
             if (repository && d.commit) setRepositoryCommit(d.commit);
             if (responseGraph && onGraph) onGraph(responseGraph);

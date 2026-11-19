@@ -38,7 +38,7 @@
       // when /whiteboard is switched off: saved results and in-flight jobs live in these objects.
       { "name": "WHITEBOARD_JOBS", "class_name": "WhiteboardJobs" },
       // Tutor R4 roadmap jobs, one object per learner and board (control-plane/src/roadmap/roadmap-jobs.js). Binding it enables NOTHING: every roadmap route
-      // answers 404 unless ROADMAP_ENABLED is "true", which the owner's production GO sets in vars below (ON). Stays bound when switched off: accepted work finishes.
+      // answers 404 because ROADMAP_ENABLED is set nowhere (the roadmap is unplugged, owner 2026-11-19). Stays bound: its objects and migration tag are applied.
       { "name": "ROADMAP_JOBS", "class_name": "RoadmapJobs" },
       // Repository rehearsals and the Run card's sessions (control-plane/src/learn-rehearsal.js; owner decision (a), 2026-11-16 14:05): one object per rehearsal key.
       // It talks to the production controller (Fly app rabbit-hole-rehearsal-prod) through the secrets REHEARSAL_WORKER_URL and REHEARSAL_WORKER_TOKEN, and writes
@@ -118,16 +118,8 @@
     // Written /explain planner (explanation-planner.js; owner 2026-11-08, release 116): ON. One TypeSafe System One call (jev-latest, 1.2 s limit) before the author decides the card's visual type, kind and depth
     // treatment; any failure or timeout runs the author as before. Needs the TYPESAFE_API_KEY secret (owner launcher set-typesafe-secret). Only "jev" enables it; delete the line to turn it off.
     "EXPLANATION_PLANNER": "jev",
-    "ROADMAP_ENABLED": "true",
-    // Tutor R6 automatic next-step suggestion (owner production GO, candidate 76): ON, only together with ROADMAP_ENABLED. Only the string "true" lets a delivered card, a mode change or an Auto-suggest change wake a pending next-step proposal;
-    // set to "false" (or delete) to stop the automatic offer at once (the manual Propose next step stays). The Auto-suggest preference-change trigger also needs learn-migrations/0040 on LEARN_DB (without it the preference saves plainly and only the delivery and mode triggers fire). Dev and parallel stay unset.
-    "ROADMAP_AUTO_ENABLED": "true",
-    // Tutor R5 proposal editing (owner 2026-11-06, release 91): ON, only together with ROADMAP_ENABLED. Needs learn-migrations/0041 (applied with
-    // release 79). Set to "false" (or delete) to answer the draft and link routes 404 and hide Edit; nothing else changes.
-    "ROADMAP_EDIT_ENABLED": "true",
-    // Tutor R7a long Markdown (owner 2026-11-06, release 91): ON, only together with ROADMAP_ENABLED. Needs learn-migrations/0042 (applied with
-    // release 80). Set to "false" (or delete) to return to the R4 "choose a section" behaviour for an over-long Markdown file.
-    "ROADMAP_LONG_MARKDOWN_ENABLED": "true",
+    // The Tutor roadmap (Explain on canvas) is unplugged (roadmap-unplug-spec.md, owner 2026-11-19): ROADMAP_ENABLED and its sub-flags (ROADMAP_AUTO_ENABLED, ROADMAP_EDIT_ENABLED,
+    // ROADMAP_LONG_MARKDOWN_ENABLED) are set nowhere, so every roadmap route answers 404 and the page mounts nothing. ROADMAP_JOBS stays bound (its objects and migration tag are applied).
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the

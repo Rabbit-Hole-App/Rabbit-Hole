@@ -25,7 +25,7 @@ import { answerToolsOn, decideChat, verifyChatRoute } from '../src/chat-capabili
 import { composeTutorPrompt } from '../src/tutor-prompt.js';
 import { codeExplainTurn, UNANCHORED_LINE } from '../src/learn-code-explain.js';
 import { validateMessageMeta } from '../src/code-explain-contract.js';
-import { CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson } from '../src/chat-tools.js';
+import { CHAT_TOOLS_POLICY, alternativesFor, chatToolDefs, checkToolCall, fitProblem } from '../src/chat-tools.js';
 import * as answerMeta from '../src/chat-answer-meta.js';
 import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -69,7 +69,7 @@ const deps = {
   learnMedia,
   contextDocumentBlocks,
   ...chatModes,
-  answerToolsOn, verifyChatRoute, CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson,
+  answerToolsOn, verifyChatRoute, CHAT_TOOLS_POLICY, alternativesFor, chatToolDefs, checkToolCall, fitProblem,
   ...answerMeta,
   canvasMentions,
   CANVAS_UNAVAILABLE,
