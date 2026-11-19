@@ -1,0 +1,207 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 3606,
+  "groups": [
+    {
+      "kind": "figure",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-hanging-shop-sign",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 499
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 562
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 579
+            }
+          ],
+          "bottom": 734
+        },
+        {
+          "id": "pool-sliding-shipping-crate",
+          "top": 730,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 754,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 541
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 754,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 649
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 754,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 683
+            }
+          ],
+          "bottom": 1452
+        },
+        {
+          "id": "pool-double-glazed-window",
+          "top": 1448,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1472,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 355
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1472,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 435
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1472,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 514
+            }
+          ],
+          "bottom": 2001
+        }
+      ],
+      "bottom": 2001
+    },
+    {
+      "kind": "argument",
+      "top": 2001,
+      "rows": [
+        {
+          "id": "pool-late-library-return",
+          "top": 2058,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 2082,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 453
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 2082,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 456
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 2082,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 520
+            }
+          ],
+          "bottom": 2617
+        },
+        {
+          "id": "pool-felt-mug-sleeve",
+          "top": 2613,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 2637,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 415
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 2637,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 418
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 2637,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 463
+            }
+          ],
+          "bottom": 3115
+        },
+        {
+          "id": "pool-club-poster-inks",
+          "top": 3111,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 3135,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 377
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 3135,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 396
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 3135,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 446
+            }
+          ],
+          "bottom": 3596
+        }
+      ],
+      "bottom": 3596
+    }
+  ]
+}

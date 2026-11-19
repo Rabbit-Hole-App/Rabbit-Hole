@@ -1,0 +1,214 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 2362,
+  "groups": [
+    {
+      "kind": "tensor",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-stereo-audio-frame",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 234
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 234
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 234
+            }
+          ],
+          "bottom": 389
+        },
+        {
+          "id": "pool-granola-batch-ingredients",
+          "top": 385,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 409,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 253
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 409,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 270
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 409,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 275
+            }
+          ],
+          "bottom": 699
+        },
+        {
+          "id": "pool-booklet-press-pages",
+          "top": 695,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 719,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 289
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 719,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 289
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 719,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 306
+            }
+          ],
+          "bottom": 1040
+        }
+      ],
+      "bottom": 1040
+    },
+    {
+      "kind": "layers",
+      "top": 1040,
+      "rows": [
+        {
+          "id": "pool-hilltop-park-map-layers",
+          "top": 1097,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1121,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1121,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1121,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 382
+            }
+          ],
+          "bottom": 1518
+        },
+        {
+          "id": "pool-raspberry-cocoa-slice-layers",
+          "top": 1514,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1538,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 292
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1538,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1538,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 360
+            }
+          ],
+          "bottom": 1913
+        }
+      ],
+      "bottom": 1913
+    },
+    {
+      "kind": "transformation",
+      "top": 1913,
+      "rows": [
+        {
+          "id": "pool-fixed-border-thumbnail-crop",
+          "top": 1970,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 1994,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 343
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 1994,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 343
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 1994,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 343
+            }
+          ],
+          "bottom": 2352
+        }
+      ],
+      "bottom": 2352
+    }
+  ]
+}
