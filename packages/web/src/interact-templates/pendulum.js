@@ -1,23 +1,25 @@
 import { z } from 'zod';
-import { DRAWN_TEXT_SIZES, VALUE_DOT, checkText, fitValues, layoutById, pickLayout } from '../interact-layout.js';
+import { DRAWN_TEXT_SIZES, LayoutError, VALUE_DOT, checkText, figureOptions, fitValues, layoutById, pickLayout } from '../interact-layout.js';
+import { layoutAnswers as answers } from '../interact-layout-answers.js';
 import { textWidth } from '../tutor-diagrams/primitives.js';
 
 // Brief 33/34/35: the landing page's pendulum card ("What changes a pendulum's swing?"). Physics in the program: T = 2 pi sqrt(L / g), angle = theta0 cos(2 pi t / T); mass does not enter. A (the reference) is fixed,
 // B follows the mass and length sliders. The angle-against-time plot is an /explain coordinate-plot through sdk.diagram (its smooth line, fixed ranges).
 // Brief 34: each curve is sampled from its own period (a point at every quarter period, so every peak is exactly theta0, plus the end; the eighth-period midpoints too when the 25-sample limit allows). The spec has
 // the same structure at every setting and time (no annotations, long series names so the renderer always draws its legend and never on-curve names), so the plot never moves; the current time is a thin line and
-// one dot per curve drawn as frame objects at the plot's own coordinates (plot.frame, baked by scripts/interact/bake-pendulum-geometry.mjs).
+// one dot per curve drawn as frame objects at the plot's own coordinates (plot.geometry, baked by scripts/interact/bake-pendulum-geometry.mjs).
 // Brief 35: the card sits on the scene layout its plan declares (docs/features/interact/layout.md, interact-layout.js): the stage and the panel boxes, the values section, the formula and the note, all placed from
 // the layout's boxes when the program is built, every text measured against its box then (a text that does not fit is refused). ponytail: one card, no damping, small-angle start only.
 const text = max => z.string().min(1).max(max);
-const answers = z.object({ pictureCount: z.enum(['one', 'two']), runs: z.enum(['left-to-right', 'top-to-bottom', 'compact']), panelRole: z.enum(['none', 'records-main', 'equal', 'aligned']) }).strict();
 const value = z.object({ quantity: z.enum(['angleB', 'periodA', 'periodB']), label: text(12), unit: text(6), decimals: z.number().int().min(0).max(3), kind: z.enum(['live', 'set', 'fixed']), role: text(16), sample: text(10) }).strict();
 export const pendulumSchema = z.object({
   title: text(60), g: z.number().positive(), theta0: z.number().positive().max(60), duration: z.number().positive().max(60),
   reference: z.object({ mass: z.number().positive(), length: z.number().positive() }).strict(),
   limits: z.object({ maxMass: z.number().positive(), maxLength: z.number().positive() }).strict(),
+  // Brief 36: geometry is what the renderer returned for this plot in the layout's picture box (bake-pendulum-geometry.mjs): the least size it can be drawn at and its plot area and axis ranges in the picture's own coordinates.
   plot: z.object({ title: text(60), time: text(20), angle: text(20), yMax: z.number().positive(), nameA: text(42), nameB: text(42),
-    fit: z.object({ x: z.number(), y: z.number(), w: z.number() }).strict(), frame: z.object({ left: z.number(), right: z.number(), top: z.number(), bottom: z.number() }).strict() }).strict(),
+    geometry: z.object({ min: z.object({ width: z.number(), height: z.number() }).strict(), plotArea: z.object({ left: z.number(), right: z.number(), top: z.number(), bottom: z.number() }).strict(),
+      x: z.object({ min: z.number(), max: z.number() }).strict(), y: z.object({ min: z.number(), max: z.number() }).strict() }).strict() }).strict(),
   layout: answers, values: z.array(value).min(1).max(4), formula: text(40),
   notes: z.object({ same: text(60), mass: text(60), longer: text(60), shorter: text(60) }).strict(),
 }).strict();
@@ -30,11 +32,14 @@ export const states = () => ({});
 // Everything the layout decides, computed once when the program is built: the boxes, where each value's text stands, and the checks (LayoutError: text_too_wide, layout_contradiction).
 function place(data) {
   const id = pickLayout(data.layout, { hasPanel: true }), layout = layoutById(id), size = DRAWN_TEXT_SIZES;
+  // Brief 36: the plot is drawn in the panel box at its own size, never shrunk; a plot whose least size is larger than the box is refused (the sizes are the renderer's, baked: bake-pendulum-geometry.mjs).
+  const figure = figureOptions(data.layout), { min } = data.plot.geometry, { box } = figure.options;
+  if (min.width > box.width || min.height > box.height) throw new LayoutError('figure_too_big', `the plot needs at least ${min.width} x ${min.height} px; the ${figure.slot} box is ${box.width} x ${box.height} px`, ['plot']);
   // One box per value with its own text "Label: value unit"; the formula is a math run in its own box; the note is its own box. Each is measured against its box here (a text that does not fit is refused).
   const fitted = fitValues(id, data.values.map(entry => ({ text: `${entry.label}: ${entry.sample}` })), size);
   for (const sentence of Object.values(data.notes)) checkText(id, { formula: `$${data.formula}$`, note: sentence }, size);
   return {
-    layout: id, stage: layout.slots.stage.box, panel: layout.slots.panel.box,
+    layout: id, stage: layout.slots.stage.box, panel: layout.slots.panel.box, figure: { at: figure.at, w: box.width },
     // Amendment D: a value box and the note box are 28 px tall, centred in their 32 px slots; the value's role colour is a dot in its box; the formula has no box, its math run is centred in its slot.
     values: fitted.values.map((entry, i) => { const [x, y, w, h] = fitted.boxes[i].box; return { ...data.values[i], box: [x, y + (h - 28) / 2, w, 28], dot: [x + VALUE_DOT.centreX, y + h / 2, VALUE_DOT.diameter] }; }),
     formulaAt: ((x, y, w, h) => [x + w / 2, y + h / 2])(...layout.slots.formula.box), noteBox: ((x, y, w, h) => [x, y + (h - 28) / 2, w, 28])(...layout.slots.note.box),
@@ -73,8 +78,10 @@ export function evaluate({inputs,time}){
   const curveA=curve(T.plot.nameA,periodA),curveB=curve(T.plot.nameB,periodB),drawn=c=>spline(c.samples.x,c.samples.y,t);
   const spec={version:1,diagram:{kind:'coordinate-plot',title:T.plot.title,x:{label:T.plot.time,min:0,max:T.duration,unit:'s'},y:{label:T.plot.angle,min:-T.plot.yMax,max:T.plot.yMax,unit:'°'},
     series:[curveA,curveB]}};
-  objects.push(sdk.diagram(spec,{x:T.plot.fit.x,y:T.plot.fit.y,w:T.plot.fit.w}));
-  const F=T.plot.frame,nowX=F.left+t/T.duration*(F.right-F.left),at=angle=>F.top+(T.plot.yMax-angle)/(2*T.plot.yMax)*(F.bottom-F.top);
+  objects.push(sdk.diagram(spec,{x:L.figure.at[0],y:L.figure.at[1],w:L.figure.w}));
+  // The time line and the dots stand on the plot area and the two axis ranges the renderer returned for this plot (picture coordinates, moved to where the picture is drawn).
+  const G=T.plot.geometry,A=G.plotArea,F={left:L.figure.at[0]+A.left,right:L.figure.at[0]+A.right,top:L.figure.at[1]+A.top,bottom:L.figure.at[1]+A.bottom};
+  const nowX=F.left+(t-G.x.min)/(G.x.max-G.x.min)*(F.right-F.left),at=angle=>F.top+(G.y.max-angle)/(G.y.max-G.y.min)*(F.bottom-F.top);
   objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:'input'}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:'warning'}));
   const quantity={angleB:angleB,periodA:periodA,periodB:periodB};
   L.values.forEach((entry,k)=>{const shown=entry.label+': '+quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);

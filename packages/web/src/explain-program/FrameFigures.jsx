@@ -90,20 +90,22 @@ export function PlotFigure({ spec, box, id }) {
 }
 
 // A written diagram drawn at the width the frame gave it, never larger than its own natural size, and scaled down (aspect kept) when the box leaves less height than it needs.
-export function DiagramFigure({ spec, box, id }) {
+// fit (brief 36, a card with a scene layout: renderTutorDiagram's { box, sizes, parts }, interact-layout.js figureOptions): the renderer is asked for that box and sizes, a kind it fits draws the whole box and is never
+// scaled; a kind it does not fit reports its drawn size and is scaled as above.
+export function DiagramFigure({ spec, box, id, fit = null }) {
   let rendered;
-  try { rendered = renderTutorDiagram(spec, box.w); } catch { return null; } // parsed at the contract; a drawing failure shows nothing rather than a broken frame
-  const scale = Math.min(1, box.w / rendered.width, box.h / rendered.height);
+  try { rendered = renderTutorDiagram(spec, box.w, fit ?? undefined); } catch { return null; } // parsed at the contract; a drawing failure shows nothing rather than a broken frame
+  const scale = fit && rendered.width <= box.w + 0.5 && rendered.height <= fit.box.height + 0.5 ? 1 : Math.min(1, box.w / rendered.width, (fit ? fit.box.height : box.h) / rendered.height);
   const element = cloneElement(rendered.element, { x: box.x, y: box.y, width: rendered.width * scale, height: rendered.height * scale });
   return <g data-frame-figure="diagram" data-diagram={id}>{element}</g>;
 }
 
 // The one entry AnimatedScene.jsx calls for a figure-typed scene object; null for any other type.
-export function FigureShape({ object }) {
+export function FigureShape({ object, fit = null }) {
   const box = { x: object.x, y: object.y, w: object.w, h: object.h };
   if (object.type === 'axis') return <AxisFigure spec={object.axisSpec} id={object.semanticId} />;
   if (object.type === 'plot') return <PlotFigure spec={object.plotSpec} box={box} id={object.semanticId} />;
-  if (object.type === 'figure') return <DiagramFigure spec={object.diagramSpec} box={box} id={object.semanticId} />;
+  if (object.type === 'figure') return <DiagramFigure spec={object.diagramSpec} box={box} id={object.semanticId} fit={fit} />;
   return null;
 }
 

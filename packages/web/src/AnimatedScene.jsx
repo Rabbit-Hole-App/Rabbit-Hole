@@ -492,7 +492,7 @@ function wrapped(text, width, size, x) {
   return lines.length < 2 ? text : lines.map((line, index) => <tspan key={index} x={x} dy={index ? lineHeight(size) : 0}>{line}</tspan>);
 }
 
-export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false, bodySize = null }) {
+export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false, bodySize = null, figureFit = null }) {
   const sceneShapeStyle = interact ? interactShapeStyle : shapeStyle;
   const radius = interact ? INTERACT_BOX_RADIUS : 12;
   const shadow = interact ? undefined : 'url(#animation-shadow)';
@@ -681,7 +681,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
               {interact && object.look
                 ? <LookShape object={object} />
                 : isFigure
-                ? (interact ? <FigureShape object={object} /> : null) /* axis, plot and diagram are the composed card's: the /animation frame draws nothing for them (validateScene refuses them there) */
+                ? (interact ? <FigureShape object={object} fit={figureFit} /> : null) /* axis, plot and diagram are the composed card's: the /animation frame draws nothing for them (validateScene refuses them there) */
                 : isData
                 ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt} interact={interact}
                     onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />

@@ -5,6 +5,7 @@ import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './explain-program/frame-budget.js';
 import { TEMPLATE_ROLES, TEMPLATE_WORDS, formulaScope, parseQuantity } from './interact-formula.js';
 import { isRegisteredTemplate, sceneDataSchemaOf } from './interact-family-registry.js';
+import { layoutAnswers } from './interact-layout-answers.js';
 
 // ScenePlan v1 (docs/features/interact.md section 5, INT-01): the one pure contract shared by design, review, build and the
 // saved card. Server-safe: zod and pure helpers only, no model call, network or DOM. Nothing is stripped or truncated: a plan
@@ -229,7 +230,7 @@ const scene = z.object({
   // The typed data a template takes (templateData[name].sceneDataSchema of its family, interact-family-registry.js): checked in planProblems; absent for every template that declares no schema (it is part of the plan hash when present).
   data: z.unknown().optional(),
   // Brief 35 (docs/features/interact/layout.md section 4): the three answers that pick a scene layout; absent for every card that declares none (it draws exactly as before). Code maps them to one layout.
-  layout: z.object({ pictureCount: z.enum(['one', 'two']), runs: z.enum(['left-to-right', 'top-to-bottom', 'compact']), panelRole: z.enum(['none', 'records-main', 'equal', 'aligned']) }).strict().optional(),
+  layout: layoutAnswers.optional(),
 }).strict();
 const mode = z.object({
   kind: z.enum(['static', 'time', 'experiment']), initialState: text(), fixedValues: z.record(id, scalar), adjustableIds: idList(8),

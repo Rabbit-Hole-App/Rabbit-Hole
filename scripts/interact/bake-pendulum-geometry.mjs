@@ -1,63 +1,56 @@
-// Briefs 34 and 35: measures the pendulum card's plot and bakes where it sits in frame coordinates. Runs the card's real program (interact-templates/pendulum.js source) with a recording sdk at every slider setting and time,
-// hands each diagram spec to the renderer exactly as FrameFigures.jsx DiagramFigure does (renderTutorDiagram at the box width, scaled by min(1, w / width, h / height), placed at the box corner) and reads the plot
-// area from the layout the renderer computes (layouts['coordinate-plot'] returns plotBounds). Brief 35: the plot's natural size is measured first and the picture drawn at the width where its height fits the layout's
-// panel box (interact-layout.js fitPanel), left of the reset cell. Writes packages/web/src/interact-pendulum-geometry.js ({ fit, frame }); `--check` compares, `--measure` prints the tables and writes nothing.
-// Reads tutor-diagrams/ and changes nothing there.
+// Briefs 34, 35 and 36: bakes the pendulum card's plot geometry. Runs the card's real program (interact-templates/pendulum.js source) with a recording sdk, hands the diagram spec to the written renderer exactly
+// as the host does for a card with a scene layout (renderTutorDiagram with interact-layout.js figureOptions: the panel box, every text 14 px, the plan's parts) and keeps what that same call returns:
+// min (the least size the plot can be drawn at), geometry.plotArea and the two axis ranges, in the picture's own coordinates. Refuses when min is larger than the panel box (both sizes reported).
+// Writes packages/web/src/interact-pendulum-geometry.js; `--check` compares, `--measure` prints the tables and writes nothing. Reads tutor-diagrams/ and changes nothing there.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages/web/src');
 const load = name => import(pathToFileURL(join(SRC, name)));
-const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { fitPanel, layoutById, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
-const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { parseTutorDiagram, dropGenericUnits } = await load('tutor-diagrams/spec.js'), { layouts } = await load('tutor-diagrams/layouts.js'), { textWidth } = await load('tutor-diagrams/primitives.js');
+const { source } = await load('interact-templates/pendulum.js'), { PENDULUM_PLANS } = await load('interact-pendulum-plan.js'), { figureOptions, layoutById, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
+const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { textWidth } = await load('tutor-diagrams/primitives.js');
+import { marksIn } from './svg-under.mjs';
 const { renderToStaticMarkup } = await import(pathToFileURL(join(SRC, '..', 'node_modules/react-dom/server.js')));
 
-const FRAME = { width: 640, height: 400 };
 const sdk = new Proxy({}, { get: (_, fn) => (...args) => ({ fn, args }) });
 const programOf = data => new Function('sdk', `${source({ geometry: { pendulum: data } }).replace('export function evaluate', 'function evaluate')}\nreturn evaluate;`)(sdk);
 const runner = data => { const program = programOf(data); return (length, time, mass = 1) => { const out = program({ inputs: { mass, length }, time }); return { out, objects: out.frame.args[0], diagram: out.frame.args[0].find(o => o.fn === 'diagram') }; }; };
-
-function measure(spec, box) {
-  const rendered = renderTutorDiagram(spec, box.w);
-  const parsed = dropGenericUnits(parseTutorDiagram(spec)).diagram;
-  const layout = layouts['coordinate-plot'](parsed, Math.max(320, Math.min(720, Math.round(box.w))));
-  const title = rendered.height - layout.height, scale = Math.min(1, box.w / rendered.width, box.h / rendered.height);
-  const at = (x, y) => [box.x + scale * x, box.y + scale * (title + y)];
-  const b = layout.plotBounds, [left, top] = at(b.left, b.top), [right, bottom] = at(b.right, b.bottom);
-  const markup = renderToStaticMarkup(rendered.element);
-  const count = attr => (markup.match(new RegExp(attr, 'g')) ?? []).length;
-  const grid = [...markup.matchAll(/<line x1="[\d.]+" x2="[\d.]+" y1="([\d.]+)"[^>]*data-tutor-plot-grid/g)].map(m => Number(m[1]));
-  return { width: rendered.width, height: rendered.height, scale, drawn: { w: rendered.width * scale, h: rendered.height * scale }, plot: { left, right, top, bottom }, legend: count('data-tutor-plot-legend'), curveLabels: count('data-tutor-plot-curve-label'), callouts: count('data-tutor-plot-callout'),
-    gridYs: grid.map(y => Math.round(at(0, y)[1] * 100) / 100), points: parsed.series.map(s => s.points?.length ?? s.samples.y.length), parsed, markup, title, at };
-}
-
 const r2 = n => Math.round(n * 100) / 100;
-// 1) the natural size of the plot (the same at every setting), the width that fits the panel box, and the plot area in frame coordinates for that width.
+// the card's data with the baked geometry taken out (the program does not read it to build the spec), so a first or stale bake does not refuse itself
+const PLACEHOLDER = { min: { width: 0, height: 0 }, plotArea: { left: 0, right: 1, top: 0, bottom: 1 }, x: { min: 0, max: 1 }, y: { min: 0, max: 1 } };
 const base = structuredClone(PENDULUM_PLANS['stepper-pendulum-detailed'].scene.data);
-const spec0 = runner(base)(1, 0).diagram.args[0];
-const natural = renderTutorDiagram(spec0, 408), panel = layoutById('side-by-side').slots.panel.box;
-// amendment F: the whole panel box, aligned to its left edge; only the reset button itself (x 604 to 628, y 12 to 36) must stay clear
-const fit = fitPanel({ width: natural.width, height: natural.height }, panel, { align: 'left', clearRight: 604 });
-if (fit.x + fit.w > 604 && fit.y < 36) throw new Error(`the graph (x ${fit.x} to ${fit.x + fit.w}, y from ${fit.y}) covers the reset button`);
-const fitted = { x: r2(fit.x), y: r2(fit.y), w: fit.w };
-const placeBox = { x: fitted.x, y: fitted.y, w: fitted.w, h: FRAME.height - fitted.y };
-const first = measure(spec0, placeBox);
-const geometry = { fit: fitted, frame: { left: r2(first.plot.left), right: r2(first.plot.right), top: r2(first.plot.top), bottom: r2(first.plot.bottom) } };
-const text = `// Generated by scripts/interact/bake-pendulum-geometry.mjs (briefs 34 and 35): where the pendulum card's coordinate-plot is drawn (fit: x, y and the width at which its height fits the layout's panel box) and its plot area in frame coordinates (time 0 to the end across, +yMax to -yMax down), read from the renderer's layout. Do not edit by hand.\nexport const PENDULUM_GEOMETRY = ${JSON.stringify(geometry)};\n`;
+base.plot.geometry = PLACEHOLDER;
+
+// the one renderer call the host makes for this card's plot
+const figure = figureOptions(base.layout), { box } = figure.options;
+const askRenderer = spec => renderTutorDiagram(spec, box.width, figure.options);
+const rendered = askRenderer(runner(base)(1, 0).diagram.args[0]);
+if (rendered.min.width > box.width || rendered.min.height > box.height) throw new Error(`the plot needs at least ${rendered.min.width} x ${rendered.min.height} px; the ${figure.slot} box is ${box.width} x ${box.height} px`);
+const { plotArea, x, y } = rendered.geometry;
+const geometry = { min: rendered.min, plotArea, x: { min: x.min, max: x.max }, y: { min: y.min, max: y.max } };
+const text = `// Generated by scripts/interact/bake-pendulum-geometry.mjs (briefs 34, 35 and 36): what the written renderer returned for the pendulum card's coordinate-plot drawn in the layout's panel box (interact-layout.js figureOptions): the least size it can be drawn at (min) and its plot area and the two axis ranges, in the picture's own coordinates. Do not edit by hand.\nexport const PENDULUM_GEOMETRY = ${JSON.stringify(geometry)};\n`;
 const file = join(SRC, 'interact-pendulum-geometry.js');
 
 if (process.argv.includes('--check')) { const same = readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text; console.log(same ? 'geometry is current' : 'geometry is STALE'); process.exit(same ? 0 : 1); }
 
 if (process.argv.includes('--measure')) {
-  // 2) the card as built from the geometry in the file: nine settings and times.
+  // the card as built from the geometry in the file: nine settings and times, each diagram object handed to the renderer exactly as the host does
   const run = runner(structuredClone(PENDULUM_PLANS['stepper-pendulum-detailed'].scene.data));
   const rows = [];
-  for (const length of [0.5, 1, 2]) for (const time of [0, 3, 6]) { const { diagram } = run(length, time), o = diagram.args[1]; rows.push({ length, time, ...measure(diagram.args[0], { x: o.x, y: o.y, w: o.w, h: FRAME.height - o.y }) }); }
-  for (const row of rows) console.log(`L=${row.length} t=${row.time}: size ${row.width}x${row.height} scale ${row.scale.toFixed(4)} drawn ${r2(row.drawn.w)}x${r2(row.drawn.h)} plot [${[row.plot.left, row.plot.top, row.plot.right, row.plot.bottom].map(r2)}] legend ${row.legend} curveLabels ${row.curveLabels} callouts ${row.callouts} pts ${row.points} gridY ${row.gridYs}`);
-  const key = row => JSON.stringify([row.width, row.height, row.scale, row.plot, row.legend, row.curveLabels, row.callouts, row.gridYs]);
+  for (const length of [0.5, 1, 2]) for (const time of [0, 3, 6]) {
+    const { diagram } = run(length, time), o = diagram.args[1], r = askRenderer(diagram.args[0]);
+    rows.push({ length, time, o, width: r.width, height: r.height, min: r.min, geometry: r.geometry, markup: renderToStaticMarkup(r.element) });
+  }
+  for (const row of rows) console.log(`L=${row.length} t=${row.time}: placed x ${row.o.x} y ${row.o.y} w ${row.o.w}; drawn ${row.width}x${row.height} min ${JSON.stringify(row.min)} plotArea ${JSON.stringify(row.geometry.plotArea)}`);
+  const key = row => JSON.stringify([row.o, row.width, row.height, row.min, row.geometry]);
   console.log(rows.every(row => key(row) === key(rows[0])) ? 'IDENTICAL across all nine' : 'DIFFERENT');
-  console.log(`panel box ${JSON.stringify(panel)}; picture drawn at x ${rows[0].parsed ? run(1, 0).diagram.args[1].x : ''} y ${run(1, 0).diagram.args[1].y}, ${r2(rows[0].drawn.w)} x ${r2(rows[0].drawn.h)}; the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
+  console.log(`panel box ${JSON.stringify(box)} at ${JSON.stringify(figure.at)}; the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
+  // every text of the picture: its font size and weight, and what lies under the reset button (scene x 604 to 628, y 12 to 36, in the picture's coordinates)
+  const markup = rows[0].markup, texts = [...markup.matchAll(/<text ([^>]*)>(.*?)<\/text>/g)].map(([, attrs, inner]) => ({ inner: inner.replace(/<[^>]+>/g, ''), size: Number(attrs.match(/font-size="([\d.]+)"/)[1]), weight: attrs.match(/font-weight="(\d+)"/)?.[1], x: Number(attrs.match(/(?:^| )x="([\d.]+)"/)[1]), y: Number(attrs.match(/(?:^| )y="([\d.]+)"/)[1]), anchor: attrs.match(/text-anchor="(\w+)"/)?.[1] }));
+  console.log('texts (font size / weight): ' + texts.map(t => `"${t.inner}" ${t.size}/${t.weight}`).join('; '));
+  const region = [604 - figure.at[0], 12 - figure.at[1], 628 - figure.at[0], 36 - figure.at[1]], under = marksIn(markup, region, textWidth);
+  console.log(`reset button region in the picture: x ${region[0]}..${region[2]}, y ${region[1]}..${region[3]}; under it: ${under.length ? under.join('; ') : 'nothing'}`);
   // every text in the frame against its box, at the size a frame text draws (the width model of the renderer)
   const objects = run(2, 3).objects, size = DRAWN_TEXT_SIZES.value, lines = [];
   // amendments C and D: a value and the note are one box with its own text; the formula is a math run with no box, centred in its slot
@@ -72,7 +65,7 @@ if (process.argv.includes('--measure')) {
   // the stage: every ball of both pendulums over the whole 8 s at the extreme settings, against the stage box
   const stage = layoutById('side-by-side').slots.stage.box; let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
   for (const [mass, length] of [[3, 2], [0.5, 0.5], [3, 0.5], [0.5, 2]]) for (let t = 0; t <= 8; t += 0.05) for (const o of run(length, t, mass).objects) if (o.fn === 'circle' && o.args[0].startsWith('ball.')) {
-    const [, x, y, d] = o.args; minX = Math.min(minX, x - d / 2); maxX = Math.max(maxX, x + d / 2); minY = Math.min(minY, y - d / 2); maxY = Math.max(maxY, y + d / 2); }
+    const [, bx, by, d] = o.args; minX = Math.min(minX, bx - d / 2); maxX = Math.max(maxX, bx + d / 2); minY = Math.min(minY, by - d / 2); maxY = Math.max(maxY, by + d / 2); }
   lines.push(`stage box x ${stage[0]}..${stage[0] + stage[2]} y ${stage[1]}..${stage[1] + stage[3]}; balls reach x ${r2(minX)}..${r2(maxX)} y ${r2(minY)}..${r2(maxY)}`);
   console.log(lines.join('\n'));
 } else { writeFileSync(file, text); console.log(`wrote ${file}`, JSON.stringify(geometry)); }

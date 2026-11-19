@@ -763,7 +763,8 @@ export function checkText(layoutId, { formula, note }, sizes = DRAWN_TEXT_SIZES)
   if (!layout) throw new LayoutError('layout_unknown', `no layout "${layoutId}"`, ['layout']);
   const room = slot => layout.slots[slot].box[2] - 2 * GRID.textClear, report = {};
   for (const [slot, text, size] of [['formula', formula, sizes.formula], ['note', note, sizes.note]]) {
-    const maxLines = layoutId === 'tall' && slot === 'note' ? 3 : 1, lines = textLines(text, size, room(slot));
+    // brief 36: a formula is one math run and never wraps, so it is one line measured whole (cutting it at its spaces measures halves of a TeX string, which is not what is drawn)
+    const maxLines = layoutId === 'tall' && slot === 'note' ? 3 : 1, lines = slot === 'formula' ? [text] : textLines(text, size, room(slot));
     const widest = Math.max(...lines.map(line => textWidth(line, size)));
     if (lines.length > maxLines || widest > room(slot)) throw new LayoutError('text_too_wide', `the ${slot} "${text}" needs ${Math.round(widest)} px on ${lines.length} line(s); its box allows ${maxLines} line(s) of ${room(slot)} px`, [slot]);
     report[slot] = { lines, width: Math.round(textWidth(text, size) * 100) / 100, room: room(slot) };
@@ -786,4 +787,12 @@ export function fitPanel(natural, box, { clearRight = Infinity, align = 'centre'
   const [bx, by, bw, bh] = box, room = Math.min(bw, clearRight - bx);
   const w = Math.floor(Math.min(natural.width, room, natural.width * bh / natural.height) * 100) / 100, h = natural.height * w / natural.width;
   return { x: Math.round((bx + (align === 'left' ? 0 : (room - w) / 2)) * 100) / 100, y: Math.round((by + (bh - h) / 2) * 100) / 100, w, drawn: { w, h: Math.round(h * 100) / 100 } };
+}
+
+// Brief 36: how the layout's picture is drawn. The picture lives in the panel slot when the layout has one, else in the stage slot; it is asked of the written renderer with exactly that slot's box, every text
+// size at the layout's body size, and the `parts` the card's answers name. The host (FrameFigures.jsx DiagramFigure) and the build (interact-templates/pendulum.js, the bake script) both call this, so they
+// ask the same thing. at: where the picture's top left lands in the scene; options: renderTutorDiagram's third argument.
+export function figureOptions(answers) {
+  const id = pickLayout(answers, { hasPanel: answers.pictureCount === 'two' }), slots = layoutById(id).slots, slot = slots.panel ?? slots.stage, [x, y, width, height] = slot.box, size = LAYOUT_BODY_SIZE;
+  return { layout: id, slot: slots.panel ? 'panel' : 'stage', at: [x, y], options: { box: { width, height }, sizes: { title: size, heading: size, body: size, small: size }, parts: { ...(answers.figureParts ?? {}) } } };
 }

@@ -228,7 +228,11 @@ function histogram(d, requested) {
 function boxPlot(d, requested) {
   const width = Math.max(360, requested, formulaWidth([d.x.label, ...d.boxes.flatMap(box => [box.label, ...(box.outliers ?? []).map(point => point.label)])]) + PAD * 2);
   const left = PAD + 10, right = width - PAD - 10;
-  const x = scale(d.x.min, d.x.max, left, right), elements = [];
+  // The axis widens (outward, to whole numbers) to hold every drawn value: a computed fence can lie past the author's x.min and x.max.
+  const drawn = d.boxes.flatMap(box => [box.whiskerLow, box.q1, box.q3, box.whiskerHigh, ...(box.fences ? [box.fences.lower, box.fences.upper] : []), ...(box.outliers ?? []).map(point => point.value)]);
+  const axisMin = Math.min(...drawn) < d.x.min ? Math.floor(Math.min(...drawn)) : d.x.min;
+  const axisMax = Math.max(...drawn) > d.x.max ? Math.ceil(Math.max(...drawn)) : d.x.max;
+  const x = scale(axisMin, axisMax, left, right), elements = [];
   let top = PAD;
   d.boxes.forEach((box, index) => {
     top = textBlock(elements, box.label, PAD, top, width - PAD * 2, { weight: 700 }) + 10;
@@ -266,7 +270,7 @@ function boxPlot(d, requested) {
   });
   // The reading axis follows the plot rules: no axis line, a dashed guide marks it, tick numerals 15 px / 500 muted, the title centred and bold 16 below.
   elements.push(h('line', { x1: left, x2: right, y1: top, y2: top, stroke: TEACHING_GRID, strokeWidth: 1.5, strokeDasharray: '4 4', 'data-tutor-plot-grid': '' }));
-  const edgeLines = [d.x.min, d.x.max].map(value => wrap(String(value), (right - left) / 2 - 8, TICK));
+  const edgeLines = [axisMin, axisMax].map(value => wrap(String(value), (right - left) / 2 - 8, TICK));
   const edgeHeight = Math.max(...edgeLines.map(lines => lines.length)) * lineHeight(TICK);
   elements.push(label(edgeLines[0], left, top + 8 + edgeHeight / 2, { size: TICK, anchor: 'start', fill: TEACHING.muted }));
   elements.push(label(edgeLines[1], right, top + 8 + edgeHeight / 2, { size: TICK, anchor: 'end', fill: TEACHING.muted }));

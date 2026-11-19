@@ -10,6 +10,7 @@ import { flowPathShape, flowPaths, validateFlowPaths } from './flow-paths.js';
 import { z } from 'zod';
 import { formatMinor, sumMinor, toMinor } from './balance-values.js';
 import { tokenizeMath } from '../math-tokens.js';
+import { checkDerived, derivedAfterItems, fillDerived } from './derived.js';
 
 const MAX_JSON_LENGTH = 16_384;
 // Text is rendered literally. The SVG renderer must escape XML punctuation.
@@ -146,7 +147,7 @@ for (const schema of [createTensorShape(helpers), tokenLinks, blockStack]) shape
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
-function childDiagrams(diagram) {
+export function childDiagrams(diagram) {
   if ((diagram.kind === 'comparison' && diagram.variant === 'panels') || diagram.kind === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
   if (diagram.kind === 'transformation' && diagram.variant === 'visual') return ['before', 'after'].filter(side => diagram[side]?.diagram).map(side => ({ diagram: diagram[side].diagram, path: [side, 'diagram'] }));
   return [];
@@ -327,12 +328,18 @@ function validateDiagram(diagram, issue) {
     case 'transformation':
       // The composition validator reports a mixed representation. Do not read
       // list fields on a visual state before it can return that useful error.
-      if (diagram.variant === 'visual' || !diagram.before.items || !diagram.after.items) break;
-      for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
+      // An `op: 'softmax'` card may leave its after items out: they are computed (derived.js), and the links are read against the computed count.
+      checkDerived(diagram, issue); // VAR-1: the softmax rule (derived.js); the other kinds call it from their own validators
+      if (diagram.variant === 'visual' || !diagram.before.items || !(diagram.after.items ?? derivedAfterItems(diagram))) break;
+      for (const side of ['before', 'after']) (diagram[side].items ?? []).forEach((item, index) => {
         if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
       });
+      // SAME-1 b (Reviewer, narrowed): exactly one text item before and one after shows nothing (a box pointing at a box); tensor items are exempt, and 2 -> 1, 1 -> 3, 1 -> 2 pass.
+      if (diagram.before.items.length === 1 && diagram.after.items.length === 1 && typeof diagram.before.items[0] === 'string' && typeof diagram.after.items[0] === 'string') {
+        issue(['before', 'items'], 'A transformation of one item into one item shows nothing: write the concrete items before and after the operation, with their values, or use the kind the plan names.');
+      }
       diagram.links?.forEach(({ from, to }, index) => {
-        if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
+        if (from >= diagram.before.items.length || to >= (diagram.after.items ?? derivedAfterItems(diagram)).length) {
           issue(['links', index], 'Mapping indices must refer to existing items');
         }
       });
@@ -354,14 +361,14 @@ function validateDiagram(diagram, issue) {
   // A child's title may be left out only inside panels of round-and-square trees: the panel label is their title.
   const labelledTrees = diagram.kind === 'panels' && diagram.panels.every(panel => topology.isDotTree(panel.diagram));
   for (const child of childDiagrams(diagram)) {
-    const at = (path, message) => issue([...child.path, ...path], message);
+    const at = (path, message, params) => issue([...child.path, ...path], message, params);
     if (child.diagram.title === undefined && !labelledTrees) at(['title'], 'A diagram needs a title');
     validateDiagram(child.diagram, at);
   }
 }
 export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
   if (diagram.title === undefined) ctx.addIssue({ code: 'custom', path: ['diagram', 'title'], message: 'A diagram needs a title' });
-  validateDiagram(diagram, (path, message) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message }));
+  validateDiagram(diagram, (path, message, params) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message, ...(params && { params }) }));
 });
 
 // Provider constraints describe the JSON shape. The local parse additionally
@@ -384,6 +391,13 @@ authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properti
 })(authorOnlyFree);
 export const tutorDiagramAuthorJsonSchema = authorOnlyFree;
 
+// A parsed diagram with EVERY derived value on it, silent ones too (derived.js): what a prose token reads and what the reference lint compares against. Not for drawing.
+export function fillAllDerived(diagram) {
+  fillDerived(diagram, { all: true });
+  for (const child of childDiagrams(diagram)) fillAllDerived(child.diagram);
+  return diagram;
+}
+
 export function parseTutorDiagram(value) {
   if (typeof value === 'string') {
     if (value.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
@@ -391,7 +405,11 @@ export function parseTutorDiagram(value) {
     catch { throw new Error('Invalid diagram JSON'); }
   }
   if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
-  return tutorDiagramSchema.parse(value);
+  // An absent derived field is computed here, before any layout reads the diagram (derived.js); a child diagram inside panels or a visual transformation too.
+  const fill = diagram => { fillDerived(diagram); for (const child of childDiagrams(diagram)) fill(child.diagram); return diagram; };
+  const parsed = tutorDiagramSchema.parse(value);
+  fill(parsed.diagram);
+  return parsed;
 }
 
 // BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read

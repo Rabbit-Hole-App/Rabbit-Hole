@@ -10,7 +10,8 @@ const affects = ['pendulums', 'plot', 'callout'].map(entity);
 const number = (id, label, unit, purpose, min, max) => ({ id, label, type: 'number', purpose, selectionReason: 'The value varies continuously, and intermediate values show which one changes the timing and which does not.', nativeControlId: 'program.number', binding: { kind: 'input', id }, unit, default: 1, min, max, step: 0.1, onChange: 'recompute_still', affects });
 
 // The three answers that pick the scene layout (layout.md section 4): the card is one moving picture and a smaller chart that records it.
-const LAYOUT = { pictureCount: 'two', runs: 'compact', panelRole: 'records-main' };
+// Brief 36: the plot is drawn with its legend as pills (parts.legend 'always'); its title stays.
+const LAYOUT = { pictureCount: 'two', runs: 'compact', panelRole: 'records-main', figureParts: { legend: 'always' } };
 const plan = structuredClone(STEPPER_PLANS['stepper-merge-sort-brief']);
 Object.assign(plan, {
   title: "What changes a pendulum's swing?",
@@ -33,7 +34,7 @@ Object.assign(plan.scene, {
   layout: LAYOUT,
   description: 'Family stepper-states. Two pendulums drawn with frame primitives, an angle-against-time plot drawn by the plot renderer, two period readouts and a callout.\nA 640 x 400 px scene on the side-by-side layout with an 8 s timeline and two number inputs.',
   template: 'stepper-pendulum', words: {}, slots: {}, readoutIds: ['periodA', 'periodB'],
-  data: { title: "What changes a pendulum's swing?", g: 9.81, theta0: 20, duration: 8, reference: { mass: 1, length: 1 }, plot: { title: 'Angle against time', time: 'Time', angle: 'Angle', yMax: 25, nameA: 'A: the reference', nameB: 'B: your pendulum', fit: PENDULUM_GEOMETRY.fit, frame: PENDULUM_GEOMETRY.frame },
+  data: { title: "What changes a pendulum's swing?", g: 9.81, theta0: 20, duration: 8, reference: { mass: 1, length: 1 }, plot: { title: 'Angle against time', time: 'Time', angle: 'Angle', yMax: 25, nameA: 'A: reference', nameB: 'B: your pendulum', geometry: PENDULUM_GEOMETRY },
     limits: { maxMass: 3, maxLength: 2 }, layout: LAYOUT, formula: 'T = 2\\pi\\sqrt{L/g}',
     // Brief 35: the card's sentences, each shortened to one line of the note box at the size a frame text draws (15 px, 349 px): 'same timing' leaves the first, 'swings quicker' becomes 'is quicker'.
     notes: { same: 'B matches A: same mass, same length.', mass: 'Same timing: only the mass differs.', longer: 'Slower: a longer string takes longer.', shorter: 'Faster: a shorter string is quicker.' },

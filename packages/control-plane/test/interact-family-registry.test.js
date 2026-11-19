@@ -28,7 +28,7 @@ const mapText = readFileSync(new URL('../../../scripts/ci/check-map.json', impor
 
 test('the built-in families are registered through the same call and the derived tables list them in registration order', () => {
   assert.deepEqual(registeredFamilies().map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);
-  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts', 'stepper-brief', 'stepper-standard', 'stepper-deep']);
+  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts', 'stepper-brief', 'stepper-standard', 'stepper-deep', 'stepper-tree-trace', 'stepper-tree-motion', 'stepper-vote-motion', 'stepper-pendulum', 'stepper-attention']);
   assert.deepEqual(Object.keys(TEMPLATES), Object.keys(TEMPLATE_ROLES));
   assert.deepEqual(Object.keys(TEMPLATE_WORDS), Object.keys(TEMPLATE_ROLES));
   assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);

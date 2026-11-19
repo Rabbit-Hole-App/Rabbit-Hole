@@ -11,6 +11,8 @@ const COLORS = [...TEACHING_SERIES, T.ink, T.muted];
 const INKS = [...TEACHING_SERIES_INK, T.ink, T.muted]; // the darker weight of a series colour: text only (an end label), never a stroke
 // Weights, heavy to light: the series line 4.5 (in the series fill colour), the marker ring 2 (a 14 px marker), guides and outlines 1.5.
 const TICK = 15, MARKER = 7, LINE = 4.5, GRID = 1.5;
+// kinds-fit: with a box the plot area is at least PLOT_FLOOR tall and PLOT_MIN_WIDTH wide (a plot area under that no longer reads); without a box it is 240 tall as always.
+const PLOT_FLOOR = 120, PLOT_MIN_WIDTH = 120;
 // The caps of a coordinate plot (the author's constraints sheet reads these): value labels only on a plot of ONE series with at most this many samples;
 // a marker on every sample of a line series up to PLOT_MARKER_ALL_MAX_SAMPLES, only the first, the last and the labelled samples of a longer one (PLOT_MARKER_LINE_ONLY_FROM_SAMPLES is no longer read);
 // at most PLOT_NOTES_MAX callouts (an annotation's label in a pill; no number is drawn).
@@ -57,13 +59,13 @@ function bodyWidth(d, requested) {
   return Math.max(requested, 408, ...text.filter(Boolean).map(t => widestFormula(t) + 150)); // 408: the narrowest card content (cards are clamped 440 to 720, CV-1)
 }
 
-function plotEndLabels(series) {
-  const endSeries = series.flatMap((entry, i) => entry.endLabel ? [{ entry, color: INKS[i] }] : []);
+function plotEndLabels(series, small = SMALL, off = false) {
+  const endSeries = off ? [] : series.flatMap((entry, i) => entry.endLabel ? [{ entry, color: INKS[i] }] : []);
   const endLabelWidth = Math.ceil(Math.max(0, ...endSeries.map(({ entry }) =>
-    Math.max(Math.min(128, textWidth(entry.label, SMALL)), widestFormula(entry.label, SMALL)))));
+    Math.max(Math.min(128, textWidth(entry.label, small)), widestFormula(entry.label, small)))));
   const labels = endSeries.map(({ entry, color }) => {
-    const lines = wrap(entry.label, endLabelWidth, SMALL);
-    return { name: entry.label, value: (entry.points ?? plotSeriesPoints(entry)).at(-1).y, color, lines, height: lines.length * lineHeight(SMALL) };
+    const lines = wrap(entry.label, endLabelWidth, small);
+    return { name: entry.label, value: (entry.points ?? plotSeriesPoints(entry)).at(-1).y, color, lines, height: lines.length * lineHeight(small) };
   }).sort((a, b) => b.value - a.value);
   return {
     labels,
@@ -80,13 +82,26 @@ export function sharedPlotLabelSpace(diagrams) {
   };
 }
 
+// Legend text widths: the layout's textWidth is deliberately generous (about 0.68 em a letter, so a box never clips), which left a legend pill about a third wider than its name
+// (owner 2026-11-17: "the pills length should follow the text length"). A name with no formula in it is measured with Arial's own advance widths (1/1000 em), the face the figures draw in, plus 3%
+// for the 500 weight; a name with a formula keeps the generous measure (a formula is measured by its own rendering).
+const ARIAL = { ' ': 278, '!': 278, '"': 355, '#': 556, '$': 556, '%': 889, '&': 667, "'": 191, '(': 333, ')': 333, '*': 389, '+': 584, ',': 278, '-': 333, '.': 278, '/': 278, ':': 278, ';': 278, '<': 584, '=': 584, '>': 584, '?': 556, '@': 1015,
+  A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611, '[': 278, ']': 278, '^': 469, _: 556,
+  a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222, j: 222, k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333, s: 500, t: 278, u: 556, v: 500, w: 722, x: 500, y: 500, z: 500, '{': 334, '|': 260, '}': 334, '~': 584 };
+// The ARIAL table above assumes figures draw in Arial / Liberation Sans, which they do only because TEACHING_FONT names 'Inter' while the loaded family is 'Inter Variable' (teaching-theme.js).
+function legendTextWidth(text, size) {
+  if (text.includes('$')) return textWidth(text, size);
+  let em = 0;
+  for (const char of text) em += (char >= '0' && char <= '9' ? 556 : ARIAL[char] ?? (char.codePointAt(0) > 0x2ff ? 1000 : 600)) / 1000;
+  return em * size * 1.03;
+}
 // The legend of a plot or a bar chart: one pill per series (22 px tall, rx 11): the series colour at 18% over the ground, a 1.5 px outline and the name at 12 px / 500 in the
 // series ink, a 9 px marker (series fill, ink ring) at the left; 8 px apart, centred in one row, a second row only when they do not fit. Returns the elements and the height.
-function legendPills(items, width, top) {
+function legendPills(items, width, top, small = 12) {
   const pills = items.map(({ i, text }) => {
-    const lines = wrap(text, width - 2 * PAD - 52, 12);
-    const text12 = Math.ceil(Math.max(...lines.map(line => textWidth(line, 12)), widestFormula(lines.join(' '), 12)));
-    return { i, lines, height: Math.max(22, lines.length * lineHeight(12) + 6), width: 10 + 9 + 6 + text12 + 10 };
+    const lines = wrap(text, width - 2 * PAD - 52, small);
+    const text12 = Math.ceil(Math.max(...lines.map(line => legendTextWidth(line, small)), widestFormula(lines.join(' '), small)));
+    return { i, lines, height: Math.max(22, lines.length * lineHeight(small) + 6), width: 10 + 9 + 6 + text12 + 10 };
   });
   const elements = [];
   let y = top;
@@ -99,7 +114,7 @@ function legendPills(items, width, top) {
       const cy = y + rowHeight / 2;
       elements.push(h('rect', { x: px, y: cy - pill.height / 2, width: pill.width, height: pill.height, rx: Math.min(11, pill.height / 2), fill: mixHex(COLORS[pill.i], T.ground, 0.18), stroke: INKS[pill.i], strokeWidth: 1.5, 'data-tutor-plot-legend': '' }));
       elements.push(symbol(px + 10 + 4.5, cy, pill.i, { stroke: INKS[pill.i] }, undefined, 4.5));
-      elements.push(label(pill.lines, px + 10 + 9 + 6, cy, { anchor: 'start', size: 12, weight: 500, fill: INKS[pill.i] }));
+      elements.push(label(pill.lines, px + 10 + 9 + 6, cy, { anchor: 'start', size: small, weight: 500, fill: INKS[pill.i] }));
       px += pill.width + 8;
     }
     y += rowHeight + (end < pills.length ? 8 : 0);
@@ -131,7 +146,7 @@ function segmentHitsBox([ax, ay], [bx, by], box) {
   }
   return true;
 }
-function curveLabels(series, lines, bounds, occupied) {
+function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
   if (series.length > CURVE_LABEL_MAX_SERIES || !series.every(s => s.kind === 'line' && !s.closed && !s.endLabel && s.points[0].low === undefined)) return null;
   const boxes = [], labels = [];
   for (const [i, s] of series.entries()) {
@@ -140,7 +155,7 @@ function curveLabels(series, lines, bounds, occupied) {
       const others = lines.flatMap((line, k) => k === i ? [] : [nearestOnPolyline(p, line)]).sort((x, y) => x.distance - y.distance);
       return { j, p, distance: others.length ? others[0].distance : Infinity, from: others[0]?.at };
     }).sort((x, y) => (Math.abs(x.distance - y.distance) <= 0.5 ? 0 : y.distance - x.distance) || y.p[0] - x.p[0]);
-    const text = s.label, w = Math.ceil(Math.max(textWidth(text, CURVE_LABEL_SIZE), widestFormula(text, CURVE_LABEL_SIZE))), hgt = lineHeight(CURVE_LABEL_SIZE);
+    const text = s.label, w = Math.ceil(Math.max(textWidth(text, size), widestFormula(text, size))), hgt = lineHeight(size);
     let placed = null;
     for (const { p: [px, py], from } of candidates) {
       // Outward is away from the nearest other curve (straight up when there is none).
@@ -173,38 +188,60 @@ function curveLabels(series, lines, bounds, occupied) {
 const titleOf = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
 
 // A tick label's horizontal extent, from its anchor (start, middle or end).
-const tickSpan = ({ at, lines, anchor }) => {
-  const w = Math.max(...lines.map(line => textWidth(line, TICK)));
+const tickSpan = ({ at, lines, anchor }, size = TICK) => {
+  const w = Math.max(...lines.map(line => textWidth(line, size)));
   return anchor === 'start' ? [at, at + w] : anchor === 'end' ? [at - w, at] : [at - w / 2, at + w / 2];
 };
 
 // The plot is laid out wider until no two x tick labels touch (a label such as 999999999.9999999 is 169 px wide at 15 px; the endpoints always stay labelled).
 function coordinatePlot(diagram, requested, options) {
-  let layout;
-  for (let pass = 0, asked = requested; pass < 4; pass++) {
-    layout = plotLayout(diagram, asked, options);
-    if (!layout.crowded) break;
-    asked = layout.width + 2 * layout.crowded; // moving the right edge by d moves each gap by d / 2
-  }
-  const { crowded, ...drawn } = layout;
-  return drawn;
+  const boxed = Boolean(options?.box);
+  const run = opts => {
+    let layout;
+    for (let pass = 0, asked = requested; pass < (boxed ? 12 : 4); pass++) {
+      layout = plotLayout(diagram, asked, opts);
+      if (!layout.crowded) break;
+      asked = layout.width + 2 * layout.crowded; // moving the right edge by d moves each gap by d / 2
+    }
+    const { crowded, ...drawn } = layout;
+    return drawn;
+  };
+  if (!boxed) return run(options);
+  // kinds-fit: a first pass with the plot area at its floor gives the smallest width (tick labels apart) and the height of everything below the plot; a second pass gives the plot area the rest of the box.
+  const base = run({ ...options, plotHeight: undefined });
+  const { contentHeight, floor } = options;
+  if (floor || contentHeight === undefined) return base;
+  const extra = contentHeight - base.height;
+  return extra > 0 ? run({ ...options, plotHeight: base.plotHeight + extra }) : base;
 }
 
-function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
+function plotLayout(diagram, requested, options = {}) {
+  const { sharedLabelSpace, lift = 0, box, sizes, parts, plotHeight } = options;
   const d = diagram.series.some(series => series.samples) ? { ...diagram,
     series: diagram.series.map(series => series.samples ? { ...series, points: plotSeriesPoints(series) } : series),
   } : diagram;
-  const endLabels = plotEndLabels(d.series);
+  const boxed = Boolean(box);
+  const body = sizes?.body ?? 15, small = sizes?.small ?? 12, heading = sizes?.heading ?? 16, curveSize = sizes?.body ?? 15; // today's TICK, SMALL, the axis title and CURVE_LABEL_SIZE
+  const legendMode = parts?.legend ?? 'auto';
+  const endLabels = plotEndLabels(d.series, small, legendMode !== 'auto');
   const endGutter = Math.max(endLabels.gutter, sharedLabelSpace?.gutter ?? 0);
   let remainingLabels = endLabels.height;
-  const width = Math.max(bodyWidth(d, requested), 324 + endGutter);
-  // The y title runs along the axis when it is plain text that fits the plot's height; otherwise it stays above the plot, bold 16.
+  // The y title runs along the axis when it is plain text that fits the plot's height; otherwise it stays above the plot, bold at the heading size.
   const yName = titleOf(d.y);
-  const rotateY = widestFormula(yName) === 0 && textWidth(yName, 16) * 1.1 <= 232;
+  const rotateY = widestFormula(yName) === 0 && textWidth(yName, heading) * 1.1 <= (boxed ? PLOT_FLOOR - 8 : 232);
+  const floorHeight = Math.max(boxed ? PLOT_FLOOR : 240, endLabels.height, sharedLabelSpace?.height ?? 0);
+  const plotAreaHeight = boxed && plotHeight ? Math.max(plotHeight, floorHeight) : floorHeight;
+  // With a box the left margin is the y title band plus the widest y tick label (default 104); the width is at least that plus a floor plot width, the right margin and the end-label gutter (default: 408 and 324 + gutter).
+  const titleBand = rotateY ? PAD + 10 + Math.ceil(lineHeight(heading) / 2) + 6 : PAD;
+  const tickWidth = boxed ? Math.ceil(Math.max(0, ...plotTicks(d.y, scale(d.y, plotAreaHeight, 0), { size: body }).flatMap(tick => tick.lines).map(line => textWidth(line, body)))) : 0;
+  const leftEdge = boxed ? titleBand + tickWidth + 8 : 104;
+  const formulaFloor = boxed ? Math.max(0, ...[d.x?.label, d.y?.label, ...d.series.map(s => s.label), ...(d.annotations ?? []).map(a => a.label), ...(d.categories ?? [])].filter(Boolean)
+    .map(t => widestFormula(t, small) ? widestFormula(t, small) + 2 * PAD + 52 : 0)) : 0;
+  const width = boxed ? Math.max(requested, formulaFloor, leftEdge + PLOT_MIN_WIDTH + 24 + endGutter) : Math.max(bodyWidth(d, requested), 324 + endGutter);
   // lift: the rows of labels above the plot area push the plot down by 14 px each (a second pass, once the first has counted them); 0 leaves every other plot as it was.
-  const top0 = (rotateY ? 40 : 66) + lift;
-  const bottomEdge = top0 + Math.max(240, endLabels.height, sharedLabelSpace?.height ?? 0);
-  const bounds = { left: 104, right: width - 24 - endGutter, top: top0, bottom: bottomEdge };
+  const top0 = (boxed ? (rotateY ? Math.ceil(lineHeight(body) / 2) + 12 : PAD + wrap(yName, width - 2 * PAD, heading).length * lineHeight(heading) + 14) : (rotateY ? 40 : 66)) + lift;
+  const bottomEdge = top0 + plotAreaHeight;
+  const bounds = { left: leftEdge, right: width - 24 - endGutter, top: top0, bottom: bottomEdge };
   const { left, right, top, bottom } = bounds;
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
@@ -234,15 +271,15 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
   const geometry = [], foreground = [];
   if (rotateY) {
     const cx = PAD + 10, cy = (top + bottom) / 2;
-    elements.push(h('g', { transform: `rotate(-90 ${cx} ${cy})`, 'data-tutor-plot-y-title': '' }, label(yName, cx, cy, { size: 16, weight: 700 })));
+    elements.push(h('g', { transform: `rotate(-90 ${cx} ${cy})`, 'data-tutor-plot-y-title': '' }, label(yName, cx, cy, { size: heading, weight: 700 })));
   } else {
-    const yTitle = wrap(yName, width - 2 * PAD, 16);
-    elements.push(label(yTitle, PAD, PAD + yTitle.length * lineHeight(16) / 2, { anchor: 'start', weight: 700, size: 16 }));
+    const yTitle = wrap(yName, width - 2 * PAD, heading);
+    elements.push(label(yTitle, PAD, PAD + yTitle.length * lineHeight(heading) / 2, { anchor: 'start', weight: 700, size: heading }));
   }
-  let xTicks = plotTicks(d.x, x, { horizontal: true });
+  let xTicks = plotTicks(d.x, x, { horizontal: true, size: body });
   // A log axis labels every sampled x; a decade label whose text would touch one of them is dropped.
   if (d.x.scale === 'log' && d.series.every(s => s.points.length <= 8)) {
-    const touches = (a, b) => tickSpan(a)[0] < tickSpan(b)[1] + 8 && tickSpan(b)[0] < tickSpan(a)[1] + 8;
+    const touches = (a, b) => tickSpan(a, body)[0] < tickSpan(b, body)[1] + 8 && tickSpan(b, body)[0] < tickSpan(a, body)[1] + 8;
     const sampled = [...new Set(d.series.flatMap(s => s.points.map(p => p.x)))].sort((a, b) => a - b)
       .map(value => ({ at: x(value), lines: [String(value)], anchor: value <= d.x.min ? 'start' : value >= d.x.max ? 'end' : 'middle' }));
     const decades = xTicks.filter(tick => !sampled.some(s => s.at === tick.at)), apart = decades.filter(tick => !sampled.some(s => touches(s, tick)));
@@ -253,19 +290,19 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
   // When the y range crosses 0 the guide at 0 is solid and muted: the one line a plot keeps.
   const crossesZero = d.y.min < 0 && d.y.max > 0;
   let zeroDrawn = false;
-  for (const { at, lines, anchor } of plotTicks(d.y, y, { labelWidth: left - PAD - 8 })) {
+  for (const { at, lines, anchor } of plotTicks(d.y, y, { labelWidth: left - (boxed ? titleBand : PAD) - 8, size: body })) {
     const zero = crossesZero && Math.abs(at - y(0)) < 0.5;
     zeroDrawn ||= zero;
     elements.push(h('line', { x1: left, x2: right, y1: at, y2: at, stroke: zero ? TEACHING_ZERO : TEACHING_GRID, strokeWidth: GRID, ...(zero ? { 'data-tutor-plot-zero': '' } : { strokeDasharray: '4 4' }), 'data-tutor-plot-grid': '' }));
-    elements.push(label(lines, left - 8, at, { anchor, size: TICK, fill: T.muted }));
+    elements.push(label(lines, left - 8, at, { anchor, size: body, fill: T.muted }));
   }
   if (crossesZero && !zeroDrawn) elements.push(h('line', { x1: left, x2: right, y1: y(0), y2: y(0), stroke: TEACHING_ZERO, strokeWidth: GRID, 'data-tutor-plot-zero': '', 'data-tutor-plot-grid': '' }));
-  const tickHeight = Math.max(...xTicks.map(tick => tick.lines.length)) * lineHeight(TICK);
-  for (const { at, lines, anchor } of xTicks) elements.push(label(lines, at, bottom + 8 + tickHeight / 2, { anchor, size: TICK, fill: T.muted }));
-  const xTitle = wrap(titleOf(d.x), right - left, 16);
+  const tickHeight = Math.max(...xTicks.map(tick => tick.lines.length)) * lineHeight(body);
+  for (const { at, lines, anchor } of xTicks) elements.push(label(lines, at, bottom + 8 + tickHeight / 2, { anchor, size: body, fill: T.muted }));
+  const xTitle = wrap(titleOf(d.x), right - left, heading);
   let legendY = bottom + 8 + tickHeight / 2 + 14; // the x title's centre is 24 px under the tick labels'
-  elements.push(label(xTitle, (left + right) / 2, legendY + xTitle.length * lineHeight(16) / 2, { weight: 700, size: 16 }));
-  legendY += xTitle.length * lineHeight(16) + 12;
+  elements.push(label(xTitle, (left + right) / 2, legendY + xTitle.length * lineHeight(heading) / 2, { weight: 700, size: heading }));
+  legendY += xTitle.length * lineHeight(heading) + 12;
   const occupied = [];
   // True when a box (grown by `margin`) holds a point of any curve: a label placed there would sit on a line.
   const onCurve = (box, margin = 4) => curves.some(values => values.slice(1).some(([x2, y2], k) => {
@@ -313,8 +350,8 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
   function callout(anchor, text, stop = 0) {
     if (calloutCount >= PLOT_NOTES_MAX) return;
     calloutCount++;
-    const lines = wrap(text, 200, SMALL);
-    const size = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))) + 20, tall = Math.max(22, lines.length * lineHeight(SMALL) + 8);
+    const lines = wrap(text, 200, small);
+    const size = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, small), widestFormula(line, small))))) + 20, tall = Math.max(22, lines.length * lineHeight(small) + 8);
     // A callout is never dropped: with no free cell left inside the plot it takes the margin above the plot area at its point's x (shifted sideways past other callouts there); its leader runs to the ring.
     const marginCell = () => {
       const y0 = top - tall - 4;
@@ -331,7 +368,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
     const stopAt = [anchor[0] - (anchor[0] - corner[0]) * stop / away, anchor[1] - (anchor[1] - corner[1]) * stop / away];
     foreground.push(h('g', { 'data-tutor-plot-leader': text }, wire([corner, stopAt], { width: 1.5 })));
     foreground.push(h('rect', { ...box, rx: Math.min(11, tall / 2), fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-callout': text }));
-    foreground.push(label(lines, box.x + size / 2, box.y + tall / 2, { size: SMALL, weight: 700 }));
+    foreground.push(label(lines, box.x + size / 2, box.y + tall / 2, { size: small, weight: 700 }));
   }
   // The label of a reference line, a band or another shape is plain text: 12 px, muted ink, on a ground-coloured halo, no pill and no leader. It stands at the top end of its line, inside its
   // band along the band's top edge, or at the middle of another shape; its box is reserved so a callout keeps clear of it. at: [x, y] of the text's anchor point, side: 'start' | 'middle' | 'end'.
@@ -357,31 +394,31 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
   }
   // An inside label, clamped inside the plot. stack: labels that meet along one edge (two bands around the same centre) stand one under the other.
   function plainLabel(text, at, side, stack = false) {
-    const w = textWidthOf(text, SMALL), tall = lineHeight(SMALL);
+    const w = textWidthOf(text, small), tall = lineHeight(small);
     const x0 = Math.max(left + 2, Math.min(right - w - 2, side === 'start' ? at[0] : side === 'end' ? at[0] - w : at[0] - w / 2));
     let cy = Math.min(bottom - tall / 2 - 2, Math.max(top + tall / 2 + 2, at[1]));
     while (stack && cy + tall < bottom && occupied.some(taken => !apart({ x: x0, y: cy - tall / 2, width: w, height: tall }, taken))) cy += tall + 2;
     occupied.push({ x: x0, y: cy - tall / 2, width: w, height: tall });
-    foreground.push(haloLabel(text, side === 'start' ? x0 : side === 'end' ? x0 + w : x0 + w / 2, cy, SMALL, side));
+    foreground.push(haloLabel(text, side === 'start' ? x0 : side === 'end' ? x0 + w : x0 + w / 2, cy, small, side));
   }
   // A vertical line's label stands at its top end on the side of the line that holds it whole inside the plot and holds no other label; neither: above the plot at the line's x.
   function lineLabel(text, lineX) {
-    const w = textWidthOf(text, SMALL), tall = lineHeight(SMALL);
+    const w = textWidthOf(text, small), tall = lineHeight(small);
     const sides = [{ at: [lineX + 5, top + 9], side: 'start', x: lineX + 5 }, { at: [lineX - 5, top + 9], side: 'end', x: lineX - 5 - w }].filter(s => s.x >= left + 2 && s.x + w <= right - 2);
     const chosen = sides.find(s => occupied.every(taken => apart({ x: s.x, y: top + 2, width: w, height: tall }, taken)));
     if (chosen) plainLabel(text, chosen.at, chosen.side); else aboveLabel(text, lineX);
   }
   // A band's label stands inside along its top edge when it fits the band (4 px each side), else above the plot at the band's centre.
   function bandLabel(text, centre, bandWidth, at, side) {
-    if (textWidthOf(text, SMALL) + 8 <= bandWidth) plainLabel(text, at, side, true); else aboveLabel(text, centre);
+    if (textWidthOf(text, small) + 8 <= bandWidth) plainLabel(text, at, side, true); else aboveLabel(text, centre);
   }
   // A shape's label (segment, vector, rectangle, polygon, circle, ellipse) stands in the first free cell beside the shape's anchor.
   function shapeLabel(text, anchor) {
-    const lines = wrap(text, 160, SMALL), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))), tall = lines.length * lineHeight(SMALL);
+    const lines = wrap(text, 160, small), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, small), widestFormula(line, small))))), tall = lines.length * lineHeight(small);
     const box = freeCell(anchor, w, tall, 6);
     if (!box) return;
     occupied.push(box);
-    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, box.x + w / 2, box.y + tall / 2, { size: SMALL, weight: 500, fill: T.muted })));
+    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, box.x + w / 2, box.y + tall / 2, { size: small, weight: 500, fill: T.muted })));
   }
   const pointCallouts = [];
   for (const [i, a] of (d.annotations ?? []).entries()) {
@@ -431,7 +468,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
       if (!restatesPoint(a.label, a)) pointCallouts.push([anchor, a.label]);
     } else if (a.kind === 'reference-line') {
       if (a.axis === 'x') lineLabel(a.label, x(a.value));
-      else if (textWidthOf(a.label, SMALL) + 6 <= right - left) plainLabel(a.label, [right - 4, y(a.value) - 8], 'end');
+      else if (textWidthOf(a.label, small) + 6 <= right - left) plainLabel(a.label, [right - 4, y(a.value) - 8], 'end');
       else aboveLabel(a.label, (left + right) / 2);
     } else if (a.kind === 'band') {
       if (a.axis === 'x') {
@@ -478,25 +515,26 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
       // A single short series prints each value above its marker.
       if (d.series.length === 1 && series.points.length <= PLOT_VALUE_LABEL_MAX_SAMPLES) {
         // Kept clear of the y axis and inside the card, so a sample on the axis does not print over the tick labels.
-        const half = textWidth(String(p.y), 15) * 0.55 + 2;
+        const half = textWidth(String(p.y), body) * 0.55 + 2;
         // A sample on the y axis prints its value to the right of the marker, centred on it (above would sit on the line, below beside the tick labels).
         const onAxis = cx < left + half + 6;
-        foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: 15, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
+        foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: body, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
       }
     });
     // A plot of one series has no legend: its title and axes name it (a legend pill is for telling two or more series apart).
-    if (d.series.length > 1) legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+    if (d.series.length > 1 || legendMode === 'always') legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
   }
-  const callouts = curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied);
+  const callouts = legendMode === 'auto' ? curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied, curveSize) : null; // 'none' and 'always' never name the curves
   if (callouts) {
     legend.length = 0;
     for (const { i, text, center, start, end } of callouts) {
       foreground.push(wire([start, end], { color: COLORS[i], width: GRID }));
-      foreground.push(cloneElement(label(text, center[0], center[1], { size: CURVE_LABEL_SIZE, weight: 700, fill: INKS[i] }), { 'data-tutor-plot-curve-label': text }));
+      foreground.push(cloneElement(label(text, center[0], center[1], { size: curveSize, weight: 700, fill: INKS[i] }), { 'data-tutor-plot-curve-label': text }));
     }
   }
+  if (legendMode === 'none') legend.length = 0;
   if (legend.length) {
-    const drawn = legendPills(legend, width, legendY);
+    const drawn = legendPills(legend, width, legendY, small);
     elements.push(...drawn.elements);
     legendY += drawn.height;
   }
@@ -508,14 +546,15 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
     const rowTop = Math.max(nextLabelTop, Math.min(bottom - remainingLabels, anchor - height / 2));
     const center = rowTop + height / 2;
     foreground.push(h('line', { x1: right + 4, y1: anchor, x2: right + 9, y2: center, stroke: color, strokeWidth: 1.2 }),
-      cloneElement(label(lines, right + 12, center, { size: SMALL, anchor: 'start', fill: color }), { 'data-tutor-plot-end-label': name }));
+      cloneElement(label(lines, right + 12, center, { size: small, anchor: 'start', fill: color }), { 'data-tutor-plot-end-label': name }));
     nextLabelTop = rowTop + height + 4;
     remainingLabels -= height + 4;
   }
   // The labels above the plot area are counted: lay the plot out again, once, with its top margin grown by their rows.
-  if (aboveRows.length && !lift) return plotLayout(diagram, requested, { sharedLabelSpace, lift: aboveRows.length * ROW });
-  const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i])[1] + 4 - tickSpan(tick)[0]));
-  return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...scatterMarks, ...foreground] };
+  if (aboveRows.length && !lift) return plotLayout(diagram, requested, { ...options, lift: aboveRows.length * ROW });
+  const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i], body)[1] + 4 - tickSpan(tick, body)[0]));
+  return { width, height: legendY, plotBounds: bounds, plotHeight: bounds.bottom - bounds.top, crowded,
+    geometry: { plotArea: { left, right, top, bottom }, x: { min: d.x.min, max: d.x.max, scale: d.x.scale ?? 'linear' }, y: { min: d.y.min, max: d.y.max, scale: d.y.scale ?? 'linear' } }, elements: [...elements, ...geometry, ...marks, ...scatterMarks, ...foreground] };
 }
 
 // BAR-1: the bar chart as the written diagrams draw it: vertical bars, an L-axis in ink (2 px, the value axis on the left and the category baseline at zero, no top or right line, no box),

@@ -111,3 +111,14 @@ test('a label on a body is a text-body problem with the ids, the reach into the 
   assert.deepEqual(layoutProblems({ objects: [{ ...ball, opacity: 0 }, { kind: 'text', id: 'motion', x: 94, y: 100, text: 'Motion' }] }), []);
   assert.ok(frameOverlaps({ objects: [ball, { kind: 'text', id: 'motion', x: 94, y: 100, text: 'Motion' }] }).some(p => p.b === 'ball.toss'), 'frameOverlaps reports it once, whichever rule saw it first');
 });
+
+test('brief 36: a math run is estimated by what it draws, not by its TeX source: a long formula in the wide layout\'s formula slot does not reach the note box beside it; a short one is estimated as before', () => {
+  const math = (id, x, tex) => ({ kind: 'text', id, x, y: 372, align: 'middle', runs: [{ kind: 'math', tex }] });
+  const note = { kind: 'box', id: 'note', x: 272, y: 358, w: 356, h: 28, text: 'sat looks most at cat.' };
+  // 42 characters of source, 17 glyphs: about 201 px drawn, centred at 138 it ends at 238, left of the note box at 272 (the source length alone said 306)
+  assert.deepEqual(pairs({ bodySize: 14, objects: [math('formula', 138, String.raw`\alpha_j = \mathrm{softmax}_j(q \cdot k_j)`), note] }), []);
+  // a formula that really is wide still overlaps: 40 glyphs is about 480 px
+  assert.deepEqual(pairs({ bodySize: 14, objects: [math('formula', 138, 'abcdefghijabcdefghijabcdefghijabcdefghij'), note] }), [['formula', 'note', 'text-box']]);
+  // the pendulum's formula is the same size as before (the glyph count is not smaller than the source length scaled)
+  assert.deepEqual(pairs({ bodySize: 14, objects: [math('formula', 138, String.raw`T = 2\pi\sqrt{L/g}`), note] }), []);
+});

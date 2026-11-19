@@ -3,6 +3,7 @@ import { canonicalJson } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
 import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './explain-program/frame-budget.js';
 import { CALLOUT_SLOTS } from './interact-family-registry.js';
+import { layoutAnswers } from './interact-layout-answers.js';
 import { PLAN_LIMITS, indexLists, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
 // One place per number (owner 2026-11-14): the quantities a template's callout lines print, named by the template's own slot roles (interact-templates/*.js: two-lane prints each lane's velocity and
@@ -383,7 +384,7 @@ export const CardCompositionSchema = z.object({
     parameterBindings: z.array(z.object({ fromInputId: stable, toInputId: stable }).strict()).max(8), readOnly: z.literal(true), snapshotTime: z.literal(SNAPSHOT_TIME) }).strict()).max(PLAN_LIMITS.supports),
   main: z.object({ artifact: artifactRef, runtime, mode: z.enum(['static', 'time', 'experiment']), readoutIds: z.array(stable).max(16), inputDefaults: z.record(stable, scalar.or(z.array(z.number().int()))),
     controls: z.array(control).max(PLAN_LIMITS.controls), timeline: timelineRecord.nullable(), onInputChange: z.enum(['recompute_still', 'reset_pause']),
-    calloutReadoutIds: z.array(stable).max(16).optional(), layout: z.object({ pictureCount: z.enum(['one', 'two']), runs: z.enum(['left-to-right', 'top-to-bottom', 'compact']), panelRole: z.enum(['none', 'records-main', 'equal', 'aligned']) }).strict().optional() }).strict(), // layout (brief 35): the plan's scene-layout answers; a card that has them draws its reset inside the scene and no readouts row // readouts whose value a callout line in the scene already shows: the readouts row omits them (one place per number; absent on cards composed before)
+    calloutReadoutIds: z.array(stable).max(16).optional(), layout: layoutAnswers.optional() }).strict(), // layout (brief 35): the plan's scene-layout answers; a card that has them draws its reset inside the scene and no readouts row // readouts whose value a callout line in the scene already shows: the readouts row omits them (one place per number; absent on cards composed before)
   envelopeHash: hex,
 }).strict();
 

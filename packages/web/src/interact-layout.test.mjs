@@ -105,3 +105,14 @@ test('a panel figure box lies inside the panel and keeps the reset cell clear', 
   assert.equal(panelBoxOk('side-by-side', [300, 40, 259, 196]), false); // leaves the panel
   assert.equal(panelBoxOk('wide', [4, 40, 100, 100]), false); // a layout with no panel
 });
+
+test('brief 36: the layout picture is the panel when the layout has one, else the stage; the options carry its box, every text size 14 and the card\'s parts', async () => {
+  const { figureOptions } = await import('./interact-layout.js');
+  const two = figureOptions({ pictureCount: 'two', runs: 'compact', panelRole: 'records-main', figureParts: { legend: 'always' } });
+  assert.deepEqual([two.layout, two.slot, two.at, two.options.box], ['side-by-side', 'panel', [324, 12], { width: 304, height: 299.2 }]);
+  assert.deepEqual(two.options.sizes, { title: 14, heading: 14, body: 14, small: 14 }); assert.deepEqual(two.options.parts, { legend: 'always' });
+  const one = figureOptions({ pictureCount: 'one', runs: 'left-to-right', panelRole: 'none', figureParts: { title: false, caption: false } });
+  assert.deepEqual([one.layout, one.slot, one.at, one.options.box], ['wide', 'stage', [12, 12], { width: 616, height: 299.2 }]);
+  assert.deepEqual(figureOptions({ pictureCount: 'one', runs: 'left-to-right', panelRole: 'none' }).options.parts, {});
+  assert.throws(() => figureOptions({ pictureCount: 'one', runs: 'left-to-right', panelRole: 'equal' }), error => error.code === 'layout_contradiction');
+});

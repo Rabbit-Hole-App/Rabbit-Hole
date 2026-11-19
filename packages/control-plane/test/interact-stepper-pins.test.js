@@ -44,7 +44,7 @@ test('the checked-in Brief plan is exposed by the family pin and admitted with i
   const fixtures = await interactFixtures();
   assert.deepEqual(Object.keys(STEPPER_PLANS), [id]);
   assert.equal(parseScenePlan(STEPPER_PLANS[id], capabilities).ok, true, 'the plan file itself passes ScenePlan admission');
-  assert.deepEqual(Object.keys(fixtures.stepperPlans), [id]);
+  assert.deepEqual(Object.keys(fixtures.stepperPlans), [id, 'stepper-tree-trace-brief', 'stepper-tree-motion-brief', 'stepper-vote-motion-balanced', 'stepper-pendulum-detailed', 'stepper-attention-brief']);
   assert.equal(designPinOf({ SMALL_ENV: 'test', INTERACT_DESIGN_FIXTURE: 'stepper' }), 'stepper');
   assert.equal(designPinOf({ INTERACT_DESIGN_FIXTURE: 'stepper' }), null);
   assert.equal(pinnedFixtureId('stepper', 'brief'), id);

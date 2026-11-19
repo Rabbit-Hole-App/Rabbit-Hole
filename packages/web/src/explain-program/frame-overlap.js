@@ -13,7 +13,12 @@ import { FIGURES_SDK_VERSION } from './stamps.js';
 // Characters a run is worth at the body size: a math run's TeX length scaled by the equation rule above.
 // The body size the estimates use: a frame that carries bodySize (a card with a scene layout, 14 px: scene-style.js LAYOUT_BODY_SIZE) or the scene body size.
 const bodySizeOf = frame => frame?.bodySize ?? textStyle('body').fontSize;
-const runLength = (run, body) => (run.kind === 'math' ? Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (body * 0.6)) : run.text.length);
+// Brief 36: the TeX source is longer than what it draws (a control word such as \alpha, \cdot or \pi is one glyph; \mathrm, \text, \left, \right, the braces, spaces, _ and ^ draw nothing), so a long formula counted by
+// its source can "overlap" a box it does not reach. The estimate is the smaller of the source length and the glyph count at 0.75 of the equation size each (measured with the renderer's width model: 'T = 2\pi\sqrt{L/g}'
+// is 99 px and this gives 96; '\alpha_j = \mathrm{softmax}_j(q \cdot k_j)' is 201 px and this gives 204). It is never larger than before, so no card gains an overlap from it.
+const texGlyphs = tex => tex.replace(/\\(?:mathrm|mathbf|mathit|mathsf|text|operatorname|left|right)(?![a-zA-Z])/g, '').replace(/\\[a-zA-Z]+/g, 'x').replace(/[{}_^\s]/g, '').length;
+const runLength = (run, body) => (run.kind === 'math'
+  ? Math.min(Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (body * 0.6)), Math.ceil(texGlyphs(run.tex) * (textStyle('equation').fontSize * 0.75) / (body * 0.6))) : run.text.length);
 
 // -> [{ id, box: {xMin, xMax, yMin, yMax} }] for every text object with something to draw.
 export function textBoxes(frame) {
