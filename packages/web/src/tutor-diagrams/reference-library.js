@@ -56,6 +56,7 @@ import { references as gen1Waterfall } from './gen-1-waterfall-references.js';
 import { references as gen1TAccount } from './gen-1-t-account-references.js';
 import { references as gen1BoxPlot } from './gen-1-box-plot-references.js';
 import { references as gen1NumberLine } from './gen-1-number-line-references.js';
+import { references as gen1Tensor } from './gen-1-tensor-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -109,6 +110,7 @@ export const diagramReferences = Object.freeze([
   ...gen1TAccount,
   ...gen1BoxPlot,
   ...gen1NumberLine,
+  ...gen1Tensor,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];

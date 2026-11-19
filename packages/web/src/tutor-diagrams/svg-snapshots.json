@@ -2811,6 +2811,21 @@
       "width": 720,
       "height": 311
     },
+    "pool-booklet-press-pages/320": {
+      "sha256": "a3c6def24a7ee6a919079ac6264aa230214e50d49412277beaffb96b228e61e1",
+      "width": 320,
+      "height": 328
+    },
+    "pool-booklet-press-pages/408": {
+      "sha256": "36f7e26345682ac757182764d4387daa82e955dabd90030e6b310434c18e6e82",
+      "width": 408,
+      "height": 289
+    },
+    "pool-booklet-press-pages/720": {
+      "sha256": "dfbf0126af955200398e6741ea1d8fd8fa5c488491e0a3bd57e4659416c8b8b3",
+      "width": 720,
+      "height": 289
+    },
     "pool-exhibit-tank-refill/320": {
       "sha256": "8f65293be0768e98ca22324e6cb9c9ca257797995445bb9423f44e2705cbc0f1",
       "width": 362,
@@ -2840,6 +2855,21 @@
       "sha256": "04b29eaf0efd964dc6c6cc6192fab8e682c30ca19183e2989fb0f3dbcddd95d4",
       "width": 720,
       "height": 420.5
+    },
+    "pool-granola-batch-ingredients/320": {
+      "sha256": "ace1030d04d09b0481eab800aa50d6c6281fee635c6a9b6b1c0e5949fab79f27",
+      "width": 320,
+      "height": 292
+    },
+    "pool-granola-batch-ingredients/408": {
+      "sha256": "b75eac036b2442de7a7dc483577aa06c3f01f13f51685e17d4a6c2ee51edab2f",
+      "width": 408,
+      "height": 270
+    },
+    "pool-granola-batch-ingredients/720": {
+      "sha256": "872634299d7ffadeb48c0c94cc6c57fc8c782ff99299e666ee182577accff842",
+      "width": 720,
+      "height": 253
     },
     "pool-orchard-packing-expense/320": {
       "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
@@ -2900,6 +2930,21 @@
       "sha256": "e9cbf72ff6593b806e0d57da76eed319bb650feebb22b5547168fb1f95854d29",
       "width": 720,
       "height": 339
+    },
+    "pool-stereo-audio-frame/320": {
+      "sha256": "9d1d05163045ddf570ff94b464af794f8d71f59e1126626394f01ec5363c4db4",
+      "width": 320,
+      "height": 256
+    },
+    "pool-stereo-audio-frame/408": {
+      "sha256": "809ee3259dae0aeef625194922f7286f0d38f4b85bfc364af80a98dd6e77b9c4",
+      "width": 408,
+      "height": 234
+    },
+    "pool-stereo-audio-frame/720": {
+      "sha256": "c1826a6e77e7bc190042d6dee8d8087e3689198f2eece24eee5bed0a66dc7a49",
+      "width": 720,
+      "height": 217
     },
     "pool-sunflower-tray-heights/320": {
       "sha256": "cba2e23f8ac2c32e4f1f8b13cc31ea651e3ad4d01453884c210acd8716db871a",
