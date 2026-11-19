@@ -131,6 +131,7 @@ const READERS = {
   'web/src/tutor-diagrams/composition-attention-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
   'web/src/tutor-diagrams/composition-distribution-shift-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
   'web/src/tutor-diagrams/composition-model-evaluation-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/gen-1-pool-2-transformation-references.js': 'example-pool mappings between before and after items',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);
