@@ -1,8 +1,7 @@
-import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { referenceLibrary } from './reference-library-lazy.js'; // START-3: the library is loaded on first use, not at worker start
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { resolveTokens, varySpec } from '../../web/src/tutor-diagrams/vary.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
-import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { cardVisuals, visualKinds } from './explanation-planner.js';
 
@@ -10,7 +9,8 @@ const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
 const normalized = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const shapesByKind = new Map(kindGallery.map(spec => [spec.diagram.kind, spec]));
-const legacyShapeKinds = [...new Set(diagramReferences.filter(ref => ref.id.startsWith('general-')).map(ref => ref.spec.diagram.kind))];
+let legacyKinds;
+const legacyShapeKinds = () => (legacyKinds ??= [...new Set(referenceLibrary().diagramReferences.filter(ref => ref.id.startsWith('general-')).map(ref => ref.spec.diagram.kind))]);
 
 // Codex's learner-word fallback (set 1-7): the kind the learner's own words name ("show a sequence diagram", "the water cycle"). Used ONLY when no planner kind is
 // available (the planner timed out, failed or is off; learn-artifact.js passes shapeFallback: false when a plan exists, because then the gallery example comes
@@ -22,7 +22,7 @@ export function fallbackKind(prompt) {
     .replace(/^(?:a|an|the|one) /, '')
     .replace(/ (?:diagram|example)$/, '');
   return [...shapesByKind.keys()].find(kind => normalized(kind) === named) ??
-    legacyShapeKinds.find(kind => matches(query, normalized(kind)));
+    legacyShapeKinds().find(kind => matches(query, normalized(kind)));
 }
 
 function shapeExamples(prompt, required) {
@@ -101,7 +101,7 @@ export const selectDiagramReferences = options => selectWithSteer(options).refer
 // short learner phrases). It is then kept whole whatever the planner's kind (and goes first), and its kind comes back as steer { kind, source: 'reference', id, referenceKind, score, exact (the prompt is one of its documented prompts verbatim; GEN-1 G4) }; a
 // two-panel reference is read through its single-diagram variant (preferSingleVariants), so its kind is that variant's. A learner-named kind (requiredKinds) is never steered: null.
 export const TOPICAL_STEER_MIN = 12;
-export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard', excludeReferencePrefixes = [], seed = null, from = diagramReferences } = {}) {
+export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard', excludeReferencePrefixes = [], seed = null, from = referenceLibrary().diagramReferences } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   // Broad lesson aliases resolve a whole direct topic, including concise requests such as “show me the forest vote”.
   const shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
@@ -146,7 +146,8 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
 // Owner 2026-11-08 (Codex set 3): a selected two-panel reference (comparison panels, visual transformation) is sent as its one-diagram `-single` variant (about half the
 // tokens), unless the planner's kind is comparison or transformation (the comparison is then the point) or the learner required that panel kind. The variant shares the
 // panel's keywords, so selection and its bench are unchanged: the swap happens after the pick. A leaf excerpt (sourceId) is never swapped.
-const singleByPanel = new Map(singleDiagramReferences.map(single => [single.panelReferenceId, single]));
+let singleMap;
+const singleByPanel = { get: id => (singleMap ??= new Map(referenceLibrary().singleDiagramReferences.map(single => [single.panelReferenceId, single]))).get(id) };
 export function preferSingleVariants(references, { plannedKind = null, requiredKinds = [], seed = null } = {}) {
   const whole = plannedKind === 'comparison' || plannedKind === 'transformation';
   return references.map(ref => {
