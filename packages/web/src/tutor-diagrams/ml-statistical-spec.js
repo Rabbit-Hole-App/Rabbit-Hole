@@ -33,7 +33,8 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     z.strictObject({
       ...titled, kind: z.literal('box-plot'), x: axes,
       boxes: z.array(z.strictObject({
-        label: text(42), whiskerLow: numeric, q1: numeric, median: numeric, q3: numeric, whiskerHigh: numeric,
+        // values (BOX-1, optional): the data this box summarises; with it the code computes median, quartiles, whiskers, fences and outliers and rejects written ones that differ (derived.js).
+        label: text(42), values: z.array(numeric).min(4).max(60).optional(), whiskerLow: numeric, q1: numeric, median: numeric, q3: numeric, whiskerHigh: numeric,
         fences: z.strictObject({ lower: numeric, upper: numeric }).optional(),
         outliers: z.array(z.strictObject({ label: text(36), value: numeric })).min(1).max(8).optional(),
       })).min(1).max(4),

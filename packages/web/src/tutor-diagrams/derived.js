@@ -38,6 +38,7 @@ export function boxFences(box) {
   return { lower: roundTo(box.q1 - spread, places), upper: roundTo(box.q3 + spread, places), places };
 }
 function boxFenceInstance(box, i) {
+  box = withValueStats(box); // a box that carries `values` reads its fences from the quartiles the values give (BOX-1)
   const at = ['boxes', i, 'fences'], spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, problems = [];
   const written = box.fences, computed = boxFences(box);
   const { lower, upper } = written ?? computed;
@@ -52,7 +53,51 @@ function boxFenceInstance(box, i) {
     problems.push({ message: `Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 ${box.q1} and Q3 ${box.q3} that is ${round(low)} and ${round(high)}, not ${lower} and ${upper}.` });
   }
   // Silent (Reviewer 2026-11-18): fences the author did not write are computed for a token to read, but not drawn unless the box has outliers (a fence only matters there).
-  return { at, written, computed: { lower: computed.lower, upper: computed.upper }, silent: !written && !box.outliers?.length, problems };
+  return { at, written, computed: { lower: computed.lower, upper: computed.upper }, silent: !written && !box.outliers?.length && !box.valueOutliers?.length, problems };
+}
+
+// BOX-1: a box may carry `values`, the data it summarises. Then the code computes its statistics and the picture draws those: quartiles are the medians of the lower and upper halves, the
+// middle value left out when n is odd (3, 5, 6, 7, 8, 9, 11, 12, 40 gives Q1 5.5, median 8, Q3 11.5); fences Q1 - 1.5 IQR and Q3 + 1.5 IQR; whiskers the most extreme values inside the
+// fences; outliers the values outside them. A written statistic that differs by more than half a unit of its own decimals is rejected, tagged arithmetic, with the right numbers.
+// shortcut: one quartile method, no inclusive or linear variants; upgrade on the Reviewer's word.
+export function boxStats(values) {
+  const s = [...values].sort((a, b) => a - b), n = s.length, m = n >> 1;
+  const q1 = medianOf(s.slice(0, m)), q3 = medianOf(s.slice(n % 2 ? m + 1 : m)), spread = 1.5 * (q3 - q1), lower = q1 - spread, upper = q3 + spread;
+  const inside = s.filter(value => value >= lower - 1e-9 && value <= upper + 1e-9);
+  return { median: medianOf(s), q1, q3, lower, upper, whiskerLow: inside[0], whiskerHigh: inside.at(-1), outliers: s.filter(value => !inside.includes(value)) };
+}
+// The box with the statistics its values give (rounded as they are filled), or the box itself; `valueOutliers` is read only by the fence instance (it makes the fences drawn).
+function withValueStats(box) {
+  if (!box.values) return box;
+  const s = boxStats(box.values), places = statPlaces(box.values), data = maxPlaces(box.values);
+  return { ...box, q1: roundTo(s.q1, places), median: roundTo(s.median, places), q3: roundTo(s.q3, places), whiskerLow: roundTo(s.whiskerLow, data), whiskerHigh: roundTo(s.whiskerHigh, data), valueOutliers: s.outliers };
+}
+const BOX_NAMES = { q1: 'Q1', median: 'median', q3: 'Q3', whiskerLow: 'lower whisker', whiskerHigh: 'upper whisker' };
+function boxValueInstances(box, i) {
+  if (!box.values) return [];
+  const s = boxStats(box.values), computed = withValueStats(box), at = ['boxes', i];
+  const fields = Object.keys(BOX_NAMES), wrong = fields.filter(k => Math.abs(box[k] - s[k]) > half(decimalsOf(box[k])));
+  const out = fields.map(k => ({ at: [...at, k], written: box[k], computed: computed[k], replace: true, problems: [] }));
+  const round = value => Number(value.toFixed(3));
+  if (wrong.length) {
+    const note = wrong.some(k => k.startsWith('whisker')) ? ' Whiskers end at the most extreme values inside the fences.' : ' Q1 and Q3 are the medians of the lower and upper halves, the middle value left out when n is odd.';
+    out[fields.indexOf(wrong[0])].problems.push({ message: `Box "${box.label}": its ${box.values.length} values give ${wrong.map(k => `${BOX_NAMES[k]} ${round(s[k])} (not ${box[k]})`).join(', ')}.${note}` });
+  }
+  const written = (box.outliers ?? []).map(point => point.value).sort((a, b) => a - b), right = s.outliers;
+  const same = written.length === right.length && written.every((value, j) => Math.abs(value - right[j]) < 1e-9);
+  const outlier = { at: [...at, 'outliers'], written: box.outliers, computed: right.length ? right.map(value => ({ label: String(value), value })) : undefined, problems: [] };
+  if (box.outliers && !same) outlier.problems.push({ message: `Box "${box.label}": its values ${right.length ? `have outliers ${list(right)}` : 'have no outlier'} (outside the fences ${round(s.lower)} and ${round(s.upper)}), not ${list(written)}.` });
+  return [...out, outlier];
+}
+// What a card may say about a box: its drawn statistics, exact. Fences are the written ones, else Q1 - 1.5 IQR and Q3 + 1.5 IQR.
+export function boxDrawn(box) {
+  const spread = 1.5 * (box.q3 - box.q1);
+  return { q1: box.q1, median: box.median, q3: box.q3, iqr: box.q3 - box.q1, 'lower fence': box.fences?.lower ?? box.q1 - spread, 'upper fence': box.fences?.upper ?? box.q3 + spread };
+}
+// IQR is a derived path of every box (silent: never drawn; a prose token or the text check reads it).
+function boxIqrInstance(box, i) {
+  const eff = withValueStats(box);
+  return { at: ['boxes', i, 'iqr'], written: undefined, computed: roundTo(eff.q3 - eff.q1, maxPlaces([eff.q1, eff.q3])), silent: true, problems: [] };
 }
 
 // ---- transformation (list): softmax of the before items ----
@@ -223,7 +268,7 @@ function annotationInstances(d) {
 }
 
 export const DERIVED_ROWS = [
-  { kind: 'box-plot', path: 'boxes[].fences', inputs: ['q1', 'q3'], tolerance: 'half a unit of the decimals written', compute: d => d.boxes.map(boxFenceInstance) },
+  { kind: 'box-plot', path: 'boxes[].fences, boxes[].iqr, boxes[].{q1, median, q3, whiskerLow, whiskerHigh, outliers} (when the box carries values)', inputs: ['q1', 'q3', 'values'], tolerance: 'half a unit of the decimals written', compute: d => d.boxes.flatMap((box, i) => [...boxValueInstances(box, i), boxFenceInstance(box, i), boxIqrInstance(box, i)]) },
   { kind: 'transformation', path: 'after.items', inputs: ['before.items', 'op', 't'], tolerance: 'half a unit of the decimals written on each item', compute: d => (d.variant === 'visual' || !d.before?.items ? [] : [softmaxInstance(d)].filter(Boolean)) },
   { kind: 'token-links', path: 'queries[].weights', inputs: ['weights (raw)'], tolerance: 'sum within 0.98 to 1.02, else normalised', compute: tokenLinkInstances },
   { kind: 'histogram', path: 'series[].values', inputs: ['counts'], tolerance: 'proportions sum to 1', compute: histogramInstances },
