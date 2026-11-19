@@ -1,0 +1,34 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "522ac49bdeadbd5d7d8afee924619959f286d2ba",
+    "tree": "5442c864a7ea0d762a96430b78ec26cda0deae3c",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "fdfe98238d148a32d09f868192b0662c141d63e1",
+    "tree": "c8986264343475b4b1455f83423a853f3a5ae1e5",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3372,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 84,
+    "newOwnPromptFirstPicks": 84,
+    "newOwnExactPromptFirstPicks": 84
+  },
+  "existingMoves": [],
+  "errors": [],
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3481,
+    "reusedBaseCaseInputs": 3481,
+    "computedBaseCaseInputs": 0,
+    "computedCandidateCaseInputs": 3481
+  }
+}

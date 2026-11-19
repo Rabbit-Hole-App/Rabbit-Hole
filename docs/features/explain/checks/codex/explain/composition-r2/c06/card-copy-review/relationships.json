@@ -1,0 +1,14 @@
+{
+  "commit": "fdfe98238d148a32d09f868192b0662c141d63e1",
+  "tree": "c8986264343475b4b1455f83423a853f3a5ae1e5",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-language-training-vocabulary-target-slots",
+    "ml-language-training-target-probability-and-loss",
+    "ml-language-training-prefix-target-alignment",
+    "ml-summarization-supervised-summary-pair"
+  ],
+  "additionalReusedIds": [],
+  "references": [],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label"
+}

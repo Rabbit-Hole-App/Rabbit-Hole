@@ -1,0 +1,11 @@
+{
+  "commit": "fdfe98238d148a32d09f868192b0662c141d63e1",
+  "tree": "c8986264343475b4b1455f83423a853f3a5ae1e5",
+  "viewsRead": 14,
+  "noteExceptions": [],
+  "observations": [
+    "The Overview for `ml-language-training-target-probability-and-loss` prints 0.197, 0.534, 0.197 and 0.072. The Detailed loss companion retains nats, the unit for natural-log loss.",
+    "The Detailed heading for `ml-language-training-prefix-target-alignment` reads “Predict each target from earlier text.” Its table separately names the observed prefix and next observed token.",
+    "The tranche has no raw feature labels or registered author-single panel slices."
+  ]
+}
