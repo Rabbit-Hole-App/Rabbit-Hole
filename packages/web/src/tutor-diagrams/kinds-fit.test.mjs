@@ -234,3 +234,31 @@ test('matrix: the rows share the height that is left; every body cell and headin
   const first = cells[0], right = cells.find(cell => cell.row === 0 && cell.col === 1);
   assert.ok(right.x > first.x && Math.abs(right.y - first.y) < 0.5, 'cells are in row and column order');
 });
+
+// Batch 3 rule (the /interactive session): a fitted kind never draws a text smaller than the size asked. When a word does not fit, min grows and the kind draws at min.
+// The stress spec: every label-like text of the neutral example is one long unbreakable word.
+const LONG = 'Incomprehensibilities';
+function lengthen(spec) {
+  const copy = structuredClone(spec);
+  let count = 0;
+  const walk = node => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (!node || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (['label', 'heading', 'name'].includes(key) && typeof value === 'string') node[key] = `${LONG}${count++}`;
+      else if (['columns', 'categories', 'source', 'target'].includes(key) && Array.isArray(value) && typeof value[0] === 'string') node[key] = value.map(() => LONG).map((text, i) => `${text}${i ? i : ''}`);
+      else walk(value);
+    }
+  };
+  walk(copy.diagram);
+  return copy;
+}
+for (const kind of FITTED) {
+  test(`${kind}: with long unbreakable words every text is drawn at the size asked, never smaller; min grows instead`, () => {
+    for (const source of [neutral(kind), lengthen(neutral(kind))]) for (const [boxWidth, boxHeight] of BOXES) for (const size of SIZES) {
+      const rendered = renderTutorDiagram(source, boxWidth, { box: { width: boxWidth, height: boxHeight }, sizes: all(size), parts: { title: false } });
+      const sizes = fontSizes(markup(rendered));
+      assert.ok(Math.min(...sizes) >= size - 0.01, `${kind} ${boxWidth}x${boxHeight} at ${size}: font sizes ${sizes.join(', ')}`);
+    }
+  });
+}

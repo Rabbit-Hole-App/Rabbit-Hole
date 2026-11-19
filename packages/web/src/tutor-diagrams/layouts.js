@@ -7,7 +7,7 @@ import { createLayouts as compositionLayouts } from './ml-composition-layouts.js
 import { balanceLayouts } from './balance-layouts.js';
 import { layoutFigure } from './figure-layout.js';
 import { cloneElement, createElement as h } from 'react';
-import { backEdge, box, connector, dot, label, lineHeight, SURFACE, textWidth, wire, wrap } from './primitives.js';
+import { backEdge, box, connector, dot, label, lineHeight, longestWordWidth, SURFACE, textWidth, wire, wrap } from './primitives.js';
 import { TEACHING as T, TEACHING_GRID } from './teaching-theme.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
 import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
@@ -196,11 +196,15 @@ function sequence(diagram, width) {
 // kinds-fit: a matrix takes a box (the rows share the height that is left), sizes.body for every text (15 today) and reports its cells; min is the natural size (rows at their text height).
 function matrix(diagram, width, options) {
   const { box: boxed, sizes, contentHeight, floor } = options ?? {};
+  const box_ = Boolean(boxed);
   const body = sizes?.body ?? TEXT;
   const build = rowExtra => {
     // A tuple cell is plain text that wraps at its comma: the column holds its widest piece (the other cells keep the 72 px minimum).
     const tupleCell = Math.ceil(Math.max(0, ...diagram.rows.flatMap(row => row.cells).map(cell => tuplePieceWidth(cell, text => textWidth(text, body))))) + 14;
-    const grid = columnsFor(width, diagram.columns.length + 1, Math.max(72, tupleCell), 7);
+    // A fitted call (a box or sizes): no text is drawn smaller than asked, so the column is at least as wide as its longest word at that size (+ the 12 px the text keeps clear); with no options the picture stays as it is today.
+    const wordCell = box_ || sizes ? Math.ceil(Math.max(0, ...[...diagram.columns, ...diagram.rows.flatMap(row => [row.heading, ...row.cells])].map(cell => longestWordWidth(tuplePlainText(cell), body)))) + 12 : 0;
+    const minCell = Math.max(72, tupleCell, wordCell);
+    const grid = columnsFor(width, diagram.columns.length + 1, minCell, 7);
     const elements = [];
     const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12, body));
     const headerHeight = rowHeight(headings, body);
@@ -229,8 +233,8 @@ function matrix(diagram, width, options) {
     });
     const count = diagram.columns.length + 1;
     const parts = [{ part: 'outer margins', px: 2 * PAD }, { part: 'column headings', px: headerHeight }, { part: 'rows', px: rowsHeight }, { part: 'gaps between the rows', px: 7 * diagram.rows.length }];
-    const cellsWidth = grid.width - 2 * PAD - (count - 1) * 7, minCell = Math.max(72, tupleCell);
-    const widthParts = [{ part: 'margins', px: 2 * PAD }, { part: 'columns (the widest tuple piece, at least 72)', px: count * minCell }, { part: 'gaps between the columns', px: (count - 1) * 7 },
+    const cellsWidth = grid.width - 2 * PAD - (count - 1) * 7;
+    const widthParts = [{ part: 'margins', px: 2 * PAD }, { part: 'columns (the widest tuple piece or longest word, at least 72)', px: count * minCell }, { part: 'gaps between the columns', px: (count - 1) * 7 },
       ...(cellsWidth - count * minCell > 1e-9 ? [{ part: 'spare width', px: cellsWidth - count * minCell }] : [])];
     return { width: grid.width, height: y - 7 + PAD, parts, widthParts, elements, geometry };
   };

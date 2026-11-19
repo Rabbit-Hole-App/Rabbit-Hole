@@ -1,5 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
 import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
 
@@ -30,10 +30,12 @@ function heatColor(value, range) {
 function heatmap(d, requested, options) {
   const { box, sizes, parts, contentHeight, floor } = options ?? {};
   const body = sizes?.body ?? 15, small = sizes?.small ?? SMALL, showScale = parts?.scale !== false, formulaSize = sizes?.body ?? 14; // a formula is measured at 14 px today (widestFormula's default)
+  // A fitted call (a box or sizes): no text is drawn smaller than asked, so a column is at least as wide as its longest word at that size; with no options the picture stays as it is today.
+  const fitted = Boolean(box || sizes), word = (values, at) => (fitted ? Math.ceil(Math.max(0, ...values.filter(Boolean).map(value => longestWordWidth(String(value), at)))) : 0);
   const build = rowExtra => {
-    const rowWidth = Math.max(100, formulaWidth([d.rowLabel, ...d.rows.map(row => row.label)], formulaSize) + 16);
-    const minimumCell = Math.max(80, formulaWidth(d.columns, formulaSize) + 14);
-    const columnsWidth = Math.max(d.columns.length * minimumCell, formulaWidth([d.columnLabel], formulaSize));
+    const rowWidth = Math.max(100, formulaWidth([d.rowLabel, ...d.rows.map(row => row.label)], formulaSize) + 16, word([d.rowLabel, ...d.rows.map(row => row.label)], body) + 16);
+    const minimumCell = Math.max(80, formulaWidth(d.columns, formulaSize) + 14, word(d.columns, body) + 14, word(d.rows.flatMap(row => row.cells.map(value => (value === null ? 'Masked' : value))), body) + 12);
+    const columnsWidth = Math.max(d.columns.length * minimumCell, formulaWidth([d.columnLabel], formulaSize), word([d.columnLabel], sizes?.heading ?? 14));
     const width = Math.max(requested, PAD * 2 + rowWidth + columnsWidth);
     const cellWidth = (width - PAD * 2 - rowWidth) / d.columns.length;
     const left = PAD + rowWidth;
