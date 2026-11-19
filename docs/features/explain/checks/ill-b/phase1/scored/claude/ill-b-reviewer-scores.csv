@@ -1,0 +1,221 @@
+code,subject,must1,must2,must3,must4,text,notes
+M39T5,A05,y,y,y,,none,
+CXBVK,A07,y,n,y,,correct,each group has its own dots; first shape is a bent line
+HZ58N,A06,y,n,,,wrong,dot patterns not the four cases; prints Bold Rounding
+TMTNE,A05,y,y,n,,wrong,arrows curve in different directions; man and woman share one cluster
+G8A8Z,A05,n,y,n,,correct,four clusters; arrows converge
+3UTR2,A03,y,y,n,,none,a U-turn arrow on top; no skip around a block
+BXVBY,A10,n,y,y,,correct,ten boxes
+AU6Q4,A03,y,y,n,,none,side arrow leaves the stack and does not rejoin
+R84ED,A05,y,y,n,,wrong,arrows not parallel; man and queen share one cluster
+5HTBM,A06,y,n,,,wrong,gibberish captions
+UKWGN,A10,y,y,n,,correct,left boxes two-tone not greyed
+4QCRL,A10,y,y,n,,none,no greyed half
+SCJB6,A07,y,n,y,,wrong,extra lines Model Complexity and when models don't generalize well
+5F3SD,A03,y,y,n,,wrong,side arrow joins neighbouring blocks; words float beside the stack
+K7VFC,A10,y,y,n,,none,a fourth faint arrow; no greyed half
+4NBYQ,A06,y,n,,,wrong,no off-centre pattern; each label printed twice
+RQZXF,A04,y,y,y,,none,
+LM6BS,A01,n,y,,,correct,columns are 3 3 3
+S6ZFH,A02,n,y,y,,none,three nodes in a row; no layers
+RMPMN,A03,y,y,n,,wrong,side arrow joins neighbouring blocks; words above and below the stack
+M6JRL,A06,y,n,,,wrong,one dot per target; column headings do not match the targets
+YLPRJ,A03,y,y,y,,wrong,skip arc spans two blocks; feed-forward written on the arc
+XYA94,A06,y,n,,,wrong,plain discs; prints tight but off center and spread and off center
+2HWH9,A02,n,y,y,,none,three nodes in a chain; no layers
+9UUTM,A04,y,y,y,,none,
+J4Q2M,A09,y,y,y,,wrong,its own words Input / Raw Material / Chosen Pages / Machine / Output
+NZSBP,A02,n,n,y,,correct,two rows of nodes with no layer links; each arrow band points both ways
+L45HY,A04,y,y,y,,none,
+UDRKJ,A04,y,y,y,,correct,a second arrow runs right to left
+NDHEA,A05,y,y,n,,none,arrows point in opposite directions
+KBK7D,A07,y,n,y,,none,each panel has its own dots
+6TYB2,A01,n,y,,,correct,columns are 3 4 3
+2ZFLM,A08,y,y,n,,wrong,links to the crossed nodes still drawn; extra words Input Filter Output
+GY9ZX,A10,y,y,n,,correct,no greyed half
+E2WYX,A01,y,y,,,correct,
+F53RW,A08,n,y,n,,none,a square lattice not layers; one crossed node still linked
+EY8JH,A01,n,n,,,none,columns are 5 5 5; links inside the last column
+G6AEZ,A02,y,y,y,,correct,two-row grid stands in for the network
+7XD5W,A09,n,y,n,,correct,four stages; no pile-then-chosen step
+EZSDM,A05,n,y,n,,none,one cluster a row and two single dots; arrows mirror each other
+44Y73,A02,n,y,y,,correct,three circles in a row; no layers
+LHJPL,A03,n,y,n,,none,five blocks; side arrows do not skip a block
+HUJB5,A07,y,n,y,,none,third panel has more dots
+35J2R,A02,n,n,y,,correct,two chains of three; the lower chain points both ways
+42VC2,A05,y,y,y,,wrong,queen and man share the middle cluster
+7TT45,A01,n,n,,,none,ring lattice with diagonals; not 3 4 2
+7ZDVB,A04,y,y,y,,correct,
+JG4RD,A09,y,y,y,,wrong,tiny extra words chosen pages inside one icon
+WYLNJ,A08,n,y,n,,none,square lattice; crossed nodes still linked
+KS5RQ,A07,y,y,y,,none,
+FYJ77,A04,y,n,y,,correct,two blocks and two discs per tower
+HJJ82,A07,y,y,y,,correct,
+9A3QG,A04,y,y,y,,correct,
+X86AH,A07,y,y,y,,correct,
+GSJ7B,A08,n,y,n,,wrong,three nodes in a row; crossed nodes still linked; extra words input and in-use
+ZBPHD,A02,y,y,y,,none,links run along rows only
+FTE4P,A10,n,y,n,,none,strip cropped at both edges; no greyed half
+29QUV,A08,n,y,n,,wrong,three separate pairs; extra words user mobile server; dropped twice
+HEXT6,A06,y,n,,,wrong,no off-centre pattern; each label printed twice
+G8J8B,A08,n,n,n,,none,every node is crossed
+2QMK8,A09,y,y,y,,wrong,stages numbered one to five in words
+QUCM3,A03,y,y,y,,none,skip arrow points downward
+635XN,A10,y,y,n,,none,no greyed half
+PF3MD,A10,n,y,y,,correct,ten boxes; a grey slab sits under the left four
+3NCBG,A04,y,y,y,,none,
+B5HGY,A01,y,y,,,none,
+RAUYR,A09,y,y,y,,wrong,four words shifted left: answer sits under the fourth stage and the fifth has none
+DVYAY,A08,n,y,n,,none,three separate chains; crossed nodes still linked
+79M7E,A05,y,y,n,,none,arrows converge
+5WHTB,A03,y,y,n,,wrong,side arrow joins neighbouring blocks; words outside the stack
+CWP7A,A09,y,y,y,,wrong,its own words Talk Pages Chosen Machine Talked
+BTLWP,A09,n,y,y,,correct,four stages
+6ETQM,A06,y,n,,,none,plain discs; two tight and two spread; none off-centre
+976YF,A02,n,y,y,,none,three pairs of nodes; no layers
+BDVHV,A01,n,y,,,none,columns are 3 4 3
+CBGT7,A01,n,y,,,correct,columns are 4 4 4
+7X6PM,A06,y,n,,,none,four similar scatters
+2UPDG,A08,n,y,y,,correct,lattice not layers; dropped printed beside each crossed node
+8MT4Z,A07,y,n,y,,none,each panel has its own dots
+G7ZUN,A09,y,y,y,,wrong,numerals 1 to 5 above the stages
+WZP2W,P01,y,y,y,,none,same image as a Phase 0 tile (seen before)
+93DN2,P02,y,y,y,,none,
+SHATP,P03,y,y,y,,none,
+EBFL2,P10,y,y,y,,none,ring teeth face outward
+NECUB,P04,y,y,y,y,none,
+W3KAA,P02,y,y,y,,none,
+6ESHG,P05,y,y,y,,correct,bodies stand on pedestals; shadow drawn as a widening cone
+YKJXG,P07,y,y,y,,none,
+2Y6ZA,P09,n,y,y,,none,hexagonal net not a cubic grid; stray colour blobs
+2CC84,P04,y,y,y,y,none,
+DBB8Z,P05,y,y,y,,wrong,Moon written twice; Earth far smaller than Moon
+BJWPQ,P01,y,y,y,,correct,
+MMPDN,P03,y,y,y,,correct,
+XK6KH,P03,y,y,y,,correct,
+SSP2J,P04,y,y,y,y,correct,
+WD6GM,P02,y,y,y,,none,
+SGA8J,P05,y,y,y,,correct,
+6NW6L,P04,y,y,y,y,wrong,labels in a row under the picture not attached to any part
+X2MFZ,P05,y,y,y,,none,
+WX7TK,P04,y,y,y,y,correct,organelles in several colours
+2D4SY,P09,y,n,n,,none,cube lattice but six or more sphere colours
+TVEUK,P10,y,y,y,,none,
+3ZUBG,P08,y,y,y,,none,
+Q3355,P06,y,y,y,y,none,
+6WZTN,P01,y,y,n,,none,rod ends in a gear disc with no crank; same image as a Phase 0 tile
+R9G79,P05,y,y,y,,none,
+DY7C8,P07,y,y,y,,none,
+QB6KS,P03,n,y,y,,wrong,five regions; the two words float above and below with no pointer
+T6KHG,P05,n,n,y,,none,four bodies not in a line
+H6XDX,P03,y,y,y,,none,
+9G8BC,P01,y,y,n,,none,rod ends in a ring with no crank; cylinder is a loose loop; same image as a Phase 0 tile
+AC9SX,P08,y,y,n,,none,four legs visible
+SJH5Q,P03,y,y,y,,none,
+5RYHH,P06,y,y,y,y,none,
+U3VW4,P06,y,y,y,y,none,
+4FB7H,P10,y,n,y,,none,four planets
+GCDKY,P09,y,y,n,,none,two orange and five purple; no alternation
+QB7G8,P01,y,y,y,,correct,labels beside their parts without pointers
+T9YPF,P03,y,y,y,,wrong,both words sit under the heart; not on any part
+DYJPQ,P02,y,y,y,,correct,
+DTHTA,P04,y,y,y,y,none,
+WEQS9,P02,y,y,y,,wrong,vent written on empty ground away from the vent
+ND9Y6,P01,y,y,y,,none,same image as a Phase 0 tile
+R35D3,P01,y,y,y,,correct,
+9G5XF,P07,y,y,y,,none,
+VZPVN,P05,y,y,y,,correct,
+PA6LN,P04,y,y,y,y,wrong,chloroplast pointer ends on the vacuole
+33DU8,P02,y,y,y,,wrong,extra title word volcano
+8RXBU,P03,y,y,y,,none,
+E3TVN,P07,y,y,y,,none,
+RCGFW,P08,y,y,n,,none,five legs
+ZGK2F,P09,y,n,n,,none,five sphere colours
+58XYC,P02,y,y,y,,correct,
+EB8D7,P06,y,y,y,y,none,
+HCNKJ,P02,y,y,y,,none,
+SFGZ6,P05,y,y,y,,none,
+RHW9D,P04,y,y,y,y,none,
+KR8HP,P08,y,y,y,,none,
+2AT2U,P10,y,y,y,,none,
+3RFXL,P01,y,y,y,,correct,piston drawn as a disc
+9N7VL,S08,y,y,y,,none,
+NFVP5,S08,y,y,y,,none,markers in many colours
+ZQPGB,S05,y,y,y,n,none,plain connectors with no arrowheads; a stray pill
+7C9UM,S03,y,y,n,,correct,steps only on one rise of the wave
+2TRXX,S02,y,y,y,,correct,
+VM4CH,S03,y,y,n,,none,stairs cut across the wave
+GTY4U,S07,y,n,n,,none,dotted arcs run along the rings and never reach the centre
+FXASN,S06,y,n,y,,none,height order differs between the groups
+94ADD,S03,y,y,n,,none,steps only on one rise of the wave
+2WBJN,S03,y,y,y,,wrong,words above and below not tied to either line
+7V52Y,S06,y,y,y,,none,
+USAA3,S02,y,y,y,,correct,
+MUREP,S10,y,y,n,n,wrong,second curve only rises; both words sit under one curve; stray pills in the corners
+H8VZJ,S10,y,y,n,n,wrong,second curve is flat then rises; dashed line not at a turn; extra words turning point
+JHJMB,S06,y,y,y,,none,
+SXD84,S04,y,y,y,,none,
+8J9VP,S09,y,y,y,,correct,
+LVHYN,S07,y,y,n,,none,dots evenly sized and spaced
+XJWJA,S06,y,y,y,,correct,
+RUJ6G,S03,y,y,n,,correct,stairs run under the bump and do not track it
+Z9373,S01,y,y,n,,wrong,regions not coloured; feature words not on axes
+7CQPT,S05,y,y,y,n,none,connectors with no arrowheads
+4A8AJ,S09,y,y,y,,none,
+966VK,S07,y,y,n,,wrong,start written on the far side from where the dots begin; minimum not at the centre
+P43EG,S04,y,y,y,,correct,
+FUWXB,S06,y,y,y,,correct,
+ZYE4E,S07,y,n,n,,none,dotted arcs along the rings; none reaches the centre
+QT6T6,S03,y,y,n,,none,stairs cut across the wave; stray shapes
+FSL65,S04,y,y,y,,wrong,extra title words token vector; both labels in a bottom row
+5LKQ8,S05,y,y,y,n,correct,connectors with no arrowheads between the stages
+XV73B,S10,y,y,y,y,none,stray pills around the plot
+HPPFZ,S05,y,y,y,n,none,dotted connectors with no arrowheads
+2E3ME,S10,y,y,y,y,wrong,both words float above; neither tied to a curve
+S4JRX,S01,y,y,y,,none,full-bleed poster with white ground
+LYQF8,S08,y,y,n,,none,four markers sit on the ring; none inside
+V8ZAJ,S07,y,n,n,,wrong,dots in rows not a path; words overlap the rings
+ZHKB4,S02,y,y,y,,correct,
+WXWG3,S10,y,y,y,y,none,
+Y6MC6,S01,y,y,y,,none,coloured blocks do not match the four quadrants
+GBEMT,S02,y,y,y,,none,
+ZRR6Y,S07,y,y,y,,wrong,minimum written on the outer ring not at the centre
+Q6P36,S10,y,n,n,n,none,both curves rise; dashed line at the right edge
+RL2Z9,S05,y,y,n,n,wrong,one bar only; no arrowheads; extra words Multiply and Sum
+MJLVC,S09,n,n,y,,wrong,grid is 6 by 6; window is 3 by 2; kernel names an arrow
+KH4W7,S08,y,y,n,,wrong,markers sit on the ring; query written at the bottom
+QPE98,S02,y,n,y,,correct,the two trees are nearly the same size
+FX2F3,S09,n,n,y,,correct,grid is 7 by 5; window is one hatched block
+HBDGW,S08,y,y,n,,wrong,more than five inside; extra words circles squares ring other shapes
+RKCBX,S09,y,y,n,,wrong,kernel and output names are swapped; the output grid has no marked cell
+UE498,S04,y,n,n,,wrong,four arrows; three cell strips; both words on top strips
+FDVT5,S10,y,y,y,y,correct,words matched to curves by colour only; stray blobs
+PSSZU,S05,y,y,y,n,none,connectors with no arrowheads
+48UNR,S08,y,y,n,,none,ring holds the star only
+ZNA63,S02,y,y,y,,none,
+T4M7K,S09,n,n,y,,wrong,grid is 7 by 7; block is 4 by 3; prints five by five / three by three / arrow
+XZCXX,S08,y,y,n,,wrong,nothing but the star inside the ring; query at the bottom
+EURL3,S04,y,y,y,,correct,
+ZAVRP,S02,y,n,y,,none,the two trees are the same size
+5KXTY,S03,y,y,n,,correct,stairs on one flank only
+L7ZAC,S07,y,n,n,,none,dotted line crosses the rings and ends outside
+MGBXQ,S04,y,y,y,,wrong,invented words LARGE MEDIUM SMALL TALL NARROW
+PQAN9,S09,n,y,y,,none,grid is 6 by 5
+7XKGC,S01,y,y,y,,wrong,feature words sit in the layout not on axes
+TLPVT,S10,y,n,y,n,none,first curve rises before it falls; dashed line not at the turn; stray blobs
+2BVCD,S03,y,y,y,,none,
+A65KB,S01,y,y,y,,none,cropped at the frame
+757ZZ,S01,y,y,n,,none,regions not coloured
+978NT,S07,y,y,n,,wrong,minimum written outside the rings; dots do not shrink
+9CENK,S01,y,y,y,,wrong,feature words stacked at the left; not on axes
+K2RXE,S06,y,y,y,,correct,
+AHJ56,S09,n,y,y,,wrong,grid is 7 by 6; prints five_by_five and three_by_three
+BUG62,S05,y,y,y,n,wrong,no arrowheads; extra words Multiply and Sum
+EA2TS,S04,y,y,y,,none,
+LMCGN,S06,y,y,y,,correct,
+C3JW3,S04,y,y,y,,none,
+AUA72,S01,y,n,y,,wrong,slanted boundary and diagonal strokes; feature words at top and bottom
+JMR65,S05,y,y,y,n,correct,connectors with no arrowheads
+M84D9,S02,y,y,y,,none,
+L3VBW,S08,y,y,n,,wrong,four markers inside the ring; query at the bottom
+ZMN6G,S06,y,y,y,,none,
