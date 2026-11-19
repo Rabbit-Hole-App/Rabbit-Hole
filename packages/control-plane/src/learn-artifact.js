@@ -1,5 +1,6 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
-import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
+import { referenceLibraryReady } from './reference-library-lazy.js';
+import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle, plannedBundleKinds } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -17,7 +18,8 @@ import { consumeProposal, releaseProposal, verifyProposal } from './generation-p
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { fillTokens, leftoverToken } from './explanation-tokens.js';
+import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -54,7 +56,8 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
-import { ARTIFACT_SYSTEM, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
+import { ARTIFACT_SYSTEM, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
+import { capExampleList, exampleReferences } from './explanation-examples.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
 // the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
@@ -134,20 +137,27 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
   // Owner 2026-11-08: with a plan, the gallery example comes from the planner's chosen kind (below); the learner-word shape fallback (explanation-references.js) is used
   // only when the planner was asked and gave no plan (it timed out or failed; owner 2026-11-08), never when it is off or a plan exists. A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
+  const requestSeed = typeof input.requestSeed === 'string' && input.requestSeed ? input.requestSeed : null; // the request's own id, made by the route; none = no variation
   const topicalReferences = ready.includes('explanation') ? selectForAuthor({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    asked, planned: input.planned, depth: input.depth, plan: input.plan,
+    asked, planned: input.planned, depth: input.depth, plan: input.plan, seed: requestSeed, // VAR-1 step 3: a reference with `vary` is drawn from this request's seed
   }).references : [];
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
-  const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
+  // GEN-1 G1 (R2): a SEEDED request with a planned kind and no topical reference gets up to three seeded library examples of that kind (explanation-examples.js, the block capped at EXAMPLES_CAP_CHARS) in place of the one gallery example; no seed, no plan or a topical reference (R3): unchanged.
+  const planKind = input.plan && visualKinds(resolved)[0];
+  const seeded = requestSeed && planKind && !topicalReferences.length && ready.includes('explanation') ? capExampleList(exampleReferences(planKind, input.depth, requestSeed).examples).map(example => ({ ...example, seededExample: true })) : [];
+  const shape = planKind ? planShape({ kind: planKind }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = seeded.length ? seeded : shape ? [shape, ...topicalReferences] : topicalReferences;
+  // GEN-1 G2 (R2): the seeded examples come with the inputs sentence right after the number rule (agents/learn-artifact.js INPUTS_RULE); every other request is untouched.
+  const withInputsRule = text => (seeded.length ? text.replace(NUMBER_RULE, () => `${NUMBER_RULE} ${INPUTS_RULE}`) : text);
+  if (seeded.length) { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.description = withInputsRule(t.description); }
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
-  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds })); }
+  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds, plannedKinds: input.plan ? plannedBundleKinds(resolved) : [] })); }
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
-  const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
-  return { request, ready, messages, diagramReferences, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
+  const system = withInputsRule((input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '')) + diagramReferenceContext(diagramReferences);
+  return { request, ready, messages, diagramReferences, requestSeed, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
 // The learner's asked visuals (an implied picture is not one: explanation-visuals.js deriveVisualRequirements).
@@ -169,15 +179,23 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null } = {}) {
-  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
+// Why a wrong number gets one more repair on the same model (owner/Reviewer 2026-11-17): an arithmetic-tagged diagram issue (params.code 'arithmetic', e.g. a box-plot fence that is not
+// Q1 - 1.5 IQR) is never dropped, so a card that still has one after its repair fails the step. When the NEXT provider cannot write that kind (explanation-fast-chain.js nextCanWrite:
+// Gemini does not get box-plot unless the request names it; the last step has no next), the current model gets repairs up to this many in all before the step fails, so one miss
+// is not a dead card. When the next provider can write the kind, the old rule stands. The archive records repairs and repairedAt per step so the second repair's worth can be measured;
+// if it rarely matters, set this to 1 and the rule is gone.
+export const ARITHMETIC_REPAIRS_SAME_MODEL = 2;
+
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null, nextCanWrite = null } = {}) {
+  await referenceLibraryReady(); // START-3: the reference library is loaded on first use: every async owner of a library read awaits it first (reference-library-lazy.js)
+  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls. `nextCanWrite(kind)` (the fast chain's, see ARITHMETIC_REPAIRS_SAME_MODEL) says whether the next provider can write a diagram kind.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
   // `figures` (EXP-13, trusted): { store, scope?, adapter? } for explanation-figures.js illustrateExplanation; omitted, no picture is made and every rh-illustration fence is removed.
   // `early` (EXP-13 fix 3, trusted, the fast chain only): explanation-figures.js figureStarter, the pictures already started from the streamed answer.
   // JEV planner prototype (owner 2026-11-08, dev flag EXPLANATION_PLANNER=jev): planned once per card, before the first author call; the plan rides in `input` through every provider step and repair.
   if (!input.planned && (input.command === 'explain' || input.command === 'explanation') && String(input.args || '').trim() && plannerEnabled(env)) {
-    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: validDepth(input.depth) || DEFAULT_DEPTH, context: input.context || null }) };
+    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: validDepth(input.depth) || DEFAULT_DEPTH, context: 'planContext' in input ? input.planContext : input.context || null }) };
   }
   input = planWithReferenceKind(input); // the reference's kind over the planner's guess (a plan the caller supplied too; idempotent)
   // Owner 2026-11-08 (clean-up): the 6a/6b word heuristics (repeat words -> cycle, looks-like -> picture) run only when the planner made no plan; one log line says which source decided the visuals.
@@ -189,7 +207,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   // Card archive: what this card was made from, on the caller's `trace` option (artifactFetch). A fast-chain step overwrites it with the step that ran last.
-  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape).map(r => r.id), shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null } });
+  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape && !r.seededExample).map(r => r.id), examples: (prepared.diagramReferences ?? []).filter(r => r.seededExample).map(r => r.id), examplesKind: (prepared.diagramReferences ?? []).find(r => r.seededExample)?.spec?.diagram?.kind ?? null, shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null }, requestSeed: prepared.requestSeed ?? null });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
   if ((!injected || meterStep) && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace, meterStep }, generateArtifact);
@@ -210,7 +228,9 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   };
   const verify = block => sceneVerdict(env, callModel, input.args, block);
   let { result, call } = await ask(messages);
-  // At most one repair: the first failure goes back to the model once.
+  // At most one repair: the first failure goes back to the model once (an arithmetic issue may get a second, ARITHMETIC_REPAIRS_SAME_MODEL).
+  let limit = repairs;
+  const failedOn = []; // card archive: the failure outcome of each answer that failed ('arithmetic' | 'validation_error'), so a mixed failure is visible later
   for (let attempt = 0; ; attempt++) {
     if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
     if (call.name === CLARIFY.name) {
@@ -261,11 +281,13 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // Release 118 (unplanned-picture finding): the planner's picture count is enforced. When a JEV plan exists and the learner's words fixed no mix, the mix keeps the planned pictures (none for a diagram-only plan)
         // and up to three visuals in all, so an author picture the plan did not ask for (a repair answer on the fallback model) is dropped here, before the bad-detail strip. A learner-named mix wins unchanged.
         const planned = input.plan?.planner === 'jev' ? input.plan.visuals?.filter(v => v?.type === 'picture').length : undefined;
-        const capped = !requiredMix(wanted) && planned !== undefined;
-        const settled = settleExplanationBody(block.body, requiredMix(wanted) ?? (capped ? { diagram: Math.max(0, 3 - planned), illustration: planned } : null));
-        if (capped) { // one line per card whose author pictures exceeded the plan's (a detail marker that pointed at a dropped picture is removed by settleExplanationBody with it)
+        // ILL-2: with no JEV plan (the planner timed out or is off) and no mix named by the learner, the cap is the pictures the learner's words imply (an `implied` illustration item: normally 0), not unlimited.
+        const cap = planned ?? (input.plan?.planner !== 'jev' ? (wanted?.items ?? []).filter(i => i.kind === 'illustration' && i.implied).length : undefined);
+        const capped = !requiredMix(wanted) && cap !== undefined;
+        const settled = settleExplanationBody(block.body, requiredMix(wanted) ?? (capped ? { diagram: Math.max(0, 3 - cap), illustration: cap } : null));
+        if (capped) { // one line per card whose author pictures exceeded the cap (a detail marker that pointed at a dropped picture is removed by settleExplanationBody with it)
           const authored = markdownIllustrations(block.body), kept = new Set(markdownIllustrations(settled).map(x => x.spec?.id));
-          if (authored.length > planned && kept.size < authored.length) console.log(JSON.stringify({ event: 'explanation_picture_capped', planned, authored: authored.length, kept: kept.size, dropped: authored.flatMap((x, i) => (kept.has(x.spec?.id) ? [] : [i + 1])) }));
+          if (authored.length > cap && kept.size < authored.length) console.log(JSON.stringify({ event: 'explanation_picture_capped', planned: cap, authored: authored.length, kept: kept.size, dropped: authored.flatMap((x, i) => (kept.has(x.spec?.id) ? [] : [i + 1])), ...(planned === undefined ? { source: 'no-plan' } : {}) }));
         }
         diagramsDropped = markdownVisuals(block.body).diagrams.length - markdownVisuals(settled).diagrams.length; // recorded with the result, as a dropped invalid diagram is
         block = { ...block, body: settled };
@@ -282,7 +304,11 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
         { const hier = treesAsHierarchy(block.body); if (hier.count) { block = { ...block, body: hier.md }; corrections.tree_hierarchy_layout = hier.count; } } // batch-1 audit 2026-11-09: a short-key tree is drawn top-down, not as an outline
         block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
-        if (attempt >= repairs) {
+        // VAR-1 step 2: a {{d:N.path}} in the prose becomes the figure's own number before any check reads the text; the archive keeps the body as written (trace.bodyWithTokens).
+        { const tokens = fillTokens(block); if (tokens.problem) throw new Error(tokens.problem); block = tokens.block; if (trace) Object.assign(trace, { tokensFilled: tokens.filled, bodyWithTokens: tokens.authored }); }
+        if (attempt >= limit) {
+          // An arithmetic-tagged issue is never dropped or simplified away, and the prose is never delivered with the wrong number: the step fails (explanation_bad_numbers) and the chain's next provider runs.
+          const numbers = numbersIssue(block); if (numbers) throw Object.assign(new Error(numbers.problem), { numbers });
           let trimmed = dropInvalidDiagrams(block), fallback = null;
           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
@@ -295,7 +321,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
             if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
             // Owner 2026-11-08: a card whose plan had a visual never goes out with none. Nothing could be built from the author's own labels: the card fails here (a validation error, so
             // the chain's next step gets its turn) instead of delivering empty. Without a plan (planner off or failed) the older rule stands: the prose card is delivered.
-            if (fallback === 'dropped' && input.plan?.visuals?.length) throw new Error('explanation_missing_visual: the card must keep one to three visuals; every diagram was invalid and none could be rebuilt from its labels.');          }
+            if (fallback === 'dropped' && input.plan?.visuals?.length) throw new Error('explanation_missing_visual: the card must keep one to three visuals; every diagram was invalid and none could be rebuilt in its own kind from its labels.');          }
           // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
           // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
           if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
@@ -310,6 +336,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         const interactive = interactionsEnabled(env);
         if (interactive) ({ questions, terms } = keptInteractions(block, { questions, terms }));
         const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        { const left = leftoverToken(block, questions); if (left) throw new Error(left); } // a token of an invalid diagram (dropped above) or inside a diagram or a question is never delivered
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
         block = { ...block, proseLists: proseListCount(block.body) }; // owner 2026-11-08: lists are asked against, never checked; this counts them for measurement
@@ -328,13 +355,17 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, repairs: attempt, ...(attempt > 0 ? { repairedAt: attempt } : {}), ...(failedOn.length ? { failedOn } : {}), ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
-      if (input.imageSource || attempt >= repairs) return { result: 'validation_error', primitive: id || null, error: error.message };
-      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
+      failedOn.push(error.numbers || /explanation_bad_numbers/.test(error.message) ? 'arithmetic' : 'validation_error'); // a first answer's numbers problem has no .numbers yet (explanationProblem names it)
+      // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
+      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && error.numbers.kinds.some(kind => !nextCanWrite(kind))) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
+      if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, failedOn,...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
+      const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
+      ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
   }
 }
@@ -433,7 +464,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? validDepth(body.depth)
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   // Card archive: one record per request that reaches the author, success or failure (learn-storage.js archiveExplanation: logged, never thrown). No email, only the user id.
-  const trace = {}, started = Date.now();
+  const requestSeed = crypto.randomUUID(), trace = { requestSeed }, started = Date.now(); // VAR-1 step 3: the seed of this request's varied inputs, in the archive record (a card is reproduced from it)
   const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.user_id ?? null, app: body.app, board: typeof body.board === 'string' ? body.board : null,
     request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra,
     ...(extra.returned?.figures ? { stylePreamble: FIGURE_STYLE_ID } : {}) }); // ILL-0 v2: a card with pictures records the style they were made with
@@ -451,7 +482,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
       return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(body.madeBy ? { madeBy: body.madeBy } : {}), ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
+    const out = await generate(env, { ...(DEPTH_COMMANDS.includes(body.command) ? { requestSeed } : {}), command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(body.madeBy ? { madeBy: body.madeBy } : {}), ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });

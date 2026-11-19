@@ -395,7 +395,7 @@ import { FalSeedanceProvider } from '../src/video-provider.js';
 
 for (const reached of [false, true]) test(`active media submissions refuse ${reached ? 'reached' : 'unset'} cap without provider calls`, async t => {
   const { LEARN_DB } = ledger(t);
-  const env = platform({ LEARN_DB, FISH_AUDIO_API_KEY: 'fixture', ELEVENLABS_API_KEY: 'fixture', FAL_API_KEY: 'fixture', MATH_WORKER_URL: 'https://synthetic.test', MATH_WORKER_TOKEN: 'fixture', SCENE_WORKER_URL: 'https://synthetic.test', SCENE_WORKER_TOKEN: 'fixture' });
+  const env = platform({ LEARN_DB, ELEVENLABS_API_KEY: 'fixture', FAL_API_KEY: 'fixture', MATH_WORKER_URL: 'https://synthetic.test', MATH_WORKER_TOKEN: 'fixture', SCENE_WORKER_URL: 'https://synthetic.test', SCENE_WORKER_TOKEN: 'fixture' });
   if (reached) {
     env.USAGE_PLATFORM_DAY_USD = '1';
     await admitSpend(LEARN_DB, env, { opId: 'full', userId: 'fixture', org: 'platform', category: 'fixture', reservedUsd: 1 });
@@ -412,11 +412,11 @@ for (const reached of [false, true]) test(`active media submissions refuse ${rea
   assert.equal(calls, 0);
 });
 
-test('Fish speech reserves UTF-8 bytes atomically and retains failed liability', async t => {
+test('Voice Tutor speech reserves its characters atomically and retains failed liability', async t => {
   const { LEARN_DB, sqlite } = ledger(t);
   const text = '??';
-  const cost = new TextEncoder().encode(text).length * 15 / 1e6;
-  const env = platform({ LEARN_DB, FISH_AUDIO_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(cost) });
+  const cost = text.length * 40 / 1e6; // $0.04 per 1,000 characters = 40 micro-USD a character
+  const env = platform({ LEARN_DB, ELEVENLABS_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(cost) });
   let calls = 0;
   const transport = async () => { calls++; throw new Error('synthetic disconnect'); };
   assert.equal((await voiceSpeech(env, { text }, { fetch: transport })).status, 502);
@@ -437,7 +437,8 @@ test('unconfigured Voice errors and provider status reads survive unset cap', as
   assert.equal(calls, 1);
 });
 
-import { paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply } from '../src/learn-paid-transport.js';
+import { paidSubmissionRefusal, isPaidSpendReply } from '../src/learn-paid-transport.js';
+import { speakNarration } from '../src/narration-voice.js';
 import { paidRefusal } from '../src/learn-paid.js';
 
 // Execute the actual inline route branches with injected auth/fetch; the full Worker imports build-only assets.
@@ -447,21 +448,21 @@ function inlinePaidRoute(path) {
   const start = inlineWorker.indexOf(`    if (path === '${path}' && req.method === 'POST')`);
   assert.ok(start >= 0);
   const code = inlineWorker.slice(start, inlineWorker.indexOf(end, start));
-  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'fishSpendTransport', 'isPaidSpendReply', 'fetch', code);
+  return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'speakNarration', 'isPaidSpendReply', 'fetch', code);
 }
 // /api/learn/transcribe is not here: Speak answer dictation always answers not configured (O-8 covers Explain-back voice notes only).
 for (const path of ['/api/learn/image', '/api/learn/tts']) test(`${path} actual route refuses caps after authorization/configuration`, async t => {
   const { LEARN_DB } = ledger(t);
-  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', FISH_AUDIO_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
+  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', ELEVENLABS_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
   let calls = 0;
   const transport = async () => { calls++; return Response.json({}); };
   const invoke = (settings, auth = async () => ({ email: 'fixture' })) => {
     const body = path.endsWith('/transcribe') ? new FormData() : JSON.stringify({ app: 'fixture', prompt: 'Synthetic image', text: 'Synthetic text', confirmed: true });
     if (body instanceof FormData) { body.set('audio', new Blob(['fixture'], { type: 'audio/webm' }), 'fixture.webm'); body.set('app', 'fixture'); }
-    return inlinePaidRoute(path)(new Request(`https://synthetic.test${path}`, { method: 'POST', body }), settings, path, auth, paidRefusal, paidSubmissionRefusal, fishSpendTransport, isPaidSpendReply, transport);
+    return inlinePaidRoute(path)(new Request(`https://synthetic.test${path}`, { method: 'POST', body }), settings, path, auth, paidRefusal, paidSubmissionRefusal, speakNarration, isPaidSpendReply, transport);
   };
   assert.equal((await invoke(env, async () => new Response('Denied', { status: 403 }))).status, 403);
-  const missing = await invoke({ ...env, OPENAI_API_KEY: '', FISH_AUDIO_API_KEY: '' });
+  const missing = await invoke({ ...env, OPENAI_API_KEY: '', ELEVENLABS_API_KEY: '' });
   assert.match((await missing.json()).error, /not configured/);
   assert.equal((await (await invoke(env)).json()).code, 'cap_unset');
   env.USAGE_PLATFORM_DAY_USD = '1';
@@ -478,7 +479,7 @@ test('/api/learn/transcribe is off unless TRANSCRIBE_ENABLED is exactly true, ke
   const call = env => {
     const body = new FormData();
     body.set('audio', new Blob(['fixture'], { type: 'audio/webm' }), 'fixture.webm'); body.set('app', 'fixture');
-    return inlinePaidRoute('/api/learn/transcribe')(new Request('https://synthetic.test/api/learn/transcribe', { method: 'POST', body }), env, '/api/learn/transcribe', async () => ({ email: 'fixture' }), untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'));
+    return inlinePaidRoute('/api/learn/transcribe')(new Request('https://synthetic.test/api/learn/transcribe', { method: 'POST', body }), env, '/api/learn/transcribe', async () => ({ email: 'fixture' }), untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('speakNarration'), untouched('isPaidSpendReply'), untouched('fetch'));
   };
   const expected = { error: 'Speech to text is not configured on this environment.' };
   for (const flag of [undefined, '', 'false', 'TRUE', '1', ' true']) for (const key of ['fixture', undefined]) {
@@ -500,7 +501,7 @@ test('/api/learn/image actual route is unavailable unless LEGACY_IMAGE_GENERATIO
     const env = { LEARN_DB, OPENAI_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', ...(flag === undefined ? {} : { LEGACY_IMAGE_GENERATION: flag }) };
     const request = new Request('https://synthetic.test/api/learn/image', { method: 'POST', body: JSON.stringify({ app: 'fixture', prompt: 'Synthetic image', confirmed: true }) });
     const response = await inlinePaidRoute('/api/learn/image')(request, env, '/api/learn/image', untouched('authorizedBoardApp'), untouched('paidRefusal'), untouched('paidSubmissionRefusal'),
-      untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'));
+      untouched('speakNarration'), untouched('isPaidSpendReply'), untouched('fetch'));
     assert.equal(response.status, 503, JSON.stringify(flag));
     assert.deepEqual(await response.json(), { error: 'Generating images is not available right now. You can still search for a photo.', code: 'image_generation_unavailable' });
   }
@@ -518,10 +519,10 @@ test('a configured cap never authorizes unbounded delegated or FAL submissions',
   assert.equal(calls, 0);
 });
 
-test('concurrent Fish requests reserve one affordable call and preserve streamed audio', async t => {
+test('concurrent Voice Tutor requests reserve one affordable call and preserve streamed audio', async t => {
   const { LEARN_DB } = ledger(t);
   const text = 'Hello';
-  const env = platform({ LEARN_DB, FISH_AUDIO_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(text.length * 15 / 1e6) });
+  const env = platform({ LEARN_DB, ELEVENLABS_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: String(text.length * 40 / 1e6) });
   let finish, entered;
   const waiting = new Promise(resolve => { finish = resolve; });
   const started = new Promise(resolve => { entered = resolve; });

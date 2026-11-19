@@ -171,3 +171,19 @@ test('narrow second visual (owner 2026-11-08): two separate structures or organi
   assert.deepEqual(planFromAnswers(answers({ visualType: { choice: 'both' }, secondVisual: { noul: 0.95 } })).visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'sequence' }]);
   assert.ok(!planStatement(planFromAnswers(answers())).includes('names two things'));
 });
+
+test('GEN-1 G6: the planner gets the typed route\'s context as before, and null when the caller sets planContext: null (the roadmap: title and goal only, no document text to the third party)', async () => {
+  const env = { SMALL_ENV: 'test', EXPLANATION_PLANNER: 'jev', TYPESAFE_API_KEY: 'k' };
+  const model = async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c', name: 'make_explanation', input: { title: 'T', visuals: [], body: 'x' } }] });
+  const realFetch = globalThis.fetch, log = console.log; console.log = () => {};
+  const states = [];
+  try {
+    globalThis.fetch = async (url, init) => { states.push(JSON.parse(init.body).state); return Response.json({ answers: answers() }); };
+    await generateArtifact(env, { command: 'explanation', args: 'How does the TCP handshake work?', context: 'the parent card text' }, { callModel: model, repairs: 1 });
+    await generateArtifact(env, { command: 'explain', args: 'Step: goal', context: 'document text that must not leave', planContext: null }, { callModel: model, repairs: 1 });
+  } finally { globalThis.fetch = realFetch; console.log = log; }
+  assert.equal(states.length, 2, 'one planner call per card');
+  assert.equal(states[0].context, 'the parent card text', 'the typed route sends its context as before');
+  assert.equal(states[1].context, null, 'planContext: null sends no context');
+  assert.equal(states[1].question, 'Step: goal', 'the question is the title and goal');
+});

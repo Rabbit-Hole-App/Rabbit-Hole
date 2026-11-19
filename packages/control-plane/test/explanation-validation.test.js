@@ -15,8 +15,10 @@ const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: '
 const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
 const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'T', stepGoal: 'Read it.', passageText: 'Some passage.', sourceRef: { v: 1, id: 'sref_abc' }, language: 'en', depth: 'balanced', retry: 0, ...over });
 const scripted = (...replies) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); const [name, input] = replies[Math.min(seen.length, replies.length) - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name, input }] }); } }; };
-const viaRoadmap = (depth, block) => { const m = scripted(['make_explanation', block]); return generateRoadmapCard({}, access, ref, { loadAccepted: async () => record({ depth }), withProviderCall: (env, fields) => ({ ...env, fields }), callModel: m.callModel }).then(out => ({ out, m })); };
-const viaDirect = (depth, block) => { const m = scripted(['make_explanation', block], ['make_explanation', block], ['make_explanation', block]); return generateArtifact({}, { command: 'explanation', args: 'x', depth }, { callModel: m.callModel }).then(out => ({ out, m })); };
+const implied = n => ({ version: 1, items: Array.from({ length: n }, (_, i) => ({ id: `vr-${i + 1}`, kind: 'illustration', implied: true, purpose: 'a picture of it' })) }); // ILL-2: no plan caps pictures at the ones the learner's words imply
+const picturesIn = block => Math.min(2, (String(block.body).match(/```rh-illustration/g) || []).length);
+const viaRoadmap = (depth, block) => { const m = scripted(['make_explanation', block]); return generateRoadmapCard({}, access, ref, { loadAccepted: async () => record({ depth, ...(picturesIn(block) ? { visualRequirements: implied(picturesIn(block)) } : {}) }), withProviderCall: (env, fields) => ({ ...env, fields }), callModel: m.callModel }).then(out => ({ out, m })); };
+const viaDirect = (depth, block) => { const m = scripted(['make_explanation', block], ['make_explanation', block], ['make_explanation', block]); return generateArtifact({}, { command: 'explanation', args: 'x', depth, ...(picturesIn(block) ? { visualRequirements: implied(picturesIn(block)) } : {}) }, { callModel: m.callModel }).then(out => ({ out, m })); };
 
 // A valid flow whose drawn words are exactly WORDS: title, node labels, edge labels (spec.js: one start, labelled branches, outcomes end).
 const SPEC = { version: 1, diagram: { kind: 'flow', title: 'D', nodes: [{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Ok?', role: 'decision' }, { id: 'c', label: 'Yes end', role: 'outcome' }, { id: 'd', label: 'No end', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c', label: 'Yes' }, { from: 'b', to: 'd', label: 'No' }] } };
@@ -129,6 +131,18 @@ test('the single repair: invalid then valid keeps the diagram; two bad fences dr
   assert.deepEqual([failed.out.failure_class, failed.out.code], ['terminal_validation_failure', 'explanation_over_budget']);
   const fits = await viaRoadmap('brief', { title: 'T', body: GOOD + '\n\nGo on.\n\n' + fence(BAD.cycle) + '\n\nGo end.' });
   assert.deepEqual([fits.out.outcome, fits.out.diagramsDropped], ['ok', 1]);
+});
+
+// MAT-E: a matrix whose every row is short by the same count is no longer padded with dashes (that column is rejected); it reaches the one repair, and the repaired matrix is delivered as written.
+test('a matrix with every row short by the same count is not corrected: it goes to the one repair, never delivered with a padded column of dashes', async () => {
+  const matrix = rows => fence({ version: 1, diagram: { kind: 'matrix', title: 'Class balance', columns: ['Class', 'Count', 'Share'], rows } });
+  const prose = body => ({ title: 'T', body: 'Compare the Count and Share of each Class.\n\n' + body + '\n\nLegit is the Class with the larger Share.' });
+  const short = prose(matrix([{ heading: 'Legit', cells: ['999', '99.9%'] }, { heading: 'Fraud', cells: ['1', '0.1%'] }]));
+  const whole = prose(matrix([{ heading: 'Legit', cells: ['Majority', '999', '99.9%'] }, { heading: 'Fraud', cells: ['Rare', '1', '0.1%'] }]));
+  const m = scripted(['make_explanation', short], ['make_explanation', whole]);
+  const out = await generateArtifact({}, { command: 'explanation', args: 'x', depth: 'balanced' }, { callModel: m.callModel });
+  assert.deepEqual([out.result, out.repaired, m.seen.length, out.block.body, out.block.diagramCorrections], ['artifact', true, 2, whole.body, undefined]);
+  assert.ok(!/—/.test(out.block.body), 'no padded dash column');
 });
 
 test('a NEW Mermaid fence is the superseded format: refused under every info string, at both entry points (the card still draws saved ones)', async () => {

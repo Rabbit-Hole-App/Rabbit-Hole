@@ -3,7 +3,7 @@
 // animation-policy.js roleBoundMicros does; and the job's worst case (whiteboardReservation), from which the Generate credit line is printed
 // (100 credits = 1 USD). No environment variable sets any of it: changing a number here is a versioned policy change and a candidate.
 import { LEARN_TASKS, MODEL_PRICES, loggedModel, notConfiguredMessage } from './learn-models.js';
-import { priceUsage } from './pricing-registry.js';
+import { narrationMicros } from './narration-voice.js';
 import { providerUnavailable, requestSpendBound } from './learn-spend.js';
 import { modelFailure } from './learn-research.js';
 import { normalizeToolInput } from './tool-input.js';
@@ -37,7 +37,6 @@ export const WHITEBOARD_LIMITS = Object.freeze({
   promptCodePoints: 4000, contextChars: 8000, evidenceCodePoints: 12000,
   planRevisions: 3, // Edit, duration (W-D7), W3 clarification answer: each one more planner call
   authorCorrections: 2, // shared by the job: schema repairs and timing rewrites
-  utf8BytesPerChar: 4, // the narration's byte worst case per character (roadmap 6.1)
 });
 
 // The scene cap for a duration: min(8, ceil(d / 15)).
@@ -72,12 +71,10 @@ export function whiteboardRoleBoundMicros(role, tasks = LEARN_TASKS) {
   return Math.ceil((r.maxInputTokens + r.maxImages * IMAGE_TOKENS) * input * CACHE_WRITE + r.maxTokens * output);
 }
 
-const fishMicros = bytes => priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: bytes } }).micros;
-
 // The job's prices for a plan of N scenes (roadmap 6.1), integer micro-USD.
-// maximum: plan phase = the planner and its 3 revisions; generation = N author calls + 2 corrections + Fish on the narration at 4 bytes a
-// character, plus the re-narration a timing rewrite causes (each correction may rewrite one scene's narration once: at most 2 scenes).
-// estimate: the path with no revision, correction or rewrite, every call at its bound and the narration one byte a character.
+// maximum: plan phase = the planner and its 3 revisions; generation = N author calls + 2 corrections + the narrator (narration-voice.js, per character) on the narration,
+// plus the re-narration a timing rewrite causes (each correction may rewrite one scene's narration once: at most 2 scenes).
+// estimate: the path with no revision, correction or rewrite, every call at its bound and the narration at its characters.
 // shortcut: the estimate is the policy's no-correction path, not measured usage; replace with W1 acceptance jobs' usage rows.
 export function whiteboardReservation(plan, tasks = LEARN_TASKS) {
   const L = WHITEBOARD_LIMITS, n = plan?.scenes?.length;
@@ -92,8 +89,8 @@ export function whiteboardReservation(plan, tasks = LEARN_TASKS) {
     scenes: n,
     calls,
     planMicros: calls.plan * planCall,
-    generationMicros: calls.author * authorCall + fishMicros((narrationChars + rewriteChars) * L.utf8BytesPerChar),
-    estimate: { planMicros: planCall, generationMicros: n * authorCall + fishMicros(narrationChars) },
+    generationMicros: calls.author * authorCall + narrationMicros(narrationChars + rewriteChars),
+    estimate: { planMicros: planCall, generationMicros: n * authorCall + narrationMicros(narrationChars) },
   };
 }
 

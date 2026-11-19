@@ -118,7 +118,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     set('thinking', { error: null });
     m.tutor_request_start = now();
     emit('tutor_request_start', { turn_id: turnId, at: m.tutor_request_start });
-    // The Tutor's first validated, self-contained sentence (Tutor v2) starts Fish before the plan is complete.
+    // The Tutor's first validated, self-contained sentence (Tutor v2) starts the narrator before the plan is complete.
     let early = null;
     const onSpeakable = sentence => {
       const words = typeof sentence === 'string' ? sentence.trim() : '';

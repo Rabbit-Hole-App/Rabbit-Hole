@@ -1,5 +1,5 @@
-// Fish streaming playback, measured locally (docs/features/voice-tutor-mvp.md §4): the real createFishTts in
-// Chromium against a local server that plays the Fish role with a real narrator MP3. No paid call.
+// Narrator streaming playback, measured locally (docs/features/voice-tutor-mvp.md §4): the real createNarratorTts in
+// Chromium against a local server that plays the provider's role with a real narrator MP3. No paid call.
 // The pace comes from the live run (2026-10-01): first byte ~210 ms, and the rest of the body over ~2 s
 // (first Tutor audio 11773 ms - first canvas action 9505 ms, with the request starting right after the plan).
 // Each mode runs RUNS times: buffered (MediaSource off, the old path) and streamed (MediaSource on).
@@ -39,7 +39,7 @@ await page.goto(base);
 const speak = (streamed, stopAfter = null) => page.evaluate(async ({ streamed, stopAfter }) => {
   const marks = {};
   let audio;
-  const tts = VoiceTts.createFishTts({
+  const tts = VoiceTts.createNarratorTts({
     post: (path, body, signal) => fetch(path, { method: 'POST', body: JSON.stringify(body), signal }),
     onEvent: event => { marks[event.type] ??= event.at; },
     makeAudio: url => (audio = new Audio(url)),

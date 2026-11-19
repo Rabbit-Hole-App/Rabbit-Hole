@@ -16,7 +16,10 @@ import { explanationTarget } from '../src/chat-depth.js';
 import { INTERACTION_GUIDANCE, INTERACTIONS_SETTING } from '../src/explanation-interactions.js';
 import { requestSpendBound } from '../src/learn-spend.js';
 import { noteUsageIdentity, toMicros, withUsage } from '../src/learn-usage.js';
-import { withVisual } from './explanation-layout-fixture.js';
+import { diagramFence, withVisual } from './explanation-layout-fixture.js';
+import { artifactFetch } from '../src/learn-artifact.js';
+import { OWNER } from './explain-fixture.js';
+import { planFromAnswers } from '../src/explanation-planner.js';
 
 const URL_OF = { fireworks: CHAIN_ENDPOINTS.fireworks.url, cerebras: CHAIN_ENDPOINTS.cerebras.url, google: CHAIN_ENDPOINTS.google.url };
 const FW = 'accounts/fireworks/models/gpt-oss-120b';
@@ -391,4 +394,165 @@ test('EXPLANATION_FALLBACK=off: only the profile\'s own provider, and its failur
   sent = providers(t, status(429), ok(card));
   assert.equal((await ask(offline('fireworks-low'))).result, 'artifact');
   assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'google']);
+});
+
+// Arithmetic issues (params.code 'arithmetic': a box-plot fence that is not Q1 - 1.5 IQR and Q3 + 1.5 IQR) are never dropped: the step repairs, then fails with explanation_bad_numbers.
+// The same model gets a second repair only when the NEXT provider cannot write the kind (Gemini and a box-plot the learner did not name; or no next provider).
+const boxCard = fences => ({ title: 'Fences from the quartiles', body: withVisual('The fences from the quartiles mark where an outlier begins.', { after: 'A reading beyond a fence is an outlier.', visual: diagramFence({ version: 1, diagram: { kind: 'box-plot', title: 'Fences from the quartiles', x: { label: 'Reading', min: 0, max: 20 }, boxes: [{ label: 'Trial', whiskerLow: 4, q1: 6, median: 9, q3: 12, whiskerHigh: 14, fences }] } }) }) });
+const wrongFences = boxCard({ lower: 2, upper: 16 }), goodFences = boxCard({ lower: -3, upper: 21 });
+const FENCE_ISSUE = 'Fences must be Q1 - 1.5 x IQR and Q3 + 1.5 x IQR: with Q1 6 and Q3 12 that is -3 and 21, not 2 and 16.';
+const SENTENCE = 'Rewrite every sentence that states these numbers.';
+const named = { visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'box-plot', purpose: 'the fences' }] } };
+
+test('the box-plot answer is valid with true fences and an arithmetic problem with wrong ones', () => {
+  assert.equal(explanationProblem({ ...artifactBlock('explanation', goodFences), body: goodFences.body }), null);
+  assert.match(explanationProblem({ ...artifactBlock('explanation', wrongFences), body: wrongFences.body }), /^explanation_bad_numbers: .*Fences must be Q1 - 1.5 x IQR/);
+});
+
+test('arithmetic: the next provider cannot write box-plot, so the same model gets a second repair; success on repair 2 is recorded', async t => {
+  quiet(t);
+  const sent = providers(t, ok(wrongFences), ok(wrongFences), ok(goodFences));
+  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'fireworks'], 'Gemini would not get box-plot, so no hand-over');
+  assert.deepEqual([out.result, out.repaired, out.repairs, out.repairedAt], ['artifact', true, 2, 2]);
+  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 2, repairedAt: 2, failedOn: ['arithmetic', 'arithmetic'] }]);
+  for (const call of [sent[1], sent[2]]) assert.ok(call.body.messages.at(-1).content.startsWith('Validation failed: explanation_bad_numbers: ') && call.body.messages.at(-1).content.includes(SENTENCE), 'the exact numbers, then the sentence');
+  assert.ok(sent[1].body.messages.at(-1).content.includes(FENCE_ISSUE), 'the validator\'s first issue names the true fences');
+});
+
+test('arithmetic: success on the first repair stops there (no second repair)', async t => {
+  quiet(t);
+  const sent = providers(t, ok(wrongFences), ok(goodFences));
+  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.equal(sent.length, 2);
+  assert.deepEqual(out.attempts, [{ provider: 'fireworks', model: FW, outcome: 'artifact', repairs: 1, repairedAt: 1, failedOn: ['arithmetic'] }]);
+});
+
+test('arithmetic: when the next provider CAN write the kind (it is named, or it is Fireworks) the old rule stands: one repair, the step fails, the next provider runs', async t => {
+  quiet(t);
+  let sent = providers(t, ok(wrongFences), ok(wrongFences), ok(goodFences));
+  let out = await ask(offline('fireworks-low'), 'Draw a box plot of the fences', named); // Gemini gets box-plot when the learner names it
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google']);
+  assert.deepEqual(out.attempts.map(a => [a.provider, a.outcome, a.repairs]), [['fireworks', 'arithmetic', 1], ['google', 'artifact', 0]]);
+  assert.deepEqual(out.attempts[0].issues, [FENCE_ISSUE]);
+  sent = providers(t, ok(wrongFences), ok(wrongFences), ok(goodFences));
+  out = await ask(offline('google-low'), 'Explain the box plot fences'); // Gemini first, Fireworks next writes everything
+  assert.deepEqual(sent.map(s => s.provider), ['google', 'google', 'fireworks']);
+  assert.deepEqual(out.attempts.map(a => [a.provider, a.outcome, a.repairs]), [['google', 'arithmetic', 1], ['fireworks', 'artifact', 0]]);
+});
+
+test('arithmetic: every step failing gives validation_error explanation_bad_numbers, nothing delivered and the diagram never dropped; each step keeps its issue', async t => {
+  quiet(t);
+  const sent = providers(t, ok(wrongFences));
+  const out = await ask(offline('google-low'), 'Explain the box plot fences');
+  assert.deepEqual(sent.map(s => s.provider), ['google', 'google', 'fireworks', 'fireworks', 'fireworks'], 'Gemini: call and one repair; Fireworks is last, so a second repair');
+  assert.equal(out.result, 'validation_error');
+  assert.match(out.error, /^explanation_bad_numbers: /);
+  assert.equal(out.block, undefined);
+  assert.deepEqual(out.attempts, [
+    { provider: 'google', model: 'gemini-3.5-flash-lite', outcome: 'arithmetic', repairs: 1, failedOn: ['arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] },
+    { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, failedOn: ['arithmetic', 'arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] }]);
+});
+
+// HEAT-1: a grid drawn blank (every numeric cell 0 at range 0 to 1) and a grid with every cell above the diagonal blocked and its diagonal blocked too are arithmetic issues like a wrong fence:
+// repaired, then the step fails, never delivered. Heatmap is a NEW kind Gemini does not get unless named, so with no next provider that can write it the same model gets a second repair.
+const heatCard = cell => ({ title: 'A grid of allowed cells', body: withVisual('Each row may use only the cells shown for it.', { after: 'A blocked cell is not used by that row.', visual: diagramFence({ version: 1, diagram: { kind: 'heatmap', title: 'A grid of allowed cells', rowLabel: 'Row', columnLabel: 'Column', columns: ['1', '2', '3'], rows: [0, 1, 2].map(i => ({ label: String(i + 1), cells: [0, 1, 2].map(j => cell(i, j)) })), range: { min: 0, max: 1 } } }) }) });
+const blankGrid = heatCard((i, j) => (j < i ? 0 : null)), keptGrid = heatCard((i, j) => (j <= i ? 1 : null));
+
+test('heatmap: the blank grid is an arithmetic problem, the 0 and 1 grid with its diagonal is valid', () => {
+  assert.match(explanationProblem({ ...artifactBlock('explanation', blankGrid), body: blankGrid.body }), /^explanation_bad_numbers: .*Every numeric cell is 0, the value drawn with no fill/);
+  assert.equal(explanationProblem({ ...artifactBlock('explanation', keptGrid), body: keptGrid.body }), null);
+});
+
+test('heatmap: the same model gets a second repair (no next provider can write a heatmap), success on repair 2 is recorded', async t => {
+  quiet(t);
+  const sent = providers(t, ok(blankGrid), ok(blankGrid), ok(keptGrid));
+  const out = await ask(offline('fireworks-low'), 'Explain which cells each row may use');
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'fireworks']);
+  assert.deepEqual([out.result, out.repaired, out.repairs, out.repairedAt], ['artifact', true, 2, 2]);
+  assert.deepEqual(out.attempts[0].failedOn, ['arithmetic', 'arithmetic']);
+  assert.ok(sent[1].body.messages.at(-1).content.startsWith('Validation failed: explanation_bad_numbers: ') && sent[1].body.messages.at(-1).content.includes(SENTENCE));
+});
+
+test('heatmap: every step keeping the blank grid fails with explanation_bad_numbers, nothing delivered and the diagram never dropped or simplified', async t => {
+  quiet(t);
+  providers(t, ok(blankGrid));
+  const out = await ask(offline('fireworks-low'), 'Explain which cells each row may use');
+  assert.equal(out.result, 'validation_error');
+  assert.match(out.error, /^explanation_bad_numbers: /);
+  assert.equal(out.block, undefined);
+  assert.ok(out.attempts.every(a => a.outcome === 'arithmetic'), JSON.stringify(out.attempts.map(a => a.outcome)));
+});
+
+test('a non-arithmetic invalid answer never gets the second repair and keeps its own issue text per step', async t => {
+  quiet(t);
+  const sent = providers(t, ok(long));
+  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google', 'google']);
+  assert.deepEqual(out.attempts.map(a => [a.outcome, a.repairs]), [['validation_error', 1], ['validation_error', 1]]);
+  assert.deepEqual(out.attempts.map(a => a.failedOn), [['validation_error', 'validation_error'], ['validation_error', 'validation_error']]);
+  assert.match(out.attempts[0].issues[0], /^explanation_/);
+  assert.ok(!sent[1].body.messages.at(-1).content.includes(SENTENCE), 'the sentence belongs to arithmetic issues only');
+});
+
+test('a step that failed a validation and then arithmetic records both in failedOn, in order; a clean first answer has no failedOn', async t => {
+  quiet(t);
+  providers(t, ok(long), ok(wrongFences));
+  const out = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.deepEqual(out.attempts[0].failedOn, ['validation_error', 'arithmetic', 'arithmetic']);
+  assert.equal(out.attempts[0].outcome, 'arithmetic');
+  providers(t, ok(goodFences));
+  const clean = await ask(offline('fireworks-low'), 'Explain the box plot fences');
+  assert.ok(!('failedOn' in clean.attempts[0]));
+});
+
+test('a failed typed card is archived (AR-1) with its steps, outcomes, repairs and issue text, and the client gets the validation_error', async t => {
+  quiet(t);
+  providers(t, ok(wrongFences));
+  const puts = [], LEARN_MEDIA = { async put(key, body) { puts.push(JSON.parse(body)); } };
+  const env = { ...offline('google-low'), LEARN_MEDIA, RELEASE_SHA: 'abc123', CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo', org: OWNER.org, user_id: OWNER.userId, email: 'private@example.test' }) } };
+  const res = await artifactFetch(new Request('https://dev.test/api/learn/artifact', { method: 'POST', body: JSON.stringify({ app: 'demo', command: 'explanation', args: 'Explain the box plot fences' }) }), env);
+  const body = await res.json();
+  assert.equal(body.result, 'validation_error');
+  assert.equal(puts.length, 1);
+  assert.equal(puts[0].outcome, 'validation_error');
+  assert.match(puts[0].error, /^explanation_bad_numbers: /);
+  assert.deepEqual(puts[0].steps.map(a => [a.provider, a.outcome, a.repairs, a.issues, a.failedOn]), [['google', 'arithmetic', 1, [FENCE_ISSUE], ['arithmetic', 'arithmetic']], ['fireworks', 'arithmetic', 2, [FENCE_ISSUE], ['arithmetic', 'arithmetic', 'arithmetic']]]);
+  assert.ok(!JSON.stringify(puts[0]).includes('private@example.test'));
+});
+
+// SIMP-1 (Reviewer 2026-11-17): a diagram that cannot be rebuilt in its own kind (a matrix here, standing for the heatmap the prose points at) fails the step with explanation_missing_visual,
+// so the next provider runs; it is never redrawn as a flow. When every step fails that way the failure is delivered as it is (learn-slash.js shows its plain failure line).
+const maskCard = visual => ({ title: 'Causal mask', body: withVisual('The causal mask on decoder scores hides every later word from an earlier one.', { after: 'Each word then attends only to itself and the words before it.', visual: diagramFence(visual) }) });
+// a matrix with one row stays invalid (two to six rows); object columns alone are coerced by the server (matrix_coerced)
+const maskMatrix = rows => ({ version: 1, diagram: { kind: 'matrix', title: 'Causal mask on decoder scores', columns: ['the', 'cat'], rows } });
+const row = (heading, cells) => ({ heading, cells }), badMask = maskCard(maskMatrix([row('cat', ['1', '1'])])), goodMask = maskCard(maskMatrix([row('the', ['1', '0']), row('cat', ['1', '1'])]));
+const maskPlan = () => ({ planned: true, plan: planFromAnswers({
+  visualType: { choice: 'diagram', confidence: 0.95, probabilities: {} }, kind: { choice: 'token-links', confidence: 0.7, probabilities: { 'token-links': 0.7, flow: 0.3 } },
+  depthTreatment: { choice: 'mechanism' }, needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 }, secondVisual: { noul: 0.94 } }) });
+const maskQuestion = 'How does the transformer decoder avoid looking ahead at later words?';
+
+test('SIMP-1: an invalid matrix after the repair fails the step (explanation_missing_visual) and the next provider writes the card; no flow stands in', async t => {
+  quiet(t);
+  const sent = providers(t, ok(badMask), ok(badMask), ok(goodMask));
+  const out = await ask(offline('fireworks-low'), maskQuestion, maskPlan());
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google'], 'the step\'s call and its repair, then the next provider');
+  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['google', 'artifact']]);
+  assert.match(out.attempts[0].issues[0], /^explanation_missing_visual/);
+  assert.deepEqual(out.block.authoredBy, { provider: 'google', model: 'gemini-3.5-flash-lite' });
+  assert.ok(!out.block.visualFallback);
+  assert.match(out.block.body, /"kind":"matrix"/);
+  assert.doesNotMatch(out.block.body, /"kind":"flow"/);
+});
+
+test('SIMP-1: every provider failing that way delivers the failure: explanation_missing_visual, no card, each step\'s issue kept', async t => {
+  quiet(t);
+  const sent = providers(t, ok(badMask));
+  const out = await ask(offline('fireworks-low'), maskQuestion, maskPlan());
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google', 'google']);
+  assert.equal(out.result, 'validation_error');
+  assert.match(out.error, /^explanation_missing_visual/);
+  assert.equal(out.block, undefined);
+  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['google', 'validation_error']]);
+  assert.ok(out.attempts.every(a => /^explanation_missing_visual/.test(a.issues[0])));
 });

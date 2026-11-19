@@ -192,7 +192,7 @@ test('paid primitives always confirm and carry no guessed cost', () => {
   assert.deepEqual(learnRequest('video').paid, ['video_generate']);
   assert.deepEqual(learnRequest('animate').paid, ['maths_animation']);
   assert.deepEqual(learnRequest('3d', { args: 'a transformer block' }).paid, ['blender_scene']);
-  assert.deepEqual(learnRequest('explain').paid, ['narration']); // fish.audio narration is paid (user, via the Learn branch)
+  assert.deepEqual(learnRequest('explain').paid, ['narration']); // ElevenLabs narration is paid (user, via the Learn branch)
   assert.deepEqual(learnRequest('code').paid, []);
 });
 

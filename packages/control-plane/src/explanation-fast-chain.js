@@ -1,6 +1,6 @@
 // The 'fast-chain' adapter of the written /explain model profiles (explanation-models.js fireworks-* and cerebras-*, owner 2026-11-08): a written card must
-// not fail, and it must be fast. Production (fireworks-low) runs the author call on Fireworks gpt-oss-120b; when that step fails (HTTP 429 or 5xx, a
-// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on Gemini gemini-3.5-flash-lite. Cerebras is
+// not fail, and it must be fast. Production (google-low) runs the author call on Gemini gemini-3.5-flash-lite, with Fireworks gpt-oss-120b as the fallback; a fireworks-low profile runs them the other way round. When a step fails (HTTP 429 or 5xx, a
+// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on the next step. Cerebras is
 // never a fallback step (owner, 2026-11-08); a cerebras-* profile, chosen on its own, runs Cerebras, then Fireworks, then Gemini. Never the plan model (Opus). A step whose credential is not set on this server is skipped. Each step is the real generateArtifact (validation, the one repair,
 // the saved card) with this step's transport injected, so every step's calls are admitted, priced and settled by spendTransport like any paid call.
 // EXPLANATION_FALLBACK=off (benchmarks: a fallback is a failure) runs the profile's own provider only, and its failure is reported as one.
@@ -17,7 +17,7 @@ import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
-import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm } from './explanation-references.js';
+import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm, narrowedKinds } from './explanation-references.js';
 import { parseModelJson } from './latex-escapes.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
@@ -72,29 +72,53 @@ export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s =
 const NEW = new Set(NEW_KINDS);
 const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.content ?? []).map(p => (typeof p === 'string' ? p : p?.text)).filter(Boolean).at(-1);
   try { return new Set((JSON.parse(first).requiredVisuals ?? []).map(v => v.diagramKind).filter(Boolean)); } catch { return new Set(); } };
-export const forGemini = (o, keep = new Set()) => {
-  if (Array.isArray(o)) return o.filter(b => !NEW.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
+// Whether a step can write a diagram kind: Gemini's schema (forGemini) drops the NEW kinds unless the request names them; every other provider gets them all.
+// learn-artifact.js ARITHMETIC_REPAIRS_SAME_MODEL reads this to decide whether a step whose answer has a wrong number gets a second repair or hands over to the next provider.
+const geminiWrites = (kind, keep) => !NEW.has(kind) || keep.has(kind);
+export const canWriteKind = (step, kind, keep = new Set()) => step.provider !== 'google' || geminiWrites(kind, keep);
+// VAR-1 step 1 (2026-11-17): the author's `derive` (four annotation kinds) and `op` / `t` (list transformation) cost 6 properties in the mixed plot, heatmap and block-stack bundle, 360 to 366
+// against the 362 limit, so Gemini's step does not get them, and the fields they make optional (an annotation's y or value, a softmax card's after items) stay required for it. The validator
+// still accepts and computes them from any step, and every Gemini bundle stays byte-identical to before.
+const REQUIRED_AGAIN = { point: ['x', 'y'], 'reference-line': ['value'] };
+const withoutDerived = o => {
+  const { derive, op, t, ...properties } = o.properties, kind = properties.kind?.const, again = (schema, names) => ({ ...schema, required: [...(schema.required ?? []), ...names] });
+  for (const end of ['from', 'to']) if (kind === 'segment' || kind === 'vector') properties[end] = again(properties[end], ['y']);
+  if (kind === 'transformation') properties.after = again(properties.after, ['items']);
+  return { ...o, properties, ...(REQUIRED_AGAIN[kind] && { required: [...o.required, ...REQUIRED_AGAIN[kind]] }) };
+};
+// derived (GEN-1 G5): a schema a plan narrowed to one or two kinds is small, so Gemini keeps `derive`, `op` and `t` there (and the fields they make optional stay optional); every other bundle is unchanged.
+export const forGemini = (o, keep = new Set(), derived = false) => {
+  if (Array.isArray(o)) return o.filter(b => geminiWrites(b?.properties?.kind?.const, keep)).map(s => forGemini(s, keep, derived));
   if (!o || typeof o !== 'object') return o;
-  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
-  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
+  if (o.properties?.kind?.const === 'transformation') return derived ? listForm(o) : withoutDerived(listForm(o));
+  if (o.properties?.kind?.const === 'comparison') return listForm(o);
+  if (o.properties?.derive && o.properties.kind && !derived) o = withoutDerived(o); // an annotation that carries `derive`
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep, derived)]));
 };
 
 // The recorded Gemini request accepts up to 362 properties. Scoped
 // illustration bundles fit. If a broader schema exceeds that size, preserve
 // the legacy kinds and explicitly requested illustrations.
-const GEMINI_PROPERTY_LIMIT = 362;
-function schemaProperties(schema) {
+export const GEMINI_PROPERTY_LIMIT = 362;
+export function schemaProperties(schema) {
   if (!schema || typeof schema !== 'object') return 0;
   return Object.keys(schema.properties ?? {}).length + Object.values(schema).reduce((count, child) => count + schemaProperties(child), 0);
 }
-function geminiRequestSchema(schema, keep) {
-  const reduced = forGemini(withoutBounds(schema), keep);
-  if (schemaProperties(reduced) <= GEMINI_PROPERTY_LIMIT) return reduced;
+// narrowed: the kinds a plan narrowed the schema to (narrowedKinds), else null. GEN-1 G5: those kinds are all kept for Gemini (a planned box-plot is no longer dropped) and carry
+// derive / op / t; if that schema is ever over the limit it is re-checked here and loses them again before anything else is cut. Every other schema takes today's path unchanged.
+export function geminiRequestSchema(schema, keep, narrowed = null, limit = GEMINI_PROPERTY_LIMIT) {
+  const bare = withoutBounds(schema);
+  if (narrowed) { const withFields = forGemini(bare, keep, true); if (schemaProperties(withFields) <= limit) return withFields; }
+  const reduced = forGemini(bare, keep);
+  if (schemaProperties(reduced) <= limit) return reduced;
   return bundledAuthorSchema(reduced, {
     quant: true, fresh: true,
     tensor: keep.has('tensor'), tokenLinks: keep.has('token-links'), blockStack: keep.has('block-stack'),
   });
 }
+
+// What Gemini is sent for a request: the learner-named kinds and the kinds a plan narrowed the schema to are kept (GEN-1 G5).
+const geminiSchemaFor = (schema, body) => { const narrowed = narrowedKinds(schema); return geminiRequestSchema(schema, new Set([...requiredKinds(body), ...(narrowed ?? [])]), narrowed); };
 
 // Sampling (owner item 47, 2026-11-08): the author call is greedy, temperature 0, so the same request gives the same card. A fixed seed is sent only where the
 // provider documents it: Fireworks ("Random seed for deterministic sampling", https://docs.fireworks.ai/api-reference/post-chatcompletions) and Cerebras ("make a
@@ -126,7 +150,7 @@ export function stepRequest(step, effort, body, stream = false) {
   const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : step.provider === 'google' ? {} : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
     messages: [{ role: 'system', content: system }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
-    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? geminiRequestSchema(schema, requiredKinds(body)) : schema } } };
+    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? geminiSchemaFor(schema, body) : schema } } };
 }
 
 // OpenAI-shaped reply -> the Anthropic shape generateArtifact and spend settlement read. An unreadable answer is an empty input: the validator names what
@@ -196,6 +220,8 @@ export function stepCall(step, effort, seen = {}, onVisual = null) {
   return async (env, body, _model, org) => {
     if (env.SUBSCRIPTION_ONLY === 'true') throw final('subscription_only', 'Subscription mode runs only the subscription model, so the explanation model was not called.');
     const request = stepRequest(step, effort, body, streaming(env));
+    // GEN-1 G5: a Gemini schema past the recorded limit is detected here (it was sent unchecked before); the log is the only effect.
+    if (step.provider === 'google') { const n = schemaProperties(request.response_format.json_schema.schema); if (n > GEMINI_PROPERTY_LIMIT) console.warn(JSON.stringify({ event: 'explanation_gemini_schema_over_limit', properties: n, limit: GEMINI_PROPERTY_LIMIT })); }
     const id = `${step.provider}_${++calls}`;
     let late = false;
     // The admission bounds and reserves the request actually sent; the transport hands settlement the Anthropic-shaped usage it prices.
@@ -235,22 +261,25 @@ export async function generateWithFallbacks(env, input, options, generate) {
   const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
   try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
   async function runSteps() {
-  for (const step of steps) {
-    const note = outcome => { attempts.push({ provider: step.provider, model: step.model, outcome }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
+  // The kinds the learner named (the request's requiredVisuals, what stepRequest sends and requiredKinds reads back): Gemini writes a NEW kind only for these.
+  const named = new Set((input.visualRequirements?.items ?? []).filter(i => !i.implied).map(i => i.diagramKind).filter(Boolean));
+  for (const [index, step] of steps.entries()) {
+    const next = steps.slice(index + 1).find(later => env[later.credentialRef]); // the provider that would run if this step fails; none: this is the last
+    const note = (outcome, extra = {}) => { attempts.push({ provider: step.provider, model: step.model, outcome, ...extra }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
     if (!env[step.credentialRef]) { note('skipped'); continue; }
     const seen = {};
     let out = null;
-    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
+    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, nextCanWrite: kind => Boolean(next) && canWriteKind(next, kind, named), callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
     catch (error) {
       last = Object.assign(error, { code: error.code || 'provider_error' });
       note(last.code);
       if (error.final || seen.final) break;
       continue;
     }
-    if (out.result === 'artifact') { note('artifact'); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
+    if (out.result === 'artifact') { note('artifact', { repairs: out.repairs ?? 0, ...(out.repairedAt ? { repairedAt: out.repairedAt } : {}), ...(out.failedOn?.length ? { failedOn: out.failedOn } : {}) }); return { ...out, block: { ...out.block, authoredBy: { provider: step.provider, model: seen.model || step.model } }, attempts }; }
     if (out.result !== 'validation_error') return { ...out, attempts }; // a plan refusal or a question back is not a provider failure
     last = { ...out, reason: 'validation_error' };
-    note('validation_error');
+    note(out.numbers ? 'arithmetic' : 'validation_error', { repairs: out.repairs ?? 0, ...(out.failedOn?.length ? { failedOn: out.failedOn } : {}), ...(out.issue ? { issues: [String(out.issue).slice(0, 300)] } : {}) }); // the archive keeps each step's first issue
   }
   if (last instanceof Error) throw Object.assign(last, { attempts });
   return last ? { ...last, attempts } : { result: 'unsupported', message: 'Explanations are not set up on this server yet, so nothing was sent or charged.', reason: 'credential_missing', attempts };

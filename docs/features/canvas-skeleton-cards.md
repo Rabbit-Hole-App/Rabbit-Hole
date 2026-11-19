@@ -18,6 +18,8 @@ on `ui/canvas-skeleton-cards`.
   ("Preparing answer...") reads "Preparing answer…" on the canvas chat card and in the chat sheet, never
   "Preparing answer......".
 
+**Arrow first (owner 2026-11-17).** A skeleton for a card made from a card (Ask in a new card, `reserve({ beside, arrow: true })`) has its connector from the source already: the arrow draws in over 300 ms (`.arrow-draw`, connector.js `slotConnector`), then the skeleton fades in at its end (`.slot-after-arrow`, a 300 ms delay, same place and size). The card that lands takes the skeleton's place and its arrow colour (`parentCard.color`); no second arrow. Reduced motion: both show at once. Other origins (the Tutor's show, Ctrl+K, Explore, the follow-up, drops) reserve no arrow and behave as before.
+
 ## When one appears
 
 | Path | Trigger | Label |

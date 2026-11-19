@@ -107,9 +107,14 @@ row('openai', 'gpt-4o-transcribe', 'standard', 'output', 10, PER.mtok, VERIFIED,
 // so the rate is verified; a call is still priced at the one minute the route assumes. No token rows are listed for it. PRICE_VERSION is deliberately not bumped
 // here: nothing prices with this row until TRANSCRIBE_MODEL=gpt-transcribe is set at activation (decide the bump then).
 row('openai', 'gpt-transcribe', 'standard', 'audio_minute', 0.0045, PER.minute, VERIFIED, 'billed per minute of audio duration; replaces gpt-4o-transcribe (shutdown 2027-02-26)', OPENAI_PRICING);
-// Other billing units. Fish S1 bills UTF-8 input bytes; Scribe v2 Realtime bills audio time; Exa bills per request.
-row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED);
+// Other billing units. Scribe v2 Realtime bills audio time; Exa bills per request.
+// RETIRED 2026-11-17 (owner: one voice, ElevenLabs Jessica, everywhere): Fish S1 (UTF-8 input bytes) is priced by no runtime path any more. The row stays only so usage
+// records already written with provider 'fish' can still be re-priced and audited (the gpt-4o-transcribe precedent); delete it once those records age out.
+row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED, 'retired 2026-11-17: no runtime path prices with it; kept for historical usage records');
 row('elevenlabs', 'scribe_v2_realtime', 'standard', 'audio_hour', 0.39, PER.hour, VERIFIED, 'seconds of audio observed server side');
+// The narrator, every spoken path (narration-voice.js: card audio, Voice Tutor, Read it aloud, /whiteboard): ElevenLabs Flash v2.5 text to speech bills characters. The $0.04 per 1,000 characters is the list price read for the AUD-1 report (2026-11-16);
+// the bill is in plan credits, so the row is an estimate, never presented as measured. PRICE_VERSION is not bumped (the gpt-transcribe precedent): nothing else prices with it.
+row('elevenlabs', 'eleven_flash_v2_5', 'standard', 'input_chars', 0.04, 1000, ESTIMATE, 'list price per 1,000 characters (AUD-1 report 2026-11-16); ElevenLabs bills plan credits', 'https://elevenlabs.io/pricing/api', '2026-11-16');
 row('exa', 'search', 'standard', 'request', 7, 1000, VERIFIED, 'type auto, up to 10 results (+$1 per 1,000 results above 10, +$1 per 1,000 pages per content type)', EXA_PRICING);
 
 const KEY = (provider, model, category, tier = 'standard') => `${provider}|${model}|${category}|${tier}`;

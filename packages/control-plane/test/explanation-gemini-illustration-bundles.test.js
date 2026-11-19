@@ -48,3 +48,15 @@ test('the planner-steered bundle carries its kind, and the unsteered bundle carr
 test('the unsteered bundle is unchanged by the three illustration kinds: 136 properties, 9,977 characters (134 and 9,832 before 7fcc07d0d made a tree title optional inside tree panels; 9,833 before the kinds were added)', () => {
   for (const args of ['how does the water cycle work?', 'how does the TCP handshake work?', 'stack vs queue']) { const s = geminiSchema(args); assert.equal(props(s), 136, args); assert.equal(JSON.stringify(s).length, 9977, args); }
 });
+
+test('VAR-1: `derive` (annotations) and `op` / `t` (list transformation) reach every other provider but never Gemini, and the fields they make optional stay required for Gemini', () => {
+  const kinds = ['coordinate-plot', 'heatmap', 'block-stack'];
+  const body = prepareArtifactAuthorRequest({ ...env, EXPLANATION_MODEL_PROFILE: 'fireworks-low' }, { command: 'explanation', args: 'Show the numeric summaries and their assembly',
+    visualRequirements: { items: kinds.map((diagramKind, index) => ({ id: `vr-${index + 1}`, kind: 'diagram', diagramKind, purpose: `Show the ${diagramKind}` })) } }).body;
+  const gemini = JSON.stringify(stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', body).response_format.json_schema.schema);
+  const other = JSON.stringify(stepRequest({ provider: 'fireworks', model: 'm' }, 'low', body).response_format.json_schema.schema);
+  assert.ok(other.includes('"derive":{'), 'another provider is offered derive');
+  assert.ok(!gemini.includes('"derive":'), 'Gemini is not');
+  const transformation = JSON.stringify(stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', prepareArtifactAuthorRequest(env, { command: 'explanation', args: 'how does a softmax turn scores into probabilities?', depth: 'standard' }).body).response_format.json_schema.schema);
+  assert.ok(!/"op":\{/.test(transformation), 'no op for Gemini');
+});

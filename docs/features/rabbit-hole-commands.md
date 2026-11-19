@@ -294,7 +294,7 @@ no family: `allowedPrimitives` is `null` (Auto).
 
 - Paid: `primitive(id)` gives `{ id, paid: true, needsConfirm: true, estimatedCost: undefined }`
   for image_generate, video_generate, maths_animation, blender_scene and narration
-  (fish.audio). They
+  (ElevenLabs). They
   always need confirmation, even when named with a slash; an explicit command only
   skips the tutor's "would this help?" proposal. `estimatedCost` stays unset: never
   show a guessed amount.
