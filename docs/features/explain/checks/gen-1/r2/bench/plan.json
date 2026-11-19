@@ -1,0 +1,1258 @@
+{
+ "meta": {
+  "questions": 30,
+  "roadmap": 12,
+  "items": 132,
+  "runs": 264
+ },
+ "items": [
+  {
+   "idx": 0,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "rep": 1
+  },
+  {
+   "idx": 1,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "rep": 1
+  },
+  {
+   "idx": 2,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "rep": 1
+  },
+  {
+   "idx": 3,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N1",
+   "prompt": "How does a recommender system decide which movie to show me next?",
+   "rep": 1
+  },
+  {
+   "idx": 4,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N2",
+   "prompt": "What does the temperature setting change when a chatbot writes text?",
+   "rep": 1
+  },
+  {
+   "idx": 5,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N3",
+   "prompt": "How does an autoencoder squeeze a photo and rebuild it?",
+   "rep": 1
+  },
+  {
+   "idx": 6,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N4",
+   "prompt": "Why does a language model sometimes make up facts?",
+   "rep": 1
+  },
+  {
+   "idx": 7,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N5",
+   "prompt": "How do you decide how many clusters to use in k-means on customer data?",
+   "rep": 1
+  },
+  {
+   "idx": 8,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N6",
+   "prompt": "How does a spam filter learn from the emails I mark?",
+   "rep": 1
+  },
+  {
+   "idx": 9,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N7",
+   "prompt": "What happens inside a convolution layer when it scans a handwritten digit?",
+   "rep": 1
+  },
+  {
+   "idx": 10,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N8",
+   "prompt": "How does reinforcement learning teach a robot to walk?",
+   "rep": 1
+  },
+  {
+   "idx": 11,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N9",
+   "prompt": "How does a text-to-image model turn a sentence into a picture?",
+   "rep": 1
+  },
+  {
+   "idx": 12,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N10",
+   "prompt": "How does a fraud model handle a rare class of transactions?",
+   "rep": 1
+  },
+  {
+   "idx": 13,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N11",
+   "prompt": "How does a bakery decide how much dough to prepare for the next morning?",
+   "rep": 1
+  },
+  {
+   "idx": 14,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N12",
+   "prompt": "How does a thermostat keep a room near a set temperature?",
+   "rep": 1
+  },
+  {
+   "idx": 15,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N13",
+   "prompt": "Why does a savings account with compound interest grow faster over time?",
+   "rep": 1
+  },
+  {
+   "idx": 16,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N14",
+   "prompt": "How does a vaccine teach the immune system to recognise a virus?",
+   "rep": 1
+  },
+  {
+   "idx": 17,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N15",
+   "prompt": "How does a city decide where to put a new bus stop?",
+   "rep": 1
+  },
+  {
+   "idx": 18,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 1
+  },
+  {
+   "idx": 19,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O2",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "rep": 1
+  },
+  {
+   "idx": 20,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O3",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 1
+  },
+  {
+   "idx": 21,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O4",
+   "prompt": "How does voting combine several weak classifiers?",
+   "rep": 1
+  },
+  {
+   "idx": 22,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O5",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 1
+  },
+  {
+   "idx": 23,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 1
+  },
+  {
+   "idx": 24,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 1
+  },
+  {
+   "idx": 25,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 1
+  },
+  {
+   "idx": 26,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U4",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "rep": 1
+  },
+  {
+   "idx": 27,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U5",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 1
+  },
+  {
+   "idx": 28,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U6",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "rep": 1
+  },
+  {
+   "idx": 29,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U7",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 1
+  },
+  {
+   "idx": 30,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R1",
+   "rep": 1,
+   "prompt": "Softmax turns scores into probabilities",
+   "roadmap": {
+    "stepTitle": "Softmax turns scores into probabilities",
+    "stepGoal": "See why scores are exponentiated and normalised",
+    "passageText": "A model produces raw scores called logits. Softmax exponentiates each score and divides by the sum so the results are positive and add to one. A larger score gets a larger share."
+   }
+  },
+  {
+   "idx": 31,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R2",
+   "rep": 1,
+   "prompt": "What a decision tree split does",
+   "roadmap": {
+    "stepTitle": "What a decision tree split does",
+    "stepGoal": "See how one question divides the training rows",
+    "passageText": "A decision tree picks a question about one feature, such as is the age above 30. Rows that answer yes go to one branch and the rest to the other. The split is chosen to make each branch purer."
+   }
+  },
+  {
+   "idx": 32,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R3",
+   "rep": 1,
+   "prompt": "How a bakery plans its dough",
+   "roadmap": {
+    "stepTitle": "How a bakery plans its dough",
+    "stepGoal": "See how yesterday and the weekday set today's batch",
+    "passageText": "A small bakery keeps a log of loaves sold each day. On Fridays it sells more than on Mondays, so the manager scales the next day batch from the average of the same weekday, then adds a small margin."
+   }
+  },
+  {
+   "idx": 33,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R4",
+   "rep": 1,
+   "prompt": "Why compound interest grows faster",
+   "roadmap": {
+    "stepTitle": "Why compound interest grows faster",
+    "stepGoal": "See interest earning interest year by year",
+    "passageText": "A savings account adds interest each year to the balance. The next year interest is paid on the larger balance, so the growth each year gets bigger even though the rate stays the same."
+   }
+  },
+  {
+   "idx": 34,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R5",
+   "rep": 1,
+   "prompt": "What a convolution filter does",
+   "roadmap": {
+    "stepTitle": "What a convolution filter does",
+    "stepGoal": "See a small window sliding over an image",
+    "passageText": "A convolution layer slides a small grid of weights over the image. At each position it multiplies the weights with the pixels under it and sums them, producing one number of a new feature map."
+   }
+  },
+  {
+   "idx": 35,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R6",
+   "rep": 1,
+   "prompt": "How a thermostat holds a temperature",
+   "roadmap": {
+    "stepTitle": "How a thermostat holds a temperature",
+    "stepGoal": "See the loop of measuring and switching",
+    "passageText": "A thermostat measures the room temperature and compares it with the set point. If the room is colder it switches the heater on, if it is warmer it switches it off, and the cycle repeats."
+   }
+  },
+  {
+   "idx": 36,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R7",
+   "rep": 1,
+   "prompt": "How a spam filter learns",
+   "roadmap": {
+    "stepTitle": "How a spam filter learns",
+    "stepGoal": "See words and labels turned into a score",
+    "passageText": "A spam filter counts how often each word appears in spam and in normal mail. A new message gets a score from the words it contains, and a score above a threshold is marked as spam."
+   }
+  },
+  {
+   "idx": 37,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R8",
+   "rep": 1,
+   "prompt": "How vaccines teach the immune system",
+   "roadmap": {
+    "stepTitle": "How vaccines teach the immune system",
+    "stepGoal": "See exposure, memory and a faster second response",
+    "passageText": "A vaccine shows the immune system a harmless piece of a virus. The body makes antibodies and keeps memory cells, so a later infection triggers a faster and stronger response."
+   }
+  },
+  {
+   "idx": 38,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R9",
+   "rep": 1,
+   "prompt": "What overfitting looks like",
+   "roadmap": {
+    "stepTitle": "What overfitting looks like",
+    "stepGoal": "See training error fall while validation error rises",
+    "passageText": "As a model gets more flexible its training error keeps falling. Past some point the validation error starts to rise because the model memorises noise in the training rows."
+   }
+  },
+  {
+   "idx": 39,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R10",
+   "rep": 1,
+   "prompt": "How a bus stop is placed",
+   "roadmap": {
+    "stepTitle": "How a bus stop is placed",
+    "stepGoal": "See demand, distance and cost compared",
+    "passageText": "A city planner compares candidate stops by the number of riders within a five minute walk, the distance to the next stop, and the cost of building a shelter."
+   }
+  },
+  {
+   "idx": 40,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R11",
+   "rep": 1,
+   "prompt": "How a language model picks a next word",
+   "roadmap": {
+    "stepTitle": "How a language model picks a next word",
+    "stepGoal": "See probabilities over words and a sample",
+    "passageText": "A language model gives a probability to each possible next word. The temperature setting flattens or sharpens these probabilities before one word is sampled."
+   }
+  },
+  {
+   "idx": 41,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "roadmap",
+   "tag": "R12",
+   "rep": 1,
+   "prompt": "How the elbow method picks clusters",
+   "roadmap": {
+    "stepTitle": "How the elbow method picks clusters",
+    "stepGoal": "See the error fall as clusters are added",
+    "passageText": "K-means is run for several numbers of clusters. The total within-cluster distance falls as clusters are added, and the bend of the curve suggests a good number of clusters."
+   }
+  },
+  {
+   "idx": 42,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "rep": 1
+  },
+  {
+   "idx": 43,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "rep": 1
+  },
+  {
+   "idx": 44,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "rep": 1
+  },
+  {
+   "idx": 45,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N1",
+   "prompt": "How does a recommender system decide which movie to show me next?",
+   "rep": 1
+  },
+  {
+   "idx": 46,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N2",
+   "prompt": "What does the temperature setting change when a chatbot writes text?",
+   "rep": 1
+  },
+  {
+   "idx": 47,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N11",
+   "prompt": "How does a bakery decide how much dough to prepare for the next morning?",
+   "rep": 1
+  },
+  {
+   "idx": 48,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N12",
+   "prompt": "How does a thermostat keep a room near a set temperature?",
+   "rep": 1
+  },
+  {
+   "idx": 49,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 1
+  },
+  {
+   "idx": 50,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 1
+  },
+  {
+   "idx": 51,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 1
+  },
+  {
+   "idx": 52,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "rep": 2
+  },
+  {
+   "idx": 53,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "rep": 2
+  },
+  {
+   "idx": 54,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "rep": 2
+  },
+  {
+   "idx": 55,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N1",
+   "prompt": "How does a recommender system decide which movie to show me next?",
+   "rep": 2
+  },
+  {
+   "idx": 56,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N2",
+   "prompt": "What does the temperature setting change when a chatbot writes text?",
+   "rep": 2
+  },
+  {
+   "idx": 57,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N3",
+   "prompt": "How does an autoencoder squeeze a photo and rebuild it?",
+   "rep": 2
+  },
+  {
+   "idx": 58,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N4",
+   "prompt": "Why does a language model sometimes make up facts?",
+   "rep": 2
+  },
+  {
+   "idx": 59,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N5",
+   "prompt": "How do you decide how many clusters to use in k-means on customer data?",
+   "rep": 2
+  },
+  {
+   "idx": 60,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N6",
+   "prompt": "How does a spam filter learn from the emails I mark?",
+   "rep": 2
+  },
+  {
+   "idx": 61,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N7",
+   "prompt": "What happens inside a convolution layer when it scans a handwritten digit?",
+   "rep": 2
+  },
+  {
+   "idx": 62,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N8",
+   "prompt": "How does reinforcement learning teach a robot to walk?",
+   "rep": 2
+  },
+  {
+   "idx": 63,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N9",
+   "prompt": "How does a text-to-image model turn a sentence into a picture?",
+   "rep": 2
+  },
+  {
+   "idx": 64,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N10",
+   "prompt": "How does a fraud model handle a rare class of transactions?",
+   "rep": 2
+  },
+  {
+   "idx": 65,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N11",
+   "prompt": "How does a bakery decide how much dough to prepare for the next morning?",
+   "rep": 2
+  },
+  {
+   "idx": 66,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N12",
+   "prompt": "How does a thermostat keep a room near a set temperature?",
+   "rep": 2
+  },
+  {
+   "idx": 67,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N13",
+   "prompt": "Why does a savings account with compound interest grow faster over time?",
+   "rep": 2
+  },
+  {
+   "idx": 68,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N14",
+   "prompt": "How does a vaccine teach the immune system to recognise a virus?",
+   "rep": 2
+  },
+  {
+   "idx": 69,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N15",
+   "prompt": "How does a city decide where to put a new bus stop?",
+   "rep": 2
+  },
+  {
+   "idx": 70,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 2
+  },
+  {
+   "idx": 71,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O2",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "rep": 2
+  },
+  {
+   "idx": 72,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O3",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 2
+  },
+  {
+   "idx": 73,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O4",
+   "prompt": "How does voting combine several weak classifiers?",
+   "rep": 2
+  },
+  {
+   "idx": 74,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O5",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 2
+  },
+  {
+   "idx": 75,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 2
+  },
+  {
+   "idx": 76,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 2
+  },
+  {
+   "idx": 77,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 2
+  },
+  {
+   "idx": 78,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U4",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "rep": 2
+  },
+  {
+   "idx": 79,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U5",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 2
+  },
+  {
+   "idx": 80,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U6",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "rep": 2
+  },
+  {
+   "idx": 81,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U7",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 2
+  },
+  {
+   "idx": 82,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "rep": 2
+  },
+  {
+   "idx": 83,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "rep": 2
+  },
+  {
+   "idx": 84,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "rep": 2
+  },
+  {
+   "idx": 85,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N1",
+   "prompt": "How does a recommender system decide which movie to show me next?",
+   "rep": 2
+  },
+  {
+   "idx": 86,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N2",
+   "prompt": "What does the temperature setting change when a chatbot writes text?",
+   "rep": 2
+  },
+  {
+   "idx": 87,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N11",
+   "prompt": "How does a bakery decide how much dough to prepare for the next morning?",
+   "rep": 2
+  },
+  {
+   "idx": 88,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N12",
+   "prompt": "How does a thermostat keep a room near a set temperature?",
+   "rep": 2
+  },
+  {
+   "idx": 89,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 2
+  },
+  {
+   "idx": 90,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 2
+  },
+  {
+   "idx": 91,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 2
+  },
+  {
+   "idx": 92,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "rep": 3
+  },
+  {
+   "idx": 93,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "rep": 3
+  },
+  {
+   "idx": 94,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "rep": 3
+  },
+  {
+   "idx": 95,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N1",
+   "prompt": "How does a recommender system decide which movie to show me next?",
+   "rep": 3
+  },
+  {
+   "idx": 96,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N2",
+   "prompt": "What does the temperature setting change when a chatbot writes text?",
+   "rep": 3
+  },
+  {
+   "idx": 97,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N3",
+   "prompt": "How does an autoencoder squeeze a photo and rebuild it?",
+   "rep": 3
+  },
+  {
+   "idx": 98,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N4",
+   "prompt": "Why does a language model sometimes make up facts?",
+   "rep": 3
+  },
+  {
+   "idx": 99,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N5",
+   "prompt": "How do you decide how many clusters to use in k-means on customer data?",
+   "rep": 3
+  },
+  {
+   "idx": 100,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N6",
+   "prompt": "How does a spam filter learn from the emails I mark?",
+   "rep": 3
+  },
+  {
+   "idx": 101,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N7",
+   "prompt": "What happens inside a convolution layer when it scans a handwritten digit?",
+   "rep": 3
+  },
+  {
+   "idx": 102,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N8",
+   "prompt": "How does reinforcement learning teach a robot to walk?",
+   "rep": 3
+  },
+  {
+   "idx": 103,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N9",
+   "prompt": "How does a text-to-image model turn a sentence into a picture?",
+   "rep": 3
+  },
+  {
+   "idx": 104,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N10",
+   "prompt": "How does a fraud model handle a rare class of transactions?",
+   "rep": 3
+  },
+  {
+   "idx": 105,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N11",
+   "prompt": "How does a bakery decide how much dough to prepare for the next morning?",
+   "rep": 3
+  },
+  {
+   "idx": 106,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N12",
+   "prompt": "How does a thermostat keep a room near a set temperature?",
+   "rep": 3
+  },
+  {
+   "idx": 107,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N13",
+   "prompt": "Why does a savings account with compound interest grow faster over time?",
+   "rep": 3
+  },
+  {
+   "idx": 108,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N14",
+   "prompt": "How does a vaccine teach the immune system to recognise a virus?",
+   "rep": 3
+  },
+  {
+   "idx": 109,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "nomatch",
+   "tag": "N15",
+   "prompt": "How does a city decide where to put a new bus stop?",
+   "rep": 3
+  },
+  {
+   "idx": 110,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O1",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "rep": 3
+  },
+  {
+   "idx": 111,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O2",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "rep": 3
+  },
+  {
+   "idx": 112,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O3",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "rep": 3
+  },
+  {
+   "idx": 113,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O4",
+   "prompt": "How does voting combine several weak classifiers?",
+   "rep": 3
+  },
+  {
+   "idx": 114,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "ontopic",
+   "tag": "O5",
+   "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+   "rep": 3
+  },
+  {
+   "idx": 115,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 3
+  },
+  {
+   "idx": 116,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 3
+  },
+  {
+   "idx": 117,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 3
+  },
+  {
+   "idx": 118,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U4",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "rep": 3
+  },
+  {
+   "idx": 119,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U5",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "rep": 3
+  },
+  {
+   "idx": 120,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U6",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "rep": 3
+  },
+  {
+   "idx": 121,
+   "depth": "balanced",
+   "profile": "google-low",
+   "set": "numeric",
+   "tag": "U7",
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "rep": 3
+  },
+  {
+   "idx": 122,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "A",
+   "prompt": "Can we retrieve the probability of a specific token after generation?",
+   "rep": 3
+  },
+  {
+   "idx": 123,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "B",
+   "prompt": "In the context of \"Getting a token's probability after generation\": what is \"softmax\", and how does it work here?",
+   "rep": 3
+  },
+  {
+   "idx": 124,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "same1",
+   "tag": "C",
+   "prompt": "Does top‑k filtering affect the reported probability of the chosen token?",
+   "rep": 3
+  },
+  {
+   "idx": 125,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N1",
+   "prompt": "How does a recommender system decide which movie to show me next?",
+   "rep": 3
+  },
+  {
+   "idx": 126,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N2",
+   "prompt": "What does the temperature setting change when a chatbot writes text?",
+   "rep": 3
+  },
+  {
+   "idx": 127,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N11",
+   "prompt": "How does a bakery decide how much dough to prepare for the next morning?",
+   "rep": 3
+  },
+  {
+   "idx": 128,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "nomatch",
+   "tag": "N12",
+   "prompt": "How does a thermostat keep a room near a set temperature?",
+   "rep": 3
+  },
+  {
+   "idx": 129,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U1",
+   "prompt": "what does softmax do?",
+   "rep": 3
+  },
+  {
+   "idx": 130,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U2",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "rep": 3
+  },
+  {
+   "idx": 131,
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "set": "numeric",
+   "tag": "U3",
+   "prompt": "How do IQR fences flag outliers in a box plot? Use the data 3, 5, 6, 7, 8, 9, 11, 12, 40.",
+   "rep": 3
+  }
+ ]
+}
