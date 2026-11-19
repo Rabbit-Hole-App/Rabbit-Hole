@@ -7,7 +7,7 @@ export const messageRows = Object.freeze([
 ]);
 export const parameters = Object.freeze({
   classes: ['Notice', 'Request'], reorderedIds: ['m3', 'm1', 'm4', 'm2'],
-  tokens: ['[CLS]', 'send', 'maps', '[SEP]'], features: ['f1', 'f2'],
+  tokens: ['[CLS]', 'send', 'maps', '[SEP]'], features: ['Feature 1', 'Feature 2'],
   states: [[1, 2], [2, 0], [0, 1], [1, 0]],
   probeOtherRows: [[0, 0], [3, 3], [2, 2]],
   weights: [[1, -1], [0, 1]], bias: [0, 1],

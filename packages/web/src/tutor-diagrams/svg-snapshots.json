@@ -1042,17 +1042,17 @@
       "height": 354
     },
     "ml-bert-summary-token-readout/320": {
-      "sha256": "487c25f44f758051a2d6df9dc04b60a809c369ecf33aaf15ba6a0e901e51c36f",
+      "sha256": "7e81a95fcdd8eac5a38e54ae6a5bdd5dcbd6ecaa619f9ba7e93694fd3ad8c8d9",
       "width": 320,
       "height": 493
     },
     "ml-bert-summary-token-readout/408": {
-      "sha256": "212baa3c7d476f784d9ff2757477b9b83cfd85329c8c24131b45e0a278081c63",
+      "sha256": "a0cf66d1778e820a7c1aa48fa310c0d965855b3a0877d687dba1030766c39bd5",
       "width": 408,
       "height": 454
     },
     "ml-bert-summary-token-readout/720": {
-      "sha256": "66a79d21877803b4683f88340d1083a03caf84ed45095a441860f66ed10e82c6",
+      "sha256": "e82dceff609ce7354bccefbb82f665efa1f049f96c0c7e81f673e481b39090f4",
       "width": 720,
       "height": 437
     },

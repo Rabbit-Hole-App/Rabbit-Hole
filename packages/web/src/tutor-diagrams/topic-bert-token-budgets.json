@@ -34,27 +34,27 @@
       "overview": [
         {
           "field": "spec",
-          "tokens": 128,
-          "sha256": "5b3b17d8a6b60c26e1c1adb72854725fbd7d57cbab0ce608282ca410d2e6a619"
+          "tokens": 129,
+          "sha256": "d6e61e47e940eda5c126e15f37c42765f67b6a535742beae1793b0b2dfc829f9"
         }
       ],
       "standard": [
         {
           "field": "spec",
-          "tokens": 164,
-          "sha256": "a4794e51c699aa4441a43dab68e6f1d3423b407c791f2ea1402b3115147aa32c"
+          "tokens": 166,
+          "sha256": "8f7e5838a11f31165493005f1c62b4c13af3bc5d8fb05684102421c6ce1ef076"
         }
       ],
       "deep": [
         {
           "field": "spec",
-          "tokens": 89,
-          "sha256": "e79b59fdd843280677ba2168f7ada85e155bd5fccfc3ae2f651179eca1bba59e"
+          "tokens": 84,
+          "sha256": "c55485cb2d612e6d81e61bc0e82a7ffedfb56f6a405625a18a4a4ab4aa6b636d"
         },
         {
           "field": "detailSpec",
-          "tokens": 149,
-          "sha256": "8b70a5c56a14914192a3eb89502421269d89aa16c2be52c41aefe3a1f09402e3"
+          "tokens": 151,
+          "sha256": "6b56b53c8c8501d691656e28daccec3500192f92aebfefcc9f8584cd7c529716"
         }
       ]
     }

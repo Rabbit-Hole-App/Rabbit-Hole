@@ -58,9 +58,11 @@ test('C04 BERT views preserve source lessons, magnitude readout and readable ful
     assert.ok(spec.diagram.highlights.every(cell => cell.row === parameters.tokens.indexOf('[CLS]')));
     assert.ok(spec.diagram.caption.includes('CLS'));
   }
-  assert.strictEqual(readout.depths.overview.spec.diagram.columns.length, 1);
-  assert.strictEqual(readout.spec.diagram.columns.length, parameters.features.length);
+  assert.deepStrictEqual(readout.depths.overview.spec.diagram.columns, ['Feature 1']);
+  assert.deepStrictEqual(readout.spec.diagram.columns, ['Feature 1', 'Feature 2']);
+  assert.deepStrictEqual(readout.depths.deep.detailSpec.diagram.columns, ['Feature 1', 'Feature 2']);
   assert.deepStrictEqual(readout.depths.deep.spec.diagram.bars.map(bar => bar.value), d.readout.base.scores);
-  assert.ok(readout.depths.deep.spec.diagram.caption.includes('hW+b'));
+  assert.equal(readout.depths.deep.spec.diagram.unit, undefined);
+  assert.match(readout.depths.deep.spec.diagram.caption, /Logits .*hW\+b/u);
   assert.match(readout.depths.deep.detailSpec.diagram.caption, /after encoding.*CLS.*fixed/iu);
 });
