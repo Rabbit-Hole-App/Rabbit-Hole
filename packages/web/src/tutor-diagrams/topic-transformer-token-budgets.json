@@ -20,8 +20,8 @@
       "deep": [
         {
           "field": "spec",
-          "tokens": 96,
-          "sha256": "965e18f2b04a54730496e995b403b75eb8162e10ec4969bed540b16258ffa83f"
+          "tokens": 98,
+          "sha256": "ae069ab11d0a386f3ed858e9eef811952aa850dfd176bc53ccec6d5d997cf140"
         },
         {
           "field": "detailSpec",
@@ -69,15 +69,15 @@
       "standard": [
         {
           "field": "spec",
-          "tokens": 173,
-          "sha256": "fd56e2443a91116f4360b9e7cd09b200403a00cbddc8aecaedfd3fee48ce55b0"
+          "tokens": 175,
+          "sha256": "4bb3777820e10bab46f004449b5b050b21d3912b56f8687051c4dae18ec29b3f"
         }
       ],
       "deep": [
         {
           "field": "spec",
-          "tokens": 179,
-          "sha256": "a823cbf5c382ae8bc82748a6f7f66418e6a0a9fd314904037be622c073dc32bd"
+          "tokens": 183,
+          "sha256": "e3a3ec697d273412d10631b16bbf8bffec863bf5be986ec62ab5d3adb2225d67"
         },
         {
           "field": "detailSpec",

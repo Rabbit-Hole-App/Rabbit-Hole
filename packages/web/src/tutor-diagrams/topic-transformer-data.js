@@ -5,7 +5,7 @@ export const parameters = Object.freeze({
   queries: [[1, 0], [0, 1]], keys: [[2, 0], [0, 2], [1, 1], [20, 20]],
   values: [[2, 0], [0, 2], [1, 1], [9, 9]], broadQueryScale: 0.25, precision: 3,
   current: ['we', 'read', 'maps'], prior: ['old', 'maps'], focus: 'read',
-  slots: ['[CLS]', 'we', 'read', '[SEP]'], features: ['f1', 'f2'], layers: ['W_a', 'W_b'],
+  slots: ['[CLS]', 'we', 'read', '[SEP]'], features: ['Feature 1', 'Feature 2'], layers: ['W_1', 'W_2'],
   architectures: { causal: 'GPT-2', bidirectional: 'BERT', memory: 'Transformer-XL' },
 });
 const sum = values => values.reduce((total, value) => total + value, 0);
