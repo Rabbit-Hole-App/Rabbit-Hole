@@ -2811,6 +2811,51 @@
       "width": 720,
       "height": 311
     },
+    "pool-booklet-press-pages/320": {
+      "sha256": "a3c6def24a7ee6a919079ac6264aa230214e50d49412277beaffb96b228e61e1",
+      "width": 320,
+      "height": 328
+    },
+    "pool-booklet-press-pages/408": {
+      "sha256": "36f7e26345682ac757182764d4387daa82e955dabd90030e6b310434c18e6e82",
+      "width": 408,
+      "height": 289
+    },
+    "pool-booklet-press-pages/720": {
+      "sha256": "dfbf0126af955200398e6741ea1d8fd8fa5c488491e0a3bd57e4659416c8b8b3",
+      "width": 720,
+      "height": 289
+    },
+    "pool-club-poster-inks/320": {
+      "sha256": "f879fe9fe0869b9212a6f6e14888f91824006d32a28eaee62575e72102b4e0ad",
+      "width": 320,
+      "height": 475
+    },
+    "pool-club-poster-inks/408": {
+      "sha256": "2905cd7dadca75f710e3e523f5034e9c841a948d45a35e9ac14fd2a79e7ee632",
+      "width": 408,
+      "height": 396
+    },
+    "pool-club-poster-inks/720": {
+      "sha256": "416050c75353f0de255c3824229d2e07112a6340869f53e0c0699c430040fbdb",
+      "width": 720,
+      "height": 339
+    },
+    "pool-double-glazed-window/320": {
+      "sha256": "1557636d9008325103fe9c5b19236e060fac36cf3e3c1509ea03e01c368be4ed",
+      "width": 320,
+      "height": 508
+    },
+    "pool-double-glazed-window/408": {
+      "sha256": "eea5b58ebac60d6cd9a5cee3e0b2fb817fac4f7026c2f7a3ef0bca6b457e5be9",
+      "width": 408,
+      "height": 435
+    },
+    "pool-double-glazed-window/720": {
+      "sha256": "b8a3f3595060db86b865066ffb69329fd53e09d95cfb74e9bc2d1c3115f6d16f",
+      "width": 720,
+      "height": 418
+    },
     "pool-exhibit-tank-refill/320": {
       "sha256": "8f65293be0768e98ca22324e6cb9c9ca257797995445bb9423f44e2705cbc0f1",
       "width": 362,
@@ -2826,6 +2871,21 @@
       "width": 720,
       "height": 311
     },
+    "pool-felt-mug-sleeve/320": {
+      "sha256": "5c2170480948aae5764fe526b07c392ad0ca5399e9da97e51dadfff915c31c70",
+      "width": 320,
+      "height": 513
+    },
+    "pool-felt-mug-sleeve/408": {
+      "sha256": "5c780bdab01f3554f13086a893b00df5b03fb23f4223367e0e056208cc6fb669",
+      "width": 408,
+      "height": 418
+    },
+    "pool-felt-mug-sleeve/720": {
+      "sha256": "6bcaa4d46c701b1eb6bc8c39b76a0d7a5659ce255fccddb22b42eaaa25bceb93",
+      "width": 720,
+      "height": 339
+    },
     "pool-fired-tile-widths/320": {
       "sha256": "eb05028422c539ee49db03c408d2135cdb2b3b3ebdb91ccb91588ec4c753e462",
       "width": 360,
@@ -2840,6 +2900,81 @@
       "sha256": "04b29eaf0efd964dc6c6cc6192fab8e682c30ca19183e2989fb0f3dbcddd95d4",
       "width": 720,
       "height": 420.5
+    },
+    "pool-fixed-border-thumbnail-crop/320": {
+      "sha256": "67367ac82cb0e806ff14bc83bb02dab851c6ce318c4ada4009516afdb09b2617",
+      "width": 320,
+      "height": 458
+    },
+    "pool-fixed-border-thumbnail-crop/408": {
+      "sha256": "b20cf8c4725afe43148165a054436bc207e85efb43999bd2aff70ee2e4fc28a2",
+      "width": 408,
+      "height": 343
+    },
+    "pool-fixed-border-thumbnail-crop/720": {
+      "sha256": "3835e1e3f67d907b6a9e9be2755b11b64b5e2935010f6ba0729a0688e23b8d7f",
+      "width": 720,
+      "height": 307
+    },
+    "pool-granola-batch-ingredients/320": {
+      "sha256": "ace1030d04d09b0481eab800aa50d6c6281fee635c6a9b6b1c0e5949fab79f27",
+      "width": 320,
+      "height": 292
+    },
+    "pool-granola-batch-ingredients/408": {
+      "sha256": "b75eac036b2442de7a7dc483577aa06c3f01f13f51685e17d4a6c2ee51edab2f",
+      "width": 408,
+      "height": 270
+    },
+    "pool-granola-batch-ingredients/720": {
+      "sha256": "872634299d7ffadeb48c0c94cc6c57fc8c782ff99299e666ee182577accff842",
+      "width": 720,
+      "height": 253
+    },
+    "pool-hanging-shop-sign/320": {
+      "sha256": "433640ce417651c3e0b2604062b3045613437192a410a8547ae41a83cac4a666",
+      "width": 320,
+      "height": 618
+    },
+    "pool-hanging-shop-sign/408": {
+      "sha256": "6c60e4f8d88c9df36e9d9e60e61e6cbb5243c7ddea5af9ee890fb5600af35eb0",
+      "width": 408,
+      "height": 562
+    },
+    "pool-hanging-shop-sign/720": {
+      "sha256": "46d19a69f45fca20266bafbc5966a680c0bf13de9b6bdf4843bd3181e5521d5a",
+      "width": 720,
+      "height": 545
+    },
+    "pool-hilltop-park-map-layers/320": {
+      "sha256": "bb8c1605eded4cf9519880b3ffbf3564f4be039acd385a7c7cf24ef4f9c95583",
+      "width": 320,
+      "height": 382
+    },
+    "pool-hilltop-park-map-layers/408": {
+      "sha256": "dc3fba6a767a3cf01b2607b4db1b1aafab725c33a5ca2eda67f96035be1d68f4",
+      "width": 408,
+      "height": 360
+    },
+    "pool-hilltop-park-map-layers/720": {
+      "sha256": "1e5b869039abfede149013f2f35d44d7de04f4facf305126961c2b5cd17c160a",
+      "width": 720,
+      "height": 343
+    },
+    "pool-late-library-return/320": {
+      "sha256": "dbec4e03436480765558efa301a73fc8905ccde2e1f6fbdb4adbd386948474d6",
+      "width": 320,
+      "height": 513
+    },
+    "pool-late-library-return/408": {
+      "sha256": "0b07b9fa4b1c8a8ac2255c5b481c46bd66bfcacedaf15ff62435caf3f28da624",
+      "width": 408,
+      "height": 456
+    },
+    "pool-late-library-return/720": {
+      "sha256": "86def62017eb1908ae27992172a3c39e847d98daf7bd616ca8891b5e286355d7",
+      "width": 720,
+      "height": 339
     },
     "pool-orchard-packing-expense/320": {
       "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
@@ -2871,6 +3006,21 @@
       "width": 720,
       "height": 344
     },
+    "pool-raspberry-cocoa-slice-layers/320": {
+      "sha256": "a20fd0413d588a8a3d9f2a3a6a658235c47f0d620c92789ee855d8965505bc91",
+      "width": 320,
+      "height": 382
+    },
+    "pool-raspberry-cocoa-slice-layers/408": {
+      "sha256": "6c8773bd58e6a6b196da910dac6213a1868ba1c3120c281f196d5b2b34319877",
+      "width": 408,
+      "height": 360
+    },
+    "pool-raspberry-cocoa-slice-layers/720": {
+      "sha256": "d9494941b20d02286d29ba8259d81ef6d5f9b724c6c6621fff249d5d8576c5c9",
+      "width": 720,
+      "height": 343
+    },
     "pool-robotics-parts-payable/320": {
       "sha256": "0a99d089f0cdd64037c4fabb0d53ba600784e0b8538c38b4cff8b47e15beea22",
       "width": 320,
@@ -2886,6 +3036,21 @@
       "width": 720,
       "height": 344
     },
+    "pool-sliding-shipping-crate/320": {
+      "sha256": "d261fccc3cf436067d8441ba6ff0d03bd0ec7a8112883d7306ce1af624b212cd",
+      "width": 320,
+      "height": 739
+    },
+    "pool-sliding-shipping-crate/408": {
+      "sha256": "6d49f19db203480131ce379ee57ac8243dbb002105596c3cc5d060adaf04d38b",
+      "width": 408,
+      "height": 649
+    },
+    "pool-sliding-shipping-crate/720": {
+      "sha256": "696f273e2ecea184d3bf6c7790ca2fec96754bbb6e9c4ac500affb5ff41573a0",
+      "width": 720,
+      "height": 649
+    },
     "pool-soundcheck-time-window/320": {
       "sha256": "0d4d5151ec33e8696e6973f35dbfb0d4183427d6ff3a8e8a396f4ffc8a711358",
       "width": 320,
@@ -2900,6 +3065,21 @@
       "sha256": "e9cbf72ff6593b806e0d57da76eed319bb650feebb22b5547168fb1f95854d29",
       "width": 720,
       "height": 339
+    },
+    "pool-stereo-audio-frame/320": {
+      "sha256": "9d1d05163045ddf570ff94b464af794f8d71f59e1126626394f01ec5363c4db4",
+      "width": 320,
+      "height": 256
+    },
+    "pool-stereo-audio-frame/408": {
+      "sha256": "809ee3259dae0aeef625194922f7286f0d38f4b85bfc364af80a98dd6e77b9c4",
+      "width": 408,
+      "height": 234
+    },
+    "pool-stereo-audio-frame/720": {
+      "sha256": "c1826a6e77e7bc190042d6dee8d8087e3689198f2eece24eee5bed0a66dc7a49",
+      "width": 720,
+      "height": 217
     },
     "pool-sunflower-tray-heights/320": {
       "sha256": "cba2e23f8ac2c32e4f1f8b13cc31ea651e3ad4d01453884c210acd8716db871a",
