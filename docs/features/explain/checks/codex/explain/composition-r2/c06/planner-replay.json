@@ -1,0 +1,1019 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "1e122082cc10637e6e9c601f19300d9642962a7f",
+    "tree": "ae05a4b16c10913d6a65cf9fcced7f05c58b1077",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "522ac49bdeadbd5d7d8afee924619959f286d2ba",
+    "tree": "5442c864a7ea0d762a96430b78ec26cda0deae3c",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3288,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 84,
+    "newOwnPromptFirstPicks": 84,
+    "newOwnExactPromptFirstPicks": 84
+  },
+  "execution": {
+    "workerThreads": 3,
+    "uniqueCaseInputs": 3481,
+    "reusedBaseCaseInputs": 3397,
+    "computedBaseCaseInputs": 84,
+    "computedCandidateCaseInputs": 3481
+  },
+  "existingMoves": [],
+  "errors": [],
+  "publishedCommit": "d3f202ff5fe3e416d5865000b10a9859f4697987",
+  "publishedTree": "5442c864a7ea0d762a96430b78ec26cda0deae3c",
+  "publishedBaseline": "3f868d330e5dac469454f8e6feb2147992e24844",
+  "ownPrompts": [
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "The output vocabulary defines a fixed ordering of slots in the prediction vector.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "A one-hot target identifies the observed next token by marking only its vocabulary slot.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "one-hot-encoding",
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": "one-hot-encoding",
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "How do indexed output slots keep the stop entry identifiable?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "Show the observed token indicator for bring in a fixed vocabulary.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "Change an observed token indicator while preserving indexed output slots.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "Which indexed output slots are active for the observed stop target?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "prompt": "Explain an observed token indicator without changing vocabulary order.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-vocabulary-target-slots",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-vocabulary-target-slots",
+          "beforePlannerKind": "heatmap",
+          "afterPlannerKind": "heatmap"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "Training compares the model's next-token distribution with the observed target token.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "Assigning greater probability to observed next tokens reduces their cross-entropy loss.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "softmax-probabilities",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "softmax-probabilities",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "ml-transformer-vocabulary-softmax",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "ml-transformer-vocabulary-softmax",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "Show paired token distributions with the same observed bring target.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "How do illustrative distribution losses change after the target logit rises?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "bias-variance-decomposition",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "bias-variance-decomposition",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "bias-variance-decomposition",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "bias-variance-decomposition",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "bias-variance-decomposition",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "bias-variance-decomposition",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "Compare full paired token distributions against the fixed one-hot target.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "Compute illustrative distribution losses before rounding their labels.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": "bias-variance-decomposition",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "bias-variance-decomposition",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": "bias-variance-decomposition",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "bias-variance-decomposition",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": "bias-variance-decomposition",
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": "bias-variance-decomposition",
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "prompt": "Keep vocabulary and true target fixed in paired token distributions.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-target-probability-and-loss",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-target-probability-and-loss",
+          "beforePlannerKind": "bar-chart",
+          "afterPlannerKind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "A target sentence supplies a different next-token label at each prefix position during training.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "A next-token training example aligns each prefix with its immediate continuation.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "A causal language model learns by predicting each next token from earlier tokens.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "Show observed prefix labels including the final stop target.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "Which training continuation rows change after a later observed token is edited?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "Explain observed prefix labels without generated-token feedback.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "Align overlapping training continuation rows from one sentence.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "prompt": "Keep pretraining token targets separate from class labels in observed prefix labels.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-language-training-prefix-target-alignment",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-language-training-prefix-target-alignment",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "prompt": "A document and its lead summary can provide a paired example for supervised summarization.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "prompt": "Show raw summarization pairs before adding a task marker.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "prompt": "Keep source bodies attached to supplied leads in body lead supervision.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "prompt": "Reorder raw summarization pairs without swapping their target summaries.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "prompt": "Which fields are supplied in body lead supervision?",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    },
+    {
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "prompt": "Show body lead supervision without claiming generated summaries.",
+      "promptType": "exact",
+      "newReference": true,
+      "outcomes": [
+        {
+          "depth": "brief",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "balanced",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        },
+        {
+          "depth": "detailed",
+          "beforeId": null,
+          "afterId": "ml-summarization-supervised-summary-pair",
+          "beforeReferenceId": null,
+          "afterReferenceId": "ml-summarization-supervised-summary-pair",
+          "beforePlannerKind": "matrix",
+          "afterPlannerKind": "matrix"
+        }
+      ]
+    }
+  ]
+}

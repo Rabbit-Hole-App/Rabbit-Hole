@@ -1,0 +1,20 @@
+{
+  "commit": "522ac49bdeadbd5d7d8afee924619959f286d2ba",
+  "tree": "5442c864a7ea0d762a96430b78ec26cda0deae3c",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-language-training-vocabulary-target-slots",
+    "ml-language-training-target-probability-and-loss",
+    "ml-language-training-prefix-target-alignment",
+    "ml-summarization-supervised-summary-pair"
+  ],
+  "additionalReusedIds": [],
+  "references": [],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label",
+  "review": {
+    "authoredLabelsCompliant": true,
+    "authoredLabels": []
+  },
+  "publishedCommit": "d3f202ff5fe3e416d5865000b10a9859f4697987",
+  "publishedTree": "5442c864a7ea0d762a96430b78ec26cda0deae3c"
+}

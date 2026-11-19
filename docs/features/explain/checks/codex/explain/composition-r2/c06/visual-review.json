@@ -1,0 +1,12 @@
+{
+  "commit": "522ac49bdeadbd5d7d8afee924619959f286d2ba",
+  "tree": "5442c864a7ea0d762a96430b78ec26cda0deae3c",
+  "viewsRead": 14,
+  "noteExceptions": [],
+  "observations": [
+    "`ml-language-training-prefix-target-alignment` Detailed uses a title that can read as if the label is produced from the prefix. The table and caption show the observed next token as the target. The wording is called out for review.",
+    "`ml-language-training-target-probability-and-loss` omits some numeric bar labels at 408 px. The axis and groups support the comparison, and the Detailed companion prints both computed losses."
+  ],
+  "publishedCommit": "d3f202ff5fe3e416d5865000b10a9859f4697987",
+  "publishedTree": "5442c864a7ea0d762a96430b78ec26cda0deae3c"
+}
