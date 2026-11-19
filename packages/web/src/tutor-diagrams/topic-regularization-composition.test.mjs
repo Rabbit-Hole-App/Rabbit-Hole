@@ -84,21 +84,46 @@ test('C01 displayed quantities come from the shared computation, not caption lit
 });
 
 
-test('C01 dropout author example exposes the mask and keep probability behind its training output', () => {
-  const single = singleDiagramReferences.find(row => row.panelReferenceId === 'ml-regularization-dropout-mask');
-  const caption = single.spec.diagram.caption ?? '';
-  const vector = name => {
-    const match = caption.match(new RegExp(`\\$${name}=\\(([^)]+)\\)\\$`));
-    assert.ok(match, `${name} must be visible in the author example`);
-    return match[1].split(',').map(Number);
-  };
-  const h = vector('h'), mask = vector('m');
-  const probability = caption.match(/\$q=([^$]+)\$/);
-  assert.ok(probability, 'keep probability must be visible');
-  const q = Number(probability[1]), d = derived();
-  assert.deepStrictEqual(h, d.hidden.selected.activations);
-  assert.deepStrictEqual(mask, d.dropout.selected.mask);
-  assert.strictEqual(q, d.parameters.dropout.keepProbability);
-  assert.deepStrictEqual(single.spec.diagram.series[0].samples.y, h.map((value, i) => value * mask[i] / q));
-  assert.match(caption, /inference.*\$h\$/i);
+const authorDiagram = id => singleDiagramReferences.find(row => row.id === id).spec.diagram;
+const hiddenSums = input => parameters.hidden.weights.map((weights, index) =>
+  weights.reduce((sum, weight, i) => sum + weight * input[i], parameters.hidden.biases[index]));
+
+test('C01 linear unit author example shows both inputs through to the recomputed prediction', () => {
+  const { x: input } = trainingRows[parameters.selectedRow];
+  const { weights, bias } = parameters.linear;
+  const [first, second] = input.map((value, index) => value * weights[index]);
+  const diagram = authorDiagram('ml-linear-regression-linear-unit-single');
+  assert.strictEqual(diagram.kind, 'block-stack');
+  const [sum, output] = diagram.blocks;
+  assert.deepStrictEqual(sum.inputs.map(branch => branch.label), [
+    `Feature A: $${input[0]}×${weights[0]}$`,
+    `Feature B: $${input[1]}×${weights[1]}$`,
+  ]);
+  assert.strictEqual(sum.dims, `$${first} + ${second} + ${bias}$`);
+  assert.strictEqual(output.dims, String(first + second + bias));
+  assert.strictEqual(output.role, 'output');
+});
+
+test('C01 hidden layer author example shows the same hidden units before and after ReLU', () => {
+  const before = hiddenSums(parameters.hiddenProbe);
+  const diagram = authorDiagram('ml-neural-networks-hidden-layer-single');
+  assert.strictEqual(diagram.variant, 'grouped');
+  assert.deepStrictEqual(diagram.categories, ['Unit A', 'Unit B']);
+  assert.deepStrictEqual(diagram.series.map(series => series.values), [before, before.map(value => Math.max(0, value))]);
+  assert.ok(before.some(value => value < 0));
+});
+
+test('C01 dropout author example shows original, masked and rescaled activations', () => {
+  const { mask, keepProbability } = parameters.dropout;
+  const { x: input } = trainingRows[parameters.selectedRow];
+  const activations = hiddenSums(input).map(value => Math.max(0, value));
+  const masked = activations.map((value, i) => value * mask[i]);
+  const diagram = authorDiagram('ml-regularization-dropout-mask-single');
+  assert.strictEqual(diagram.variant, 'grouped');
+  assert.deepStrictEqual(diagram.categories, ['Unit A', 'Unit B']);
+  assert.deepStrictEqual(diagram.series.map(series => series.values),
+    [activations, masked, masked.map(value => value / keepProbability)]);
+  assert.ok(diagram.caption.includes(`Mask $(${mask.join(', ')})$`));
+  assert.ok(diagram.caption.includes(`keep probability (${keepProbability})`));
+  assert.match(diagram.caption, /inference uses the input values/i);
 });

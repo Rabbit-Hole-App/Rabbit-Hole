@@ -1,26 +1,55 @@
 import { derived } from './topic-regularization-data.js';
-import { references as linearReferences } from './topic-linear-regression-references.js';
-import { references as hiddenReferences } from './composition-neural-networks-references.js';
 import { references as regularizationReferences } from './composition-regularization-references.js';
 
 const d = derived();
-const references = [...linearReferences, ...hiddenReferences, ...regularizationReferences];
-const panel = (id, title, useWhen, caption) => {
-  const leaf = references.find(reference => reference.id === id).spec.diagram.panels.find(({ diagram }) => diagram.title === title).diagram;
-  // The author schema omits total; a stacked bar derives the same whole from its unchanged parts.
-  const { total, ...diagram } = leaf;
-  return { spec: { version: 1, diagram: caption ? { ...diagram, caption } : diagram }, useWhen };
+const single = (diagram, useWhen) => ({ spec: { version: 1, diagram }, useWhen });
+const { input, terms, prediction } = d.linear.selected;
+const { weights, bias } = d.parameters.linear;
+const linearUnit = {
+  kind: 'block-stack', title: 'How a linear unit predicts from features',
+  blocks: [
+    { id: 'sum', label: 'Sum the weighted inputs and bias', dims: `$${[...terms, bias].join(' + ')}$`,
+      inputs: ['A', 'B'].map((feature, index) => ({ label: `Feature ${feature}: $${input[index]}×${weights[index]}$` })) },
+    { id: 'prediction', label: 'Prediction', dims: String(prediction), role: 'output' },
+  ],
+  caption: 'Each feature is multiplied by its own weight. The bias shifts every prediction by the same amount.',
 };
 
-// Reuse the computed panel that carries each figure's point, rather than its final output alone.
+const hiddenUnits = ['Unit A', 'Unit B'];
+const relu = {
+  kind: 'bar-chart', variant: 'grouped', title: 'Hidden units before and after ReLU',
+  categories: hiddenUnits,
+  series: [
+    { label: 'Before ReLU', values: d.hidden.probe.preactivations },
+    { label: 'After ReLU', values: d.hidden.probe.activations },
+  ],
+  caption: 'ReLU clips negative values to zero. The output combines the resulting nonlinear features.',
+};
+
+const { mask, masked, scaled } = d.dropout.selected;
+const dropout = {
+  kind: 'bar-chart', variant: 'grouped', title: 'Dropout masks and rescales hidden units',
+  categories: hiddenUnits,
+  series: [
+    { label: 'Input', values: d.hidden.selected.activations },
+    { label: 'Masked', values: masked },
+    { label: 'Training output', values: scaled },
+  ],
+  caption: `Mask $(${mask.join(', ')})$. Divide survivors by the keep probability (${d.parameters.dropout.keepProbability}). Inference uses the input values.`,
+};
+
+const objective = regularizationReferences.find(reference => reference.id === 'ml-regularization-regularized-objective')
+  .spec.diagram.panels.find(({ diagram }) => diagram.title === 'Objective parts').diagram;
+// The author schema omits total. The renderer sums the parts of a stacked bar.
+const { total, ...objectiveParts } = objective;
+
 export const regularizationSingleSpecs = Object.freeze({
-  'ml-linear-regression-linear-unit': panel('ml-linear-regression-linear-unit', 'Linear unit',
-    'Show input features feeding one affine weighted-sum unit with weights and bias; not a fitted-line residual plot or a nonlinear hidden layer.'),
-  'ml-neural-networks-hidden-layer': panel('ml-neural-networks-hidden-layer', 'After ReLU',
-    'Show the nonlinear hidden features after ReLU and before the readout; not the final prediction alone, an activation-function curve, or an optimizer loop.'),
-  'ml-regularization-regularized-objective': panel('ml-regularization-regularized-objective', 'Objective parts',
+  'ml-linear-regression-linear-unit': single(linearUnit,
+    'Trace feature values through the weights and bias of an affine unit to its prediction.'),
+  'ml-neural-networks-hidden-layer': single(relu,
+    'Compare each hidden unit before and after ReLU so the negative value clipped to zero is visible.'),
+  'ml-regularization-regularized-objective': single(objectiveParts,
     'Show data fit and the weight penalty stacked into the total regularized objective for fixed predictions; not an optimizer update or an overfitting curve.'),
-  'ml-regularization-dropout-mask': panel('ml-regularization-dropout-mask', 'Training output',
-    'Show hidden activations after a temporary training mask and keep-probability rescaling; not unscaled masked activations, permanent neuron pruning, or inference output.',
-    `Toy $h=(${d.hidden.selected.activations.join(',')})$, $m=(${d.dropout.selected.mask.join(',')})$, $q=${d.parameters.dropout.keepProbability}$. Training uses $m\\odot h/q$; inference keeps $h$.`),
+  'ml-regularization-dropout-mask': single(dropout,
+    'Compare original, masked and rescaled activations for the same hidden units during dropout.'),
 });

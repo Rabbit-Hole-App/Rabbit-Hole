@@ -5,6 +5,7 @@ import { references } from './composition-distribution-shift-references.js';
 import { tutorDiagramSchema } from './spec.js';
 import { lintDiagramContent } from './content-contract.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
+import { singleDiagramReferences } from './reference-single-variants.js';
 
 const classes = ['A', 'B'];
 const countLabels = labels => classes.map(name => labels.filter(label => label === name).length);
@@ -115,6 +116,20 @@ test('C02 concept views keep conditional input fixed, preserve both competing cl
   assert.ok(deep.spec.diagram.caption.includes(`Same ${d.concept.unchangedInputs} inputs in both studios`));
   assert.ok(deep.spec.diagram.caption.includes(`${d.concept.changedLabels} labels change`));
   assert.deepStrictEqual(deep.detailSpec.diagram.panels.map(panel => panel.diagram.bars.map(bar => bar.value)), d.concept.settings.map(setting => setting.classCounts));
+});
+
+test('C02 concept shift author example compares the labels both studios give the same cards', () => {
+  const slice = cards.filter(card => card.tone === 'dark' && card.shape === 'round');
+  const studios = Object.entries(namingRules);
+  const { spec: { diagram } } = singleDiagramReferences.find(row => row.id === 'ml-distribution-shift-concept-shift-single');
+  assert.strictEqual(diagram.kind, 'bar-chart');
+  assert.strictEqual(diagram.variant, 'grouped');
+  assert.deepStrictEqual(diagram.categories, studios.map(([name]) => name));
+  assert.deepStrictEqual(diagram.series, classes.map(label => ({
+    label: `Label ${label}`,
+    values: studios.map(([, rule]) => slice.filter(card => rule[card.shape] === label).length),
+  })));
+  for (const [name, rule] of studios) assert.ok(diagram.caption.includes(`${name} labels round ${rule.round} and square ${rule.square}.`));
 });
 
 test('C02 shift compositions obey the frozen schema and content contract and fit the real 680 px renderer', () => {

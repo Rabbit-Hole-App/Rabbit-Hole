@@ -792,8 +792,8 @@
         "sha256": "fd3dfb5f9b08d2dd0fd5c8cfffdcb83c240d7f5b17b2557dc81f252fbf538a7e"
       },
       "single": {
-        "tokens": 51,
-        "sha256": "e5fd749e4aa6d6371afdeb0010cb91195fa12b04bfbacaf589b403907605b0fe"
+        "tokens": 115,
+        "sha256": "4c28784e86738656e719cc24c8ea064a2a665cfad22c528adb1b0093cd29be6b"
       }
     },
     "ml-neural-networks-hidden-layer": {
@@ -802,8 +802,8 @@
         "sha256": "6d92a32d251120fd558816f82f46c1e24b6f7e72b1c3cb96d80aab30330f2299"
       },
       "single": {
-        "tokens": 40,
-        "sha256": "a469b201e8866b1b9db2960218bd42f9b069eae1f36f292aa870371c7d16d962"
+        "tokens": 82,
+        "sha256": "a15b2e5b52dc8c8b96e7b5c7919ea02f208b0353b22d2b9bb09f24148e9923a6"
       }
     },
     "ml-regularization-regularized-objective": {
@@ -822,8 +822,8 @@
         "sha256": "2e908ba6b4a68fe6db9f2282e6a36726547c576244c7e4dc2f65c15c657f3101"
       },
       "single": {
-        "tokens": 120,
-        "sha256": "b3e294301167ab9539cf472d687db0c9fdae02a5636834b31154045cddd0fb0f"
+        "tokens": 103,
+        "sha256": "118e725e9b23b4cbca48ec805412269dca419b1203b4d0dd68bd319e18f9df31"
       }
     },
     "ml-attention-scaled-score-normalization": {
@@ -842,8 +842,8 @@
         "sha256": "419fc3122ed50498cb42fe2e6ff00d69ea68451271c3823e0c6ad30c730047b7"
       },
       "single": {
-        "tokens": 71,
-        "sha256": "8e35f61203fedc3779c573f7776ada1d3a91f5d7537078f848bc6996c505b8f5"
+        "tokens": 81,
+        "sha256": "9f2efcb9cf410fb90cb7a878ac0a6258af01c56cba610b9f9a29febf3f1a1127"
       }
     },
     "ml-model-evaluation-training-diagnostics": {
