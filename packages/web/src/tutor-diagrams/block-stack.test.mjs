@@ -117,6 +117,14 @@ test('block-stack text and description preserve authored annotations and the mea
   assert.match(description, /Attention heads.*8/);
 });
 
+test('STACK-C: a block with no role takes the step fill (process blue); a norm block stays transparent; a roled block keeps its own fill', () => {
+  const blocks = [{ id: 'a', label: 'No role' }, { id: 'b', label: 'Normalize', role: 'norm' }, { id: 'c', label: 'Mix tokens', role: 'attention' }, { id: 'd', label: 'Also no role' }];
+  const scene = draw({ kind: 'block-stack', title: 'Unroled blocks', blocks }, 408);
+  const props = findAll(scene.elements, 'data-block-stack-node').map(element => element.props.children[0].props);
+  assert.deepEqual(props.map(({ fill }) => fill), [PALETTE.process, 'none', TEACHING.blueFill, PALETTE.process]);
+  assert.deepEqual(props.map(({ stroke, strokeWidth }) => [stroke, strokeWidth]), props.map(() => [TEACHING.outline, 1.5]));
+});
+
 test('explicit block and inset roles change paint without moving the geometry', () => {
   const roles = ['norm', 'attention', 'feedforward', 'embedding', 'output', 'changed'];
   const labels = ['Read state', 'Mix tokens', 'Update features', 'Read embeddings', 'Return output', 'Compare block'];

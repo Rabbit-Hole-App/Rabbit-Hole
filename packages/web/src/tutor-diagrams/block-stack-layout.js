@@ -161,7 +161,8 @@ function drawBlock(block, content, x, top, width, height, numbered) {
   const center = x + width / 2;
   const badgeHeight = numbered.length ? 2 * BADGE_RADIUS + ROW_GAP : 0;
   let y = top + INSET + (height - content.height - badgeHeight) / 2;
-  const elements = [paintBlock(box(x, top, width, height), block.role),
+  // STACK-C: a block with no role takes the step fill (blue, as an unroled step in a child flow does); norm stays transparent on purpose.
+  const elements = [block.role ? paintBlock(box(x, top, width, height), block.role) : box(x, top, width, height, { role: 'process' }),
     label(title.lines, center, y + title.height / 2, { weight: 700 })];
   y += title.height;
   for (const row of rows) {
