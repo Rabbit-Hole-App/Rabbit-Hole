@@ -32,7 +32,7 @@ export default function LearnCardView({ id, children }) {
         </div>
       </div>
     </div>
-    <div data-learn-zoom role="group" aria-label="Zoom" className="absolute top-3 right-4 z-10 flex items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 text-xs shadow-sm">
+    <div data-learn-zoom role="group" aria-label="Zoom" className="absolute right-4 bottom-5 z-10 flex items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 text-xs shadow-sm">
       <button type="button" aria-label="Zoom out" title="Zoom out" className={button} disabled={scale <= STEPS[0]} onClick={() => setZoom(zoomStep(scale, -1))}><ZoomOut size={15} aria-hidden /></button>
       <button type="button" data-learn-zoom-fit title="Show the whole card" onClick={() => setZoom(null)} className="h-7 min-w-14 rounded-md px-1.5 text-ink tabular-nums hover:bg-hover">{Math.round(scale * 100)}%</button>
       <button type="button" aria-label="Zoom in" title="Zoom in" className={button} disabled={scale >= STEPS.at(-1)} onClick={() => setZoom(zoomStep(scale, 1))}><ZoomIn size={15} aria-hidden /></button>

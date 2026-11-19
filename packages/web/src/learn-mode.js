@@ -20,19 +20,18 @@ export const learnLeave = held => held?.panelWas ?? null;
 // What a tab shows for the current stop:
 //   cards  - the stop's own card component drawn in the pane at its width (AdaptiveCanvas learnCards; owner 2026-11-18 16:13: no Focus), the right panel closed;
 //   canvas - the free canvas, the stop centred at zoom 1, nothing selected (owner 2026-11-18);
-//   toc, chat - the right panel's own tab, widened to the split (the canvas stays as it was underneath); in Chat the stop is the canvas selection,
-//               which is the chat's selected context (chat-canvas-context.js reads api.selection()).
+//   toc, chat - the right panel's own tab, widened to the split (the canvas stays as it was underneath); nothing is selected (owner 2026-11-18).
 export function learnView(tab) {
-  if (tab === 'canvas') return { cards: false, centre: true, select: false, panel: { open: false, tab: null } };
-  if (tab === 'toc' || tab === 'chat') return { cards: false, centre: false, select: tab === 'chat', panel: { open: true, tab } };
-  return { cards: true, centre: false, select: false, panel: { open: false, tab: null } };
+  if (tab === 'canvas') return { cards: false, centre: true, panel: { open: false, tab: null } };
+  if (tab === 'toc' || tab === 'chat') return { cards: false, centre: false, panel: { open: true, tab } };
+  return { cards: true, centre: false, panel: { open: false, tab: null } };
 }
 export const learnTab = tab => (LEARN_TABS.some(entry => entry.id === tab) ? tab : 'cards');
 
 // Cards tab zoom (owner 2026-11-18: the card shown whole, zoom in and out from there; LearnCardView.jsx).
 export const ZOOM_STEPS = Object.freeze([0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2]);
 // The pane's room around the card: side padding, the top gap, and the composer's dock at the bottom (LearnPane data-learn-dock).
-export const CARD_ROOM = Object.freeze({ side: 24, top: 16, dock: 150 });
+export const CARD_ROOM = Object.freeze({ side: 24, top: 56, dock: 150 }); // top: room for the row of actions over a card (owner 2026-11-18)
 // The scale that shows a card of size `card` whole in a pane of size `pane`: at most 1, at least the smallest step.
 export const fitScale = (card, pane) => (card.w > 0 && card.h > 0 ? Math.max(ZOOM_STEPS[0], Math.min(1, (pane.w - 2 * CARD_ROOM.side) / card.w, (pane.h - CARD_ROOM.top - CARD_ROOM.dock) / card.h)) : 1);
 // The next zoom step from `scale` (dir 1: in, -1: out), staying inside the steps.

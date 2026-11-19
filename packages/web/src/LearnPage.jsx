@@ -1590,7 +1590,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     learnHeld.current = null;
     setLearnTab('cards');
     if (!was) return;
-    canvas?.deselect?.(); // the Chat tab's stop selection ends with Learn mode (owner 2026-11-18: no card selected on Canvas)
     if (held.view) canvas?.setView?.(held.view);
     setPanelOpen(was.open);
     if (was.tab) setPanelTab(was.tab);
@@ -1603,7 +1602,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     setPanelOpen(view.panel.open);
     if (view.panel.tab) setPanelTab(view.panel.tab);
     if (view.centre) canvas.walk?.centre(stopId);
-    if (view.select) canvas.select?.(stopId);
   }, [learning, learnTab, stopId]); // eslint-disable-line react-hooks/exhaustive-deps
   // Learn | Canvas (learn-mode-spec §2): Study's toggle, labelled Learn on a canvas with built sections. Learn starts the first section not finished.
   const learnBlocks = canvasApi.current?.blocks?.() || [];
@@ -2721,7 +2719,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
       <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={planDone ? null : ref => { chat.context.attach(ref); chat.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.walk ? canvasState.activeSection : planDone && planCurrent ? planCurrent : canvasState.activeSection ?? null} walk={canvasState.walk || null} onWalk={startWalk} readOnly={!canEditCanvas || planDone} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
-        className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
+        className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto ${learning ? 'pb-40' : ''}`} />
       {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}

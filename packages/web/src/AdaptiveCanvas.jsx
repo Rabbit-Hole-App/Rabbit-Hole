@@ -5861,7 +5861,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     centre: id => {
       const card = boundsRef.current[id], area = controlArea();
       if (!card || !area) return;
-      const y = card.h > area.bottom - area.top - 2 * SPACING.card ? area.top + SPACING.card - card.y : (area.top + area.bottom) / 2 - (card.y + card.h / 2);
+      const y = card.h > area.bottom - area.top - 2 * SPACING.card ? area.top + 56 - card.y : (area.top + area.bottom) / 2 - (card.y + card.h / 2);
       glideTo({ x: Math.round((area.left + area.right) / 2 - (card.x + card.w / 2)), y: Math.round(y), z: 1 }, true);
     },
     exit: () => setWalk(null),
