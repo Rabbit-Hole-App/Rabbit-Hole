@@ -111,10 +111,11 @@ const LISTS = {
 const UNREACHABLE = new Set(['flow|highlightPath|1[]|min']); // two routes of two nodes cannot both end at one terminal and meet at a merge: that is a rule between fields.
 const listCases = FITTED.flatMap(kind => kindLimits(kind).filter(entry => entry.type === 'list').map(entry => [kind, entry]));
 
-test('the six fitted kinds are the ones TutorDiagram.js fits', () => {
+test('the kinds tested here are fitted kinds of TutorDiagram.js (kinds-fit r4 added layers and tensor: they have table entries, covered by the structure and registry tests)', () => {
   const source = readFileSync(new URL('./TutorDiagram.js', import.meta.url), 'utf8');
   const named = [...source.match(/const FITTED_KINDS = new Set\(\[([^\]]*)\]\)/)[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
-  assert.deepEqual([...named].sort(), [...FITTED].sort());
+  for (const kind of FITTED) assert.ok(named.includes(kind), `${kind} is no longer fitted`);
+  for (const kind of named) assert.ok(kindLimitKinds().includes(kind), `${kind} has no table entry`);
 });
 
 test('kindLimits lists every kind of the parser, caches its table and refuses an unknown kind', () => {
