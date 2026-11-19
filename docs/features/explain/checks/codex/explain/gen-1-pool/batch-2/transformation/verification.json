@@ -1,0 +1,84 @@
+{
+  "sha": "9d2ea65fe21a37a1d85867dbc65969a281e3c119",
+  "records": [
+    {
+      "id": "pool-fixed-border-thumbnail-crop",
+      "kind": "transformation",
+      "depths": {
+        "overview": {
+          "tokens": 140,
+          "parsedTokens": 140,
+          "nativeWidth": 408,
+          "height": 343,
+          "ownPicks": [
+            {
+              "prompt": "How does trimming a fixed border change the pixel dimensions of my photo thumbnails?",
+              "kind": "transformation",
+              "picked": [
+                "pool-fixed-border-thumbnail-crop"
+              ],
+              "steer": "pool-fixed-border-thumbnail-crop",
+              "score": 60
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 141,
+          "parsedTokens": 141,
+          "nativeWidth": 408,
+          "height": 343,
+          "ownPicks": [
+            {
+              "prompt": "How does trimming a fixed border change the pixel dimensions of my photo thumbnails?",
+              "kind": "transformation",
+              "picked": [
+                "pool-fixed-border-thumbnail-crop"
+              ],
+              "steer": "pool-fixed-border-thumbnail-crop",
+              "score": 60
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 144,
+          "parsedTokens": 144,
+          "nativeWidth": 408,
+          "height": 343,
+          "ownPicks": [
+            {
+              "prompt": "How does trimming a fixed border change the pixel dimensions of my photo thumbnails?",
+              "kind": "transformation",
+              "picked": [
+                "pool-fixed-border-thumbnail-crop"
+              ],
+              "steer": "pool-fixed-border-thumbnail-crop",
+              "score": 60
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "replay": {
+    "existingPromptDepthCases": 3102,
+    "savedPlannerCases": 474,
+    "overlap": 0,
+    "moves": []
+  },
+  "pool": {
+    "overview": {
+      "before": 10,
+      "after": 11
+    },
+    "standard": {
+      "before": 3,
+      "after": 4
+    },
+    "deep": {
+      "before": 2,
+      "after": 3
+    }
+  },
+  "publishedTip": "41376bca8afaf29fb0646f260fc7ceb2732b2058",
+  "publishedTree": "3479ac448ecaa93f581d7ae88e9e69c9037944c0"
+}

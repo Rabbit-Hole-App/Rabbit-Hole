@@ -1,0 +1,45 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 508,
+  "groups": [
+    {
+      "kind": "transformation",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-fixed-border-thumbnail-crop",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 343
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 343
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 343
+            }
+          ],
+          "bottom": 498
+        }
+      ],
+      "bottom": 498
+    }
+  ]
+}
