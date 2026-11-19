@@ -2796,6 +2796,51 @@
       "width": 720,
       "height": 451.5
     },
+    "pool-apron-fabric-stock/320": {
+      "sha256": "3de1409cc873889419b41a76096ad3181d8429680fe780c8f7b4acfee979e6cd",
+      "width": 362,
+      "height": 345
+    },
+    "pool-apron-fabric-stock/408": {
+      "sha256": "a41c20c987e244e522888f3679d3f2c23894524e6cdfdcfb7ae4911661e3fb09",
+      "width": 408,
+      "height": 345
+    },
+    "pool-apron-fabric-stock/720": {
+      "sha256": "5847cac5c3ff427a4178d1494903b27be0274ad19bea442d5dd6f84692547897",
+      "width": 720,
+      "height": 311
+    },
+    "pool-exhibit-tank-refill/320": {
+      "sha256": "8f65293be0768e98ca22324e6cb9c9ca257797995445bb9423f44e2705cbc0f1",
+      "width": 362,
+      "height": 350
+    },
+    "pool-exhibit-tank-refill/408": {
+      "sha256": "a28eac83b313c6e51c264cf15060871af86e75edf962a24fa05c64cc90fac122",
+      "width": 408,
+      "height": 328
+    },
+    "pool-exhibit-tank-refill/720": {
+      "sha256": "e9fca29794663f6708329b16135512269f4a148c775fe054c4e9f1e1984f3280",
+      "width": 720,
+      "height": 311
+    },
+    "pool-trivia-team-score/320": {
+      "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
+      "width": 442,
+      "height": 350
+    },
+    "pool-trivia-team-score/408": {
+      "sha256": "5360ac6b38b5096f27bde0b9e748bd42cbe146f492cae4cdc43d7e5e998d41d4",
+      "width": 442,
+      "height": 350
+    },
+    "pool-trivia-team-score/720": {
+      "sha256": "96fb36160b3f350ede951e7c8bf330ab436c85ba15cf2f2682612713929f2d9b",
+      "width": 720,
+      "height": 311
+    },
     "precision-recall-thresholds/320": {
       "sha256": "48bb4af84aff27699fd568616f766021da53c60cdcb80dc25e59ba99e0aba48f",
       "width": 408,
