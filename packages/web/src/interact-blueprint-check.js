@@ -271,7 +271,8 @@ async function checkProgram(blueprint, sampled, measured) {
 }
 
 // ---- the whole checker ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-export async function checkBlueprint(value, { seeded = null } = {}) {
+// light: the form, the names, the function run over the grid, and the claims only (MVP 1 as cut by the owner, 2026-11-19): no moves, controls-matter, parts, graph, layout or Program checks and no measured facts.
+export async function checkBlueprint(value, { seeded = null, light = false } = {}) {
   const notes = [], done = (failed, problems, measured = null) => ({ ok: !failed, failed, problems: problems.slice(0, MAX_PROBLEMS).map(problem => ({ ...problem, check: failed })), notes, measured });
   const form = checkForm(value);
   if (!form.ok) return done(1, form.problems);
@@ -280,6 +281,7 @@ export async function checkBlueprint(value, { seeded = null } = {}) {
   if (names.length) return done(2, names);
   const sampled = await sample(blueprint);
   if (sampled.problems.length) return done(3, sampled.problems);
+  if (light) { const lightClaims = await checkClaims(blueprint, sampled); return lightClaims.length ? done(8, lightClaims) : { ok: true, failed: 0, problems: [], notes, measured: null, blueprint }; }
   const parts = checkParts(blueprint, sampled);
   if (parts.length) return done(parts[0].code === 'moves' ? 4 : parts[0].code === 'inputs_matter' ? 5 : 6, parts);
   const graph = await sampleGraph(blueprint, sampled), graphProblems = checkGraph(blueprint, graph);
