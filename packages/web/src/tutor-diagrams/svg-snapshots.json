@@ -2826,6 +2826,21 @@
       "width": 720,
       "height": 289
     },
+    "pool-club-poster-inks/320": {
+      "sha256": "f879fe9fe0869b9212a6f6e14888f91824006d32a28eaee62575e72102b4e0ad",
+      "width": 320,
+      "height": 475
+    },
+    "pool-club-poster-inks/408": {
+      "sha256": "2905cd7dadca75f710e3e523f5034e9c841a948d45a35e9ac14fd2a79e7ee632",
+      "width": 408,
+      "height": 396
+    },
+    "pool-club-poster-inks/720": {
+      "sha256": "416050c75353f0de255c3824229d2e07112a6340869f53e0c0699c430040fbdb",
+      "width": 720,
+      "height": 339
+    },
     "pool-double-glazed-window/320": {
       "sha256": "1557636d9008325103fe9c5b19236e060fac36cf3e3c1509ea03e01c368be4ed",
       "width": 320,
@@ -2855,6 +2870,21 @@
       "sha256": "e9fca29794663f6708329b16135512269f4a148c775fe054c4e9f1e1984f3280",
       "width": 720,
       "height": 311
+    },
+    "pool-felt-mug-sleeve/320": {
+      "sha256": "5c2170480948aae5764fe526b07c392ad0ca5399e9da97e51dadfff915c31c70",
+      "width": 320,
+      "height": 513
+    },
+    "pool-felt-mug-sleeve/408": {
+      "sha256": "5c780bdab01f3554f13086a893b00df5b03fb23f4223367e0e056208cc6fb669",
+      "width": 408,
+      "height": 418
+    },
+    "pool-felt-mug-sleeve/720": {
+      "sha256": "6bcaa4d46c701b1eb6bc8c39b76a0d7a5659ce255fccddb22b42eaaa25bceb93",
+      "width": 720,
+      "height": 339
     },
     "pool-fired-tile-widths/320": {
       "sha256": "eb05028422c539ee49db03c408d2135cdb2b3b3ebdb91ccb91588ec4c753e462",
@@ -2930,6 +2960,21 @@
       "sha256": "1e5b869039abfede149013f2f35d44d7de04f4facf305126961c2b5cd17c160a",
       "width": 720,
       "height": 343
+    },
+    "pool-late-library-return/320": {
+      "sha256": "dbec4e03436480765558efa301a73fc8905ccde2e1f6fbdb4adbd386948474d6",
+      "width": 320,
+      "height": 513
+    },
+    "pool-late-library-return/408": {
+      "sha256": "0b07b9fa4b1c8a8ac2255c5b481c46bd66bfcacedaf15ff62435caf3f28da624",
+      "width": 408,
+      "height": 456
+    },
+    "pool-late-library-return/720": {
+      "sha256": "86def62017eb1908ae27992172a3c39e847d98daf7bd616ca8891b5e286355d7",
+      "width": 720,
+      "height": 339
     },
     "pool-orchard-packing-expense/320": {
       "sha256": "fa7783ee957abb5f65d8e76d750bef8690576c85a87d259960c0a2a79b007ea7",
