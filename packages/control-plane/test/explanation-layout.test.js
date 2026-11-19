@@ -17,9 +17,7 @@ import { cycleSpec, diagramFence, illustrationFence, withVisual } from './explan
 import { learnDb } from './learn-grade-fixture.js';
 
 const scripted = (...replies) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); const [name, input] = replies[Math.min(seen.length, replies.length) - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name, input }] }); } }; };
-const implied = n => ({ version: 1, items: Array.from({ length: n }, (_, i) => ({ id: `vr-${i + 1}`, kind: 'illustration', implied: true, purpose: 'a picture of it' })) }); // ILL-2: no plan caps pictures at the ones the learner's words imply
-const picturesOf = block => Math.min(2, (block.visuals ?? []).filter(v => v?.k === 'picture').length + (String(block.body).match(/```rh-illustration/g) || []).length);
-const direct = (block, options = {}, env = {}, args = 'Why does ice float?') => { const m = scripted(['make_explanation', block], ['make_explanation', block]); return generateArtifact(env, { command: 'explanation', args, ...(picturesOf(block) ? { visualRequirements: implied(picturesOf(block)) } : {}) }, { callModel: m.callModel, ...options }).then(out => ({ out, m })); };
+const direct = (block, options = {}, env = {}, args = 'Why does ice float?') => { const m = scripted(['make_explanation', block], ['make_explanation', block]); return generateArtifact(env, { command: 'explanation', args }, { callModel: m.callModel, ...options }).then(out => ({ out, m })); };
 const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
 const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
 const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Why ice floats', stepGoal: 'Explain density.', passageText: 'Ice is less dense than water.', language: 'en', depth: 'balanced', retry: 0, ...over });
@@ -223,7 +221,7 @@ test('the roadmap path makes the pictures too, each attempt on its own stable il
   const env = { SMALL_ENV: 'test', LEARN_DB: learnDbStub(), IMAGE_GENERATE_ENABLED: 'true', RECRAFT_API_KEY: 'fixture-not-a-key', LEARN_MEDIA: { put: async () => {} },
     IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ [FIGURE_MODEL]: 0.02 }), IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ [FIGURE_MODEL]: 0.01 }) };
   const m = scripted(['make_explanation', withPic]); const stages = [];
-  const out = await generateRoadmapCard(env, access, ref, { loadAccepted: async () => record({ visualRequirements: implied(1) }), withProviderCall: (e, fields) => { stages.push(fields); return e; }, callModel: m.callModel, figureStore: STORE, figureAdapter: adapter });
+  const out = await generateRoadmapCard(env, access, ref, { loadAccepted: async () => record(), withProviderCall: (e, fields) => { stages.push(fields); return e; }, callModel: m.callModel, figureStore: STORE, figureAdapter: adapter });
   assert.equal(out.outcome, 'ok');
   assert.equal(out.block.figures.ice.status, 'ready');
   assert.deepEqual(stages.map(s => [s.stage, s.call]), [['generate', 0], ['illustration', 0], ['illustration', 1]], 'the author call, then one operation per picture attempt');

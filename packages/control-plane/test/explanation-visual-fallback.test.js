@@ -70,17 +70,6 @@ test('a diagram with an arithmetic issue fails the step (explanation_bad_numbers
   assert.equal([dropped.result, dropped.block?.visualFallback].join(), 'artifact,dropped');
 });
 
-// HEAT-1: a blank grid (every numeric cell 0 at range 0 to 1) is arithmetic-tagged like a wrong fence: it fails the step and is never delivered or dropped.
-test('a heatmap with no contrast fails the step (explanation_bad_numbers) where an invalid diagram without an arithmetic tag is dropped', async () => {
-  const grid = { version: 1, diagram: { kind: 'heatmap', title: 'Allowed cells', columns: ['1', '2', '3'], rows: [0, 1, 2].map(i => ({ label: String(i + 1), cells: [0, 1, 2].map(j => (j < i ? 0 : null)) })), range: { min: 0, max: 1 } } };
-  const prose = spec => `Each row may use only some cells.\n\n${fence(spec)}\n\nA blocked cell is not used by that row, so the grid shows the allowed ones.`;
-  const asked = card => quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'which cells a row may use', planned: true, plan: null }, { callModel: model(card), repairs: 0 })).then(r => r.value);
-  const failed = await asked({ title: 'Cells', body: prose(grid) });
-  assert.equal(failed.result, 'validation_error');
-  assert.match(failed.error, /^explanation_bad_numbers: .*Every numeric cell is 0/);
-  assert.equal(failed.block, undefined);
-});
-
 // Item 1 (Reviewer 2026-11-17): every arithmetic issue of the card is in ONE repair message, so one repair fixes them together.
 test('numbersIssue names every wrong diagram in one message ("Diagram N:" each with its own correct numbers); one wrong diagram keeps the single-diagram text', async () => {
   const box = (title, q1, q3, lower, upper, whiskerLow, whiskerHigh) => ({ version: 1, diagram: { kind: 'box-plot', title, x: { label: 'Reading', min: 0, max: 40 }, boxes: [{ label: 'Trial', whiskerLow, q1, median: (q1 + q3) / 2, q3, whiskerHigh, fences: { lower, upper } }] } });

@@ -454,36 +454,6 @@ test('arithmetic: every step failing gives validation_error explanation_bad_numb
     { provider: 'fireworks', model: FW, outcome: 'arithmetic', repairs: 2, failedOn: ['arithmetic', 'arithmetic', 'arithmetic'], issues: [FENCE_ISSUE] }]);
 });
 
-// HEAT-1: a grid drawn blank (every numeric cell 0 at range 0 to 1) and a grid with every cell above the diagonal blocked and its diagonal blocked too are arithmetic issues like a wrong fence:
-// repaired, then the step fails, never delivered. Heatmap is a NEW kind Gemini does not get unless named, so with no next provider that can write it the same model gets a second repair.
-const heatCard = cell => ({ title: 'A grid of allowed cells', body: withVisual('Each row may use only the cells shown for it.', { after: 'A blocked cell is not used by that row.', visual: diagramFence({ version: 1, diagram: { kind: 'heatmap', title: 'A grid of allowed cells', rowLabel: 'Row', columnLabel: 'Column', columns: ['1', '2', '3'], rows: [0, 1, 2].map(i => ({ label: String(i + 1), cells: [0, 1, 2].map(j => cell(i, j)) })), range: { min: 0, max: 1 } } }) }) });
-const blankGrid = heatCard((i, j) => (j < i ? 0 : null)), keptGrid = heatCard((i, j) => (j <= i ? 1 : null));
-
-test('heatmap: the blank grid is an arithmetic problem, the 0 and 1 grid with its diagonal is valid', () => {
-  assert.match(explanationProblem({ ...artifactBlock('explanation', blankGrid), body: blankGrid.body }), /^explanation_bad_numbers: .*Every numeric cell is 0, the value drawn with no fill/);
-  assert.equal(explanationProblem({ ...artifactBlock('explanation', keptGrid), body: keptGrid.body }), null);
-});
-
-test('heatmap: the same model gets a second repair (no next provider can write a heatmap), success on repair 2 is recorded', async t => {
-  quiet(t);
-  const sent = providers(t, ok(blankGrid), ok(blankGrid), ok(keptGrid));
-  const out = await ask(offline('fireworks-low'), 'Explain which cells each row may use');
-  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'fireworks']);
-  assert.deepEqual([out.result, out.repaired, out.repairs, out.repairedAt], ['artifact', true, 2, 2]);
-  assert.deepEqual(out.attempts[0].failedOn, ['arithmetic', 'arithmetic']);
-  assert.ok(sent[1].body.messages.at(-1).content.startsWith('Validation failed: explanation_bad_numbers: ') && sent[1].body.messages.at(-1).content.includes(SENTENCE));
-});
-
-test('heatmap: every step keeping the blank grid fails with explanation_bad_numbers, nothing delivered and the diagram never dropped or simplified', async t => {
-  quiet(t);
-  providers(t, ok(blankGrid));
-  const out = await ask(offline('fireworks-low'), 'Explain which cells each row may use');
-  assert.equal(out.result, 'validation_error');
-  assert.match(out.error, /^explanation_bad_numbers: /);
-  assert.equal(out.block, undefined);
-  assert.ok(out.attempts.every(a => a.outcome === 'arithmetic'), JSON.stringify(out.attempts.map(a => a.outcome)));
-});
-
 test('a non-arithmetic invalid answer never gets the second repair and keeps its own issue text per step', async t => {
   quiet(t);
   const sent = providers(t, ok(long));

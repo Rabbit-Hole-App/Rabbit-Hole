@@ -272,13 +272,11 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // Release 118 (unplanned-picture finding): the planner's picture count is enforced. When a JEV plan exists and the learner's words fixed no mix, the mix keeps the planned pictures (none for a diagram-only plan)
         // and up to three visuals in all, so an author picture the plan did not ask for (a repair answer on the fallback model) is dropped here, before the bad-detail strip. A learner-named mix wins unchanged.
         const planned = input.plan?.planner === 'jev' ? input.plan.visuals?.filter(v => v?.type === 'picture').length : undefined;
-        // ILL-2: with no JEV plan (the planner timed out or is off) and no mix named by the learner, the cap is the pictures the learner's words imply (an `implied` illustration item: normally 0), not unlimited.
-        const cap = planned ?? (input.plan?.planner !== 'jev' ? (wanted?.items ?? []).filter(i => i.kind === 'illustration' && i.implied).length : undefined);
-        const capped = !requiredMix(wanted) && cap !== undefined;
-        const settled = settleExplanationBody(block.body, requiredMix(wanted) ?? (capped ? { diagram: Math.max(0, 3 - cap), illustration: cap } : null));
-        if (capped) { // one line per card whose author pictures exceeded the cap (a detail marker that pointed at a dropped picture is removed by settleExplanationBody with it)
+        const capped = !requiredMix(wanted) && planned !== undefined;
+        const settled = settleExplanationBody(block.body, requiredMix(wanted) ?? (capped ? { diagram: Math.max(0, 3 - planned), illustration: planned } : null));
+        if (capped) { // one line per card whose author pictures exceeded the plan's (a detail marker that pointed at a dropped picture is removed by settleExplanationBody with it)
           const authored = markdownIllustrations(block.body), kept = new Set(markdownIllustrations(settled).map(x => x.spec?.id));
-          if (authored.length > cap && kept.size < authored.length) console.log(JSON.stringify({ event: 'explanation_picture_capped', planned: cap, authored: authored.length, kept: kept.size, dropped: authored.flatMap((x, i) => (kept.has(x.spec?.id) ? [] : [i + 1])), ...(planned === undefined ? { source: 'no-plan' } : {}) }));
+          if (authored.length > planned && kept.size < authored.length) console.log(JSON.stringify({ event: 'explanation_picture_capped', planned, authored: authored.length, kept: kept.size, dropped: authored.flatMap((x, i) => (kept.has(x.spec?.id) ? [] : [i + 1])) }));
         }
         diagramsDropped = markdownVisuals(block.body).diagrams.length - markdownVisuals(settled).diagrams.length; // recorded with the result, as a dropped invalid diagram is
         block = { ...block, body: settled };

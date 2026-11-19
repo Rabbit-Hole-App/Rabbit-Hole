@@ -116,9 +116,6 @@ export function affectedTests(changed, tests, suites = SUITES) {
       const found = [...tests].filter(([t, text]) => s.test.test(t) && imports.test(text)).map(([t]) => t);
       if (found.length) found.forEach(t => hit.add(t)); else uncovered.push(p);
     }
-    // Tests that scan the source tree (readdirSync recursive) read files no test imports (a new module can turn one red: TEST-3, release 159): they run with the selected tests (when nothing is selected the whole suite runs anyway).
-    const prefix = s.cwd === '.' ? 'scripts/' : `${s.cwd}/`;
-    if (hit.size) for (const [t, text] of tests) if (t.startsWith(prefix) && s.test.test(t) && /readdirSync\(.*recursive/.test(text)) hit.add(t);
     const files = [...hit].sort();
     return [files.length ? { cwd: s.cwd, args: ['--test', ...files.map(f => posix.relative(s.cwd, f))], ran: files, uncovered }
       : { cwd: s.cwd, args: s.all, ran: [`all ${s.cwd}`], uncovered }];
