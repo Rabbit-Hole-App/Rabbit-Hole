@@ -10,7 +10,7 @@ const indicators = deep => ({ kind: 'heatmap', title: deep ? 'Change target, pre
   rows: d.dictionary.map(({ slot, token }) => ({ label: slot + ': ' + token, cells: (deep ? d.targets : d.targets.slice(0, 1)).map(row => row.values[slot]) })), range: { min: 0, max: 1 },
   caption: deep ? `Change ${p.selectedTarget} to stop “${p.eos}”, keep the indexed rows. Each observed target satisfies $\\sum_j y_j=1$; these are indicator flags.`
     : `Observed ${p.selectedTarget} at slot $k=${d.targets[0].slot}$: $y_j=1[j=k]$, zero elsewhere. Indexed rows keep one fixed output order.` });
-const prediction = { kind: 'bar-chart', title: 'Model distribution for one observed next token', unit: 'Probability',
+const prediction = { kind: 'bar-chart', title: 'Model distribution for one observed next token',
   bars: d.dictionary.map((row, i) => ({ label: row.token, value: d.cases[0].displayProbabilities[i] })),
   caption: `Illustrative A after ${d.prefixes[1].prefix}; observed ${p.selectedTarget}. Its negative-log loss is $L\\approx ${d.cases[0].displayLoss}$ nats.` };
 const distributions = deep => ({ kind: 'bar-chart', variant: 'grouped', title: deep ? 'Same target, two illustrative model distributions' : 'Compare predicted and observed target distributions',
@@ -25,7 +25,7 @@ const prefixTable = (rows, title, caption) => ({ kind: 'matrix', layout: 'teachi
   rows: rows.map(row => ({ id: row.id, heading: row.label, cells: [row.prefix, row.target] })), caption });
 const prefixOverview = prefixTable(d.prefixes.slice(0, 2), 'One observed continuation per earlier prefix', 'Toy observed clouds bring rain. Prefix rows stop before their immediate target; the labels come from observed text.');
 const prefixStandard = prefixTable(d.prefixes, 'Align observed prefixes and immediate targets', 'Observed token targets, not downstream class labels. Each prefix ends before its next observed token; no generated feedback.');
-const prefixDeep = prefixTable(d.prefixes, 'Causal training labels use only earlier text', 'Predict $x_t$ from observed $x_{<t}$. Later text does not enter an earlier prefix; token labels differ from task classes.');
+const prefixDeep = prefixTable(d.prefixes, 'Predict each target from earlier text', 'Predict $x_t$ from observed $x_{<t}$. Later text does not enter an earlier prefix; token labels differ from task classes.');
 const c = d.probeChanges;
 const prefixProbe = prefixTable(d.probe, 'Edit a later token, recompute affected rows', `Edit ${c.oldToken} to ${c.newToken}: ${c.unchanged.join(',')} fixed; ${c.changedTargets.join(',')} target changes, ${c.changedPrefixes.join(',')} prefix changes. Observed text, not guesses.`);
 const designs = [
