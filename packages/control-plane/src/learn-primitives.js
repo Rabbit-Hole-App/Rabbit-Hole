@@ -87,8 +87,7 @@ export const pictureId = i => `pic-${i + 1}`;
 export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: withNoTextSuffix(v.p), alt: v.a.trim(), caption: v.c.trim() } : null);
 const visualFence = (v, i) => {
   // an incomplete picture keeps its fence, so the validator names what is missing
-  // NOVIS-1 (c): Gemini tagged a diagram k:'spec' (R2 bench, thermostat): it carries the spec object, so it is read as the diagram; a k:'spec' with no spec object makes no fence, nothing is invented.
-  const made = v?.k === 'diagram' || (v?.k === 'spec' && isObject(v.spec)) ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
+  const made = v?.k === 'diagram' ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
   return made ? '```' + made[0] + '\n' + JSON.stringify(made[1]) + '\n```' : null;
 };
 // The saved body: each first [[visual:N]] marker becomes visual N's fence on its own lines; an unknown or repeated marker is removed; a visual with no marker
@@ -1263,13 +1262,11 @@ const stem = w => (w.length > 4 && w.endsWith('ies') ? `${w.slice(0, -3)}y` : w.
 export const contentWords = text => new Set((String(text ?? '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(w => !STOP.has(w) && (w.length > 1 || /\d/.test(w))).map(stem));
 
 // -> null, or the one layout problem of a NEW card (the problem words name the repair). question: the learner's own words (direct) or the step's title and goal (Tutor).
-// diagram: the card's plan names a diagram (learn-artifact.js plannedDiagram); a picture does not stand in for it (NOVIS-1).
-export function explanationLayoutProblem(block, question = '', { diagram = false } = {}) {
+export function explanationLayoutProblem(block, question = '') {
   if (block?.more?.length) return 'explanation_layout: a new card has no folded sections; put everything in the body.';
   const parts = explanationParts(block?.body), visuals = parts.filter(p => p.kind === 'visual');
   if (!visuals.length && block?.visualFallback === 'dropped') return null; // the server removed the only visual it could neither draw nor simplify (learn-artifact.js)
   if (!visuals.length) return 'explanation_missing_visual: the card needs one to three visuals, an rh-diagram or an rh-illustration fence, each with prose before and after it; add one that shows what the question asks.';
-  if (diagram && !visuals.some(p => p.visual === 'diagram')) return 'explanation_missing_visual: the card\'s plan asks for a diagram and the card has none; a picture does not stand in for it. Add the planned diagram, an rh-diagram fence with prose before and after it.';
   if (visuals.length > 3) return `explanation_too_many_visuals: the card has ${visuals.length} visuals; keep one to three, each with prose before and after it.`;
   const pictures = visuals.filter(p => p.visual === 'illustration').length;
   if (pictures > 2) return `explanation_too_many_visuals: the card has ${pictures} pictures; keep at most two (diagrams may make up the rest).`;
@@ -1290,7 +1287,7 @@ export function explanationLayoutProblem(block, question = '', { diagram = false
 // -> null, or the validator's words for a NEW card: over the prose budget, the layout, and each broken diagram or illustration. When several are wrong, ONE message
 // names them all, so the single repair can fix them together. The repair (direct paths) reads the words; the roadmap fails terminally.
 // depth: kept for the callers; EXP-13 has one budget for every Depth (asked for 600, refused above 700).
-export function explanationProblem(block, depth, question = '', plan = {}) {
+export function explanationProblem(block, depth, question = '') {
   const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
   // Every wrong-numbers diagram in ONE message (numbersIssue), so the single repair fixes them together; diagramProblem alone names only the first failing fence of each section.
   const numbers = numbersIssue(block);
@@ -1301,7 +1298,7 @@ export function explanationProblem(block, depth, question = '', plan = {}) {
   problems.push(...diagrams);
   problems.push(...pictures.filter(p => !p.ok).map(p => `explanation_bad_illustration: ${p.problem}.`));
   if (new Set(ids).size !== ids.length) problems.push('explanation_bad_illustration: two rh-illustration fences share an id; give each its own.');
-  const layout = explanationLayoutProblem(block, question, plan); if (layout) problems.push(layout);
+  const layout = explanationLayoutProblem(block, question); if (layout) problems.push(layout);
   return problems.length ? problems.join(' ') : null;
 }
 

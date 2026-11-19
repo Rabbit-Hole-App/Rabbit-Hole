@@ -156,8 +156,8 @@ function tokenLinksCore(diagram, requestedWidth, options, extraGap) {
       return [...through, [through.at(-1)[0], laneA], [gapX(targetIndex), laneA], [gapX(targetIndex), laneB], [target[0], laneB], target];
     };
     const badgeFrom = targetIndex => { const via = wrapped ? lanePoints(targetIndex) : null; return via && via.length > 2 ? via.at(-2) : from; };
-    // Paint higher weights last to keep strong paths visible where they leave the same query. A weight of exactly 0 draws no arrow (a causal mask: the geometry still lists the link).
-    const arrows = weights.map((weight, targetIndex) => ({ weight, targetIndex })).filter(({ weight }) => weight > 0)
+    // Paint higher weights last to keep strong paths visible where they leave the same query.
+    const arrows = weights.map((weight, targetIndex) => ({ weight, targetIndex }))
       .sort((a, b) => a.weight - b.weight)
       .map(({ weight, targetIndex }) => weightedArrow(from, to(targetIndex),
         index, targetIndex, weight, `${source[index]} at source position ${index + 1} → ${target[targetIndex]} at target position ${targetIndex + 1} · weight ${weight}`, wrapped ? lanePoints(targetIndex) : null));

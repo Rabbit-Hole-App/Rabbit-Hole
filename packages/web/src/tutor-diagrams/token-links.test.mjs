@@ -67,7 +67,7 @@ test('each query has a separate panel, ordered weights, exact arrow endpoints an
   const arrows = first.filter(element => element && 'data-tutor-token-link' in element.props);
   const boxes = new Map(first.filter(element => element && 'data-tutor-token' in element.props)
     .map(element => [element.props['data-tutor-token'], element.props.children[0].props]));
-  assert.deepEqual(arrows.map(arrow => arrow.props['data-tutor-token-link']), ['0:1', '0:2', '0:3'], 'a weight of 0 (0:0) draws no arrow');
+  assert.deepEqual(arrows.map(arrow => arrow.props['data-tutor-token-link']), ['0:0', '0:1', '0:2', '0:3']);
   assert.ok(boxes.get('target:0').x < boxes.get('target:1').x, 'Identical target text retains two positions');
   let previousWidth = 0;
   let previousOpacity = 0;
@@ -95,13 +95,11 @@ test('each query has a separate panel, ordered weights, exact arrow endpoints an
   assert.match(svg, /data-tutor-token-largest-weight="0\.6"/);
   assert.match(svg, /Equal largest weights at targets 1, 2/);
   assert.match(svg, /data-tutor-token-link="2:0"/);
-  assert.doesNotMatch(svg, /data-tutor-token-link="0:0"/);
-  assert.match(svg, /data-tutor-token-link="0:1"/);
+  assert.match(svg, /data-tutor-token-link="0:0" data-tutor-token-weight="0"/);
   const zero = render({ ...repeated, normalized: false, queries: [{ index: 0, weights: [0, 0, 0, 0] }] }, 408);
   assert.match(zero, /All weights are 0/);
-  assert.equal((zero.match(/data-tutor-token-link=/g) ?? []).length, 0, 'all weights 0: no arrow, the note says so');
+  assert.equal((zero.match(/data-tutor-token-link=/g) ?? []).length, 4);
   assert.doesNotMatch(zero, /data-tutor-token-largest-weight=/);
-  assert.equal(layoutTokenLinks(schema.parse({ ...repeated, normalized: false, queries: [{ index: 0, weights: [0, 0, 0, 0] }] }), 408).geometry.panels[0].links.length, 4, 'the geometry still lists every link');
 });
 
 test('the attention reference keeps exact positions, an exact unit sum and the cat as the strongest link', () => {

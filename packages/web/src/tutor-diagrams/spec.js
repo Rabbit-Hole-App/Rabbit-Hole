@@ -17,12 +17,10 @@ const MAX_JSON_LENGTH = 16_384;
 const invalidXmlText = /[\u0000-\u001f\u007f\ud800-\udfff\ufffe\uffff]/u;
 // A formula ($...$, as the card's prose writes it; tokenizeMath) counts what it shows: delimiters, braces and spaces are free and a command
 // such as \frac counts one, so a label with maths fits the limit its words would. Its source may be up to twice the limit.
-export const shownLength = value => {
+const shownLength = value => {
   const { source, math } = tokenizeMath(value);
   return source.replace(/\n?\u{E000}(\d+)\u{E001}\n?/gu, (_, index) => math[index].expression.replace(/\\[A-Za-z]+/g, '#').replace(/[{}\s]/g, '')).length;
 };
-// The shown-length limit of each text() schema, keyed by the schema text() returns (read by kind-limits.js). Created empty here: nothing is walked at import.
-export const textLimits = new WeakMap();
 const directions = ['up', 'down', 'left', 'right'];
 const figureAnchors = {
   cell: ['membrane', 'nucleus', 'cytoplasm', 'mitochondrion'],
@@ -32,13 +30,9 @@ const figureAnchors = {
 // START-2: the zod schemas below are built on first use (parseTutorDiagram, or the author JSON schema), not when the module is imported: the worker paid about 45 ms for them at every start.
 const domains = [statistical, plot, topology, data, composition];
 function buildShape() {
-const text = max => {
-  const schema = z.string().min(1).max(2 * max)
-    .refine(value => value.trim().length > 0 && !invalidXmlText.test(value), 'Use nonblank, single-line diagram text')
-    .refine(value => shownLength(value) <= max, `Use at most ${max} characters`);
-  textLimits.set(schema, max); // kind-limits.js reads the shown-length limit here; zod only holds the 2 * max raw bound.
-  return schema;
-};
+const text = max => z.string().min(1).max(2 * max)
+  .refine(value => value.trim().length > 0 && !invalidXmlText.test(value), 'Use nonblank, single-line diagram text')
+  .refine(value => shownLength(value) <= max, `Use at most ${max} characters`);
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,31}$/, 'Use a simple ID starting with a letter (at most 32 characters)');
 const titled = { title: text(90), caption: text(140).optional() };
 const endpoint = { from: id, to: id };

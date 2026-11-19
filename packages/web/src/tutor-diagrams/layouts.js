@@ -244,42 +244,26 @@ function matrix(diagram, width, options) {
   return extra > 0 ? build(i => Math.floor(extra / n) + (i < extra % n ? 1 : 0)) : first;
 }
 
-// kinds-fit: layers take a box (the layers share the height that is left), sizes.body (the layer's title, 15 today) and sizes.small (its detail, 13 today) and report each layer; min is the natural size.
-function layers(diagram, width, options) {
-  const { box: boxed, sizes, contentHeight, floor } = options ?? {};
-  const body = sizes?.body ?? TEXT, small = sizes?.small ?? SMALL;
-  // A fitted call (a box or sizes): no text is drawn smaller than asked, so a layer is at least as wide as its longest word at that size (+ the 28 px its text keeps clear); with no options the picture stays as it is today.
-  const wordWidth = boxed || sizes ? Math.ceil(Math.max(0, ...diagram.layers.flatMap(layer => [longestWordWidth(layer.label, body), layer.detail ? longestWordWidth(layer.detail, small) : 0]))) + 28 : 0;
-  const total = boxed || sizes ? Math.max(width, wordWidth + PAD * 2) : width;
-  const layerWidth = total - PAD * 2;
-  const build = extraAt => {
-    const elements = [], geometry = { layers: [] };
-    let y = PAD, heights = 0;
-    for (const [index, layer] of diagram.layers.entries()) {
-      const title = wrap(layer.label, layerWidth - 28, body);
-      const detail = layer.detail ? wrap(layer.detail, layerWidth - 28, small) : [];
-      const titleHeight = title.length * lineHeight(body);
-      const detailHeight = detail.length * lineHeight(small);
-      const height = Math.max(40, titleHeight + detailHeight + (detail.length ? 21 : 16)) + extraAt(index);
-      const x = total / 2;
-      const textTop = y + (height - titleHeight - detailHeight - (detail.length ? 5 : 0)) / 2;
-      elements.push(box(PAD, y, layerWidth, height, { role: HEADER_ROLES[index % HEADER_ROLES.length] }));
-      elements.push(label(title, x, textTop + titleHeight / 2, { weight: 700, tone: 'onFill', ...(sizes?.body ? { size: body } : {}) }));
-      if (detail.length) {
-        elements.push(label(detail, x, textTop + titleHeight + 5 + detailHeight / 2, { size: small, tone: 'onFill' }));
-      }
-      geometry.layers.push({ index, x: PAD, y, width: layerWidth, height });
-      heights += height;
-      y += height + 7;
+function layers(diagram, width) {
+  const layerWidth = width - PAD * 2;
+  const elements = [];
+  let y = PAD;
+  for (const [index, layer] of diagram.layers.entries()) {
+    const title = wrap(layer.label, layerWidth - 28);
+    const detail = layer.detail ? wrap(layer.detail, layerWidth - 28, SMALL) : [];
+    const titleHeight = title.length * lineHeight(TEXT);
+    const detailHeight = detail.length * lineHeight(SMALL);
+    const height = Math.max(40, titleHeight + detailHeight + (detail.length ? 21 : 16));
+    const x = width / 2;
+    const textTop = y + (height - titleHeight - detailHeight - (detail.length ? 5 : 0)) / 2;
+    elements.push(box(PAD, y, layerWidth, height, { role: HEADER_ROLES[index % HEADER_ROLES.length] }));
+    elements.push(label(title, x, textTop + titleHeight / 2, { weight: 700, tone: 'onFill' }));
+    if (detail.length) {
+      elements.push(label(detail, x, textTop + titleHeight + 5 + detailHeight / 2, { size: SMALL, tone: 'onFill' }));
     }
-    const parts = [{ part: 'outer margins', px: 2 * PAD }, { part: 'layers (their text at its size)', px: heights }, { part: 'gaps between the layers', px: 7 * (diagram.layers.length - 1) }];
-    const widthParts = [{ part: 'margins', px: 2 * PAD }, { part: 'layer (its longest word at its size, + 28)', px: wordWidth }, ...(total - 2 * PAD - wordWidth > 1e-9 ? [{ part: 'spare width', px: total - 2 * PAD - wordWidth }] : [])];
-    return { width: total, height: y - 7 + PAD, parts, widthParts, elements, geometry };
-  };
-  const first = build(() => 0);
-  if (!boxed || floor || contentHeight === undefined) return first;
-  const extra = Math.floor(contentHeight - first.height), n = diagram.layers.length;
-  return extra > 0 ? build(i => Math.floor(extra / n) + (i < extra % n ? 1 : 0)) : first;
+    y += height + 7;
+  }
+  return { width, height: y - 7 + PAD, elements };
 }
 
 // The steps are process nodes of the flow's size (56 high for one line, 72 for two, 24 px padding, at least 180 wide), one under the other, joined by arrows; the return

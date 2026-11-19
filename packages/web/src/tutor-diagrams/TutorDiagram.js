@@ -16,39 +16,24 @@ const CAPTION_GUTTER = 32;
 const TITLE_STYLE = { size: 17, weight: 700 }; // the written card draws its title at TEACHING_TEXT.display (interact-style.test.mjs pins this line)
 
 // kinds-fit: the kinds that take a box, sizes and legend/parts switches; every other kind ignores them and is drawn as always (its `min` is its drawn size).
-const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow', 'layers', 'tensor']);
+const FITTED_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
 // A bar chart is fitted in its plain and grouped forms (vertical bars) and a matrix in its plain layout; a stacked bar chart (a stacked series chart or one stacked bar) and a matrix with layout teaching are drawn as always: min is their drawn size, geometry null.
 const isFitted = diagram => (FITTED_KINDS.has(diagram.kind) || isTopDownTree(diagram)) && !(diagram.kind === 'bar-chart' && diagram.variant === 'stacked') && !(diagram.kind === 'matrix' && diagram.layout === 'teaching');
 // The kinds whose layout reports positions: `geometry` is an object for these (in the picture's coordinates, the title block counted) and null for every other kind.
-const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow', 'layers', 'tensor']);
+const GEOMETRY_KINDS = new Set(['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow']);
 // A decision tree drawn top down (binary or hierarchy layout, with metadata or a path; the dot trees, the plain trees and the outline and dendrogram layouts keep today's drawing) is fitted and reports geometry.
 const isTopDownTree = diagram => diagram.kind === 'tree' && !isDotTree(diagram) && extendedTree(diagram) && (diagram.layout === 'binary' || diagram.layout === 'hierarchy');
 
-// parts.frame: false leaves out the outer card and the layout's own outer padding less 1 px (every layout keeps PAD around its content: 12 px, the flow 14 px, the tensor strip 6 px),
-// so the first and last blocks keep their full stroke (1.5 px, half of it outside the block's edge).
-const FRAME_PAD = { flow: 13, tensor: 5 };
-const framePad = diagram => FRAME_PAD[diagram.kind] ?? 11;
-// frame: false: takes the cropped px out of the parts that held the outer padding (a part named margin first, then any other), from the end of the list or from its start; no part goes below 0.
-function shrinkParts(list, amount, fromEnd) {
-  const out = list.map(item => ({ ...item })), order = fromEnd ? [...out].reverse() : out;
-  let left = amount;
-  for (const pick of [item => /margin/.test(item.part), () => true]) for (const item of order) {
-    const take = left > 0 && pick(item) ? Math.min(item.px, left) : 0;
-    item.px -= take; left -= take;
-  }
-  return out;
-}
-
-// Moves every y of a geometry (a box, a point pair, a plot area) down by dy (the title block) and every x by dx (the padding left out by frame: false).
-function shiftGeometry(node, dy, dx = 0) {
-  if (Array.isArray(node)) return node.map(item => shiftGeometry(item, dy, dx));
+// Moves every y of a geometry (a box, a point pair, a plot area) down by the title block.
+function shiftGeometry(node, dy) {
+  if (Array.isArray(node)) return node.map(item => shiftGeometry(item, dy));
   if (!node || typeof node !== 'object') return node;
   return Object.fromEntries(Object.entries(node).map(([key, value]) => {
-    if (typeof value === 'number') return [key, key === 'y' || key === 'top' || key === 'bottom' ? value + dy : key === 'x' || key === 'left' || key === 'right' ? value + dx : value];
+    if (typeof value === 'number') return [key, key === 'y' || key === 'top' || key === 'bottom' ? value + dy : value];
     if (['points', 'from', 'to'].includes(key) && Array.isArray(value) && (typeof value[0] === 'number' || Array.isArray(value[0]))) {
-      return [key, typeof value[0] === 'number' ? [value[0] + dx, value[1] + dy] : value.map(([px, py]) => [px + dx, py + dy])];
+      return [key, typeof value[0] === 'number' ? [value[0], value[1] + dy] : value.map(([px, py]) => [px, py + dy])];
     }
-    return [key, shiftGeometry(value, dy, dx)];
+    return [key, shiftGeometry(value, dy)];
   }));
 }
 
@@ -61,11 +46,9 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
   const fitted = fit !== null && isFitted(diagram);
   const boxed = fitted && Boolean(fit.box);
   const showTitle = fit?.parts?.title !== false, showCaption = fit?.parts?.caption !== false;
-  // frame: false (fitted kinds only): no outer card and no outer padding; the picture is the layout cropped by fp on the sides, on top when there is no title and at the bottom when there is no caption.
-  const fp = fitted && fit.parts?.frame === false ? framePad(diagram) : 0;
   const titleSize = fit?.sizes?.title ?? TITLE_STYLE.size, captionSize = fit?.sizes?.small ?? CAPTION_SIZE;
   // With a box, box.width is the width (availableWidth and the 320 to 720 clamp do not apply; the kind's own minimum does).
-  const preferredWidth = boxed ? Math.max(1, Math.round(fit.box.width)) + 2 * fp : Math.max(MIN_WIDTH, Math.min(illustration ? 960 : MAX_WIDTH, requested));
+  const preferredWidth = boxed ? Math.max(1, Math.round(fit.box.width)) : Math.max(MIN_WIDTH, Math.min(illustration ? 960 : MAX_WIDTH, requested));
   const blocks = width => {
     const title = showTitle ? wrap(diagram.title, width - 32, titleSize) : [];
     const titleHeight = showTitle ? title.length * lineHeight(titleSize) + 17 : 0;
@@ -74,21 +57,18 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
   };
   const call = (width, extra) => (fitted ? layouts[diagram.kind](diagram, width, { ...fit, ...extra }) : layouts[diagram.kind](diagram, width));
   const place = width => {
-    const b = blocks(width), crops = (showTitle ? 0 : fp) + (b.captionHeight ? 0 : fp);
-    const extra = boxed ? { contentHeight: Math.max(0, Math.round(fit.box.height) + crops - b.titleHeight - b.captionHeight) } : undefined;
+    const extra = boxed ? { contentHeight: Math.max(0, Math.round(fit.box.height) - blocks(width).titleHeight - blocks(width).captionHeight) } : undefined;
     return fitCaption(call(width, extra), showCaption ? diagram.caption : undefined, CAPTION_GUTTER, captionSize);
   };
   let layout = place(preferredWidth);
   // The kind drew wider than the box (its minimum): ask again at that width so the title, caption and the rest of the box height are counted at the width drawn.
   if (boxed && layout.width !== preferredWidth) layout = place(layout.width);
   const teaching = illustration || isTeachingDiagram(diagram);
-  const fullWidth = layout.width;
-  const { title, titleHeight, caption, captionHeight } = blocks(fullWidth);
-  const cropTop = showTitle ? 0 : fp, cropBottom = captionHeight ? 0 : fp;
-  const fullHeight = titleHeight + layout.height + captionHeight;
-  const width = fullWidth - 2 * fp, height = fullHeight - cropTop - cropBottom;
+  const { width } = layout;
+  const { title, titleHeight, caption, captionHeight } = blocks(width);
+  const height = titleHeight + layout.height + captionHeight;
   const element = h('svg', {
-    xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: fp ? `${fp} ${cropTop} ${width} ${height}` : `0 0 ${width} ${height}`, role: 'img',
+    xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
     'aria-label': describeTutorDiagram(document),
     fontFamily: teaching ? TEACHING_FONT : 'Arial, Liberation Sans, sans-serif',
     style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}),
@@ -97,11 +77,11 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
     'data-tutor-diagram': diagram.kind,
   },
   h('title', null, diagram.title),
-  fp ? null : h('rect', { x: 0.5, y: 0.5, width: width - 1, height: height - 1, rx: 12,
+  h('rect', { x: 0.5, y: 0.5, width: width - 1, height: height - 1, rx: 12,
     fill: SURFACE, stroke: `var(--color-line, ${LINES.frame})` }),
-  showTitle ? label(title, fullWidth / 2, titleHeight / 2 + 3, { ...TITLE_STYLE, size: titleSize }) : null,
+  showTitle ? label(title, width / 2, titleHeight / 2 + 3, { ...TITLE_STYLE, size: titleSize }) : null,
   h('g', { transform: `translate(0 ${titleHeight})` }, ...layout.elements),
-  caption.height ? caption.draw(fullWidth / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
+  caption.height ? caption.draw(width / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
   const result = { width, height, element };
   // `min` and `geometry` are read on demand, so a caller that only draws pays nothing for them.
   // min.width: the narrowest width this spec can be drawn at with nothing overlapping (a box of width 1 asks the kind for its own minimum); min.height: the least height AT THE WIDTH DRAWN (a floor pass of the kind at that width),
@@ -111,24 +91,22 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH, options
     if (min) return min;
     if (!isFitted(diagram)) return (min = { width, height });
     const floorLayout = at => layouts[diagram.kind](diagram, at, { ...(fit ?? {}), box: { width: at, height: 1 }, floor: true });
-    const crops = cropTop + cropBottom;
     const captionMin = showCaption && diagram.caption ? Math.ceil(widestFormula(diagram.caption, captionSize)) + CAPTION_GUTTER : 0;
-    const narrow = floorLayout(1), atWidth = floorLayout(fullWidth);
-    const narrowest = Math.max(narrow.width, captionMin) - 2 * fp;
-    const atDrawn = blocks(fullWidth);
-    const total = atWidth.height + atDrawn.titleHeight + atDrawn.captionHeight - crops;
+    const narrow = floorLayout(1), atWidth = floorLayout(width);
+    const narrowest = Math.max(narrow.width, captionMin);
+    const atDrawn = blocks(width);
+    const total = atWidth.height + atDrawn.titleHeight + atDrawn.captionHeight;
     min = { width: narrowest, height: Math.ceil(total) };
     // min.parts: what each px of min is made of, per axis (the parts of an axis add up to min.width / min.height). A layout lists its own parts; the title block, the caption block and the rounding up are added here.
     const sum = list => list.reduce((all, item) => all + item.px, 0);
-    // frame: false: the parts that held the outer padding shrink by what is cropped (none goes negative), so the parts still add up to min.
-    const heights = [...(atDrawn.titleHeight ? [{ part: 'title', px: atDrawn.titleHeight }] : []), ...shrinkParts(shrinkParts(atWidth.parts ?? [], cropTop, false), cropBottom, true), ...(atDrawn.captionHeight ? [{ part: 'caption', px: atDrawn.captionHeight }] : [])];
-    const widths = shrinkParts(shrinkParts(captionMin > narrow.width ? [{ part: 'caption (its widest formula)', px: captionMin }] : (narrow.widthParts ?? []), fp, false), fp, true);
+    const heights = [...(atDrawn.titleHeight ? [{ part: 'title', px: atDrawn.titleHeight }] : []), ...(atWidth.parts ?? []), ...(atDrawn.captionHeight ? [{ part: 'caption', px: atDrawn.captionHeight }] : [])];
+    const widths = captionMin > narrow.width ? [{ part: 'caption (its widest formula)', px: captionMin }] : (narrow.widthParts ?? []);
     const round = (list, wanted) => (wanted - sum(list) > 1e-9 ? [...list, { part: 'rounding up', px: wanted - sum(list) }] : list);
     min.parts = [...round(heights, min.height).map(item => ({ axis: 'height', ...item })), ...round(widths, min.width).map(item => ({ axis: 'width', ...item }))];
     return min;
   } });
   Object.defineProperty(result, 'geometry', { enumerable: true, configurable: true, get() {
-    return (GEOMETRY_KINDS.has(diagram.kind) || isTopDownTree(diagram)) && layout.geometry ? shiftGeometry(layout.geometry, titleHeight - cropTop, -fp) : null;
+    return (GEOMETRY_KINDS.has(diagram.kind) || isTopDownTree(diagram)) && layout.geometry ? shiftGeometry(layout.geometry, titleHeight) : null;
   } });
   return result;
 }

@@ -65,10 +65,8 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
   }
   if (axis.integerTicks) {
     const range = max - min;
-    // Whole-number steps of 1, 2 or 5 times a power of ten (at most 7 interior ticks to begin with), at the multiples of the step inside the range: 0, 5, 10, 15, 20, never 0, 6, 12, 18.
-    const steps = Array.from({ length: Math.max(0, Math.ceil(Math.log10(range)) + 1) }, (_, k) => [1, 2, 5].map(m => m * 10 ** k)).flat().filter(step => step >= Math.ceil(range / 7) && step < range);
-    for (const step of steps) {
-      const values = Array.from({ length: Math.ceil(max / step) - Math.floor(min / step) - 1 }, (_, i) => (Math.floor(min / step) + 1 + i) * step).filter(value => value > min && value < max);
+    for (let step = Math.max(1, Math.ceil(range / 7)); step < range; step *= 2) {
+      const values = Array.from({ length: Math.ceil(range / step) - 1 }, (_, i) => min + (i + 1) * step);
       const labels = format(withEndpoints(values));
       if (fitsAt(labels, horizontal)) return labels;
     }

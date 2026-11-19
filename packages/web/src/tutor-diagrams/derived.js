@@ -58,20 +58,8 @@ function boxFenceInstance(box, i) {
 // ---- transformation (list): softmax of the before items ----
 // `op: 'softmax'` is the declared rule (fires whatever the words say); `t` (optional) divides the before items (SOFT-T). Without `op`, release 154's word trigger stays as a fallback:
 // a title or operation that says softmax, with plain numeric before and after items; it is OFF when a label says temperature, scaled, scaling, masked, causal, log-softmax or
-// "T =" (after = softmax(before / T): the plain recompute would flag a correct card), except a label "T = <one positive number>" (NUM-3d, SOFT-T: the temperature is read and the after items are checked against softmax(before / T)); then the only check is that after sums to 1 when the title or caption calls them probabilities.
-// NUM-3d: the word test also takes "exponential and divide by the sum" in its spellings (exponentiate and divide by the sum, exponentials divided by their sum, exp(x) / sum of exp,
-// e^x over the sum of e^x) and the written formula (e^{z_i} / \sum_j e^{z_j}, \frac{e^{z_i}}{\sum_j e^{z_j}}, exp(z_i)/Σ exp(z_j)). The structural conditions below still decide.
-const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/;
-const SUM_WORD = String.raw`(?:the\s+|their\s+|its\s+)?(?:sum|total|Σ|\\sum)`, DIVIDE_WORD = String.raw`(?:\/|over|divided\s+by)\s*`;
-const SOFTMAX_WORD = new RegExp([String.raw`softmax`, String.raw`exponentia\w*\s+and\s+normali[sz]e`, String.raw`exponentia\w*[^.;]{0,30}?\bdivid\w*(?:\s+each)?\s+by\s+${SUM_WORD}`,
-  String.raw`\bexp\w*\s*\([^)]*\)\s*${DIVIDE_WORD}${SUM_WORD}`, String.raw`\be\s*\^\s*\{?[^\s}]{1,8}\}?\s*${DIVIDE_WORD}${SUM_WORD}`,
-  String.raw`\\frac\s*\{\s*(?:e\s*\^|\\?exp)[^\n]{0,24}?\}\s*\{\s*(?:\\sum|Σ)`].join('|'), 'i');
-// SOFT-T: a "T = <number>" on a label (before, after, title, caption, operation, link) with one positive T, and no masked / causal / log-softmax / scaled-dot wording, is the temperature the after items were divided by.
-const SOFTMAX_NOT_T = /masked|causal|log[- ]?softmax|scaling|scaled\s+(?:dot|by)|sqrt|√/i;
-const labelTemperature = labels => {
-  const given = [...labels.matchAll(/\bT\s*=\s*(-?\d+(?:\.\d+)?)/g)].map(m => Number(m[1])), written = (labels.match(/\bT\s*=/g) ?? []).length;
-  return given.length === written && new Set(given).size === 1 && given[0] > 0 && !SOFTMAX_NOT_T.test(labels) ? given[0] : undefined; // an unparsable or non-positive T, or two different ones, keeps the switch-off
-};
+// "T =" (after = softmax(before / T): the plain recompute would flag a correct card); then the only check is that after sums to 1 when the title or caption calls them probabilities.
+const SOFTMAX_OFF = /temperature|scaled|scaling|masked|causal|log[- ]?softmax/i, SOFTMAX_T = /\bT\s*=/, SOFTMAX_WORD = /softmax|exponentia\w*\s+and\s+normali[sz]e/i;
 // "2.0", "z_1 = 2.0", "Score: -1", "70%", "$0.5": -> { value, places, half, text } or null; places = decimals written, half = half a unit of the last decimal written (of a percent, as a fraction).
 export function listNumber(item) {
   if (typeof item !== 'string') return null;
@@ -95,13 +83,12 @@ function softmaxInstance(d) {
     return { at, written, problems: [{ plain: true, message: `op softmax needs one plain number per before item (${before.length}) in after items` }] };
   }
   const labels = [d.title, d.caption, d.operation, d.before.label, d.after.label, ...(d.links ?? []).map(l => l.label)].filter(Boolean).join(' ');
-  const labelT = declared ? undefined : labelTemperature(labels);
-  if (!declared && labelT === undefined && (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels))) {
+  if (!declared && (SOFTMAX_OFF.test(labels) || SOFTMAX_T.test(labels))) {
     const total = sum(after.map(x => x.value)), slack = sum(after.map(x => x.half));
     const wrong = /probabilit/i.test(`${d.title} ${d.caption ?? ''}`) && Math.abs(total - 1) > slack + 1e-9;
     return { at, written, problems: wrong ? [{ message: `The after values are called probabilities, so they must sum to 1: ${after.map(x => x.text).join(' + ')} = ${Number(total.toFixed(6))}.` }] : [] };
   }
-  const t = declared ? d.t : labelT, p = softmax(before.map(x => x.value), t);
+  const t = declared ? d.t : undefined, p = softmax(before.map(x => x.value), t);
   const computed = p.map(value => value.toFixed(2)), problems = [];
   if (after) {
     const beyond = units => after.filter((x, i) => Math.abs(p[i] - x.value) > units * x.half + 1e-9).length;

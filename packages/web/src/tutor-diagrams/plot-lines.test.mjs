@@ -127,21 +127,6 @@ test('integer axis ticks show each depth when space allows and reject noninteger
   assert.throws(() => parseTutorDiagram(spec));
 });
 
-test('integer axis ticks stand at round numbers: 0, 5, 10, 15, 20 for 0 to 20 (never 0, 12, 20) and at multiples of the step when the axis starts at 1', () => {
-  const ticksOf = (min, max, width) => {
-    const spec = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Rain barrel', x: { label: 'Time', min, max, integerTicks: true }, y: { label: 'Volume', min: 0, max: 60 },
-      series: [{ kind: 'line', label: 'Readings', points: [{ x: min, y: 12 }, { x: max, y: 52 }] }] } };
-    const svg = renderToStaticMarkup(renderTutorDiagram(parseTutorDiagram(spec), width).element);
-    // the x tick numbers are the numbers drawn lowest in the picture
-    const numbers = [...svg.matchAll(/<tspan[^>]* y="([\d.]+)">(\d+)<\/tspan>/g)].map(([, y, value]) => [Number(y), Number(value)]);
-    const lowest = Math.max(...numbers.map(([y]) => y));
-    return numbers.filter(([y]) => y === lowest).map(([, value]) => value);
-  };
-  assert.deepEqual(ticksOf(0, 20, 408), [0, 5, 10, 15, 20]);
-  assert.deepEqual(ticksOf(0, 20, 720), [0, 5, 10, 15, 20]);
-  assert.deepEqual(ticksOf(1, 20, 408), [1, 5, 10, 15, 20]);
-});
-
 test('compact sample grids keep all 25 coordinates while preserving the stored spec', () => {
   const series = { label: 'Samples', kind: 'line',
     samples: { x: { start: 0, step: 1, divisor: 24 }, y: Array.from({ length: 25 }, (_, index) => index), divisor: 24 } };

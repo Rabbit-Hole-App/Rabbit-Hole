@@ -84,15 +84,6 @@ test('inline and display math in every delimiter, display $$ on its own lines ov
   assert.match(md('It costs $5 and $10.'), /<p class="my-1">It costs \$5 and \$10\.<\/p>/, 'prices are not math');
 });
 
-test('an inline \\frac in prose reads a/b (no stacked fraction); a display fraction and a fraction inside \\sqrt keep the stack; a price beside it is still text', () => {
-  const inline = md('It is $p_i=\\frac{e^{s_i}}{\\sum_j e^{s_j}}$ and $\\frac{42}{70}$ for $5.');
-  assert.doesNotMatch(inline, /class="mfrac"/);
-  assert.match(visible(inline), /e.?si.*\/.*∑/s);
-  assert.match(inline, /<annotation encoding="application\/x-tex">p_i=e\^\{s_i\}\/\(\\sum_j e\^\{s_j\}\)<\/annotation>/);
-  assert.match(md('$$\\frac{a}{b}$$'), /class="mfrac"/);
-  assert.match(md('Root $\\sqrt{\\frac{a}{b}}$.'), /class="mfrac"/);
-});
-
 test('streaming: unclosed $$ or \\[ math is plain text, never a broken equation, until it closes', () => {
   for (const text of ['Then\n\n$$\n\\frac{a}{', 'Then \\[ \\frac{a}{']) {
     const html = md(text);

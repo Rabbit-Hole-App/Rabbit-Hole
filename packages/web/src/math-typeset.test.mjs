@@ -33,9 +33,7 @@ test('the softmax formula typesets in a challenge prompt and its hint: fraction,
   const html = card({ id: 'c1', type: 'challenge', prompt: `What does ${SOFTMAX} do to the scores?`, hint: `Think of ${SOFTMAX} as shares of one whole.`, expects: ['a', 'b'], answer: null });
   assert.equal(typeset(html), 2, 'prompt and hint each hold one equation');
   assert.doesNotMatch(html, /katex-error/);
-  // An inline fraction is typeset a/b (inline-fractions.js): a stacked one is squeezed to the line height and unreadable.
-  assert.doesNotMatch(html, /class="mfrac"/);
-  assert.match(html, /e\^\{z_i\}\/\(\\sum_j e\^\{z_j\}\)<\/annotation>/);
+  assert.match(html, /class="mfrac"/);
   assert.match(html, /class="msupsub"/);
   assert.match(html, /<span class="mop"><span class="mord mathrm">softmax<\/span><\/span>/, '\operatorname sets upright softmax');
   const text = visible(html);

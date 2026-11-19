@@ -40,7 +40,7 @@ function insidePicture(geometry, { width, height }, where) {
   walk(geometry);
 }
 
-const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow', 'layers', 'tensor'];
+const FITTED = ['coordinate-plot', 'token-links', 'bar-chart', 'heatmap', 'matrix', 'flow'];
 for (const kind of FITTED) {
   test(`${kind}: the neutral example in every box at sizes 14, 12 and 16 equals the box when the box is at least min, else min; nothing text is larger than asked; geometry lies inside the picture`, () => {
     const spec = neutral(kind);
@@ -130,7 +130,7 @@ test('a kind that is not fitted ignores box and sizes, returns min equal to its 
   assert.equal(markup(asked), markup(plain));
   assert.deepEqual(plain.min, { width: plain.width, height: plain.height });
   assert.equal(plain.geometry, null);
-  for (const kind of ['cycle']) assert.equal(renderTutorDiagram(neutral(kind), 408).geometry, null, kind);
+  for (const kind of ['tensor', 'layers', 'cycle']) assert.equal(renderTutorDiagram(neutral(kind), 408).geometry, null, kind);
   const flow = neutral('flow'), rendered = renderTutorDiagram(flow, 408);
   assert.ok(rendered.geometry && Array.isArray(rendered.geometry.nodes) && Array.isArray(rendered.geometry.edges));
   // the title block is counted: each node is lower than in the layout's own coordinates by the title height
@@ -166,7 +166,7 @@ test('min.parts: the parts of an axis add up to min.width and min.height, for ev
   const names = renderTutorDiagram(spec, 408, { box: { width: 408, height: 100 } }).min.parts.filter(part => part.axis === 'height').map(part => part.part);
   assert.ok(names.includes('title') && names.includes('caption') && names.includes('plot area'), names.join(', '));
   // a kind that is not fitted has no parts: min is its drawn size
-  assert.equal(renderTutorDiagram(neutral('cycle'), 408).min.parts, undefined);
+  assert.equal(renderTutorDiagram(neutral('tensor'), 408).min.parts, undefined);
 });
 
 test('what sets min.height of a plot: a legend that needs a second row grows min.height by that row, and min.parts names it', () => {
@@ -326,80 +326,4 @@ test('bar-chart: options.range fixes the value axis; values outside it are clamp
   assert.ok(none.geometry.range && none.geometry.range.min === none.geometry.y.min && none.geometry.range.max === none.geometry.y.max, 'without a range, geometry.range is the axis derived from the values');
   assert.equal(markup(renderTutorDiagram(plain([12, 18]), 408, { range: { min: 0, max: 40 } })), markup(renderTutorDiagram(plain([12, 18]), 408)), 'a range with no box or sizes is ignored: today\'s drawing');
   assert.ok(Number.isFinite(a.min.width) && a.min.width > 0 && a.min.parts.length > 0);
-});
-
-// ---- batch 4: parts.frame false (no outer card, no outer padding) ----
-const FRAME_KINDS = [...FITTED.map(kind => [kind, neutral(kind)]), ['tree binary', TREES.binary], ['tree hierarchy', TREES.hierarchy]];
-// The padding cropped per side: the layout's own padding (12, the flow 14, the tensor strip 6) less 1 px, so the first and last blocks keep their stroke.
-const framePadOf = spec => ({ flow: 13, tensor: 5 })[spec.diagram.kind] ?? 11;
-// Every stroked rect (its stroke counted) lies inside the viewBox, so no block's outer stroke is cropped. Only rects outside a nested transformed group are read (the layout's own group, moved by the title block, is the first).
-function strokesInside(rendered, where) {
-  const svg = markup(rendered), [vx, vy, vw, vh] = svg.match(/viewBox="([^"]*)"/)[1].split(' ').map(Number);
-  const stack = [];
-  for (const [tag] of svg.matchAll(/<g\b[^>]*>|<\/g>|<rect [^>]*>/g)) {
-    if (tag.startsWith('<g')) stack.push(tag.includes('transform='));
-    else if (tag === '</g>') stack.pop();
-    else if (stack.filter(Boolean).length <= 1) {
-      const at = name => Number(tag.match(new RegExp(` ${name}="([^"]*)"`))?.[1]), sw = at('stroke-width');
-      if (![at('x'), at('y'), at('width'), at('height'), sw].every(Number.isFinite)) continue;
-      assert.ok(at('x') - sw / 2 >= vx - 1e-6 && at('y') - sw / 2 >= vy - 1e-6 && at('x') + at('width') + sw / 2 <= vx + vw + 1e-6 && at('y') + at('height') + sw / 2 <= vy + vh + 1e-6, `${where}: a block's stroke is cropped: ${tag}`);
-    }
-  }
-}
-// The picture without its svg tag and its card rect: what is drawn inside.
-const inner = rendered => markup(rendered).replace(/^<svg[^>]*>/, '').replace(/<rect x="0.5" y="0.5"[^>]*><\/rect>/, '');
-for (const [name, spec] of FRAME_KINDS) {
-  test(`${name}: frame false in every box at sizes 14, 12 and 16 equals the box when it is at least min, else min; parts add up to min; geometry inside; no card`, () => {
-    const pad = framePadOf(spec);
-    for (const [boxWidth, boxHeight] of BOXES) for (const size of SIZES) {
-      const where = `${name} frame false ${boxWidth}x${boxHeight} at ${size}`;
-      const options = { box: { width: boxWidth, height: boxHeight }, sizes: all(size), parts: { title: false, caption: false, frame: false } };
-      const rendered = renderTutorDiagram(spec, boxWidth, options);
-      const { min } = rendered;
-      assert.ok(Math.abs(rendered.width - Math.max(boxWidth, min.width)) < 0.5, `${where}: width ${rendered.width} vs box and min ${min.width}`);
-      assert.ok(Math.abs(rendered.height - Math.max(boxHeight, min.height)) < 1, `${where}: height ${rendered.height} vs box and min ${min.height}`);
-      assert.ok(!markup(rendered).includes('<rect x="0.5" y="0.5"'), `${where}: the card rect is gone`);
-      assert.ok(Math.max(...fontSizes(markup(rendered))) <= size, `${where}: a text is larger than ${size}`);
-      for (const axis of ['width', 'height']) {
-        const parts = min.parts.filter(part => part.axis === axis);
-        assert.ok(Math.abs(parts.reduce((all_, part) => all_ + part.px, 0) - min[axis]) < 1e-6, `${where}: ${axis} parts add up to ${min[axis]}`);
-        assert.ok(parts.every(part => part.px >= 0), `${where}: no negative part (${axis})`);
-      }
-      if (rendered.geometry) insidePicture(rendered.geometry, rendered, where);
-      strokesInside(rendered, where);
-      // frame true at the box grown by the padding draws the same inside, shifted
-      const framed = renderTutorDiagram(spec, boxWidth + 2 * pad, { ...options, box: { width: boxWidth + 2 * pad, height: boxHeight + 2 * pad }, parts: { title: false, caption: false } });
-      if (Math.abs(framed.width - (rendered.width + 2 * pad)) < 0.5 && Math.abs(framed.height - (rendered.height + 2 * pad)) < 0.5) assert.equal(inner(rendered), inner(framed), `${where}: frame false removes exactly the frame`);
-    }
-  });
-  test(`${name}: frame false with the title and caption shown or left out: min.parts are non-negative and add up to min`, () => {
-    for (const [title, caption] of [[true, true], [true, false], [false, true]]) {
-      const { min } = renderTutorDiagram(spec, 400, { box: { width: 400, height: 300 }, sizes: all(14), parts: { title, caption, frame: false } });
-      for (const axis of ['width', 'height']) {
-        const parts = min.parts.filter(part => part.axis === axis);
-        assert.ok(parts.every(part => part.px >= 0), `${name} title ${title} caption ${caption}: a ${axis} part is negative`);
-        assert.ok(Math.abs(parts.reduce((all_, part) => all_ + part.px, 0) - min[axis]) < 1e-6, `${name} title ${title} caption ${caption}: ${axis} parts add up to ${min[axis]}`);
-      }
-    }
-  });
-  test(`${name}: frame false with the title and caption shown or left out: min.parts are non-negative and add up to min`, () => {
-    for (const [title, caption] of [[true, true], [true, false], [false, true]]) {
-      const { min } = renderTutorDiagram(spec, 400, { box: { width: 400, height: 300 }, sizes: all(14), parts: { title, caption, frame: false } });
-      for (const axis of ['width', 'height']) {
-        const parts = min.parts.filter(part => part.axis === axis);
-        assert.ok(parts.every(part => part.px >= 0), `${name} title ${title} caption ${caption}: a ${axis} part is negative`);
-        assert.ok(Math.abs(parts.reduce((all_, part) => all_ + part.px, 0) - min[axis]) < 1e-6, `${name} title ${title} caption ${caption}: ${axis} parts add up to ${min[axis]}`);
-      }
-    }
-  });
-  test(`${name}: frame true or no frame key is today's drawing; frame false with a title keeps the title`, () => {
-    const options = { box: { width: 400, height: 300 }, sizes: all(14) };
-    assert.equal(markup(renderTutorDiagram(spec, 400, { ...options, parts: { frame: true } })), markup(renderTutorDiagram(spec, 400, options)));
-    const titled = renderTutorDiagram(spec, 400, { ...options, parts: { frame: false } });
-    assert.ok(markup(titled).includes(spec.diagram.title.slice(0, 8)) || spec.diagram.title.length < 1, `${name}: title kept`);
-  });
-}
-test('frame false is ignored by a kind that is not fitted', () => {
-  const spec = gallery.find(s => s.diagram.kind === 'timeline');
-  assert.equal(markup(renderTutorDiagram(spec, 408, { parts: { frame: false } })), markup(renderTutorDiagram(spec, 408)));
 });

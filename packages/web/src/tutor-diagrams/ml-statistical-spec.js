@@ -205,9 +205,7 @@ export function validate(diagram, issue) {
   }
 }
 
-// An out-of-bag group (outOfBagFor) lists the samples that were never drawn: each one is named, with no "× n".
 export function sampleMemberships(group) {
-  if (group.outOfBagFor) return group.members.map(id => ({ id, count: 1, text: id }));
   const counts = new Map();
   for (const id of group.members) counts.set(id, (counts.get(id) || 0) + 1);
   return [...counts].map(([id, count]) => ({ id, count, text: `${id} × ${count}` }));
@@ -227,7 +225,7 @@ export function describe(d) {
     case 'sample-set': return [
       ...d.samples.map(sample => `${sample.id}${sample.label ? `: ${sample.label}` : ''}${sample.class ? `; class ${sample.class}` : ''}${sample.weight !== undefined ? `; weight ${sample.weight}` : ''}`),
       ...d.groups.flatMap(group => [
-        `${group.label} (${group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws, ${new Set(group.members).size} unique`}): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
+        `${group.label} (${group.members.length} draws, ${new Set(group.members).size} unique): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
         ...(group.omitted ? [`Omitted: ${group.omitted.join(', ') || 'none'}`] : []),
         ...(group.outOfBagFor ? [`Out of bag for ${d.groups.find(other => other.id === group.outOfBagFor).label}`] : []),
       ]),
