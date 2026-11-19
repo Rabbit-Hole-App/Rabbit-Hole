@@ -97,3 +97,11 @@ test('the archive trace names the seeded examples and their kind apart from the 
   assert.equal(trace.examplesKind, 'flow');
   assert.deepEqual(trace.references, [], 'no topical reference was involved');
 });
+
+test('START-3 neutrality: explanation-examples.js reads the reference library only through explanation-library.js libraryRefs(), never a static import', async () => {
+  const fs = await import('node:fs'), { libraryRefs } = await import('../src/explanation-library.js'), { diagramReferences } = await import('../../web/src/tutor-diagrams/reference-library.js');
+  const source = fs.readFileSync(new URL('../src/explanation-examples.js', import.meta.url), 'utf8');
+  assert.ok(!/reference-library|reference-single-variants/.test(source), 'no direct import of the library');
+  assert.ok(/libraryRefs\(\)/.test(source));
+  assert.equal(libraryRefs(), diagramReferences, 'today the accessor returns the static import; START-3 swaps its body');
+});

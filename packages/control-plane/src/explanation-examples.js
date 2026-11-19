@@ -2,7 +2,7 @@
 // production code until R2 wires it. Pool = library references whose OWN spec at the card's depth is a single diagram of that kind (a two-panel reference is not counted here: its
 // one-diagram variant is not depth-specific), minus general-* and shape-* ids and any reference that would change the schema bundle chosen for the kind (tensor payloads,
 // compact plots, parallel paths, panels, visual states, token-links or block-stack payloads the kind itself does not need): the bundle test is the code's own diagramBundle.
-import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { libraryRefs } from './explanation-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { seededRandom } from '../../web/src/tutor-diagrams/random.js';
 import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
@@ -26,7 +26,7 @@ const pools = new Map(); // `${level}` -> Map(kind -> [atLevel references]); bui
 function poolsAt(level) {
   if (pools.has(level)) return pools.get(level);
   const byKind = new Map(), bases = new Map();
-  for (const ref of diagramReferences) {
+  for (const ref of libraryRefs()) {
     if (/^(?:shape|general)-/.test(ref.id)) continue;
     const merged = atLevel(ref, level), diagram = merged.spec?.diagram;
     if (!diagram || composed(diagram)) continue;

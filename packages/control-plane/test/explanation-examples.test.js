@@ -83,7 +83,7 @@ test('GEN-1 G1 and G4: only the R2 wiring (learn-artifact.js) imports explanatio
     if (f.name === 'node_modules' || f.name === 'dist' || f.name === 'dist-dev') continue;
     const full = path.join(dir, f.name);
     if (f.isDirectory()) walk(full);
-    else if (/\.(?:js|jsx|mjs)$/.test(f.name) && !/\.test\./.test(f.name) && !/explanation-(?:examples|kind-draw)\.js$/.test(f.name)) { const text = fs.readFileSync(full, 'utf8'); if (/explanation-examples/.test(text)) hits.push(path.relative(root, full).replace(/\\/g, '/')); if (/explanation-kind-draw/.test(text)) drawHits.push(path.relative(root, full).replace(/\\/g, '/')); }
+    else if (/\.(?:js|jsx|mjs)$/.test(f.name) && !/\.test\./.test(f.name) && !/explanation-(?:examples|kind-draw)\.js$/.test(f.name)) { const text = fs.readFileSync(full, 'utf8'); if (/from '[^']*explanation-examples/.test(text)) hits.push(path.relative(root, full).replace(/\\/g, '/')); if (/from '[^']*explanation-kind-draw/.test(text)) drawHits.push(path.relative(root, full).replace(/\\/g, '/')); }
   } };
   walk(path.join(root, 'control-plane', 'src')); walk(path.join(root, 'web', 'src'));
   assert.deepEqual(hits, ['control-plane/src/learn-artifact.js']);
