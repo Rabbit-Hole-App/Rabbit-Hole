@@ -59,6 +59,7 @@ import { references as poolDerivedHistograms } from './gen-1-pool-2-histogram-re
 import { references as poolDerivedSamples } from './gen-1-pool-2-sample-set-references.js';
 import { references as poolDerivedHeatmaps } from './gen-1-pool-2-heatmap-references.js';
 import { references as poolDerivedLinks } from './gen-1-pool-2-token-links-references.js';
+import { references as poolBlockStacks } from './gen-1-pool-2-block-stack-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -110,6 +111,7 @@ export const diagramReferences = Object.freeze([
   samplingTopKReference,
   ...poolSoftmax, ...poolDerivedPlots, ...poolDerivedBoxes, ...poolDerivedHistograms,
   ...poolDerivedSamples, ...poolDerivedHeatmaps, ...poolDerivedLinks,
+  ...poolBlockStacks,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];
