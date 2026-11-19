@@ -1,0 +1,60 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Causal mask applied before softmax",
+  "caption": "Mask $M_{ij}=-\\infty$ for $j>i$, zero otherwise; softmax then normalises over allowed keys.",
+  "kind": "token-links",
+  "source": [
+   "t1",
+   "t2",
+   "t3",
+   "t4",
+   "t5",
+   "t6"
+  ],
+  "target": [
+   "t1",
+   "t2",
+   "t3",
+   "t4",
+   "t5",
+   "t6"
+  ],
+  "queries": [
+   {
+    "index": 0,
+    "weights": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "index": 1,
+    "weights": [
+     0.5,
+     0.5,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "index": 2,
+    "weights": [
+     0.33,
+     0.33,
+     0.34,
+     0,
+     0,
+     0
+    ]
+   }
+  ],
+  "normalized": true
+ }
+}
