@@ -95,6 +95,7 @@ import { StudyPane, useStudy } from './StudyPane.jsx';
 import { studyPill } from './study-work.js';
 import LearnPane from './LearnPane.jsx';
 import { LEARN_TOP, learnEnter, learnLeave, learnSection, learnView } from './learn-mode.js';
+import { CONNECTED_EVENT, takeConnected } from './connect-open.js';
 import { walkButton, walkSections } from './learn-walk.js';
 import { SWITCH_ROW } from './study-ref.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
@@ -224,6 +225,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (study?.repository && (view === 'files' || view === 'graph')) { study.setReferenceTab(view); if (study.open) return; }
     panels.companion.show(view);
   } };
+  // Opened by Start on a newly connected repository: Chat opens once (connect-open.js); the event covers a page already mounted when the mark lands.
+  useEffect(() => {
+    const open = () => { if (takeConnected(app.name)) panels.openChat(); };
+    open();
+    window.addEventListener(CONNECTED_EVENT, open);
+    return () => window.removeEventListener(CONNECTED_EVENT, open);
+  }, [app.name]); // eslint-disable-line react-hooks/exhaustive-deps
   const companionViews = COMPANION_VIEWS.filter(entry => (entry.id === 'files' ? files : entry.id === 'graph' ? graph : true));
   const companionView = companionViews.some(entry => entry.id === companion.view) ? companion.view : 'context';
   const shown = useRef(new Set());

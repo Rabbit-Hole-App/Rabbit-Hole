@@ -367,7 +367,7 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
     const indexed = row.status === 'ready' && row.commit, repo = indexed ? { id: row.id, repo: row.repo, commit: row.commit } : null;
     const indexing = ['queued', 'indexing', 'failed'].includes(row.status) ? row.status : indexed ? 'ready' : 'indexing';
     if (action === 'start') return repo ? await startRoute(env, repo, routeId, access) : json({ error: 'not_indexed' }, 409);
-    if (!repo) return json({ indexing, catalogue: indexing === 'failed' ? { status: 'failed', error: 'The repository could not be indexed.' } : { status: 'queued' } }); // the catalogue waits for the snapshot
+    if (!repo) return json({ indexing, repo: row.repo, catalogue: indexing === 'failed' ? { status: 'failed', error: 'The repository could not be indexed.' } : { status: 'queued' } }); // the catalogue waits for the snapshot
     // GET and {action:'catalogue'}: the catalogue state; a ready repository with no catalogue job (an import older than the trigger) starts one here; only the owner's action retries a failed one
     const { state, doc, learn } = await catalogueState(env, repo, { start: true, retry: action === 'catalogue' });
     const out = { indexing, catalogue: state, ...(learn && learn.status !== 'ready' ? { learn } : {}), ...(action === 'catalogue' && doc ? { catalogueDoc: doc } : {}), routes: await routeStates(env, repo, doc) };

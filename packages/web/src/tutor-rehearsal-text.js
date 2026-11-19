@@ -113,7 +113,8 @@ export function factsMessage(doc, cm = catalogueMessage(doc)) {
 export const SENTENCES = {
   unreachable: name => `I can't reach **${name}**: it looks private or gone. Rabbit Hole works with public GitHub repositories.`,
   tooBig: (name, files) => `**${name}** is bigger than I can index here${files ? ` (${files} files; the limit is 2,000)` : ' (the limit is 2,000 files)'}. I can still read it with you, but I can't map or run it.`,
-  catalogueFailed: name => `I couldn't make sense of how **${name}** is meant to be used: the README and scripts didn't give me a clear route. You can read it, or point me at the file that starts it.`,
+  // Learn first (owner 2026-11-19 09:00): no run language; the Retry row follows it.
+  catalogueFailed: name => `I read **${name}** but couldn't work out what it offers yet. Try again, or tell me what you want to learn from it.`,
   noMachine: name => `I couldn't start a machine to run **${name}** just now. Nothing is wrong with the repository. Try again in a minute; if it keeps happening, tell the owner.`,
   costCap: name => `I stopped rehearsing **${name}** because it was costing more than I allow for one repository. Here is what ran.`,
   rehearsalFailed: name => `I couldn't finish rehearsing **${name}** just now. Nothing is wrong with the repository. Try again in a minute, or read it with me.`,

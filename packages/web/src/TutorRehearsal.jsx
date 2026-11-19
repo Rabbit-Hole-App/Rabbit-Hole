@@ -89,10 +89,21 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   useEffect(() => {
     live.current = true; setS({ ...INITIAL, intakeDone: intakeDone(canvas) }); route.current = null; cards.current = new Set(); kicked.current = false;
     if (!eligible) return undefined;
-    let on = true;
-    api(`/api/learn/codebase?app=${encodeURIComponent(canvas)}&board=${encodeURIComponent(board)}`)
-      .then(out => { if (on) setInfo({ key: canvas, ...out }); }, () => { if (on) setInfo({ key: canvas, repository: null, activity: null }); });
-    return () => { on = false; live.current = false; clearTimeout(timer.current); };
+    let on = true, wait = null;
+    // A repository connected a moment ago is still indexing, and the codebase read counts only an indexed one (owner 2026-11-19 09:00): the rehearsal read
+    // (which answers an unindexed repository too, and 409 on a canvas with none) is asked until indexing ends, its "Reading <name>" shown meanwhile, then the codebase read again.
+    const read = () => api(`/api/learn/codebase?app=${encodeURIComponent(canvas)}&board=${encodeURIComponent(board)}`)
+      .then(out => {
+        if (!on) return;
+        setInfo({ key: canvas, ...out });
+        if (!out.repository) return api(url()).then(get => {
+          if (!on || !get?.indexing) return;
+          setInfo(old => ({ ...old, waiting: { repo: get.repo, get } }));
+          if (get.indexing !== 'failed') wait = setTimeout(read, REHEARSAL_POLL_MS);
+        }, () => {});
+      }, () => { if (on) setInfo({ key: canvas, repository: null, activity: null }); });
+    read();
+    return () => { on = false; live.current = false; clearTimeout(timer.current); clearTimeout(wait); };
   }, [canvas, eligible]); // eslint-disable-line react-hooks/exhaustive-deps
   // A saved Learn goal keeps the flow on screen (its plan draft, or the accepted plan) after a reload; any other saved activity hands the Chat to the activity card.
   const stored = storedLearn(chat.coaching.state);
@@ -538,7 +549,8 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     window.addEventListener(SOURCE_ARRIVED_EVENT, onArrived);
     return () => window.removeEventListener(SOURCE_ARRIVED_EVENT, onArrived);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
-  const messages = [...(active ? flowMessages(s, { repo: repository.repo }) : []), ...s.lines];
+  const indexing = !repository && info?.key === canvas ? info.waiting : null;
+  const messages = [...(active ? flowMessages(s, { repo: repository.repo }) : indexing ? flowMessages({ ...s, get: indexing.get }, { repo: indexing.repo }) : []), ...s.lines];
   if (!messages.length) return null;
   return <div data-rehearsal-flow aria-live="polite" className="flex flex-col">
     {messages.map(m => {

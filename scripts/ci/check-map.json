@@ -87,6 +87,7 @@
     "packages/web/src/LearnPane.jsx": ["packages/web/src/learn-mode.test.mjs"],
     "packages/web/src/LearnCardView.jsx": ["packages/web/src/learn-mode.test.mjs"],
     "packages/web/src/source-arrived.js": ["packages/web/src/intake-once.test.mjs"],
+    "packages/web/src/connect-open.js": ["packages/web/src/connect-open.test.mjs"],
     "packages/web/src/learn-mode.js": ["packages/web/src/learn-mode.test.mjs"],
     "packages/web/src/learn-walk.js": ["packages/web/src/learn-walk.test.mjs"],
     "packages/web/src/learn-sample-section.js": ["packages/web/src/learn-sample-section.test.mjs"],

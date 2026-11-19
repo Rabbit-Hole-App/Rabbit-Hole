@@ -8,6 +8,7 @@
   "required": ["catalogue"],
   "properties": {
     "indexing": { "enum": ["queued", "indexing", "ready", "failed"], "description": "the repository import's own state, when the chat asks before it is ready" },
+    "repo": { "type": "string", "description": "owner/name, present only while the repository is not indexed yet, for the Tutor's Reading <name> line" },
     "catalogue": {
       "type": "object", "additionalProperties": false, "required": ["status"],
       "properties": {
