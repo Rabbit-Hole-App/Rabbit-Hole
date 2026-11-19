@@ -5,7 +5,7 @@
 // There is no Files menu (the right panel's Context and Search do that work) and no Share, Publish or Embed here (the Share button).
 // Row kinds, drawn by CanvasMenubar: an action (label, icon, hint, disabled, onSelect), a submenu (items), a radio or check row
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
-import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, Clipboard, Copy, CopyPlus, Eye, FilePen, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
+import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, Clipboard, Copy, CopyPlus, Eye, FilePen, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, Ruler, Heading2, Heading3 } from 'lucide-react';
 import { ariaFor, hintFor, isMac } from './shortcuts.js';
 import { HIDDEN_IN_STUDY, widgetLocked } from './widget-visibility.js';
 
@@ -24,7 +24,7 @@ export const localInsertItems = canvas => [
 
 // The owner's Insert menu: the local rows, then what reaches beyond this canvas, then the link. Upload a file is the one way to add
 // a file (the page asks where it goes); Search sources is the one source finder (YouTube, arXiv and Wikipedia are choices inside it).
-export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCanvas, onCreateCourse = null }) => [
+export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCanvas }) => [
   ...localInsertItems(canvas),
   { divider: true },
   { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
@@ -33,8 +33,6 @@ export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCa
   { label: 'Upload a file', icon: Upload, onSelect: onUpload },
   { label: 'Webpage', icon: Globe, onSelect: () => canvas()?.insertWebpage() },
   { label: 'Search sources', icon: Search, onSelect: onSearchSources },
-  // Create a course from the canvas's Markdown file (owner 2026-11-14): the same create the invitation's button and a typed request run; the row says why when it cannot.
-  ...(onCreateCourse ? [{ label: 'Create a course', icon: GraduationCap, disabled: !!onCreateCourse.disabled, onSelect: onCreateCourse }] : []),
   { divider: true },
   { label: 'Add a link', icon: Link, onSelect: onLinkToCanvas },
 ];

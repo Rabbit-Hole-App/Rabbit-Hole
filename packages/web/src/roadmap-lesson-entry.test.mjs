@@ -118,17 +118,11 @@ test('lessonSourcesOf: the sources a typed lesson may start from', () => {
   assert.ok(reduce, 'reducer import kept for the shared state shape');
 });
 
-test('the Send path carries the lesson sources and runs the typed request through the controller, with the Chat thread and the composer Depth', () => {
+test('the Send path no longer carries lesson sources or runs a typed request through the roadmap controller (the roadmap is unplugged, owner 2026-11-19)', () => {
   const ask = readFileSync(fileURLToPath(new URL('./ask.jsx', import.meta.url)), 'utf8');
-  assert.ok(ask.includes('const lessonSources = roadmap?.lessonSources?.() || null;'));
-  assert.ok(ask.includes("lessonSources?.length ? { lesson: { sources: lessonSources } } : {}"), 'only an ordinary Learn Chat turn (no command, regeneration or Edit) offers the sources');
-  assert.ok(ask.includes("d.toolRequest?.command === 'explain-on-canvas'"));
-  assert.ok(ask.includes("roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'balanced', instruction, source:"));
-  assert.ok(ask.includes("threadId: d.threadId"), 'the saved thread of the final event, known before the roadmap starts (a new chat has no chat.thread.id when the tool event arrives)');
-  const hook = readFileSync(fileURLToPath(new URL('./use-roadmap.js', import.meta.url)), 'utf8');
-  assert.ok(hook.includes('lessonSources: () => lessonSourcesOf(controller.getState(), hostRef.current?.sources?.() || [])'));
-  const page = readFileSync(fileURLToPath(new URL('./LearnPage.jsx', import.meta.url)), 'utf8');
-  assert.ok(page.includes("block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev"), 'the host lists only ready Markdown sources with a stored revision');
+  assert.ok(!ask.includes('lessonSources'));
+  assert.ok(!ask.includes("explain-on-canvas"));
+  assert.ok(!ask.includes('roadmap?.controller?.lesson('));
 });
 
 // BE.01a: the typed request carries the scope the tool call named; whole is the default and never a silent override.

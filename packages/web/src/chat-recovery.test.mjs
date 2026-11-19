@@ -36,11 +36,9 @@ test('the occupied-Chat choice is rebuilt from the saved message before a second
   assert.match(read('RoadmapTranscript.jsx'), /routeFromSaved\(msgs, iv\.id, thread\.id\)/);
 });
 
-// BE.01a (checklist 4.1.1): a typed lesson request binds to the DURABLE thread before it starts, and keeps the scope the tool call named. A brand-new chat has no thread
-// id when the answer's tool request arrives (the id comes with the final event), so the lesson starts when the thread is known and the answer was not stopped.
-test('ask.jsx starts a typed lesson when the answer completes, on the thread the server saved, with its scope', () => {
+// BE.01a (a typed lesson request starting the roadmap) is removed with the roadmap (roadmap-unplug-spec.md, owner 2026-11-19): the chat starts no lesson and sends no lesson sources.
+test('ask.jsx starts no lesson from a tool request and sends no lesson sources', () => {
   const ask = read('ask.jsx');
-  assert.match(ask, /lessonRequest = d\.toolRequest\.args/);
-  assert.match(ask, /roadmap\?\.controller\?\.lesson\(\{[^}]*threadId: d\.threadId[^}]*scope/);
-  assert.doesNotMatch(ask, /controller\?\.lesson\(\{ depth: chat\?\.settings\?\.depth \|\| 'standard', instruction, source: [^}]*threadId: chat\?\.thread\?\.id \|\| null \}\)/, 'no longer started from the tool event with the possibly empty chat.thread.id');
+  assert.doesNotMatch(ask, /lessonRequest|lessonSources|explain-on-canvas|controller\?\.lesson\(/);
+  assert.doesNotMatch(ask, /direct\?\.command === 'course'/);
 });

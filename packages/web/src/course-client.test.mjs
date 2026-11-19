@@ -133,7 +133,7 @@ test('the wiring: Accept opens the contents, Generate course runs the controller
   assert.doesNotMatch(transcript, /case 'accept': |case 'cancel': |case 'propose_next'|case 'edit_card'/);
   assert.match(surfaces, /roadmap\.course && <CourseProgress course=\{roadmap\.course\}[^>]*onCancel=\{\(\) => roadmap\.stopCourse\(\)\}/);
   assert.doesNotMatch(surfaces, /ProposalOverlay/);
-  assert.match(toc, /roadmap\?\.canStartCourse && !readOnly && .*data-toc-generate-course onClick=\{\(\) => roadmap\.startCourse\(\)\}>Generate course</);
+  assert.doesNotMatch(toc, /data-toc-generate-course|canStartCourse/, 'no Generate course button: the roadmap is unplugged (owner 2026-11-19)');
   assert.match(hook, /canStartCourse: canStartCourse\(state\), canRetryCourse: canRetryCourse\(state\), course: courseOf\(state\), startCourse: \(\) => controller\.startCourse\(\), stopCourse: \(\) => controller\.stopCourse\(\), retryCourse: \(\) => controller\.retryCourse\(\)/);
   assert.match(read('LearnPage.jsx'), /roadmap\.expectInvitation\(\); droppedMarkdown\.current\.add\(block\.id\);/);
 });
@@ -170,28 +170,14 @@ test('a paused roadmap can Generate course; a drop is invited over a stopped cou
   assert.doesNotMatch(STRINGS.boundary('New.md'), /End roadmap/);
 });
 
-test('typed words: "create a course" is a declared chat capability the router reads by its intent, never a phrase list (owner 2026-11-14)', async () => {
-  const { CHAT_CAPABILITIES, chatRoutesWith, chatRouteRequest } = await import('./inline-ai-route.js');
-  const { routeOutcome } = await import('./generation-proposal-chat.js');
+test('typed words: there is no course capability for the router and no course slash row (the roadmap is unplugged, owner 2026-11-19)', async () => {
+  const { CHAT_CAPABILITIES, chatRoutesWith, chatCapability } = await import('./inline-ai-route.js');
   const { SLASH, SLASH_FLAGS } = await import('./agent/slash.js');
-  const { chatCapability } = await import('./inline-ai-route.js');
-  assert.match(CHAT_CAPABILITIES.course.intent, /document they added to the canvas/);
-  assert.match(CHAT_CAPABILITIES.course.intent, /The test is the goal, not the words/);
-  assert.equal(CHAT_CAPABILITIES.course.flow, 'direct');
-  assert.ok(chatRoutesWith().course, 'offered to the router');
-  assert.equal(CHAT_CAPABILITIES.course.standalone, true, 'no slash command: no picker row, colour or window card');
+  assert.equal(CHAT_CAPABILITIES.course, undefined);
+  assert.equal(chatRoutesWith().course, undefined, 'never offered to the router');
+  assert.equal(chatCapability('course'), null);
   assert.equal(SLASH.some(c => c.name === 'course'), false);
   assert.equal(SLASH_FLAGS.course, undefined);
-  assert.equal(chatCapability('course').id, 'course', 'the server can route it');
-  const request = chatRouteRequest({ text: 'turn this into a study course' }, 'jev-model', chatRoutesWith());
-  assert.ok(JSON.stringify(request).includes('document they added to the canvas'), 'the router is asked with the capability\'s intent');
-  const source = read('inline-ai-route.js');
-  assert.doesNotMatch(source.slice(source.indexOf('course: { flow')), /^\s*course: \{[^\n]*\/[^\n]*\/i/, 'no regular expression of phrases');
-  assert.deepEqual(routeOutcome({ route: 'capability:course', capability: 'course', flow: 'direct', args: 'create a course' }), { direct: { command: 'course', args: 'create a course' } }, 'the router\'s answer runs the command');
-  const page = read('LearnPage.jsx');
-  assert.match(page, /startCourse: words => \{/);
-  assert.match(page, /roadmap\.controller\.lesson\(\{ depth: chat\?\.settings\?\.depth \|\| 'balanced', instruction: String\(words \|\| ''\)\.trim\(\) \|\| 'Create a course from this document\.'/);
-  assert.match(read('ask.jsx'), /outcome\.direct\?\.command === 'course' && chat\?\.canvasOps\?\.startCourse/);
 });
 
 test('the waiting shimmer never ends silently: no invitation after a minute is said in Chat (owner 2026-11-14)', async () => {
@@ -206,15 +192,12 @@ test('the waiting shimmer never ends silently: no invitation after a minute is s
   assert.doesNotMatch(STRINGS.prepareFailed, /\.\.\.|…/);
 });
 
-test('Create a course is a row of the Insert menu, disabled while a course runs; a canvas that cannot make one has no row; and the canvas fits itself to a finished course', async () => {
+test('the Insert menu has no Create a course row, and the canvas still fits itself to a finished course', async () => {
   const { ownerInsertItems } = await import('./canvas-menus.js');
-  const rowOf = options => ownerInsertItems({ canvas: () => null, onUpload() {}, onSearchSources() {}, onLinkToCanvas() {}, ...options }).find(item => item.label === 'Create a course');
-  assert.equal(rowOf({}), undefined, 'no handler, no row');
-  const on = Object.assign(() => {}, { disabled: false });
-  assert.equal(rowOf({ onCreateCourse: on }).disabled, false);
-  assert.equal(rowOf({ onCreateCourse: Object.assign(() => {}, { disabled: true }) }).disabled, true);
+  const labels = ownerInsertItems({ canvas: () => null, onUpload() {}, onSearchSources() {}, onLinkToCanvas() {}, onCreateCourse: Object.assign(() => {}, { disabled: false }) }).map(item => item.label);
+  assert.ok(!labels.includes('Create a course'), 'a handler passed by an old caller adds no row');
   const page = read('LearnPage.jsx');
-  assert.match(page, /onCreateCourse: canEditCanvas && roadmap\.on \? Object\.assign\(\(\) => \{ const done = chat\.canvasOps\?\.startCourse\?\.\(''\)/);
+  assert.doesNotMatch(page, /onCreateCourse|startCourse: words/);
   assert.match(page, /if \(courseWas\.current && !on && !roadmap\.state\.view\?\.course\?\.stopped\) canvasApi\.current\?\.zoomFit\?\.\(\);/);
   const controllerSource = read('roadmap-controller.js');
   assert.match(controllerSource, /unsaved \+= 1; if \(unsaved === 3\) dispatch\(\{ type: 'refused', message: STRINGS\.saveFailed \}\)/);

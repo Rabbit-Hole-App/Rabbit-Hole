@@ -1103,7 +1103,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           </div>
         )}
         {!(sheetMode && sheetHistory) && <ChatMessages hideTutor={REHEARSAL && chat && !tocView ? OPENING_KIND : null} renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
-        {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
+        {/* Fix B: the roadmap's lines (dormant: the roadmap is unplugged, owner 2026-11-19), in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {/* The initial pipeline's Tutor messages after the thread's own (TutorRehearsal.jsx; dev flag VITE_REHEARSAL_TRIGGER=1). */}
         {chat && !tocView && chat.coaching && REHEARSAL && <Suspense fallback={null}><TutorRehearsalFlow chat={chat} slash={slashRef} /></Suspense>}
