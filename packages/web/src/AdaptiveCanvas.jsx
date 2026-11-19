@@ -1718,7 +1718,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, onSuggestSignIn = null, roadmap = null, onSkeletonsDropped = null, learnCards = false }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, onSuggestSignIn = null, roadmap = null, onSkeletonsDropped = null, learnTab = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -2088,7 +2088,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
   // Learn mode (owner 2026-11-18): the toolbar is drawn on the Canvas tab as View > Toolbar says, never over the Cards tab's card.
-  const toolbarShown = walk ? !!toolbar && !learnCards : toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
+  const toolbarShown = walk ? !!toolbar && learnTab === 'canvas' : toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
   // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
   // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
   const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
@@ -2115,6 +2115,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The Rabbit Hole navigator shares the gutter above it (Dive.jsx): its slot and the gap (gap-2) are reserved. The
       // gutter has no overview button (UI-19; since UI-17 the map is always in this slot, and
       // reserving it cut the toolbar to under 120px at 1280x720 with a deep map: dive-check, fast-e2e 39723974033).
+      if (!bar.parentElement) return; // the palette left the page (minimized, or the toolbar hidden) before the observer stopped
       const slot = bar.parentElement.querySelector('[data-gutter-top]');
       // Less the gutter's bottom padding: the floating strip's column on the tools' side (--chrome-left/right).
       const room = bar.parentElement.clientHeight - parseFloat(getComputedStyle(bar.parentElement).paddingBottom || 0) - 16 - (slot ? slot.offsetHeight + 8 : 0), pad = 4; // p-1
@@ -2129,7 +2130,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const slot = bar.parentElement.querySelector('[data-gutter-top]');
     if (slot) observer.observe(slot);
     return () => observer.disconnect();
-  }, [presenting, !!gutterTop, toolbarShown]);
+  }, [presenting, !!gutterTop, toolbarShown, toolsMin]);
   const itemsLayer = useRef(null);
   const worldRef = useRef(null); // the camera layer, which the card thumbnail draws
   const [level, setLevel] = useState('body');
@@ -7111,7 +7112,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
       {/* Learn mode's Cards tab (learn-mode-spec.md section 4, owner 2026-11-18 16:13): the stop's own card component, drawn here at the pane's width over the surface and
           under the composer, with no Focus. A second instance of the card: edits go through changeBlock like the canvas's; nothing moves or resizes the canvas's copy. */}
-      {learnCards && walk && (() => {
+      {learnTab === 'cards' && walk && (() => {
         const block = blocks.find(entry => entry.id === walk.stops[walk.at]);
         return block && <div key={block.id} data-learn-card-view={block.id} className="absolute inset-0 z-[25] overflow-y-auto overscroll-contain bg-white px-6 pt-4 pb-48">
           <LessonBlockCard block={block} zoom={1} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={noop} onConnect={noop} onSnap={noop} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} />

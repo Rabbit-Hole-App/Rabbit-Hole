@@ -83,8 +83,8 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(strip, /bg-black[^\n]*<img src="\/static\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black, under /static, the one public path the workers serve for it');
   assert.ok(strip.indexOf('data-hooks-slot') < strip.indexOf('data-composer-show'), 'beside the Curious card, at the lower right');
   const page = read('LearnPage.jsx'), ask = read('ask.jsx'), composer = read('ChatComposer.jsx');
-  assert.match(page, /composer=\{panelOpen \? null : <div ref=\{setStripHost\} data-canvas-chat-strip \/>\}/, 'only while the right panel is closed');
-  assert.match(page, /hooks=\{steps && !panelOpen \? <NextStepsCard/, 'Curious leaves with it');
+  assert.match(page, /composer=\{panelOpen \|\| learning \? null : <div ref=\{setStripHost\} data-canvas-chat-strip \/>\}/, 'only while the right panel is closed (in Learn mode the strip is LearnPane\u2019s dock)');
+  assert.match(page, /hooks=\{steps && !panelOpen && !learning \? <NextStepsCard/, 'Curious leaves with it');
   assert.match(page, /const chatAskProps = \{ stripHost,/);
   assert.match(page, /<ResizableSidePanel aria-label="Learn agent chat"[^\n]*keepMounted collapsed=\{!panelOpen\}/, 'the Chat stays mounted while closed, so its composer can be the strip');
   // One composer, not a second one: the Chat's AskPanel moves its own composer region between its slot and the strip host.
@@ -106,7 +106,7 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /trailing=\{stripMode \? <>\{curiousButton\}\{chatWindowButton\}<\/> : dock \|\| chat \? null : chatControl\}/, 'the two view buttons are in the one tools pill inside the chat box');
   assert.match(composer, /if \(pill\) return <form data-chat-composer data-composer-pill[\s\S]*?<div data-composer-tools className="flex shrink-0 items-center gap-0\.5 rounded-full border border-line bg-white p-0\.5 shadow-sm">\n\s+\{leading\}\s+\{trailing\}[\s\S]*?<\/div>\s+\{body\}\s+\{send\}\s+<\/form>/, 'the tools and Minimize are one white pill inside the chat box at its left, before the field and Send');
   assert.match(ask, /data-chat-window-maximize aria-label=\{winState === 'max' \? 'Restore chat size' : 'Maximize chat'\}/);
-  assert.match(page, /chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
+  assert.match(page, /chatWindow=\{panelOpen \|\| learning \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
   assert.match(canvas, /\{chatWindow\}\n\s+\{\/\*[^\n]*\n\s+\{hooks && <div data-hooks-slot/, 'above the suggestions and the composer');
   assert.match(composer, /rounded-full py-2 pr-2\.5 pl-2.5/, 'round on both sides');
   assert.doesNotMatch(read('ChatComposer.jsx'), /data-canvas-strip-composer/, 'never a second composer element');
@@ -244,8 +244,8 @@ test('View > Show / hide: checked rows for the toolbar, minimap, Rabbit Hole Map
   assert.ok(bar.includes("if (kind === 'menuitemcheckbox') { item.onToggle(!item.check); return; }"), 'a check row flips in place and keeps the menu open');
   assert.match(canvas, /const \[minimapPref, setMinimapPref\] = useState\(\(\) => uiPrefs\(\)\.minimap\);\n\s+const \[holeMapPref, setHoleMapPref\] = useState\(\(\) => uiPrefs\(\)\.holeMap\);\n\s+const \[curious, setCurious\] = useState\(\(\) => uiPrefs\(\)\.curious\);/);
   assert.ok(canvas.includes('const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);'));
-  assert.ok(canvas.includes('{!readOnly && toolbarShown && <div ref={toolbarRef} role="toolbar"'), 'the toolbar draws only while it is on');
-  assert.ok(canvas.includes('const toolbarShown = toolbarDrawn(toolbar, '), 'drawn from the saved choice, never written by Study or Focus');
+  assert.ok(canvas.includes('{!readOnly && toolbarShown && !toolsMin && <div ref={toolbarRef} role="toolbar"'), 'the toolbar draws only while it is on');
+  assert.ok(canvas.includes(': toolbarDrawn(toolbar, { studying'), 'drawn from the saved choice, never written by Study or Focus');
   assert.match(canvas, /try \{ saveUiPref\(name, on\); \}/);
 });
 
