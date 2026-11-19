@@ -1,0 +1,5 @@
+{"archivedPlan":null,"requestArgsLength":67,"visualRequirementsItems":0,"impliedPictures":0,"oldMix":null,"newMix":{"diagram":3,"illustration":0}}
+archived body  {"pictures":1,"diagrams":1,"chars":1478}
+OLD  re-settled {"pictures":1,"diagrams":1,"chars":1478}
+{"event":"explanation_diagram_dropped_element","kind":"illustration","label":"","reason":"beyond the visual count or the asked mix"}
+NEW  re-settled {"pictures":0,"diagrams":1,"chars":1024}
