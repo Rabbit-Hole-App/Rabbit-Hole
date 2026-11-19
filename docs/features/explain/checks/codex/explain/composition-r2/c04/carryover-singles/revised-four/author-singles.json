@@ -1,0 +1,177 @@
+{
+  "ref": "474dd74ffb9c499056a0ba06f4e5ec5208e18886",
+  "checkout": "474dd74ffb9c499056a0ba06f4e5ec5208e18886",
+  "tree": "c2c98d94492070784ef5980c489be8c3be2e0882",
+  "depth": "balanced",
+  "payloads": [
+    {
+      "parentId": "ml-neural-networks-hidden-layer",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "id": "ml-neural-networks-hidden-layer-single",
+      "authorReference": {
+        "id": "ml-neural-networks-hidden-layer-single",
+        "useWhen": "Compare each hidden unit before and after ReLU so the negative value clipped to zero is visible.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Hidden units before and after ReLU",
+            "caption": "ReLU clips negative values to zero. The output combines the resulting nonlinear features.",
+            "kind": "bar-chart",
+            "variant": "grouped",
+            "categories": [
+              "Unit A",
+              "Unit B"
+            ],
+            "series": [
+              {
+                "label": "Before ReLU",
+                "values": [
+                  2,
+                  -1
+                ]
+              },
+              {
+                "label": "After ReLU",
+                "values": [
+                  2,
+                  0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 95,
+      "authorReferenceSha256": "13e38393ff4bba1e11d869bef25101bed79a913868c305d6dab1b97a6298b2e4"
+    },
+    {
+      "parentId": "ml-regularization-dropout-mask",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "id": "ml-regularization-dropout-mask-single",
+      "authorReference": {
+        "id": "ml-regularization-dropout-mask-single",
+        "useWhen": "Compare original, masked and rescaled activations for the same hidden units during dropout.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Dropout masks and rescales hidden units",
+            "caption": "Mask $(1, 0)$. Divide survivors by the keep probability (0.5). Inference uses the input values.",
+            "kind": "bar-chart",
+            "variant": "grouped",
+            "categories": [
+              "Unit A",
+              "Unit B"
+            ],
+            "series": [
+              {
+                "label": "Input",
+                "values": [
+                  3,
+                  1
+                ]
+              },
+              {
+                "label": "Masked",
+                "values": [
+                  3,
+                  0
+                ]
+              },
+              {
+                "label": "Training output",
+                "values": [
+                  6,
+                  0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 116,
+      "authorReferenceSha256": "7ee74ddaf3ac7ed1639e72443195674ff7566d226a0e149b4bf20e88f97e4592"
+    },
+    {
+      "parentId": "ml-distribution-shift-concept-shift",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "id": "ml-distribution-shift-concept-shift-single",
+      "authorReference": {
+        "id": "ml-distribution-shift-concept-shift-single",
+        "useWhen": "Compare Elm and Ash applying different naming rules to the same dark round cards.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "Same dark round cards, different labels",
+            "caption": "Elm labels round A and square B. Ash labels round B and square A.",
+            "kind": "bar-chart",
+            "variant": "grouped",
+            "categories": [
+              "Elm",
+              "Ash"
+            ],
+            "series": [
+              {
+                "label": "Label A",
+                "values": [
+                  3,
+                  0
+                ]
+              },
+              {
+                "label": "Label B",
+                "values": [
+                  0,
+                  3
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 94,
+      "authorReferenceSha256": "8efe0b3fa276620e84b9e78fb3ea36707cf3b8e61b08d0b40383170f95e7fc65"
+    },
+    {
+      "parentId": "ml-linear-regression-linear-unit",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "id": "ml-linear-regression-linear-unit-single",
+      "authorReference": {
+        "id": "ml-linear-regression-linear-unit-single",
+        "useWhen": "Trace feature values through the weights and bias of an affine unit to its prediction.",
+        "spec": {
+          "version": 1,
+          "diagram": {
+            "title": "How a linear unit predicts from features",
+            "caption": "Each feature is multiplied by its own weight. The bias shifts every prediction by the same amount.",
+            "kind": "block-stack",
+            "blocks": [
+              {
+                "id": "sum",
+                "label": "Sum the weighted inputs and bias",
+                "dims": "$2 + 2 + 1$",
+                "inputs": [
+                  {
+                    "label": "Feature A: $1×2$"
+                  },
+                  {
+                    "label": "Feature B: $2×1$"
+                  }
+                ]
+              },
+              {
+                "id": "prediction",
+                "label": "Prediction",
+                "dims": "5",
+                "role": "output"
+              }
+            ]
+          }
+        }
+      },
+      "tokens": 127,
+      "authorReferenceSha256": "4764080a5030160d48e74deaf7ad3c54dedfa07017a838efd6f5393c97c0d2dd"
+    }
+  ],
+  "publishedCommit": "c51cf997c7144ec3d01e64493e5397fba3a8f76e",
+  "publishedTree": "c2c98d94492070784ef5980c489be8c3be2e0882"
+}

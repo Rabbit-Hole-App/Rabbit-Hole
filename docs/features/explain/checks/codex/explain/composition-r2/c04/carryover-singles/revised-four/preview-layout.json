@@ -1,0 +1,103 @@
+{
+  "ref": "474dd74ffb9c499056a0ba06f4e5ec5208e18886",
+  "checkout": "474dd74ffb9c499056a0ba06f4e5ec5208e18886",
+  "tree": "c2c98d94492070784ef5980c489be8c3be2e0882",
+  "requestedWidth": 408,
+  "sheetWidth": 870,
+  "sheetHeight": 1101,
+  "views": 4,
+  "scaled": 0,
+  "foreignObjects": 4,
+  "referenceRecords": [
+    {
+      "id": "ml-neural-networks-hidden-layer",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart",
+          "x": 18,
+          "y": 120,
+          "nativeWidth": 408,
+          "nativeHeight": 414,
+          "displayWidth": 408,
+          "displayHeight": 414,
+          "scale": 1,
+          "tokens": 95,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "4fbf53b8d86035996aa945223df23d03d76fe6df64b2d40c9e0183504a775981"
+        }
+      ]
+    },
+    {
+      "id": "ml-regularization-dropout-mask",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-regularization-dropout-mask-single",
+          "kind": "bar-chart",
+          "x": 444,
+          "y": 120,
+          "nativeWidth": 408,
+          "nativeHeight": 453,
+          "displayWidth": 408,
+          "displayHeight": 453,
+          "scale": 1,
+          "tokens": 116,
+          "foreignObjects": 1,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "455b3898f50c5e24c8f6d80b9d73925cf57e92e8ec3a95aaf0a7dc3282ced521"
+        }
+      ]
+    },
+    {
+      "id": "ml-distribution-shift-concept-shift",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart",
+          "x": 18,
+          "y": 635,
+          "nativeWidth": 408,
+          "nativeHeight": 436,
+          "displayWidth": 408,
+          "displayHeight": 436,
+          "scale": 1,
+          "tokens": 94,
+          "foreignObjects": 0,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "9a11bc37c72068202bf087d9406519c5c52d155419a94d6d6ae629a2395efbe1"
+        }
+      ]
+    },
+    {
+      "id": "ml-linear-regression-linear-unit",
+      "views": [
+        {
+          "depth": "standard",
+          "role": "single",
+          "source": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack",
+          "x": 444,
+          "y": 635,
+          "nativeWidth": 408,
+          "nativeHeight": 331,
+          "displayWidth": 408,
+          "displayHeight": 331,
+          "scale": 1,
+          "tokens": 127,
+          "foreignObjects": 3,
+          "missingMathFallbacks": 0,
+          "rawSvgSha256": "6cc17386b16a4b27d773f896e93c6868ec01889d9a3d164d534b9b45d2b1d532"
+        }
+      ]
+    }
+  ],
+  "publishedCommit": "c51cf997c7144ec3d01e64493e5397fba3a8f76e",
+  "publishedTree": "c2c98d94492070784ef5980c489be8c3be2e0882"
+}
