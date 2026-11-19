@@ -12,7 +12,6 @@ import { NEXT_STEPS_LIMITS as L, NEXT_STEPS_PLANNER_VERSION, capText, mintSet, n
 import { NOT_TRASHED } from './library-trash.js';
 import { repositorySnapshot } from './repositories.js';
 import { repositoryTool } from './repository-context.js';
-import { resolveTarget } from '../../web/src/learn-target.js';
 import { inputSummary } from '../../web/src/learn-next-steps.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });

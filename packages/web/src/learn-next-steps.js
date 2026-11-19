@@ -1,7 +1,6 @@
 // Professor Next Steps, browser side (docs/features/professor-next-steps.md §2.1, §2.3): the hook planner's input, built from
 // structured state only (never a chat dump, never intake self-report), its staleness basis and the stopping points. Pure.
 import { NEXT_STEPS_LIMITS as L, STATES, capText as cap, trimToFit } from '../../control-plane/src/agents/learn-next-steps.js';
-import { resolveTarget } from './learn-target.js';
 
 // Tutor decision telemetry is gone with the browser Tutor; these two outlived it. safely runs a callback so a throwing sink or
 // subscriber never fails the caller, and counts the swallowed error (globalThis.__smallTutorTraceErrors).
