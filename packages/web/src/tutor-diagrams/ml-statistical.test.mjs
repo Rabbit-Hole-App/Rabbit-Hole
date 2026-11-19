@@ -110,6 +110,11 @@ test('sample-set preserves identity, class, sample weights and replacement multi
   assert.match(rendered, /Omitted: c/);
   assert.match(rendered, /Out of bag for Bootstrap draw/);
   assert.match(describe(samples).join('\n'), /a × 2/);
+  // an out-of-bag group was never drawn: its count reads "not drawn" and no member carries a multiplicity
+  assert.match(rendered, />1 not drawn</);
+  assert.doesNotMatch(rendered, />1 draws · 1 unique</);
+  assert.equal((rendered.match(/>× 1</g) ?? []).length, 1, 'only the drawn b carries × 1');
+  assert.match(describe(samples).join('\n'), /Out of bag \(1 not drawn\): c(\n|$)/);
   assert.ok(visibleText(samples).includes('Minority'));
   assert.equal(visibleText(samples).filter(text => text === 'a').length, 2, 'ID appears once in the universe and once in the aggregated draw');
   assert.equal(visibleText(samples).filter(text => text === 'c').length, 3, 'Omitted and OOB labels each count as visible');
