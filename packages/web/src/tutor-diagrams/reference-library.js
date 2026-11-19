@@ -52,6 +52,13 @@ import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 import { mleStepsReference } from './ml-mle-steps-reference.js';
 import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
+import { references as poolSoftmax } from './gen-1-pool-2-transformation-references.js';
+import { references as poolDerivedPlots } from './gen-1-pool-2-plot-references.js';
+import { references as poolDerivedBoxes } from './gen-1-pool-2-box-plot-references.js';
+import { references as poolDerivedHistograms } from './gen-1-pool-2-histogram-references.js';
+import { references as poolDerivedSamples } from './gen-1-pool-2-sample-set-references.js';
+import { references as poolDerivedHeatmaps } from './gen-1-pool-2-heatmap-references.js';
+import { references as poolDerivedLinks } from './gen-1-pool-2-token-links-references.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -101,6 +108,8 @@ export const diagramReferences = Object.freeze([
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...estimationEvaluationReferences,
   samplingTopKReference,
+  ...poolSoftmax, ...poolDerivedPlots, ...poolDerivedBoxes, ...poolDerivedHistograms,
+  ...poolDerivedSamples, ...poolDerivedHeatmaps, ...poolDerivedLinks,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
   const vary = referenceVary[ref.id];

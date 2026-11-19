@@ -2796,6 +2796,171 @@
       "width": 720,
       "height": 451.5
     },
+    "pool-bakery-tray-spot-check/320": {
+      "sha256": "21b7d0e36ab115d02e58a1007a7bcadec6c6cc664a77b70031306e83b963086b",
+      "width": 320,
+      "height": 646
+    },
+    "pool-bakery-tray-spot-check/408": {
+      "sha256": "636d38930b032c2e32411d41b935db2121387e3febac222ed6015bb0cb69a0d8",
+      "width": 408,
+      "height": 588
+    },
+    "pool-bakery-tray-spot-check/720": {
+      "sha256": "400f5a6dbd8b3398473412d9ac7cf22d7d102f87ae67df8cf03fbd7f365347f6",
+      "width": 720,
+      "height": 449
+    },
+    "pool-craft-market-aisle-traffic/320": {
+      "sha256": "b72606f7c262a285486681307d1a4d11fe29cdbe26c0735bfe11da25213c337d",
+      "width": 364,
+      "height": 415
+    },
+    "pool-craft-market-aisle-traffic/408": {
+      "sha256": "b9f140de4a8c5f0317413af994e70438443404ccae67ce14219d205691b8cdcd",
+      "width": 408,
+      "height": 415
+    },
+    "pool-craft-market-aisle-traffic/720": {
+      "sha256": "ff8fc9c0022e90c0d55cf50388a98cc17543e822c7a78e6a26fcacc2f409e87c",
+      "width": 720,
+      "height": 376
+    },
+    "pool-dog-park-gate-mean/320": {
+      "sha256": "6e3b72fae1a5d9250c78a50b5682f5e7985fa24fd28fb0b10964db09682af7f5",
+      "width": 408,
+      "height": 430.5
+    },
+    "pool-dog-park-gate-mean/408": {
+      "sha256": "6e3b72fae1a5d9250c78a50b5682f5e7985fa24fd28fb0b10964db09682af7f5",
+      "width": 408,
+      "height": 430.5
+    },
+    "pool-dog-park-gate-mean/720": {
+      "sha256": "4f642cdcd67f3fbd8bd2852e8f95ee00803de95ece5e1877b753655596f7527b",
+      "width": 720,
+      "height": 413.5
+    },
+    "pool-farm-stand-shelf-peak/320": {
+      "sha256": "be41d5cd74e2f8b474a35949829ee4ef74bb4dd3fcd752d838db602fdadc579c",
+      "width": 408,
+      "height": 473.5
+    },
+    "pool-farm-stand-shelf-peak/408": {
+      "sha256": "be41d5cd74e2f8b474a35949829ee4ef74bb4dd3fcd752d838db602fdadc579c",
+      "width": 408,
+      "height": 473.5
+    },
+    "pool-farm-stand-shelf-peak/720": {
+      "sha256": "fd9d2c8eca33380bcf300100abce48343410a8711216ea1486160f804b113bf1",
+      "width": 720,
+      "height": 439.5
+    },
+    "pool-fruit-tea-blend-softmax/320": {
+      "sha256": "0fc1c0e9168b983327d191ccd5934efc124ced5e32140b886314914a9c535a2f",
+      "width": 320,
+      "height": 523
+    },
+    "pool-fruit-tea-blend-softmax/408": {
+      "sha256": "b3333ab7bdc583bd889c17625127805a19ccdff57304e7749863de64e1bd484e",
+      "width": 408,
+      "height": 429
+    },
+    "pool-fruit-tea-blend-softmax/720": {
+      "sha256": "ee0d8582f4e474cd7ee39060c82c675d3585b3fbaed4815496f5182ccf8bfa2d",
+      "width": 720,
+      "height": 395
+    },
+    "pool-garden-grant-softmax/320": {
+      "sha256": "22d8adbb7b6b40dc31b998b92cb5a1f0d95892545a6d085c8cf69cfe705a2432",
+      "width": 320,
+      "height": 580
+    },
+    "pool-garden-grant-softmax/408": {
+      "sha256": "ba65310ce5445439d979327bcc24fb854d6d2881a2cfd25999a3f687814002e1",
+      "width": 408,
+      "height": 448
+    },
+    "pool-garden-grant-softmax/720": {
+      "sha256": "3817b052ac2a5dd22a0c78669bd0675469102056b48af1b968d12011c93e5b1a",
+      "width": 720,
+      "height": 395
+    },
+    "pool-museum-coat-check-waits/320": {
+      "sha256": "93f25436b59febf31756f50cef800dea81ab6f3ae332bc8ad307c5794c865b11",
+      "width": 360,
+      "height": 525.5
+    },
+    "pool-museum-coat-check-waits/408": {
+      "sha256": "1cbda6ad4185a1133806a5fe65d70ddbc09bce7f008cb5a9f08304b4c90feeb3",
+      "width": 408,
+      "height": 525.5
+    },
+    "pool-museum-coat-check-waits/720": {
+      "sha256": "96f8416e4fc753f8edf72c75bd6dad7dcc31f332c49f5ad60f978a8fe13c8cf6",
+      "width": 720,
+      "height": 508.5
+    },
+    "pool-paint-swatch-drying-times/320": {
+      "sha256": "b60abe1663bd3a6073d2312f9e232eddbb2eea91349bf743c28d21ce8bf4dbc8",
+      "width": 360,
+      "height": 525.5
+    },
+    "pool-paint-swatch-drying-times/408": {
+      "sha256": "58a906670c9308f4fa2accd74cb571f89063ed3e9b602a16ffaeab49794aa6ac",
+      "width": 408,
+      "height": 525.5
+    },
+    "pool-paint-swatch-drying-times/720": {
+      "sha256": "a5117c06faeb9ada67b930976952553deb9691661540d70be09d40727de3d400",
+      "width": 720,
+      "height": 508.5
+    },
+    "pool-rain-barrel-midpoint/320": {
+      "sha256": "81a4703d941871cfd84ce084855a73fee6138ca8843e47b2993ba1968f86099c",
+      "width": 408,
+      "height": 430.5
+    },
+    "pool-rain-barrel-midpoint/408": {
+      "sha256": "81a4703d941871cfd84ce084855a73fee6138ca8843e47b2993ba1968f86099c",
+      "width": 408,
+      "height": 430.5
+    },
+    "pool-rain-barrel-midpoint/720": {
+      "sha256": "e8fb8eca44baed781c9e52e392118fc08c1defe4eaaff38d8b1e13c936501749",
+      "width": 720,
+      "height": 413.5
+    },
+    "pool-repair-cafe-station-weights/320": {
+      "sha256": "b107673eb06eac1c0a274893a553beeb2dbc26709f12ee21f51344a568daae16",
+      "width": 403,
+      "height": 642
+    },
+    "pool-repair-cafe-station-weights/408": {
+      "sha256": "289bd396314927b4b8e072cb5260ba80f36f021edf61fb1fdcf717c43024aeef",
+      "width": 408,
+      "height": 642
+    },
+    "pool-repair-cafe-station-weights/720": {
+      "sha256": "0cf56a5f7956faf8ead11459a9b812e6b4f3590e2ab06a31599c6513a2c0c01b",
+      "width": 720,
+      "height": 647
+    },
+    "pool-skate-rental-proportions/320": {
+      "sha256": "78d83d3ba8211c8e6bc0e7bee41fff9f49e3db34808e9420ed041a2cbaaba95a",
+      "width": 360,
+      "height": 403
+    },
+    "pool-skate-rental-proportions/408": {
+      "sha256": "21535faf4cb8d8e19f1afb18b5d76187ea3690ff11e890e81e65facfd71ba4fd",
+      "width": 408,
+      "height": 403
+    },
+    "pool-skate-rental-proportions/720": {
+      "sha256": "662e06ac31528d237a53edb46f46132ce6f5ad0aae8720d51c9c263a6b39cb61",
+      "width": 720,
+      "height": 364
+    },
     "precision-recall-thresholds/320": {
       "sha256": "48bb4af84aff27699fd568616f766021da53c60cdcb80dc25e59ba99e0aba48f",
       "width": 408,
