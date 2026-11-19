@@ -45,14 +45,6 @@ function sentenceStarts(text, spans) {
   return starts;
 }
 
-// The window's fixed height for a transcript: about seven sentences of it, so a long and a short card get a comparable window and the height never moves while the text streams in.
-// Average sentence length of the whole displayed text x 7, over the characters one line holds at 288 px of 13 px text, times the line height (leading-snug 13 px = 18 px), clamped.
-// shortcut: 45 characters a line is an average for proportional text, so a narrow-glyph or wide-glyph script fills a few lines more or fewer; the text scrolls either way.
-export const TRANSCRIPT_LINE_PX = 18, TRANSCRIPT_MIN_PX = 160, TRANSCRIPT_MAX_PX = 360;
-export function transcriptHeight(script) {
-  const text = (typeof script === 'string' ? script : '').trim();
-  if (!text) return TRANSCRIPT_MIN_PX;
-  const starts = sentenceStarts(text, mathSpans(text)), average = text.length / starts.filter(i => i < text.length).length;
-  const px = Math.ceil((7 * average) / 45) * TRANSCRIPT_LINE_PX;
-  return Math.min(TRANSCRIPT_MAX_PX, Math.max(TRANSCRIPT_MIN_PX, px));
-}
+// The window's fixed height (owner 2026-11-18): seven lines of its 13 px text (leading-snug: 18 px a line), whatever the script; the text scrolls after that.
+export const TRANSCRIPT_LINE_PX = 18, TRANSCRIPT_LINES = 7;
+export const transcriptHeight = () => TRANSCRIPT_LINES * TRANSCRIPT_LINE_PX;

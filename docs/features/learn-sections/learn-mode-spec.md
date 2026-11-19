@@ -31,7 +31,7 @@ The camera walk is dropped because the card was too small to read. The walk beco
    - **Cards:** the stop's own card component, drawn directly in the pane at its width (AdaptiveCanvas `learnTab`, `data-learn-card-view`), with no Focus (owner 2026-11-18 16:13).
      - It sits over the canvas surface and under the composer.
      - It is a second instance of the card: edits save through the canvas's `changeBlock`, and the canvas's copy never moves or resizes.
-     - It is shown whole (owner 2026-11-18): drawn at its canvas size and scaled down to fit the pane above the composer, never above 100 % (`LearnCardView.jsx`, `fitScale`). Zoom out, the percentage (back to fit) and zoom in sit at the pane's bottom right; 56 px over the card keep its row of actions in view; the pane scrolls when zoomed in. A text card counts at its full height.
+     - It is shown whole (owner 2026-11-18): drawn at its canvas size and scaled down to fit the pane above the composer, never above 100 % (`LearnCardView.jsx`, `fitScale`). Zoom out, the percentage (back to fit) and zoom in sit at the pane's bottom right; 56 px over the card keep its row of actions in view; the pane scrolls when zoomed in. A text card counts at its full height. While a card's audio plays, its transcript window (to its right) is fitted in too (`TRANSCRIPT_ROOM`).
      - Prev and Next show the next card from its top. It has no Ask a follow-up + under it (owner 2026-11-18): the one composer asks.
    - **Canvas:** the free canvas, with the stop centred at zoom 1 (`walk.centre`), nothing selected (owner 2026-11-18).
    - The contents' Start, Continue or Start again (also from Learn mode's TOC tab) goes to the Cards tab.

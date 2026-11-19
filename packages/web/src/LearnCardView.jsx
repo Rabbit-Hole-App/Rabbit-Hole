@@ -3,7 +3,8 @@
 // of the scaled size, so the pane scrolls exactly over what is drawn. A new stop (LearnCardView is keyed by the card) opens fitted again.
 import { useLayoutEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
-import { CARD_ROOM, ZOOM_STEPS as STEPS, fitScale, zoomStep } from './learn-mode.js';
+import { CARD_ROOM, TRANSCRIPT_ROOM, ZOOM_STEPS as STEPS, fitScale, zoomStep } from './learn-mode.js';
+import { usePlayingCard } from './audio-playing.js';
 
 const { side: SIDE, top: TOP, dock: DOCK } = CARD_ROOM;
 
@@ -11,23 +12,29 @@ export default function LearnCardView({ id, children }) {
   const pane = useRef(null), body = useRef(null);
   const [size, setSize] = useState(null); // the card's own size, unscaled
   const [fit, setFit] = useState(1), [zoom, setZoom] = useState(null); // zoom null: fitted
+  // While its audio plays the card's transcript sits to its right (TranscriptWindow, left-full): the card is fitted with that room beside it (owner 2026-11-18).
+  const extra = usePlayingCard(id) ? TRANSCRIPT_ROOM : 0, extraRef = useRef(extra);
+  extraRef.current = extra;
   useLayoutEffect(() => {
     const measure = () => {
       const card = { w: body.current?.offsetWidth || 0, h: body.current?.offsetHeight || 0 }, room = { w: pane.current?.clientWidth || 0, h: pane.current?.clientHeight || 0 };
       setSize(previous => (previous && previous.w === card.w && previous.h === card.h ? previous : card));
-      setFit(fitScale(card, room));
+      setFit(fitScale({ w: card.w + extraRef.current, h: card.h }, room));
     };
+    measureRef.current = measure;
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(pane.current); observer.observe(body.current);
     return () => observer.disconnect();
   }, []);
+  const measureRef = useRef(null);
+  useLayoutEffect(() => { measureRef.current?.(); }, [extra]);
   const scale = zoom ?? fit;
   const button = 'flex h-7 w-7 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   return <div data-learn-card-view={id} className="absolute inset-0 z-[25] bg-white">
     <div ref={pane} className="absolute inset-0 overflow-auto overscroll-contain">
       <div className="flex min-w-full justify-center" style={{ padding: `${TOP}px ${SIDE}px ${DOCK}px` }}>
-        <div style={size ? { width: size.w * scale, height: size.h * scale } : undefined} className="relative shrink-0">
+        <div style={size ? { width: (size.w + extra) * scale, height: size.h * scale } : undefined} className="relative shrink-0">
           <div ref={body} data-learn-card-body className="absolute top-0 left-0 w-max" style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>{children}</div>
         </div>
       </div>

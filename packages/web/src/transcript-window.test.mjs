@@ -67,8 +67,7 @@ test('transparent: no fill, border, shadow or blur; canvas ink; only the text an
   assert.match(region.className, /\bpointer-events-none\b/);
   assert.match(region.className, /\bleft-full\b/); assert.match(region.className, /\btop-0\b/); assert.match(region.className, /\bml-3\b/); assert.match(region.className, /\bw-72\b/); assert.doesNotMatch(region.className, /max-h/, "the height is the text block's own, not the card's");
   assert.match(text.className, /\boverflow-y-auto\b/); assert.match(text.className, /\bshrink-0\b/);
-  const px = Number.parseInt(text.style.height, 10);
-  assert.ok(text.style.height.endsWith('px') && px >= 160 && px <= 360, `an explicit height in 160..360 px: ${text.style.height}`);
+  assert.equal(text.style.height, `${7 * 18}px`, 'seven lines high, the text scrolls after that (owner 2026-11-18)');
   assert.match(text.className, /\bpointer-events-auto\b/); assert.match(close.className, /\bpointer-events-auto\b/);
   assert.match(text.className, /var\(--learn-canvas-ink\)/); assert.match(text.className, /text-\[13px\]/); assert.match(text.className, /leading-snug/);
   assert.ok(text.hasAttribute('data-scroll'), 'the canvas leaves a scrollable region to scroll itself');

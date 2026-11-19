@@ -31,6 +31,8 @@ export const learnTab = tab => (LEARN_TABS.some(entry => entry.id === tab) ? tab
 // Cards tab zoom (owner 2026-11-18: the card shown whole, zoom in and out from there; LearnCardView.jsx).
 export const ZOOM_STEPS = Object.freeze([0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2]);
 // The pane's room around the card: side padding, the top gap, and the composer's dock at the bottom (LearnPane data-learn-dock).
+// The transcript window beside a playing card (TranscriptWindow.jsx: w-72 and ml-3).
+export const TRANSCRIPT_ROOM = 288 + 12;
 export const CARD_ROOM = Object.freeze({ side: 24, top: 56, dock: 150 }); // top: room for the row of actions over a card (owner 2026-11-18)
 // The scale that shows a card of size `card` whole in a pane of size `pane`: at most 1, at least the smallest step.
 export const fitScale = (card, pane) => (card.w > 0 && card.h > 0 ? Math.max(ZOOM_STEPS[0], Math.min(1, (pane.w - 2 * CARD_ROOM.side) / card.w, (pane.h - CARD_ROOM.top - CARD_ROOM.dock) / card.h)) : 1);
