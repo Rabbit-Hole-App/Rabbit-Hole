@@ -2391,6 +2391,51 @@
       "width": 720,
       "height": 233
     },
+    "ml-transformer-context-rules/320": {
+      "sha256": "ebfa47c70d0bb2bdbf6b06576f4500b829fe583474b6433f259a0e38164b3f5d",
+      "width": 388,
+      "height": 830
+    },
+    "ml-transformer-context-rules/408": {
+      "sha256": "86a4edbaaf0d48e9008811ff2b7e01b7f0b76f7455455a950f7bc9a4f1e2a8d7",
+      "width": 408,
+      "height": 830
+    },
+    "ml-transformer-context-rules/720": {
+      "sha256": "59019c21ac915213bbc07d575e56ce759a5b08738aaabbfbff483cd7d798c5a3",
+      "width": 720,
+      "height": 813
+    },
+    "ml-transformer-contextual-layer-states/320": {
+      "sha256": "e15bd9c33221b9c0bb6a3be78623a03408aecfff912525f943673ba0c1f2eafc",
+      "width": 320,
+      "height": 905
+    },
+    "ml-transformer-contextual-layer-states/408": {
+      "sha256": "2b245c70bef48303ef69c763593c063a88aa19aa7575ca448861c8d5b1b9560f",
+      "width": 408,
+      "height": 866
+    },
+    "ml-transformer-contextual-layer-states/720": {
+      "sha256": "7049d0a530fd25e3fcf7c1b6f223f7c02ab507e4bdb65daf3450254c4bcc730a",
+      "width": 720,
+      "height": 849
+    },
+    "ml-transformer-cross-attention-alignment/320": {
+      "sha256": "e5c6d9cb44bf5af254ccdde98524eb12cd364b45cc77f70d2c918e7bf5c0b6aa",
+      "width": 444,
+      "height": 349
+    },
+    "ml-transformer-cross-attention-alignment/408": {
+      "sha256": "e5c6d9cb44bf5af254ccdde98524eb12cd364b45cc77f70d2c918e7bf5c0b6aa",
+      "width": 444,
+      "height": 349
+    },
+    "ml-transformer-cross-attention-alignment/720": {
+      "sha256": "a06ec9876bc0d0d7ddc4e7a5bc7ae96dcf1d30657ba01a95a8438e4f30ee66f2",
+      "width": 720,
+      "height": 349
+    },
     "ml-tree-pruning/320": {
       "sha256": "4569f46ff80c316e4d6328bfc72b213ff91c886e65be6b62b0981e94b0eccba2",
       "width": 371,

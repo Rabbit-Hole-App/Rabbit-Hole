@@ -176,8 +176,20 @@
         "packages/web/src/tutor-diagrams/topic-transformer-data.js"
       ],
       "mergedTopics": [],
-      "approval": "pending corrected-queue and batch id/keyword approval; schema pinned to 1944b48cf",
-      "mergeNote": null
+      "approval": "Owner authorized the release 164 composition chain on 2026-11-19. C03 is the review gate.",
+      "mergeNote": null,
+      "verification": {
+        "report": "batches/C03/REPORT.md",
+        "new": 3,
+        "reuse": 3,
+        "testsPassed": 1543,
+        "priorCases": 3057,
+        "savedPlannerCases": 474,
+        "moved": 0,
+        "snapshotAdded": 9,
+        "snapshotChanged": 0,
+        "snapshotRemoved": 0
+      }
     },
     {
       "id": "C04",
@@ -727,7 +739,7 @@
         "02"
       ],
       "batch": "C01",
-      "sequence": "Linear regression · 3, reinterpret the model as a network.",
+      "sequence": "Linear regression \u00b7 3, reinterpret the model as a network.",
       "gapTypes": [
         "composition"
       ],
@@ -771,7 +783,7 @@
         "10"
       ],
       "batch": "C01",
-      "sequence": "MLP · 1, introduce a dense hidden layer before its activation.",
+      "sequence": "MLP \u00b7 1, introduce a dense hidden layer before its activation.",
       "gapTypes": [
         "composition"
       ],
@@ -814,7 +826,7 @@
         "10"
       ],
       "batch": "C01",
-      "sequence": "MLP training · 1, trace forward dependencies before explaining reverse gradients.",
+      "sequence": "MLP training \u00b7 1, trace forward dependencies before explaining reverse gradients.",
       "gapTypes": [
         "composition"
       ],
@@ -857,7 +869,7 @@
         "12"
       ],
       "batch": "C01",
-      "sequence": "MLP regularization · 1, a single sampled dropout mask.",
+      "sequence": "MLP regularization \u00b7 1, a single sampled dropout mask.",
       "gapTypes": [
         "composition"
       ],
@@ -898,7 +910,7 @@
         "03"
       ],
       "batch": "C02",
-      "sequence": "Illustrated Transformer · One attention query · step 4",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 4",
       "gapTypes": [
         "composition"
       ],
@@ -929,7 +941,7 @@
             "token-links"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 9",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 9",
           "gapTypes": [
             "composition"
           ]
@@ -955,7 +967,7 @@
         "10"
       ],
       "batch": "C02",
-      "sequence": "MLP regularization · 2, explicit mask training (PyTorch).",
+      "sequence": "MLP regularization \u00b7 2, explicit mask training (PyTorch).",
       "gapTypes": [
         "composition"
       ],
@@ -990,7 +1002,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 2, equivalent explicit mask run (MXNet).",
+          "sequence": "MLP regularization \u00b7 2, equivalent explicit mask run (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1008,7 +1020,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 2, equivalent explicit mask run (JAX).",
+          "sequence": "MLP regularization \u00b7 2, equivalent explicit mask run (JAX).",
           "gapTypes": [
             "composition"
           ]
@@ -1026,7 +1038,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 2, equivalent explicit mask run (TensorFlow).",
+          "sequence": "MLP regularization \u00b7 2, equivalent explicit mask run (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1044,7 +1056,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 3, framework dropout layer (PyTorch).",
+          "sequence": "MLP regularization \u00b7 3, framework dropout layer (PyTorch).",
           "gapTypes": [
             "composition"
           ]
@@ -1062,7 +1074,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 3, equivalent built-in layer run (MXNet).",
+          "sequence": "MLP regularization \u00b7 3, equivalent built-in layer run (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1080,7 +1092,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 3, equivalent built-in layer run (JAX).",
+          "sequence": "MLP regularization \u00b7 3, equivalent built-in layer run (JAX).",
           "gapTypes": [
             "composition"
           ]
@@ -1098,7 +1110,7 @@
             "09",
             "10"
           ],
-          "sequence": "MLP regularization · 3, equivalent built-in layer run (TensorFlow).",
+          "sequence": "MLP regularization \u00b7 3, equivalent built-in layer run (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1193,7 +1205,7 @@
         "12"
       ],
       "batch": "C02",
-      "sequence": "Scheduling · 1, constant-rate baseline (PyTorch).",
+      "sequence": "Scheduling \u00b7 1, constant-rate baseline (PyTorch).",
       "gapTypes": [
         "composition"
       ],
@@ -1230,7 +1242,7 @@
             "10",
             "12"
           ],
-          "sequence": "Scheduling · 1, equivalent constant-rate baseline (MXNet).",
+          "sequence": "Scheduling \u00b7 1, equivalent constant-rate baseline (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1249,7 +1261,7 @@
             "10",
             "12"
           ],
-          "sequence": "Scheduling · 1, equivalent constant-rate baseline (TensorFlow).",
+          "sequence": "Scheduling \u00b7 1, equivalent constant-rate baseline (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1268,7 +1280,7 @@
             "10",
             "12"
           ],
-          "sequence": "Scheduling · 3, assess the smooth-decay run (PyTorch).",
+          "sequence": "Scheduling \u00b7 3, assess the smooth-decay run (PyTorch).",
           "gapTypes": [
             "composition"
           ]
@@ -1287,7 +1299,7 @@
             "10",
             "12"
           ],
-          "sequence": "Scheduling · 3, equivalent smooth-decay run (MXNet).",
+          "sequence": "Scheduling \u00b7 3, equivalent smooth-decay run (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1306,7 +1318,7 @@
             "10",
             "12"
           ],
-          "sequence": "Scheduling · 3, equivalent smooth-decay run (TensorFlow).",
+          "sequence": "Scheduling \u00b7 3, equivalent smooth-decay run (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1324,7 +1336,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 6, assess the milestone run (PyTorch).",
+          "sequence": "Scheduling \u00b7 6, assess the milestone run (PyTorch).",
           "gapTypes": [
             "composition"
           ]
@@ -1342,7 +1354,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 6, equivalent milestone run (MXNet).",
+          "sequence": "Scheduling \u00b7 6, equivalent milestone run (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1360,7 +1372,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 6, equivalent milestone run (TensorFlow).",
+          "sequence": "Scheduling \u00b7 6, equivalent milestone run (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1378,7 +1390,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 8, assess the cosine run (PyTorch).",
+          "sequence": "Scheduling \u00b7 8, assess the cosine run (PyTorch).",
           "gapTypes": [
             "composition"
           ]
@@ -1396,7 +1408,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 8, equivalent cosine run (MXNet).",
+          "sequence": "Scheduling \u00b7 8, equivalent cosine run (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1414,7 +1426,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 8, equivalent cosine run (TensorFlow).",
+          "sequence": "Scheduling \u00b7 8, equivalent cosine run (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1432,7 +1444,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 10, assess warmup (PyTorch).",
+          "sequence": "Scheduling \u00b7 10, assess warmup (PyTorch).",
           "gapTypes": [
             "composition"
           ]
@@ -1450,7 +1462,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 10, equivalent warmup run (MXNet).",
+          "sequence": "Scheduling \u00b7 10, equivalent warmup run (MXNet).",
           "gapTypes": [
             "composition"
           ]
@@ -1468,7 +1480,7 @@
             "09",
             "12"
           ],
-          "sequence": "Scheduling · 10, equivalent warmup run (TensorFlow).",
+          "sequence": "Scheduling \u00b7 10, equivalent warmup run (TensorFlow).",
           "gapTypes": [
             "composition"
           ]
@@ -1586,7 +1598,7 @@
         "20"
       ],
       "batch": "C02",
-      "sequence": "Distribution shift · 1, establish the original input distribution.",
+      "sequence": "Distribution shift \u00b7 1, establish the original input distribution.",
       "gapTypes": [
         "composition"
       ],
@@ -1621,7 +1633,7 @@
             "19",
             "20"
           ],
-          "sequence": "Distribution shift · 2, pair the shifted test distribution with the earlier training example.",
+          "sequence": "Distribution shift \u00b7 2, pair the shifted test distribution with the earlier training example.",
           "gapTypes": [
             "composition"
           ]
@@ -1646,7 +1658,7 @@
         "20"
       ],
       "batch": "C02",
-      "sequence": "Distribution shift · 3, contrast concept shift with the earlier input shift.",
+      "sequence": "Distribution shift \u00b7 3, contrast concept shift with the earlier input shift.",
       "gapTypes": [
         "composition"
       ],
@@ -1767,7 +1779,7 @@
       "proposedTopicSlug": "transformer",
       "lessons": [],
       "batch": "C03",
-      "sequence": "Illustrated GPT-2 · Language modelling · step 5",
+      "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 5",
       "gapTypes": [
         "composition"
       ],
@@ -1796,7 +1808,7 @@
             "heatmap"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Transformer block variants · step 4",
+          "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -1822,7 +1834,7 @@
         "01"
       ],
       "batch": "C03",
-      "sequence": "Illustrated Transformer · Architecture · step 2",
+      "sequence": "Illustrated Transformer \u00b7 Architecture \u00b7 step 2",
       "gapTypes": [
         "composition"
       ],
@@ -1853,7 +1865,7 @@
             "relationship"
           ],
           "lessons": [],
-          "sequence": "Illustrated Transformer · Architecture · step 3",
+          "sequence": "Illustrated Transformer \u00b7 Architecture \u00b7 step 3",
           "gapTypes": [
             "composition"
           ]
@@ -1862,7 +1874,7 @@
           "source": "d2l-transformer",
           "figure": "01",
           "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-01",
-          "summary": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+          "summary": "An encoder\u2013decoder Transformer lets masked target states read encoded source information before producing the next token.",
           "kinds": [
             "relationship",
             "block-stack"
@@ -1883,7 +1895,7 @@
             "block-stack"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Language modelling · step 4",
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -1908,7 +1920,7 @@
       "proposedTopicSlug": "transformer",
       "lessons": [],
       "batch": "C03",
-      "sequence": "Illustrated Transformer · Representations · step 2",
+      "sequence": "Illustrated Transformer \u00b7 Representations \u00b7 step 2",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -1938,7 +1950,7 @@
             "relationship"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Transformer block variants · step 6",
+          "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 6",
           "gapTypes": [
             "composition"
           ]
@@ -1953,7 +1965,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated BERT · Encoder architecture · step 3",
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 3",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -1969,7 +1981,7 @@
             "relationship"
           ],
           "lessons": [],
-          "sequence": "Illustrated BERT · Encoder architecture · step 4",
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -1992,7 +2004,7 @@
       "proposedTopicSlug": "transformer",
       "lessons": [],
       "batch": "C03",
-      "sequence": "Illustrated Transformer · Representations · step 3",
+      "sequence": "Illustrated Transformer \u00b7 Representations \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -2029,7 +2041,7 @@
       "proposedTopicSlug": "transformer",
       "lessons": [],
       "batch": "C03",
-      "sequence": "Illustrated Transformer · Residuals and normalization · step 3",
+      "sequence": "Illustrated Transformer \u00b7 Residuals and normalization \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -2058,7 +2070,7 @@
             "relationship"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Transformer block variants · step 2",
+          "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 2",
           "gapTypes": [
             "composition"
           ]
@@ -2084,7 +2096,7 @@
         "08"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · Encoder architecture · step 7",
+      "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 7",
       "gapTypes": [
         "composition"
       ],
@@ -2126,7 +2138,7 @@
         "01"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · Transfer learning · step 1",
+      "sequence": "Illustrated BERT \u00b7 Transfer learning \u00b7 step 1",
       "gapTypes": [
         "composition"
       ],
@@ -2166,7 +2178,7 @@
         "01"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · Transfer learning · step 4",
+      "sequence": "Illustrated BERT \u00b7 Transfer learning \u00b7 step 4",
       "gapTypes": [
         "composition"
       ],
@@ -2208,7 +2220,7 @@
         "03"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · Encoder architecture · step 5",
+      "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 5",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -2243,7 +2255,7 @@
           "lessons": [
             "03"
           ],
-          "sequence": "Illustrated BERT · Encoder architecture · step 6",
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 6",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -2270,7 +2282,7 @@
         "08"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · BERT objectives and uses · step 1",
+      "sequence": "Illustrated BERT \u00b7 BERT objectives and uses \u00b7 step 1",
       "gapTypes": [
         "composition"
       ],
@@ -2313,7 +2325,7 @@
         "03"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · BERT objectives and uses · step 2",
+      "sequence": "Illustrated BERT \u00b7 BERT objectives and uses \u00b7 step 2",
       "gapTypes": [
         "composition"
       ],
@@ -2356,7 +2368,7 @@
         "13"
       ],
       "batch": "C04",
-      "sequence": "Illustrated BERT · BERT objectives and uses · step 3",
+      "sequence": "Illustrated BERT \u00b7 BERT objectives and uses \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -2508,7 +2520,7 @@
         "15"
       ],
       "batch": "C05",
-      "sequence": "Illustrated BERT · From static to contextual embeddings · step 5",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 5",
       "gapTypes": [
         "composition"
       ],
@@ -2568,7 +2580,7 @@
         "08"
       ],
       "batch": "C06",
-      "sequence": "Illustrated Transformer · Training targets · step 1",
+      "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 1",
       "gapTypes": [
         "composition"
       ],
@@ -2601,7 +2613,7 @@
           "lessons": [
             "08"
           ],
-          "sequence": "Illustrated Transformer · Training targets · step 2",
+          "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 2",
           "gapTypes": [
             "composition"
           ]
@@ -2628,7 +2640,7 @@
         "09"
       ],
       "batch": "C06",
-      "sequence": "Illustrated Transformer · Training targets · step 3",
+      "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 3",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -2665,7 +2677,7 @@
             "03",
             "09"
           ],
-          "sequence": "Illustrated Transformer · Training targets · step 5",
+          "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 5",
           "gapTypes": [
             "composition"
           ]
@@ -2693,7 +2705,7 @@
         "15"
       ],
       "batch": "C06",
-      "sequence": "Illustrated Transformer · Training targets · step 4",
+      "sequence": "Illustrated Transformer \u00b7 Training targets \u00b7 step 4",
       "gapTypes": [
         "composition"
       ],
@@ -2728,7 +2740,7 @@
             "01",
             "15"
           ],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 8",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 8",
           "gapTypes": [
             "composition"
           ]
@@ -2746,7 +2758,7 @@
             "01",
             "15"
           ],
-          "sequence": "Illustrated BERT · Decoder pretraining and task adaptation · step 2",
+          "sequence": "Illustrated BERT \u00b7 Decoder pretraining and task adaptation \u00b7 step 2",
           "gapTypes": [
             "composition"
           ]
@@ -2772,7 +2784,7 @@
         "01"
       ],
       "batch": "C06",
-      "sequence": "Illustrated GPT-2 · Applying decoder-only models · step 2",
+      "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 2",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3142,7 +3154,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 8",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 8",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3203,7 +3215,7 @@
       "proposedTopicSlug": "attention",
       "lessons": [],
       "batch": "C07",
-      "sequence": "Illustrated GPT-2 · Transformer block variants · step 3",
+      "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -3232,7 +3244,7 @@
             "heatmap"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 1",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 1",
           "gapTypes": [
             "composition"
           ]
@@ -3247,7 +3259,7 @@
             "heatmap"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 7",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 7",
           "gapTypes": [
             "composition"
           ]
@@ -3275,7 +3287,7 @@
         "08"
       ],
       "batch": "C07",
-      "sequence": "Illustrated Transformer · One attention query · step 2",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 2",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3308,7 +3320,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated Transformer · Attention for a full sequence · step 1",
+          "sequence": "Illustrated Transformer \u00b7 Attention for a full sequence \u00b7 step 1",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3324,7 +3336,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 3",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 3",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3340,7 +3352,7 @@
             "block-stack"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 1",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 1",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3356,7 +3368,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 5",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 5",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3372,7 +3384,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 6",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 6",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3396,7 +3408,7 @@
       "proposedTopicSlug": "attention",
       "lessons": [],
       "batch": "C07",
-      "sequence": "Illustrated Transformer · One attention query · step 3",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -3425,7 +3437,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 4",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -3449,7 +3461,7 @@
       "proposedTopicSlug": "attention",
       "lessons": [],
       "batch": "C07",
-      "sequence": "Illustrated Transformer · One attention query · step 5",
+      "sequence": "Illustrated Transformer \u00b7 One attention query \u00b7 step 5",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3480,7 +3492,7 @@
             "block-stack"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 10",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 10",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3496,7 +3508,7 @@
             "block-stack"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 5",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 5",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3512,7 +3524,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 11",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 11",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3527,7 +3539,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Building and querying the index · step 2",
+          "sequence": "Building and querying the index \u00b7 step 2",
           "gapTypes": [
             "numeric-transformation"
           ]
@@ -3551,7 +3563,7 @@
       "proposedTopicSlug": "attention",
       "lessons": [],
       "batch": "C07",
-      "sequence": "Illustrated Transformer · Attention for a full sequence · step 2",
+      "sequence": "Illustrated Transformer \u00b7 Attention for a full sequence \u00b7 step 2",
       "gapTypes": [
         "composition"
       ],
@@ -3580,7 +3592,7 @@
             "heatmap"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 6",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 6",
           "gapTypes": [
             "composition"
           ]
@@ -3595,7 +3607,7 @@
             "matrix"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Attention arithmetic · step 9",
+          "sequence": "Illustrated GPT-2 \u00b7 Attention arithmetic \u00b7 step 9",
           "gapTypes": [
             "composition"
           ]
@@ -3621,7 +3633,7 @@
         "08"
       ],
       "batch": "C08",
-      "sequence": "Illustrated Transformer · Residuals and normalization · step 2",
+      "sequence": "Illustrated Transformer \u00b7 Residuals and normalization \u00b7 step 2",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3666,7 +3678,7 @@
         "08"
       ],
       "batch": "C08",
-      "sequence": "Illustrated Transformer · Token positions · step 1",
+      "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 1",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3701,7 +3713,7 @@
           "lessons": [
             "08"
           ],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 4",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -3718,7 +3730,7 @@
           "lessons": [
             "08"
           ],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 5",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 5",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3734,7 +3746,7 @@
             "matrix"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Feed-forward computation and parameters · step 4",
+          "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -3760,7 +3772,7 @@
         "08"
       ],
       "batch": "C08",
-      "sequence": "Illustrated Transformer · Token positions · step 2",
+      "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 2",
       "gapTypes": [
         "composition"
       ],
@@ -3793,7 +3805,7 @@
           "lessons": [
             "08"
           ],
-          "sequence": "Illustrated Transformer · Token positions · step 4",
+          "sequence": "Illustrated Transformer \u00b7 Token positions \u00b7 step 4",
           "gapTypes": [
             "composition"
           ]
@@ -3819,7 +3831,7 @@
         "08"
       ],
       "batch": "C08",
-      "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 3",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 3",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3852,7 +3864,7 @@
           "lessons": [
             "08"
           ],
-          "sequence": "Predicting text · step 6",
+          "sequence": "Predicting text \u00b7 step 6",
           "gapTypes": [
             "numeric-transformation"
           ]
@@ -3866,7 +3878,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Embedding intuition · step 1",
+          "sequence": "Embedding intuition \u00b7 step 1",
           "gapTypes": [
             "numeric-transformation"
           ]
@@ -3880,7 +3892,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Updating embedding tables · step 3",
+          "sequence": "Updating embedding tables \u00b7 step 3",
           "gapTypes": [
             "numeric-transformation"
           ]
@@ -3906,7 +3918,7 @@
         "08"
       ],
       "batch": "C09",
-      "sequence": "Illustrated BERT · From static to contextual embeddings · step 3",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 3",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -3940,7 +3952,7 @@
           "lessons": [
             "08"
           ],
-          "sequence": "Illustrated BERT · From static to contextual embeddings · step 4",
+          "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 4",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -3964,7 +3976,7 @@
       "proposedTopicSlug": "contextual-embeddings",
       "lessons": [],
       "batch": "C09",
-      "sequence": "Illustrated BERT · From static to contextual embeddings · step 6",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 6",
       "gapTypes": [
         "composition"
       ],
@@ -4002,7 +4014,7 @@
         "08"
       ],
       "batch": "C09",
-      "sequence": "Illustrated BERT · From static to contextual embeddings · step 7",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 7",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -4045,7 +4057,7 @@
         "09"
       ],
       "batch": "C09",
-      "sequence": "Illustrated BERT · BERT objectives and uses · step 5",
+      "sequence": "Illustrated BERT \u00b7 BERT objectives and uses \u00b7 step 5",
       "gapTypes": [
         "composition"
       ],
@@ -4084,7 +4096,7 @@
       "proposedTopicSlug": "model-capacity",
       "lessons": [],
       "batch": "C10",
-      "sequence": "Illustrated BERT · Encoder architecture · step 2",
+      "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 2",
       "gapTypes": [
         "composition"
       ],
@@ -4169,7 +4181,7 @@
         "19"
       ],
       "batch": "C10",
-      "sequence": "Illustrated GPT-2 · Language modelling · step 3",
+      "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -4200,7 +4212,7 @@
             "bar-chart"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Language modelling · step 6",
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 6",
           "gapTypes": [
             "composition"
           ]
@@ -4215,7 +4227,7 @@
             "bar-chart"
           ],
           "lessons": [],
-          "sequence": "Illustrated BERT · Encoder architecture · step 1",
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 1",
           "gapTypes": [
             "composition"
           ]
@@ -4239,7 +4251,7 @@
       "proposedTopicSlug": "model-capacity",
       "lessons": [],
       "batch": "C10",
-      "sequence": "Illustrated GPT-2 · Feed-forward computation and parameters · step 3",
+      "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 3",
       "gapTypes": [
         "composition"
       ],
@@ -4268,7 +4280,7 @@
             "matrix"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Feed-forward computation and parameters · step 5",
+          "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 5",
           "gapTypes": [
             "composition"
           ]
@@ -4296,7 +4308,7 @@
         "13"
       ],
       "batch": "C10",
-      "sequence": "Illustrated BERT · Decoder pretraining and task adaptation · step 4",
+      "sequence": "Illustrated BERT \u00b7 Decoder pretraining and task adaptation \u00b7 step 4",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -4329,7 +4341,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Applying decoder-only models · step 1",
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 1",
           "gapTypes": [
             "composition"
           ]
@@ -4344,7 +4356,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Applying decoder-only models · step 3",
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 3",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -4369,7 +4381,7 @@
       "proposedTopicSlug": "gpt2",
       "lessons": [],
       "batch": "C10",
-      "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 14",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 14",
       "gapTypes": [
         "composition"
       ],
@@ -4409,7 +4421,7 @@
         "15"
       ],
       "batch": "C11",
-      "sequence": "Illustrated GPT-2 · Applying decoder-only models · step 4",
+      "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 4",
       "gapTypes": [
         "composition"
       ],
@@ -4444,7 +4456,7 @@
             "08",
             "15"
           ],
-          "sequence": "Illustrated GPT-2 · Applying decoder-only models · step 5",
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 5",
           "gapTypes": [
             "composition"
           ]
@@ -4472,7 +4484,7 @@
         "03"
       ],
       "batch": "C11",
-      "sequence": "Illustrated GPT-2 · Language modelling · step 2",
+      "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 2",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -4507,7 +4519,7 @@
           "lessons": [
             "03"
           ],
-          "sequence": "Illustrated Transformer · Generation · step 3",
+          "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 3",
           "gapTypes": [
             "composition"
           ]
@@ -4524,7 +4536,7 @@
           "lessons": [
             "03"
           ],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 11",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 11",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -4551,7 +4563,7 @@
       "proposedTopicSlug": "language-generation",
       "lessons": [],
       "batch": "C11",
-      "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 2",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 2",
       "gapTypes": [
         "composition"
       ],
@@ -4580,7 +4592,7 @@
             "relationship"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 2",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 2",
           "gapTypes": [
             "composition"
           ]
@@ -4595,7 +4607,7 @@
             "relationship"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 3",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 3",
           "gapTypes": [
             "composition"
           ]
@@ -4610,7 +4622,7 @@
             "token-links"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 10",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 10",
           "gapTypes": [
             "composition"
           ]
@@ -4635,7 +4647,7 @@
         "03"
       ],
       "batch": "C11",
-      "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 13",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 13",
       "gapTypes": [
         "composition"
       ],
@@ -4675,7 +4687,7 @@
       "proposedTopicSlug": "language-generation",
       "lessons": [],
       "batch": "C11",
-      "sequence": "Illustrated Transformer · Generation · step 1",
+      "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 1",
       "gapTypes": [
         "composition"
       ],
@@ -4704,7 +4716,7 @@
             "sequence"
           ],
           "lessons": [],
-          "sequence": "Illustrated Transformer · Generation · step 2",
+          "sequence": "Illustrated Transformer \u00b7 Generation \u00b7 step 2",
           "gapTypes": [
             "composition"
           ]
@@ -4719,7 +4731,7 @@
             "sequence"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Language modelling · step 7",
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 7",
           "gapTypes": [
             "composition"
           ]
@@ -4734,7 +4746,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Language modelling · step 8",
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 8",
           "gapTypes": [
             "composition"
           ]
@@ -4749,7 +4761,7 @@
             "flow"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · One pass through GPT-2 · step 1",
+          "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 1",
           "gapTypes": [
             "composition"
           ]
@@ -4773,7 +4785,7 @@
       "proposedTopicSlug": "multihead-attention",
       "lessons": [],
       "batch": "C12",
-      "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 7",
+      "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 7",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -4812,7 +4824,7 @@
       "proposedTopicSlug": "multihead-attention",
       "lessons": [],
       "batch": "C12",
-      "sequence": "Illustrated Transformer · Parallel attention heads · step 1",
+      "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 1",
       "gapTypes": [
         "composition"
       ],
@@ -4841,7 +4853,7 @@
             "token-links"
           ],
           "lessons": [],
-          "sequence": "Illustrated Transformer · Parallel attention heads · step 5",
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 5",
           "gapTypes": [
             "composition"
           ]
@@ -4856,7 +4868,7 @@
             "comparison"
           ],
           "lessons": [],
-          "sequence": "Illustrated Transformer · Parallel attention heads · step 6",
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 6",
           "gapTypes": [
             "composition"
           ]
@@ -4931,7 +4943,7 @@
             "token-links"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 8",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 8",
           "gapTypes": [
             "composition"
           ]
@@ -4957,7 +4969,7 @@
       "proposedTopicSlug": "multihead-attention",
       "lessons": [],
       "batch": "C12",
-      "sequence": "Illustrated Transformer · Parallel attention heads · step 2",
+      "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 2",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -4987,7 +4999,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Illustrated Transformer · Parallel attention heads · step 4",
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 4",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -5027,7 +5039,7 @@
       "proposedTopicSlug": "multihead-attention",
       "lessons": [],
       "batch": "C12",
-      "sequence": "Illustrated Transformer · Parallel attention heads · step 3",
+      "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 3",
       "gapTypes": [
         "composition",
         "numeric-transformation"
@@ -5058,7 +5070,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 12",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 12",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -5074,7 +5086,7 @@
             "tensor"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 13",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 13",
           "gapTypes": [
             "composition",
             "numeric-transformation"
@@ -5090,7 +5102,7 @@
             "block-stack"
           ],
           "lessons": [],
-          "sequence": "Illustrated GPT-2 · Cached inference and multiple heads · step 14",
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 14",
           "gapTypes": [
             "composition"
           ]
@@ -5439,7 +5451,7 @@
       "proposedTopicSlug": "stable-diffusion",
       "lessons": [],
       "batch": "C14",
-      "sequence": "Noise and denoising · step 11",
+      "sequence": "Noise and denoising \u00b7 step 11",
       "gapTypes": [
         "composition"
       ],
@@ -5475,7 +5487,7 @@
       "proposedTopicSlug": "stable-diffusion",
       "lessons": [],
       "batch": "C14",
-      "sequence": "Conditioning the denoiser · step 4",
+      "sequence": "Conditioning the denoiser \u00b7 step 4",
       "gapTypes": [
         "composition"
       ],
@@ -5513,7 +5525,7 @@
         "09"
       ],
       "batch": "C14",
-      "sequence": "Learning text and image representations · step 1",
+      "sequence": "Learning text and image representations \u00b7 step 1",
       "gapTypes": [
         "composition"
       ],
@@ -5550,7 +5562,7 @@
       "proposedTopicSlug": "text-image-embeddings",
       "lessons": [],
       "batch": "C14",
-      "sequence": "Learning text and image representations · step 5",
+      "sequence": "Learning text and image representations \u00b7 step 5",
       "gapTypes": [
         "numeric-transformation"
       ],
@@ -5584,7 +5596,7 @@
       "proposedTopicSlug": "word2vec",
       "lessons": [],
       "batch": "C15",
-      "sequence": "Embedding intuition · step 10",
+      "sequence": "Embedding intuition \u00b7 step 10",
       "gapTypes": [
         "numeric-transformation"
       ],
@@ -5618,7 +5630,7 @@
       "proposedTopicSlug": "word2vec",
       "lessons": [],
       "batch": "C15",
-      "sequence": "Word vectors · step 6",
+      "sequence": "Word vectors \u00b7 step 6",
       "gapTypes": [
         "numeric-transformation"
       ],
@@ -5654,7 +5666,7 @@
         "03"
       ],
       "batch": "C15",
-      "sequence": "Updating embedding tables · step 6",
+      "sequence": "Updating embedding tables \u00b7 step 6",
       "gapTypes": [
         "numeric-transformation"
       ],
@@ -5683,7 +5695,7 @@
             "transformation"
           ],
           "lessons": [],
-          "sequence": "Learning from predictions · step 4",
+          "sequence": "Learning from predictions \u00b7 step 4",
           "gapTypes": [
             "numeric-transformation"
           ]
@@ -5706,7 +5718,7 @@
       "proposedTopicSlug": "retrieval",
       "lessons": [],
       "batch": "C15",
-      "sequence": "Building and querying the index · step 4",
+      "sequence": "Building and querying the index \u00b7 step 4",
       "gapTypes": [
         "composition"
       ],
@@ -5742,7 +5754,7 @@
       "proposedTopicSlug": "retrieval",
       "lessons": [],
       "batch": "C15",
-      "sequence": "Where retrieved text joins the model · step 3",
+      "sequence": "Where retrieved text joins the model \u00b7 step 3",
       "gapTypes": [
         "numeric-transformation"
       ],
@@ -5777,7 +5789,7 @@
       "proposedTopicSlug": "retrieval",
       "lessons": [],
       "batch": "C15",
-      "sequence": "Where retrieved text joins the model · step 6",
+      "sequence": "Where retrieved text joins the model \u00b7 step 6",
       "gapTypes": [
         "composition"
       ],
@@ -8125,7 +8137,7 @@
       "lessons": [
         "03"
       ],
-      "sequence": "Linear classification · 1, raw class scores before softmax.",
+      "sequence": "Linear classification \u00b7 1, raw class scores before softmax.",
       "gapTypes": [
         "composition"
       ],
@@ -8156,9 +8168,9 @@
     "instructions": "Owner confirmed schema 1944b48cf is final for this work. C01 is approved, C02 is authorized; rebase both after releases 133 and 134 are on main. Later batches need approval.",
     "formattingFollowup": "One data-only number-formatting commit will follow; the owner states that it does not change the schema.",
     "contract": [
-      "An ordered sequence or an operation between panels uses kind panels: 2–3 children, optional label text(40), at most two neighbouring links with operation text(24). Children are leaf kinds, block-stack or token-links; no nested composition.",
+      "An ordered sequence or an operation between panels uses kind panels: 2\u20133 children, optional label text(40), at most two neighbouring links with operation text(24). Children are leaf kinds, block-stack or token-links; no nested composition.",
       "Plain side-by-side without an operation uses comparison variant panels with heading text(40) on each child, not the text-column comparison form.",
-      "Stacked bar-chart uses variant stacked, a unit, 2–8 strictly positive parts and optional total; parts must sum to total within rounding.",
+      "Stacked bar-chart uses variant stacked, a unit, 2\u20138 strictly positive parts and optional total; parts must sum to total within rounding.",
       "The current author tool schema exposes neither composition form; references may use both, and this task does not change the author schema or prompts.",
       "Shared classes/colours require bar charts in every panel. Shared axis requires coordinate plots with matching labels, ranges, units and scales.",
       "For C02 onward, Standard has at most two coordinate-plot panels; shared-axis stems are used only when the shared-axis comparison is the learning point. Other small quantities use bar panels with values beside them.",
@@ -8309,7 +8321,7 @@
         "sourceBriefs": [
           "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15"
         ],
-        "reason": "A closed generate→append-prefix→generate workflow needs a return. The source sequence/timeline view can instead remain unrolled, so this is not counted as an unavoidable flow back-edge.",
+        "reason": "A closed generate\u2192append-prefix\u2192generate workflow needs a return. The source sequence/timeline view can instead remain unrolled, so this is not counted as an unavoidable flow back-edge.",
         "returnFrom": "append the predicted token to the prefix",
         "returnTo": "the same prediction stage",
         "additionalEvidence": [
