@@ -19,7 +19,7 @@ export const measuredSchema = z.object({
   reach: z.object({ minX: number, maxX: number, minY: number, maxY: number }).strict(),
   yRange: z.tuple([number, number]).nullable(),
   valueTexts: z.array(z.string()), variants: z.array(z.array(z.string())).min(1),
-  plot: z.object({ geometry: plotGeometry }).strict().nullable(),
+  plot: z.object({ geometry: plotGeometry, figureParts: z.object({ title: z.literal(false) }).strict().optional() }).strict().nullable(), // figureParts: the graph is drawn without its title (brief 44, a title's height too tall)
   facts: z.record(z.string(), z.unknown()).optional(), // what the report shows (turn counts, milliseconds per frame): the Program does not read it
 }).strict();
 export const blueprintCardSchema = z.object({ blueprint: BUILT_SCHEMA, measured: measuredSchema }).strict();

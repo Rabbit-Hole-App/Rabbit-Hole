@@ -764,7 +764,7 @@ export function checkText(layoutId, { formula, note }, sizes = DRAWN_TEXT_SIZES)
   const room = slot => layout.slots[slot].box[2] - 2 * GRID.textClear, report = {};
   for (const [slot, text, size] of [['formula', formula, sizes.formula], ['note', note, sizes.note]]) {
     // brief 36: a formula is one math run and never wraps, so it is one line measured whole (cutting it at its spaces measures halves of a TeX string, which is not what is drawn)
-    const maxLines = layoutId === 'tall' && slot === 'note' ? 3 : 1, lines = slot === 'formula' ? [text] : textLines(text, size, room(slot));
+    const maxLines = slot !== 'note' ? 1 : layoutId === 'tall' ? 3 : layoutId === 'tall-with-panel' ? 2 : 1, lines = slot === 'formula' ? [text] : textLines(text, size, room(slot));
     const widest = Math.max(...lines.map(line => textWidth(line, size)));
     if (lines.length > maxLines || widest > room(slot)) throw new LayoutError('text_too_wide', `the ${slot} "${text}" needs ${Math.round(widest)} px on ${lines.length} line(s); its box allows ${maxLines} line(s) of ${room(slot)} px`, [slot]);
     report[slot] = { lines, width: Math.round(textWidth(text, size) * 100) / 100, room: room(slot) };
@@ -817,6 +817,7 @@ export const COLUMNS = Object.freeze({
   heights: Object.freeze({ 2: Object.freeze({ y: 319.2, h: 68.8, lastPictureRow: 8 }), 3: Object.freeze({ y: 280.8, h: 107.2, lastPictureRow: 7 }) }),
 });
 const TEXT_LAYOUTS = Object.freeze(['wide', 'side-by-side', 'equal-split', 'stacked']);
+const NOTE_TWO_LINES_PX = 38; // two lines of the body size (17.5 px apart) and their padding; the formula's centred band ends 1.6 px above a 30.4 px note row, so a 38 px box stays clear of it
 const r2 = value => Math.round(value * 100) / 100;
 const gridBox = ([c0, c1], [r0, r1]) => [r2(GRID.padding + (c0 - 1) * GRID.columnWidth + GRID.inset), r2(GRID.padding + (r0 - 1) * GRID.rowHeight + GRID.inset), r2((c1 - c0 + 1) * GRID.columnWidth - 2 * GRID.inset), r2((r1 - r0 + 1) * GRID.rowHeight - 2 * GRID.inset)];
 // The pictures' boxes: a slot that ends at row 8 ends at row 7 when the text area is three rows tall.
@@ -845,11 +846,13 @@ export function arrangeText(layoutId, { variants, formula, pictureMins = {} }, s
     for (const variant of variants) checkText(layoutId, { formula: `$${formula}$`, note: variant.explanation[0] }, sizes);
     const count = Math.min(...variants.map(variant => fitValues(layoutId, variant.values, sizes).values.length)), boxes = valueBoxes(layoutId, count);
     const centred = ([x, y, w, h]) => [x, r2(y + (h - 28) / 2), w, 28];
+    // brief 44: a one-line explanation wider than the note box is given two lines (the box grows upward over the formula's free strip, 8 px clear of the formula's band) instead of a refusal; a layout whose note already takes three lines is unchanged
+    const twoLines = layoutId !== 'tall' && variants.some(variant => textLines(variant.explanation[0], sizes.note, noteRoom).length > 1), grown = ([x, y, w, h]) => [x, r2(y + h - NOTE_TWO_LINES_PX), w, NOTE_TWO_LINES_PX];
     const [fx, fy, fw, fh] = layout.slots.formula.box;
     return {
       layout: layoutId, arrangement: 'rows', rowsTall: null, pictures: Object.fromEntries(['stage', 'panel'].filter(name => layout.slots[name]).map(name => [name, layout.slots[name].box])),
       values: { count, boxes: boxes.map(entry => centred(entry.box)), dots: boxes.map(({ box: [x, y, , h] }) => [x + VALUE_DOT.centreX, r2(y + h / 2), VALUE_DOT.diameter]) },
-      formula: { at: [fx + fw / 2, fy + fh / 2], align: 'middle' }, explanation: { kind: 'box', box: centred(layout.slots.note.box) }, dropped: { explanationLines: 0, values: valueCount - count },
+      formula: { at: [fx + fw / 2, fy + fh / 2], align: 'middle' }, explanation: { kind: 'box', box: twoLines ? grown(layout.slots.note.box) : centred(layout.slots.note.box) }, dropped: { explanationLines: 0, values: valueCount - count },
     };
   }
   // COLUMNS

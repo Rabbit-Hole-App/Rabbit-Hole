@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "interactive-blueprint, version 1 (the full form)",
-  "description": "What the Design model returns. The fields are in the order of the reasoning: the relationship that answers the question, the quantities in it, the controls, the math, the pictures, and the words last. Field meanings and which options are built: claude/interactive-blueprint.md section 4. Rules that need more than one field (ids exist, kinds match, min below max, a control quantity is an input, pictureCount agrees with the panel) are the checker's, section 5.",
+  "description": "What the Design model returns. A label names the part it belongs to (near); code places every text. The fields are in the order of the reasoning: the relationship that answers the question, the quantities in it, the controls, the math, the pictures, and the words last. Field meanings and which options are built: claude/interactive-blueprint.md section 4. Rules that need more than one field (ids exist, kinds match, min below max, a control quantity is an input, pictureCount agrees with the panel) are the checker's, section 5.",
   "$defs": {
     "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"},
     "coordinate": {"anyOf": [{"type": "number"}, {"$ref": "#/$defs/id"}]},

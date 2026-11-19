@@ -231,21 +231,27 @@ function measure(blueprint, sampled, graph) {
   const variants = [...new Set(rows.map(row => JSON.stringify(linesAt(blueprint, row))))].map(text => JSON.parse(text));
   return { reach, yRange: graph.plot ? graph.plot.yRange : null, valueTexts, variants, plot: null };
 }
-function renderPlot(blueprint, graph, height) {
-  const answers = { ...blueprint.layout, figureParts: { legend: 'always' } }, figure = figureOptions(answers, height ? { height } : undefined), { box } = figure.options;
+function renderPlot(blueprint, graph, height, figureParts = { legend: 'always' }) {
+  const answers = { ...blueprint.layout, figureParts }, figure = figureOptions(answers, height ? { height } : undefined), { box } = figure.options;
   const entries = [graph.curves.find(entry => entry.setting.name === 'the defaults'), graph.curves.at(-1), graph.curves.at(-2)].filter(Boolean);
   const rendered = entries.map(entry => renderTutorDiagram(specOf(graph.plot, entry.ys.map(ys => curveOf(graph.xs, ys, graph.plot.yRange, KEPT_SAMPLES))), box.width, figure.options));
   const [first] = rendered, min = { width: Math.max(...rendered.map(r => r.min.width)), height: Math.max(...rendered.map(r => r.min.height)) };
-  return { geometry: { min, plotArea: first.geometry.plotArea, x: { min: first.geometry.x.min, max: first.geometry.x.max }, y: { min: first.geometry.y.min, max: first.geometry.y.max } }, box };
+  const result = { geometry: { min, plotArea: first.geometry.plotArea, x: { min: first.geometry.x.min, max: first.geometry.x.max }, y: { min: first.geometry.y.min, max: first.geometry.y.max } }, box };
+  // brief 44: a graph that is too tall for its box by no more than its title's height is asked of the renderer again with parts.title false; if that fits, the graph is drawn without its title (figureParts is carried in the measured data for Build)
+  const title = first.min.parts?.find(entry => entry.axis === 'height' && entry.part === 'title');
+  if (!title || min.height <= box.height || min.height - box.height > title.px) return result;
+  const again = renderPlot({ ...blueprint, layout: { ...blueprint.layout } }, graph, height, { legend: 'always', title: false });
+  return again.geometry.min.height <= box.height ? { ...again, figureParts: { title: false } } : result;
 }
 function checkLayout(blueprint, sampled, graph) {
   const measured = measure(blueprint, sampled, graph);
   try {
     pickLayout(blueprint.layout, { hasPanel: blueprint.pictures.panel !== null });
     if (graph.plot) {
-      measured.plot = { geometry: renderPlot(blueprint, graph).geometry };
+      const sized = renderPlot(blueprint, graph, undefined);
+      measured.plot = { geometry: sized.geometry };
       const first = place({ blueprint, measured }), final = renderPlot(blueprint, graph, first.figure.h);
-      measured.plot = { geometry: final.geometry };
+      measured.plot = { geometry: final.geometry, ...(final.figureParts ? { figureParts: final.figureParts } : {}) };
     }
     place({ blueprint, measured });
   } catch (error) { if (error instanceof LayoutError || error.name === 'LayoutError') return { problems: [layoutProblem(error)], measured }; throw error; }
@@ -253,7 +259,7 @@ function checkLayout(blueprint, sampled, graph) {
 }
 
 async function checkProgram(blueprint, sampled, measured) {
-  const out = [], notes = [], bad = message => out.push({ code: 'program', path: 'math.code', message });
+  const out = [], notes = [], dropped = [], bad = message => out.push({ code: 'program', path: 'math.code', message });
   let source;
   try { source = programSourceOf({ geometry: { blueprint: { blueprint, measured } } }); } catch (error) { return [{ code: 'program', path: error.path ?? 'blueprint', message: `The Program cannot be built: ${error.message}.` }]; }
   const bytes = new TextEncoder().encode(source).length;
@@ -266,10 +272,9 @@ async function checkProgram(blueprint, sampled, measured) {
     worst = Math.max(worst, ms);
     if (!run.ok) { bad(run.code === 'runtime_limit' ? `One frame takes longer than ${FRAME_MS} ms at ${describe(setting, time)}; make ${code('compute')} cheaper (the Program calls it up to 129 times per frame).` : `The Program does not run at ${describe(setting, time)}: ${run.detail}.`); return { out, source, worst, objects }; }
     const frame = run.value.frame; objects = Math.max(objects, frame.objects.length);
-    // brief 43: a label with no clear side is left out of the frame by the program. It is counted in the notes; at the defaults and t = 0 it fails the check, and says so.
+    // brief 44: a label with no clear side is left out of the frame by the program and counted (notes and measured.facts.droppedLabels); it no longer fails the check.
     const drawn = new Set(frame.objects.map(object => object.id)), parts = blueprint.pictures.main.parts, leftOut = parts.filter(part => part.type === 'label' && !drawn.has(`part.${part.id}`) && (part.near === undefined || drawn.has(`part.${part.near}`)));
-    leftOut.forEach(part => notes.push(`label ${part.id} left out at ${describe(setting, time)}: no clear side`));
-    if (setting === sampled.points[0] && time === 0 && leftOut.length) { leftOut.forEach(part => bad(`The label ${code(part.id)}${part.near === undefined ? '' : ` near ${code(part.near)}`} has no clear side at ${describe(setting, time)}: above, below, right and left of ${part.near === undefined ? 'its point' : code(part.near)} each overlap another part or leave the picture; move the parts apart or shorten the text.`)); return { out, notes, source, worst, objects }; }
+    leftOut.forEach(part => { notes.push(`label ${part.id} left out at ${describe(setting, time)}: no clear side`); dropped.push({ label: part.id, near: part.near ?? null, at: describe(setting, time) }); });
     if (frame.objects.length >= CONTRACT_LIMITS.objects) bad(`One frame has ${frame.objects.length} objects; at most ${CONTRACT_LIMITS.objects - 1}. Draw fewer parts.`);
     const parsed = parseFrame(frame); if (!parsed.ok) { bad(`The frame is refused by the host at ${describe(setting, time)}: ${parsed.error ?? JSON.stringify(parsed).slice(0, 160)}.`); return { out, source, worst, objects }; }
     const normalized = normalizeFrame(frame); if (!normalized.ok) { bad(`The frame cannot be normalized at ${describe(setting, time)}.`); return { out, source, worst, objects }; }
@@ -277,7 +282,7 @@ async function checkProgram(blueprint, sampled, measured) {
     if (overlaps.length || problems.length) { bad(`Things overlap in the frame at ${describe(setting, time)}: ${JSON.stringify([...overlaps, ...problems][0]).slice(0, 160)}.`); return { out, source, worst, objects }; }
   }
   if (worst > FRAME_MS) bad(`One frame takes ${Math.round(worst)} ms; the limit is ${FRAME_MS}. Make ${code('compute')} cheaper.`);
-  return { out, notes, source, worst, objects };
+  return { out, notes, dropped, source, worst, objects };
 }
 
 // ---- the whole checker ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -308,7 +313,7 @@ export async function checkBlueprint(value, { seeded = null, light = false, thro
   const program = await checkProgram(blueprint, sampled, layout.measured);
   const turns = {};
   if (graph.plot) graph.plot.series.forEach((series, k) => { turns[series.value] = Math.max(...graph.curves.map(entry => turnsOf(entry.ys[k]))); });
-  const measured = { ...layout.measured, facts: { turns, msPerFrameWorst: Math.round(program.worst * 10) / 10, programBytes: program.source ? new TextEncoder().encode(program.source).length : null, frameObjects: program.objects, msPerComputeBatch: Math.round(Math.max(...sampled.points.map(point => point.ms))) } };
+  const measured = { ...layout.measured, facts: { droppedLabels: program.dropped ?? [], turns, msPerFrameWorst: Math.round(program.worst * 10) / 10, programBytes: program.source ? new TextEncoder().encode(program.source).length : null, frameObjects: program.objects, msPerComputeBatch: Math.round(Math.max(...sampled.points.map(point => point.ms))) } };
   notes.push(...(program.notes ?? []));
   if (program.out.length) return done(10, program.out, measured);
   const card = blueprintCardSchema.safeParse({ blueprint: legacyLabels ? withStandIn(blueprint) : blueprint, measured });

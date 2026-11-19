@@ -1,0 +1,453 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A pendulum's period depends only on its string length and gravity, not on the bob's mass. Longer strings slow the swing down, stronger gravity speeds it up, and at small angles the release angle sets the swing width without changing the period.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "The string is massless and rigid, with the bob treated as a point mass.",
+      "Air resistance and pivot friction are zero, so the swing keeps constant energy.",
+      "The period formula uses the small-angle approximation for swings near vertical."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "role": "fixed",
+      "meaning": "Distance from the pivot point to the center of the bob"
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s²",
+      "role": "control",
+      "meaning": "Gravitational acceleration pulling the bob toward vertical"
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "fixed",
+      "meaning": "Mass of the hanging bob, which cancels out of swing timing"
+    },
+    {
+      "id": "release_angle",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "fixed",
+      "meaning": "Initial angle pulled away from the vertical resting line"
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time taken to complete one full back-and-forth swing"
+    },
+    {
+      "id": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "role": "result",
+      "meaning": "Number of complete back-and-forth swings per second"
+    },
+    {
+      "id": "angle",
+      "label": "Current angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Instantaneous angle from vertical as the pendulum swings"
+    },
+    {
+      "id": "max_speed",
+      "label": "Max speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Peak speed of the bob at the lowest point of its arc"
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Test pendulum"
+    },
+    {
+      "id": "earth_ref",
+      "label": "Earth reference"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s²",
+      "min": 1.5,
+      "max": 25,
+      "default": 3.7,
+      "step": 0.1
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var L = 1.5; var theta0 = 25; var theta0Rad = theta0 * Math.PI / 180; var g = inputs.gravity; var gRef = 9.8; var period = 2 * Math.PI * Math.sqrt(L / g); var frequency = 1 / period; var omega = 2 * Math.PI / period; var angle = theta0 * Math.cos(omega * t); var angleRad = angle * Math.PI / 180; var bob_x = -0.7 + L * Math.sin(angleRad); var bob_y = 1.5 - L * Math.cos(angleRad); var grav_start_y = bob_y - 0.16; var grav_tip_y = grav_start_y - 0.035 * g; var max_speed = Math.sqrt(2 * g * L * (1 - Math.cos(theta0Rad))); var refPeriod = 2 * Math.PI * Math.sqrt(L / gRef); var refOmega = 2 * Math.PI / refPeriod; var ref_angle = theta0 * Math.cos(refOmega * t); var refAngleRad = ref_angle * Math.PI / 180; var ref_x = 0.7 + L * Math.sin(refAngleRad); var ref_y = 1.5 - L * Math.cos(refAngleRad); var ref_grav_start_y = ref_y - 0.16; var ref_grav_tip_y = ref_grav_start_y - 0.035 * gRef; var is_slower = g < gRef - 0.05; var is_faster = g > gRef + 0.05; return { period: period, frequency: frequency, angle: angle, max_speed: max_speed, bob_x: bob_x, bob_y: bob_y, grav_start_y: grav_start_y, grav_tip_y: grav_tip_y, ref_angle: ref_angle, ref_x: ref_x, ref_y: ref_y, ref_grav_start_y: ref_grav_start_y, ref_grav_tip_y: ref_grav_tip_y, is_slower: is_slower, is_faster: is_faster }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one full back-and-forth swing of the test pendulum",
+        "kind": "number"
+      },
+      {
+        "id": "frequency",
+        "unit": "Hz",
+        "meaning": "Complete swings per second of the test pendulum",
+        "kind": "number"
+      },
+      {
+        "id": "angle",
+        "unit": "deg",
+        "meaning": "Current angle of the test pendulum from vertical",
+        "kind": "number"
+      },
+      {
+        "id": "max_speed",
+        "unit": "m/s",
+        "meaning": "Peak speed of the test bob at the bottom of the swing",
+        "kind": "number"
+      },
+      {
+        "id": "bob_x",
+        "unit": "m",
+        "meaning": "Horizontal position of the test pendulum bob",
+        "kind": "number"
+      },
+      {
+        "id": "bob_y",
+        "unit": "m",
+        "meaning": "Vertical position of the test pendulum bob",
+        "kind": "number"
+      },
+      {
+        "id": "grav_start_y",
+        "unit": "m",
+        "meaning": "Start y-coordinate of the gravity arrow below the test bob",
+        "kind": "number"
+      },
+      {
+        "id": "grav_tip_y",
+        "unit": "m",
+        "meaning": "Tip y-coordinate of the gravity arrow on the test bob",
+        "kind": "number"
+      },
+      {
+        "id": "ref_angle",
+        "unit": "deg",
+        "meaning": "Current angle of the Earth reference pendulum from vertical",
+        "kind": "number"
+      },
+      {
+        "id": "ref_x",
+        "unit": "m",
+        "meaning": "Horizontal position of the Earth reference bob",
+        "kind": "number"
+      },
+      {
+        "id": "ref_y",
+        "unit": "m",
+        "meaning": "Vertical position of the Earth reference bob",
+        "kind": "number"
+      },
+      {
+        "id": "ref_grav_start_y",
+        "unit": "m",
+        "meaning": "Start y-coordinate of the gravity arrow below the Earth bob",
+        "kind": "number"
+      },
+      {
+        "id": "ref_grav_tip_y",
+        "unit": "m",
+        "meaning": "Tip y-coordinate of the gravity arrow on the Earth bob",
+        "kind": "number"
+      },
+      {
+        "id": "is_slower",
+        "unit": "",
+        "meaning": "True when test gravity is weaker than Earth gravity",
+        "kind": "flag"
+      },
+      {
+        "id": "is_faster",
+        "unit": "",
+        "meaning": "True when test gravity is stronger than Earth gravity",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "beam",
+          "from": [
+            -1.4,
+            1.5
+          ],
+          "to": [
+            1.4,
+            1.5
+          ]
+        },
+        {
+          "type": "line",
+          "id": "vert_ref",
+          "from": [
+            -0.7,
+            1.5
+          ],
+          "to": [
+            -0.7,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "string",
+          "from": [
+            -0.7,
+            1.5
+          ],
+          "to": [
+            "bob_x",
+            "bob_y"
+          ],
+          "of": "pendulum"
+        },
+        {
+          "type": "trace",
+          "id": "arc_trace",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ],
+          "of": "pendulum"
+        },
+        {
+          "type": "dot",
+          "id": "bob",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ],
+          "size": "large",
+          "of": "pendulum"
+        },
+        {
+          "type": "arrow",
+          "id": "grav_arrow",
+          "from": [
+            "bob_x",
+            "grav_start_y"
+          ],
+          "to": [
+            "bob_x",
+            "grav_tip_y"
+          ],
+          "label": "g",
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "ref_vert",
+          "from": [
+            0.7,
+            1.5
+          ],
+          "to": [
+            0.7,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "ref_string",
+          "from": [
+            0.7,
+            1.5
+          ],
+          "to": [
+            "ref_x",
+            "ref_y"
+          ],
+          "of": "earth_ref"
+        },
+        {
+          "type": "dot",
+          "id": "ref_bob",
+          "at": [
+            "ref_x",
+            "ref_y"
+          ],
+          "size": "large",
+          "of": "earth_ref"
+        },
+        {
+          "type": "arrow",
+          "id": "ref_grav",
+          "from": [
+            "ref_x",
+            "ref_grav_start_y"
+          ],
+          "to": [
+            "ref_x",
+            "ref_grav_tip_y"
+          ],
+          "label": "g0",
+          "of": "earth_ref"
+        },
+        {
+          "type": "label",
+          "id": "lbl_test",
+          "near": "vert_ref",
+          "text": "Adjustable g",
+          "of": "pendulum"
+        },
+        {
+          "type": "label",
+          "id": "lbl_ref",
+          "near": "ref_vert",
+          "text": "Earth g = 9.8",
+          "of": "earth_ref"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing Angle Over Time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angle",
+          "label": "Test",
+          "of": "pendulum",
+          "style": "line"
+        },
+        {
+          "value": "ref_angle",
+          "label": "Earth",
+          "of": "earth_ref",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "max_speed",
+      "label": "Max speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "angle",
+      "label": "Angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Fixed: L = 1.5 m, m = 1 kg, 25 deg.",
+      "Higher g cuts period, boosts speed."
+    ],
+    "cases": [
+      {
+        "when": "is_slower",
+        "text": "Weaker gravity slows the swing."
+      },
+      {
+        "when": "is_faster",
+        "text": "Stronger gravity speeds the swing."
+      }
+    ],
+    "otherwise": "Matches Earth gravity at 9.8 m/s²."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "decreases",
+      "value": "period",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "frequency",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "max_speed",
+      "with": "gravity"
+    },
+    {
+      "type": "unchanged",
+      "value": "ref_angle",
+      "when": "gravity"
+    },
+    {
+      "type": "equal",
+      "value": "angle",
+      "to": "ref_angle",
+      "at": [
+        {
+          "input": "gravity",
+          "value": 9.8
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "How Gravity Changes a Pendulum Swing",
+    "description": "Compare an adjustable pendulum against an Earth reference with fixed length, mass, and release angle. Adjust gravity to see how swing timing and speed change.",
+    "instructions": "Slide Gravity from 1.5 to 25.0 m/s² while both pendulums keep a 1.5 m string, 1 kg bob, and 25 deg release angle. Watch the arcs, arrows, live values, and angle-versus-time plot, or set 9.8 m/s² to match Earth.",
+    "goal": "Stronger gravity shortens the period and raises frequency and max speed, while the release angle keeps the swing width unchanged."
+  }
+}

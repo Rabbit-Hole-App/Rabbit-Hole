@@ -14,14 +14,21 @@ Made by `scripts/interact/blueprint-pendulum-collect.mjs` from the job records o
 
 P1: 0. P2: 1. Failed: 4. Total cost: $1.1493.
 
-## Table 2: check 10 offline on the five stored brief-41 blueprints
+## Table 2 (brief 44): all ten checks offline on ten stored blueprints
 
-Run at $0 on `design-brief41/` (the five blueprints of brief 41, whose labels still have `at`): the checker with the new label rule (Build places a label around its point by the same rule as one that is near a part). They failed check 10 in brief 41 because a label overlapped a part; every check is run, 1 to 10.
+Run at $0 on the five blueprints of brief 41 (`design-brief41/`, whose labels still have `at`) and the last answer of each of the five live runs of brief 43 (`design-brief43/`). Before: the checker as committed in brief 43 (`e1b0c16cb`). After: the checker now, with the four Build rules of brief 44 (an arrow that starts at a dot starts at its edge plus 2 px; a label tries eight positions at gaps of 12 then 20 px and is left out and counted when none is clear, which no longer fails check 10; a one-line explanation wider than its note box is given two lines; a graph too tall by at most its title's height is drawn without its title).
 
-| Blueprint | Brief 41 result | Now | Check that failed and its sentence | Labels left out (notes) |
-|---|---|---|---|---|
-| pendulum-1 | failed check 10: a label overlapped a part | F10 | check 10: Things overlap in the frame at the defaults, t = 2.5: {"a":"part.velArrow","b":"part.bob","kind":"arrowhead-circle","width":4.1,"height":6.4}. | - |
-| pendulum-2 | failed check 10: a label overlapped a part | F10 | check 10: Things overlap in the frame at every number control at its maximum, t = 3: {"a":"part.vel_arrow","b":"part.test_bob","kind":"arrowhead-circle","width":7.8,"height":6.3}. | - |
-| pendulum-3 | failed check 10: a label overlapped a part | passes all ten checks | - | - |
-| pendulum-4 | failed check 10: a label overlapped a part | F10 | check 10: The label `release_label` has no clear side at the defaults, t = 0: above, below, right and left of its point each overlap another part or leave the picture; move the parts apart or shorten the text. | label release_label left out at the defaults, t = 0: no clear side |
-| pendulum-5 | failed check 10: a label overlapped a part | F10 | check 10: Things overlap in the frame at the defaults, t = 5: {"a":"part.velArrow","b":"part.bobDot","kind":"arrowhead-circle","width":3.4,"height":5.9}. | - |
+| Blueprint | Before | After | Check that failed and its sentence |
+|---|---|---|---|
+| b41-pendulum-1 | F10: arrowhead over the bob (velArrow, bob) | F10 | check 10: Things overlap in the frame at the defaults, t = 2.5: {"a":"part.velArrow","b":"part.bob","kind":"arrowhead-circle","width":4.1,"height":6.4}. |
+| b41-pendulum-2 | F10: arrowhead over the bob (vel_arrow, test_bob) | F10 | check 10: Things overlap in the frame at every number control at its maximum, t = 3: {"a":"part.vel_arrow","b":"part.test_bob","kind":"arrowhead-circle","width":7.8,"height":6.3}. |
+| b41-pendulum-3 | passes all ten checks | passes all ten checks | - |
+| b41-pendulum-4 | F10: the label release_label has no clear side | F10 | check 10: Things overlap in the frame at the defaults, t = 3.5: {"a":"part.vel_arrow","b":"part.bob","kind":"arrowhead-circle","width":4.6,"height":5}. |
+| b41-pendulum-5 | F10: arrowhead over the bob (velArrow, bobDot) | F10 | check 10: Things overlap in the frame at the defaults, t = 5: {"a":"part.velArrow","b":"part.bobDot","kind":"arrowhead-circle","width":3.4,"height":5.9}. |
+| b43-pendulum-1 | F9: the note needs 2 lines; its box allows 1 (text_too_wide) | F9 | check 9: The layout refuses the scene (figure_too_big): the graph needs at least 218 x 277 px; its box is 304 x 222.4 px. |
+| b43-pendulum-2 | F10: arrowhead over the bob (grav_arrow, bob) | F10 | check 10: Things overlap in the frame at the defaults, t = 0: {"a":"part.grav_arrow","b":"part.bob","kind":"arrowhead-circle","width":6.8,"height":0.6}. |
+| b43-pendulum-3 | F9: the graph needs 300 px; its box is 299.2 (figure_too_big) | F10 | check 10: Things overlap in the frame at L = 2.5, t = 3: {"a":"part.vel_arrow","b":"part.bob","kind":"arrowhead-circle","width":0.5,"height":6.2}. |
+| b43-pendulum-4 | passes all ten checks (P2) | passes all ten checks | - |
+| b43-pendulum-5 | F10: the label ref_lbl has no clear side | passes all ten checks | - |
+
+Labels dropped in some frame (counted in notes, no longer a failure): b43-pendulum-5: ref_lbl, bob_lbl (in 4 frames).

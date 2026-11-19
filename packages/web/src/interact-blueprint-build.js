@@ -1,6 +1,6 @@
 // Build, the pure half (Brief 38 spec section 6): what code works out from a checked blueprint and what the Program is made of. No model, no renderer, no layout here: interact-templates/blueprint.js places
 // the card with the layout module, interact-blueprint-check.js measures. Nothing in this file names a subject or branches on an id, a label or a title of a blueprint.
-import { DEFAULT_DECIMALS, LABEL_GAP_PX, DOT_MAX_PX, DOT_MIN_PX, DOT_NAMED_PX, GRAPH_SAMPLES, KEPT_SAMPLES, SAMPLE_POSITIONS, SAMPLE_TIMES, THING_ROLES, TRACE_POINTS, Y_MARGIN } from './interact-blueprint-constants.js';
+import { ARROW_DOT_GAP_PX, DEFAULT_DECIMALS, LABEL_GAPS_PX, DOT_MAX_PX, DOT_MIN_PX, DOT_NAMED_PX, GRAPH_SAMPLES, KEPT_SAMPLES, SAMPLE_POSITIONS, SAMPLE_TIMES, THING_ROLES, TRACE_POINTS, Y_MARGIN } from './interact-blueprint-constants.js';
 
 export const defaultsOf = blueprint => Object.fromEntries(blueprint.inputs.map(input => [input.id, input.default]));
 const evenly = (min, max, count) => Array.from({ length: count }, (_, k) => (count === 1 ? min : min + (max - min) * k / (count - 1)));
@@ -121,13 +121,14 @@ export function splineAt(xs, ys, t) {
 // A dot's diameter in px: a named size, or an output between 0 and 1 mapped across the dot range (clamped).
 export function diameterOf(size, out, named, low, high) { return named[size] !== undefined ? named[size] : low + Math.min(1, Math.max(0, out[size])) * (high - low); }
 
-// Where a label's text goes (brief 43): the centre of its text box on the first of above, below, right, left of `ext` (the extent [x0, y0, x1, y1] of the part it is near, in px, y down) at `gap` px, whose box is inside `bounds` and
+// Where a label's text goes (brief 43, 44): the centre of its text box on the first of eight positions (above, below, right, left, then the four diagonals) of `ext` (the extent [x0, y0, x1, y1] of the part it is near, in px, y down), at each of `gaps` in turn, whose box is inside `bounds` and
 // clear of every obstacle by frame-overlap.js's rules: a line or an arrow shaft 8 px (a mark under 16 px long: not touching), a circle, an arrowhead or another label's box not at all. -> { x, y } (x the middle of the text, y the centre
 // of its line: the text is drawn at y + 4.9) or null when no side is clear. w is the text's width; the box is the text's ink and its estimate together, so a label that passes here passes the host's rules.
 // An obstacle is { s: [x1, y1, x2, y2] } (a segment) or { b: [xMin, yMin, xMax, yMax] } (a box).
-export function labelSpot(ext, w, gap, obstacles, bounds) {
-  const up = 5.9, down = 10.8, cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2;
-  const tries = [[cx, ext[1] - gap - down], [cx, ext[3] + gap + up], [ext[2] + gap + w / 2, cy - 2.45], [ext[0] - gap - w / 2, cy - 2.45]];
+export function labelSpot(ext, w, gaps, obstacles, bounds) {
+  const up = 5.9, down = 10.8, cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2, tries = [];
+  for (const gap of gaps) tries.push([cx, ext[1] - gap - down], [cx, ext[3] + gap + up], [ext[2] + gap + w / 2, cy - 2.45], [ext[0] - gap - w / 2, cy - 2.45],
+    [ext[2] + gap + w / 2, ext[1] - gap - down], [ext[0] - gap - w / 2, ext[1] - gap - down], [ext[2] + gap + w / 2, ext[3] + gap + up], [ext[0] - gap - w / 2, ext[3] + gap + up]);
   const distance = (s, box) => {
     const a = { x: s[0], y: s[1] }, b = { x: s[2], y: s[3] }, inside = p => p.x >= box[0] && p.x <= box[2] && p.y >= box[1] && p.y <= box[3];
     if (inside(a) || inside(b)) return 0;
@@ -173,11 +174,16 @@ const X = x => L.window.ox + x * L.window.s, Y = y => L.window.oy - y * L.window
 export function evaluate({ inputs, time }) {
   const t = Math.min(Math.max(time || 0, 0), P.duration), set = { ...P.defaults, ...inputs }, out = compute(set, t), objects = [];
   const num = v => (typeof v === 'number' ? v : out[v]), extents = {}, obstacles = [];
+  // brief 44: an arrow whose start is a dot's centre starts at that dot's edge (its radius and ${ARROW_DOT_GAP_PX} px), never inside it
+  const dots = P.parts.filter(part => part.type === 'dot').map(part => ({ x: X(num(part.at[0])), y: Y(num(part.at[1])), r: diameterOf(part.size, out, NAMED, ${DOT_MIN_PX}, ${DOT_MAX_PX}) / 2 }));
   for (const part of P.parts) {
     const id = 'part.' + part.id, opts = { role: part.role };
     if (part.type === 'line') { const x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])); objects.push(sdk.line(id, x1, y1, x2, y2, opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] }); }
     else if (part.type === 'arrow') {
-      const x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])), length = Math.hypot(x2 - x1, y2 - y1);
+      let x1 = X(num(part.from[0])), y1 = Y(num(part.from[1]));
+      const x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])), dot = dots.find(d => Math.abs(d.x - x1) < 0.01 && Math.abs(d.y - y1) < 0.01), whole = Math.hypot(x2 - x1, y2 - y1);
+      if (dot && whole > dot.r + ${ARROW_DOT_GAP_PX}) { x1 += (x2 - x1) / whole * (dot.r + ${ARROW_DOT_GAP_PX}); y1 += (y2 - y1) / whole * (dot.r + ${ARROW_DOT_GAP_PX}); }
+      const length = Math.hypot(x2 - x1, y2 - y1);
       objects.push(sdk.arrow(id, x1, y1, x2, y2, part.label ? { role: part.role, text: part.label } : opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] });
       if (length) { const dx = (x2 - x1) / length, dy = (y2 - y1) / length, tip = Math.min(7, length), bx = x2 - dx * tip, by = y2 - dy * tip, hx = [x2, bx - dy * 3.4, bx + dy * 3.4], hy = [y2, by + dx * 3.4, by - dx * 3.4]; obstacles.push({ b: [Math.min(...hx), Math.min(...hy), Math.max(...hx), Math.max(...hy)] }); }
     }
@@ -192,7 +198,7 @@ export function evaluate({ inputs, time }) {
   for (const part of P.parts) if (part.type === 'label') {
     const ext = part.near !== undefined ? extents[part.near] : part.at ? [X(num(part.at[0])), Y(num(part.at[1])), X(num(part.at[0])), Y(num(part.at[1]))] : null;
     if (!ext) continue;
-    const w = L.labelWidths[part.id], spot = labelSpot(ext, w, ${LABEL_GAP_PX}, obstacles, L.stageBounds);
+    const w = L.labelWidths[part.id], spot = labelSpot(ext, w, ${JSON.stringify(LABEL_GAPS_PX)}, obstacles, L.stageBounds);
     if (!spot) continue;
     objects.push(sdk.text('part.' + part.id, spot.x, spot.y + 4.9, part.text, { align: 'middle', role: part.role }));
     obstacles.push({ b: [spot.x - w / 2, spot.y - 5.9, spot.x + w / 2, spot.y + 10.8] });
