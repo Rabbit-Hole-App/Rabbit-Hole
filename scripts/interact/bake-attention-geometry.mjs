@@ -26,7 +26,7 @@ base.geometry = { min: { width: 0, height: 0 } };
 const probe = figureOptions(base.layout), draw = runner(base);
 const picks = base.words.map((_, step) => renderTutorDiagram(draw(step).diagram.args[0], probe.options.box.width, probe.options));
 if (picks.some(rendered => JSON.stringify(rendered.min) !== JSON.stringify(picks[0].min))) throw new Error('the least size changes with the picked word');
-const { min } = picks[0], geometry = { min };
+const { min } = picks[0], geometry = { min: { width: min.width, height: min.height } }; // the renderer now also returns min.parts (a breakdown); the card keeps the size only
 // 2) the layout module chooses the arrangement and the picture box; 3) the diagram is asked for exactly that box
 const height = figureHeight({ geometry: { attention: { ...base, geometry } } }), figure = figureOptions(base.layout, { height }), { box } = figure.options;
 if (min.width > box.width || min.height > box.height) throw new Error(`the diagram needs at least ${min.width} x ${min.height} px; the ${figure.slot} box is ${box.width} x ${box.height} px`);

@@ -374,6 +374,40 @@ test('bootstrap draw count: m-out-of-n and subsample cards, cards that never say
   assert.equal(schema.safeParse(oob).success, true, 'the out-of-bag group is not a draw');
 });
 
+// SAMP-1: rows the text says repeat appear at least twice, rows it says are omitted do not appear.
+const sampleCard = (caption, members, extra = {}) => ({ kind: 'sample-set', title: 'Bootstrap draws with replacement', caption,
+  samples: ['A', 'B', 'C', 'D', 'E'].map(i => ({ id: i, class: i < 'D' ? '0' : '1' })), groups: [{ id: 'draw1', label: 'Sample Draw', replacement: true, members, ...extra }] });
+
+test('sample-set text: "rows A and C repeat" with C drawn once is rejected with the counts, tagged arithmetic (the two bench bootstrap cards)', () => {
+  const [one] = arithmeticOf(sampleCard('Worked example. Notice how rows A and C repeat while B is omitted.', ['A', 'A', 'C', 'D', 'E']));
+  assert.equal(one.message, 'The text says C repeats, but C is drawn 1 time in "Sample Draw" (A, A, C, D, E); a repeated sample appears at least twice.');
+  assert.deepEqual(one.path, ['caption']);
+  assert.equal(arithmeticOf(sampleCard('Worked example. Notice how rows A and C repeat while other rows are omitted.', ['A', 'A', 'C', 'D', 'E'])).length, 1, 'only C is wrong');
+  assert.equal(arithmeticOf(sampleCard('Notice how rows A and C repeat.', ['A', 'A', 'B', 'D', 'E'])).length, 1, 'C is not drawn at all');
+});
+
+test('sample-set text: repeated rows drawn twice or more, omitted rows absent, and wording that names no row all pass', () => {
+  assert.deepEqual(arithmeticOf(sampleCard('Rows A and C repeat while B is omitted.', ['A', 'A', 'C', 'C', 'D'])), []);
+  assert.deepEqual(arithmeticOf(sampleCard('A and C repeat; E is left out.', ['A', 'A', 'C', 'C', 'D'])), []);
+  assert.deepEqual(arithmeticOf(sampleCard('A row can repeat while other rows are omitted.', ['A', 'B', 'C', 'D', 'E'])), [], 'a row can repeat names no row');
+  assert.deepEqual(arithmeticOf(sampleCard('Rows A to E are drawn with replacement.', ['A', 'B', 'C', 'D', 'E'])), []);
+  assert.deepEqual(arithmeticOf(sampleCard('Repeats are common.', ['A', 'B', 'C', 'D', 'E'])), []);
+});
+
+test('sample-set text: an omitted row that is drawn is rejected; the title counts; the claim need hold in only one of several groups; labels name rows', () => {
+  const [drawn] = arithmeticOf(sampleCard('Row B is omitted.', ['A', 'B', 'C', 'D', 'D']));
+  assert.equal(drawn.message, 'The text says B is omitted, but B is drawn in "Sample Draw" (A, B, C, D, D); an omitted sample is absent from the draw.');
+  const titled = sampleCard('Worked example.', ['A', 'B', 'C', 'D', 'E']); titled.title = 'Bootstrap draw where A repeats';
+  assert.deepEqual(arithmeticOf(titled).map(i => i.path), [['caption']]);
+  const noCaption = { ...titled, caption: undefined };
+  assert.deepEqual(arithmeticOf(noCaption).map(i => i.path), [['title']]);
+  const two = sampleCard('Rows A repeat in the first draw.', ['A', 'A', 'C', 'D', 'E']); two.groups.push({ id: 'draw2', label: 'Second', replacement: true, members: ['A', 'B', 'C', 'D', 'E'] });
+  assert.deepEqual(arithmeticOf(two), [], 'A repeats in one of the draws');
+  const labelled = { ...sampleCard('Row A and Row C repeat.', ['A', 'A', 'C', 'D', 'E']), samples: ['A', 'B', 'C', 'D', 'E'].map(i => ({ id: i.toLowerCase(), label: 'Row ' + i })) };
+  labelled.groups[0].members = ['a', 'a', 'c', 'd', 'e'];
+  assert.equal(arithmeticOf(labelled).length, 1, 'labels map to ids');
+});
+
 // Item 5: a whisker beyond the (validated) fences names both numbers, tagged arithmetic, half a unit of the decimals written.
 test('box plot: a whisker beyond a correct fence is an arithmetic issue naming the whiskers and the fences; whiskers on the fence or inside pass', () => {
   const card = box => fenceCard({ q1: 6, median: 9, q3: 12, fences: { lower: -3, upper: 21 }, whiskerLow: 4, whiskerHigh: 14, ...box }, { label: 'Reading', min: -5, max: 25 });
@@ -389,4 +423,42 @@ test('box plot: a whisker beyond a correct fence is an arithmetic issue naming t
   const tenth = box => fenceCard({ q1: 6.5, median: 9, q3: 12.5, fences: { lower: -2.5, upper: 21.5 }, whiskerLow: 4, whiskerHigh: 14, ...box }, { label: 'Reading', min: -5, max: 25 });
   assert.equal(schema.safeParse(tenth({ whiskerHigh: 21.5 })).success, true);
   assert.equal(schema.safeParse(tenth({ whiskerHigh: 21.7 })).success, false);
+});
+
+// HEAT-1: a heatmap drawn blank has no contrast; a grid with every cell above the diagonal blocked keeps its diagonal. Both tagged arithmetic.
+const grid = (n, cell) => Array.from({ length: n }, (_, i) => ({ label: String(i + 1), cells: Array.from({ length: n }, (_, j) => cell(i, j)) }));
+const gridCard = (rowsIn, range, extra = {}) => ({ kind: 'heatmap', title: 'A grid', rowLabel: 'Row', columnLabel: 'Column', columns: rowsIn[0].cells.map((_, j) => String(j + 1)), rows: rowsIn, range, ...extra });
+// the card of the 155 report: strictly lower triangular, every allowed cell 0 at range 0 to 1, row 1 and the diagonal blocked
+const archiveGrid = gridCard(grid(6, (i, j) => (j < i ? 0 : null)), { min: 0, max: 1 });
+
+test('heatmap contrast: every numeric cell at the value drawn with no fill is refused, tagged arithmetic; the archive grid fails both rules', () => {
+  const issues = arithmeticOf(archiveGrid);
+  assert.equal(issues.length, 2);
+  assert.match(issues[0].message, /^Every numeric cell is 0, the value drawn with no fill/);
+  assert.match(issues[1].message, /the diagonal is blocked in rows 1, 2, 3, 4, 5, 6/);
+  // the second archive shape: the diagonal allowed, every cell 0 on a signed range (0 is the blank point there)
+  const diagonalAllowed = gridCard(grid(6, (i, j) => (j <= i ? 0 : null)), { min: -4, max: 4 });
+  const [only] = arithmeticOf(diagonalAllowed);
+  assert.equal(arithmeticOf(diagonalAllowed).length, 1);
+  assert.match(only.message, /^Every numeric cell is 0/);
+});
+
+test('heatmap contrast: a 0 and 1 grid with blocked cells, a uniform grid at a drawn value and any grid with two values pass', () => {
+  assert.deepEqual(arithmeticOf(gridCard(grid(6, (i, j) => (j <= i ? 1 : null)), { min: 0, max: 1 })), [], 'allowed 1, blocked null: the blocked cells are drawn');
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, () => 0.2), { min: 0, max: 1 })), [], 'every cell 0.2 is drawn at 20 percent fill');
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, (i, j) => (i === j ? 1 : 0)), { min: 0, max: 1 })), []);
+  assert.equal(schema.safeParse(gridCard(grid(2, () => 1), { min: 0, max: 1 })).success, true, 'a grid at the top of its range is drawn');
+});
+
+test('heatmap diagonal: the cells above the diagonal blocked, then the diagonal must be numeric; other null patterns are left alone', () => {
+  const kept = gridCard(grid(4, (i, j) => (j <= i ? (i === j ? 2 : 1) : null)), { min: 0, max: 2 });
+  assert.deepEqual(arithmeticOf(kept), []);
+  const dropped = gridCard(grid(4, (i, j) => (j < i ? 1 : null)), { min: 0, max: 2 });
+  const [issue] = arithmeticOf(dropped);
+  assert.deepEqual(issue.path, ['rows']);
+  assert.match(issue.message, /rows 1, 2, 3, 4/);
+  // not a triangle (a blocked cell elsewhere), not square, no numeric cell: no diagonal rule
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, (i, j) => (i === 0 && j === 1 ? null : i + j + 1)), { min: 0, max: 6 })), []);
+  assert.deepEqual(arithmeticOf(gridCard([{ label: 'a', cells: [null, 1, null] }, { label: 'b', cells: [2, null, null] }], { min: 0, max: 2 })), [], 'two rows, three columns is not square');
+  assert.deepEqual(arithmeticOf(gridCard(grid(3, () => null), { min: 0, max: 1 })), [], 'no numeric cell: nothing to compare');
 });

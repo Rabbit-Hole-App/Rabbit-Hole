@@ -31,7 +31,7 @@ test('brief 36: the plot is placed at the panel box, its width the box width; th
   const figure = figureOptions(data.layout), { diagram } = (() => { const o = run(1, 0).find(x => x.fn === 'diagram'); return { diagram: o }; })();
   assert.deepEqual([diagram.args[1].x, diagram.args[1].y, diagram.args[1].w], [figure.at[0], figure.at[1], figure.options.box.width]);
   const rendered = renderTutorDiagram(diagram.args[0], figure.options.box.width, figure.options), G = data.plot.geometry;
-  assert.deepEqual(G.min, rendered.min); assert.deepEqual(G.plotArea, rendered.geometry.plotArea);
+  assert.deepEqual(G.min, { width: rendered.min.width, height: rendered.min.height }); assert.deepEqual(G.plotArea, rendered.geometry.plotArea);
   assert.deepEqual([G.x.min, G.x.max, G.y.min, G.y.max], [rendered.geometry.x.min, rendered.geometry.x.max, rendered.geometry.y.min, rendered.geometry.y.max]);
   assert.ok(rendered.width <= figure.options.box.width && rendered.height <= figure.options.box.height, 'the picture is not larger than the box');
 });

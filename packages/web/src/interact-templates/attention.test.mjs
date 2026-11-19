@@ -37,7 +37,7 @@ test('the baked least size is what the renderer returns now at every pick, in th
   const figure = figureOptions(data.layout, { height: 260.8 });
   for (let step = 0; step < 6; step++) {
     const rendered = renderTutorDiagram(diagramOf(step).args[0], figure.options.box.width, figure.options);
-    assert.deepEqual(data.geometry.min, rendered.min);
+    assert.deepEqual(data.geometry.min, { width: rendered.min.width, height: rendered.min.height });
     assert.deepEqual([rendered.width, rendered.height], [616, 261]); // the renderer rounds the box height
   }
 });

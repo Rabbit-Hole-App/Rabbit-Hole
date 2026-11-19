@@ -18,7 +18,7 @@ import { MATH_FORMAT } from './agents/math-format.js';
 import { NUMBER_RULE } from './agents/learn-artifact.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS, PARAGRAPH_MAX, validDepth } from './chat-depth.js';
-import { parseTutorDiagram, tutorDiagramAuthorJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
+import { parseTutorDiagram, authorJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 import { flowPaths } from '../../web/src/tutor-diagrams/flow-paths.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
@@ -50,7 +50,7 @@ export const AUTHOR_PICTURE_LIMITS = Object.freeze({ prompt: 200, alt: 120, capt
 export const NO_TEXT_SUFFIX = 'no text, labels, titles or icons';
 export const withNoTextSuffix = prompt => { const p = String(prompt).trim(); return p.toLowerCase().endsWith(NO_TEXT_SUFFIX) ? p : `${p.replace(/[\s.,;:]+$/, '')}. ${NO_TEXT_SUFFIX}`; };
 const VISUAL_ITEM = { oneOf: [
-  shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramAuthorJsonSchema }),
+  shape({ k: { type: 'string', const: 'diagram' }, get spec() { return authorJsonSchema(); } }), // START-2: read on first use, so the diagram schemas are not built when this module loads
   shape({ k: { type: 'string', const: 'picture' }, p: text(AUTHOR_PICTURE_LIMITS.prompt), a: text(AUTHOR_PICTURE_LIMITS.alt), c: text(AUTHOR_PICTURE_LIMITS.caption) }),
 ] };
 // Owner M3 (2026-11-08): a key the author added that the schema does not declare (Gemini wrote `layers` on a comparison) is removed before the card is read,
@@ -60,8 +60,12 @@ const branchFor = (schema, value) => {
   if (!options) return schema;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return options.find(o => Object.entries(o.properties ?? {}).some(([k, s]) => s?.const !== undefined && value[k] === s.const))
-    ?? options.find(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
+    // VAR-1: an option whose `required` keys are all present can still be the wrong one when another option declares more of the value's keys (a visual transformation state {label, diagram}
+    // satisfies a list state whose `items` became optional); the option that declares the most of them wins, the first on a tie.
+    ?? options.filter(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k)))
+      .reduce((best, o) => (best && declared(best, value) >= declared(o, value) ? best : o), null);
 };
+const declared = (option, value) => Object.keys(value).filter(key => Object.hasOwn(option.properties ?? {}, key)).length;
 export function stripUnknown(value, schema, kind, out) {
   const s = schema && value && typeof value === 'object' ? branchFor(schema, value) : null;
   if (!s) return value;
@@ -392,7 +396,10 @@ export const EXPLANATION_GUIDANCE = [
 ].join('\n\n');
 // The rules that choose the visuals when the planner made no plan (timeout, error, flag off): type, kind, count. A planned card states its visuals as fact instead.
 // Batch-1 review fix (owner 2026-11-09): the closing sentence of '# Visuals for this card' in BOTH forms (a planned card's statement and the unplanned rules block).
-export const VISUAL_COMPLETE = 'The visual must contain the step or quantity the question is about: for a process, the action that produces the result (decrypt with the private key; the veto override; the frame popped at the base case); for a metric, the derived values (precision and recall from the four cells); for an operation on a structure, the structure with the operation applied. A visual that shows only the setup is incomplete.';
+// The base rule is the shipped text. The token sentence (VAR-1 step 2) is added only where a diagram is planned or may be written (Reviewer 2026-11-18): a prose-only card (no diagram in its plan) never reads it.
+export const VISUAL_COMPLETE_BASE = 'The visual must contain the step or quantity the question is about: for a process, the action that produces the result (decrypt with the private key; the veto override; the frame popped at the base case); for a metric, the derived values (precision and recall from the four cells); for an operation on a structure, the structure with the operation applied. A visual that shows only the setup is incomplete.';
+export const TOKEN_RULE = ' A number the figure computes from others (fences, means, normalised weights, softmax outputs) is written as {{d:N.path}}, never typed (N is the number of the visual, path is into its spec: {{d:1.boxes.0.fences.upper}}).';
+export const VISUAL_COMPLETE = VISUAL_COMPLETE_BASE + TOKEN_RULE;
 export const EXPLANATION_VISUAL_RULES = '# Visuals for this card\n' + 'Choose visuals in this order. 1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers; a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers. Digital, abstract or procedural subjects — email, DNS, network protocols, algorithms, software, data structures, mathematics — never get a picture. They get a diagram only. 2) Diagram kind, by the shape of the answer: cycle when the last step feeds the first; sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response); timeline for dates or eras; transformation for inputs becoming outputs; tree for splits, sub-parts or sub-calls; relationship for causes; layers only for a real ordered stack; a question about a formula, a metric, a loss or how a quantity behaves gets a coordinate-plot of the function, with y computed from the formula the prose states at 7-12 x values (two decimals), or a bar-chart of one worked example; the title or caption says \'worked example\'. A question comparing two distributions or sets of values gets two series on one plot or a grouped bar-chart; flow otherwise, a straight chain included (request, auth, handler, database). Three visuals are a maximum, not a target. Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance; figure is only for a cell, a free-body diagram or a layered cross-section; comparison is for 2-4 separate items, never the parts of one thing. 3) Count: two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise one; a third only for a list of parallel points turned into a comparison, flow or tree. ' + VISUAL_COMPLETE;
 
 // The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line, any line starting with
@@ -428,12 +435,117 @@ export function diagramProblem(md) {
     if (f.lang === 'mermaid') return 'explanation_bad_diagram: a mermaid fence is not accepted; write the diagram as one closed ```rh-diagram fence holding a TutorDiagram JSON spec';
     if (f.lang !== DIAGRAM) continue;
     if (!f.closed) return 'explanation_bad_diagram: an rh-diagram fence is not closed';
-    try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
-      const issues = Array.isArray(error?.issues) ? error.issues.slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
-      return `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
-    }
+    try { parseTutorDiagram(f.lines.join('\n')); } catch (error) { return fenceProblem(error); }
   }
   return null;
+}
+// An issue the diagram validator tagged params { code: 'arithmetic' } (spec.js issue callback; today the box-plot fence check) means a number in the diagram is wrong: the
+// problem is named explanation_bad_numbers, its tagged issue first, and learn-artifact.js never drops or simplifies such a diagram (the card fails or is repaired instead).
+const arithmeticOf = error => (Array.isArray(error?.issues) ? error.issues : []).filter(i => i.params?.code === 'arithmetic');
+// The issues of one failed diagram as one string: its arithmetic-tagged issues first, then the others, three at most.
+function issuesText(error) {
+  const all = Array.isArray(error?.issues) ? error.issues : [], numbers = arithmeticOf(error);
+  return all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
+}
+function fenceProblem(error) {
+  const issues = issuesText(error);
+  return arithmeticOf(error).length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+}
+// NUM-2 (Reviewer 2026-11-18, after the VAR-1 bench): two more numbers the server recomputes, arithmetic-tagged like the 154 rules (never dropped or simplified: one repair, then the step fails).
+// (1) A prose equation `a op b ... = c` whose whole left side is numbers and operators (+ - x * / and brackets, in $...$ or plain text): the stated result must be the computed one within one full
+// unit of the decimals written (half a unit when the computed value fits those digits exactly) (a result written with %, also as a fraction). A left side with a letter, a power or a function is skipped: no recompute guesses.
+const PROSE_OPS = [[/\\times|\\cdot|×|·|⋅|\*/g, '*'], [/\\div|÷/g, '/'], [/[−–‑]/g, '-'], [/\\left|\\right|\\,|\\;|\\!|~/g, ' ']];
+function arithmeticValue(source) { // a tiny + - * / ( ) evaluator over digits only; null on anything else or a division by zero
+  const t = source.replace(/\s+/g, '').replace(/(\d|\))(?=\()/g, '$1*').replace(/\)(?=\d)/g, ')*');
+  if (!/^[\d.+\-*/()]+$/.test(t)) return null;
+  let i = 0;
+  const num = () => { const m = /^\d+(?:\.\d+)?/.exec(t.slice(i)); if (!m) return null; i += m[0].length; return Number(m[0]); };
+  const factor = () => {
+    if (t[i] === '-') { i++; const v = factor(); return v === null ? null : -v; }
+    if (t[i] === '(') { i++; const v = expr(); if (t[i] !== ')') return null; i++; return v; }
+    return num();
+  };
+  const term = () => { let v = factor(); while (v !== null && (t[i] === '*' || t[i] === '/')) { const op = t[i++], w = factor(); if (w === null || (op === '/' && w === 0)) return null; v = op === '*' ? v * w : v / w; } return v; };
+  const expr = () => { let v = term(); while (v !== null && (t[i] === '+' || t[i] === '-')) { const op = t[i++], w = term(); if (w === null) return null; v = op === '+' ? v + w : v - w; } return v; };
+  const v = expr();
+  return v !== null && i === t.length && Number.isFinite(v) ? v : null;
+}
+export function proseArithmetic(text) {
+  const flags = [], seen = new Set(), segments = [];
+  const plain = String(text ?? '').replace(/\$([^$]+)\$/g, (_, math) => { segments.push(math); return ' § '; });
+  segments.push(plain);
+  for (const raw of segments) {
+    let s = raw;
+    for (const [re, to] of PROSE_OPS) s = s.replace(re, to);
+    s = s.replace(/\\text\{[^}]*\}/g, ' § ').replace(/(?<=[\d)])\s*x\s*(?=[\d(-])/g, '*'); // a \text{name} is not a number; "3 x 4" is a product
+    for (const m of s.matchAll(/=/g)) {
+      const eq = m.index;
+      let lo = eq;
+      while (lo > 0 && /[\d.+\-*/() ]/.test(s[lo - 1])) lo--;
+      const run = s.slice(lo, eq), left = run.trim(), start = lo + run.length - run.trimStart().length, prev = s[start - 1], before = s.slice(0, start).trimEnd().slice(-1);
+      const glued = prev !== undefined && !/\s/.test(prev) && (/[A-Za-z0-9_}\\^.]/.test(prev) || (prev === ',' && /\d/.test(s[start - 2] ?? ''))); // a name, a power or a thousands comma touches the number
+      if (!left || glued || !/^[\d(.]|^-(?=[\d(])/.test(left) || !/[\d)]$/.test(left)) continue;
+      if (/^-/.test(left) && /[A-Za-z0-9_}\\^)]/.test(before)) continue; // "n - 2 * 3": the minus is a subtraction from a name, not a sign
+      if (!/[+*/]|[\d)]\s*-\s*[\d(]/.test(left)) continue; // an operator between two numbers
+      const rhs = /^\s*(-?\d+(?:\.\d+)?)(\s*\\?%)?(?!\d)/.exec(s.slice(eq + 1));
+      if (!rhs) continue;
+      const after = s.slice(eq + 1 + rhs[0].length).trimStart();
+      if (/^[+*/^(]|^-\s*\d|^x\s*[\d(]|^,\d{3}/.test(after)) continue; // the right side is itself an expression, or a number with thousands commas
+      const value = arithmeticValue(left);
+      if (value === null) continue;
+      const stated = Number(rhs[1]), decimals = (rhs[1].split('.')[1] || '').length, scaled = value * 10 ** decimals;
+      // One full unit when the computed value has more digits than the result is written with (a truncated 1/3 = 0.33 or 7/9 = 0.77 passes; 0.34 for 0.15 does not);
+      // a value that fits the written digits exactly (2 + 2) keeps half a unit, so 2 + 2 = 5 is still wrong.
+      const tol = (Math.abs(scaled - Math.round(scaled)) < 1e-9 ? 0.5 : 1) * 10 ** -decimals * (1 + 1e-9);
+      const ok = Math.abs(value - stated) <= tol || (rhs[2] && Math.abs(value * 100 - stated) <= tol);
+      const written = `${left} = ${rhs[1]}${rhs[2] ? '%' : ''}`;
+      if (!ok && !seen.has(written)) { seen.add(written); flags.push({ text: written, computed: value, stated, decimals }); }
+    }
+  }
+  return flags;
+}
+// (2) A bar-chart whose own title, caption or unit calls its values a distribution, probabilities, softmax or normalised: values between 0 and 1 sum to 1, within half a unit of the decimals
+// written per value. Plain bars, or each series of a grouped chart; a stacked chart is not a distribution across its bars. "proportion", "share" and "attention weights" are left out: measured on the saved cards they
+// name one number per bar (a rate or a per-head weight), not a distribution across the bars.
+const DISTRIBUTION_WORDS = /\b(?:probabilit(?:y|ies)|distribution|softmax|normali[sz]ed)\b/i;
+export function distributionBarIssues(diagram) {
+  if (diagram?.kind !== 'bar-chart' || diagram.variant === 'stacked') return [];
+  const word = DISTRIBUTION_WORDS.exec(`${diagram.title ?? ''} ${diagram.caption ?? ''} ${diagram.unit ?? ''}`)?.[0];
+  if (!word) return [];
+  const groups = diagram.bars ? [{ label: null, values: diagram.bars.map(b => b.value) }] : (diagram.series || []).map(s => ({ label: s.label, values: s.values }));
+  const out = [];
+  for (const { label, values } of groups) {
+    if (values.length < 2 || !values.every(v => typeof v === 'number' && v >= 0 && v <= 1)) continue;
+    const sum = values.reduce((a, b) => a + b, 0), d = Math.max(...values.map(v => (String(v).split('.')[1] || '').length));
+    if (Math.abs(sum - 1) > values.length * 0.5 * 10 ** -d * (1 + 1e-9)) out.push({ word, label, values, sum: Number(sum.toFixed(6)) });
+  }
+  return out;
+}
+const proseOfMarkdown = md => split(md).prose.filter(line => typeof line === 'string').join('\n');
+// -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
+// such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
+// "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
+export function numbersIssue(block) {
+  const hits = [], extra = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }
+  let n = 0;
+  const texts = [block?.body, ...(block?.more || []).map(s => s?.text)];
+  for (const md of texts) for (const f of split(md).fences) {
+    if (f.lang !== DIAGRAM || !f.closed) continue;
+    n++;
+    try {
+      const { diagram } = parseTutorDiagram(f.lines.join('\n'));
+      for (const bad of distributionBarIssues(diagram)) extra.push({ kind: 'bar-chart', message: `the bar-chart "${String(diagram.title).slice(0, 60)}" is called a ${bad.word} but its ${bad.label ? `"${bad.label}" ` : ''}values (${bad.values.join(', ')}) sum to ${bad.sum}: values that form a distribution sum to 1, so change the values to sum to 1 and every sentence that states them` });
+    } catch (error) {
+      const [first] = arithmeticOf(error);
+      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
+    }
+  }
+  for (const md of texts) for (const bad of proseArithmetic(proseOfMarkdown(md))) extra.push({ kind: null, message: `the text states "${bad.text}" but the left side computes to ${Number(bad.computed.toFixed(Math.min(8, bad.decimals + 2)))}: state the computed result, or fix the numbers it uses, everywhere the card states them` });
+  if (!hits.length && !extra.length) return null;
+  const fence = !hits.length ? '' : hits.length === 1 ? fenceProblem(hits[0].error)
+    : `explanation_bad_numbers: the rh-diagram specs state wrong numbers. ${hits.map(h => `Diagram ${h.n}: ${issuesText(h.error).slice(0, 280)}`).join(' | ')}`;
+  const more = extra.length ? `explanation_bad_numbers: the card states wrong numbers (${extra.slice(0, 3).map(e => e.message).join('; ').slice(0, 480)})` : '';
+  return { problem: [fence, more].filter(Boolean).join(' '), issue: hits[0]?.issue ?? extra[0].message, kind: hits[0]?.kind ?? extra[0].kind, kinds: [...hits.map(h => h.kind), ...extra.map(e => e.kind).filter(Boolean)] };
 }
 
 // -> { ok: true, spec: { version, id, prompt, alt, caption } } | { ok: false, problem }. The renderer and the server read the same parse.
@@ -566,9 +678,17 @@ function matrixAsComparison(d, labels) {
   if (columns.some(c => !c.items.length)) return null;
   return tryParse({ version: 1, diagram: { kind: 'comparison', title: fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0] ?? cols[0]} and ${cols[1]}`, 90), ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}), columns } });
 }
+// SIMP-1: a binary tree the schema rejects (a circle over two characters, a labelled leaf square) is drawn as the ordinary tree: the same nodes, parents and labels, with layout, sides, roles and fills removed.
+// A tree with an unlabelled node or another layout is not rebuilt (null: the card fails the step instead).
+function simplifiedTree(d) {
+  if (d.layout !== 'binary' || !Array.isArray(d.nodes) || d.nodes.some(n => typeof n?.label !== 'string')) return null;
+  const { layout, ...rest } = d;
+  return tryParse({ version: 1, diagram: { ...rest, nodes: d.nodes.map(({ side, role, fill, ...node }) => node) } });
+}
 export function simplifiedDiagram(lines, prefer = 'flow', sink = null) {
   let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
   if (!d || typeof d !== 'object') return null;
+  if (d.kind === 'tree') return simplifiedTree(d);
   const list = LABEL_LISTS.map(k => d[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
   const all = list.map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60));
   const labels = [...new Set(all)].slice(0, 12);
@@ -590,6 +710,10 @@ export function simplifiedDiagram(lines, prefer = 'flow', sink = null) {
 }
 // simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified, kinds (of the simplified) }
 const titleOf = lines => { try { return JSON.parse(lines.join('\n'))?.diagram?.title ?? ''; } catch { return ''; } };
+const kindOf = lines => { try { return JSON.parse(lines.join('\n'))?.diagram?.kind; } catch { return undefined; } };
+// SIMP-1: a failed diagram is rebuilt only in its own family: a flow, cycle or sequence as a smaller flow, cycle or sequence; a binary tree as the ordinary tree (simplifiedTree). Any other kind (matrix, token-links,
+// heatmap, transformation, plots...) is never turned into a flow or a comparison: it is dropped, and learn-artifact.js then fails the step (explanation_missing_visual) so the next provider runs.
+const SIMPLIFIABLE = ['flow', 'cycle', 'sequence', 'tree'];
 function dropFrom(md, simplify = false, prefer = 'flow') {
   const out = [], kinds = [], keeps = [], elements = []; let open = null, dropped = 0;
   for (const line of String(md ?? '').split('\n')) {
@@ -598,9 +722,9 @@ function dropFrom(md, simplify = false, prefer = 'flow') {
       if (/^\s*```/.test(line)) {
         if (open.lang === DIAGRAM && !parses(open.lines)) {
           dropped++;
-          const spec = simplify && simplifiedDiagram(open.lines, prefer, elements);
+          const spec = simplify && SIMPLIFIABLE.includes(kindOf(open.lines)) && simplifiedDiagram(open.lines, prefer, elements);
           keeps[keeps.length - 1] = Boolean(spec);
-          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); } else droppedElement('diagram', titleOf(open.lines), simplify ? 'invalid and fewer than two readable labels' : 'invalid', elements);
+          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); } else droppedElement('diagram', titleOf(open.lines), simplify ? 'invalid and fewer than two readable labels, or not a flow, cycle, sequence or tree' : 'invalid', elements);
         } else out.push(...open.raw);
         open = null;
       } else open.lines.push(line);
@@ -708,18 +832,18 @@ function correctedTimeline(raw) {
   return spec ? { spec, kinds: ['timeline_plain'] } : null;
 }
 // Owner 2026-11-08 (arm E v2: the precision-recall matrix needed a repair at all three depths): a matrix the author wrote with the teaching layout but no row IDs gets
-// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); rows with fewer cells than columns, every row short by the same count, are padded
-// with an em dash; a row with more cells than columns loses its trailing cells; rows that disagree with each other are left for the one repair. Kept only when the
+// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); a row with more cells than columns loses its trailing cells; a row with fewer
+// is left for the one repair (a pad would be a column of dashes, which MAT-E rejects). Kept only when the
 // whole diagram then parses. -> { spec, kinds } or null.
 // Owner 2026-11-09 (figure-chapters 02, demo card 03, the 118 3x): a matrix or heatmap whose columns are objects instead of strings, or a matrix whose rows carry ids without the teaching layout,
 // fails validation for a reason the server can read. Only the fields the parser names are touched, and the result applies only if the whole diagram then validates (else the repair gets the original).
 //  a) every column is an object holding an `items` or `cells` array, all of one length: the author wrote the table column by column. It is transposed: each column object becomes a row (its heading,
 //     label, text or title -> the row heading; its items -> the row's cells); the former rows' headings become the column headings when there are as many as items; with no such labels nothing is coerced (never "Item 1" to "Item n": release 126).
 //     A heatmap needs numeric cells (numbers or numeric strings), and its range is derived as the minimum and maximum of them. Former rows that carry cells of their own: not transposed.
-//  b) column objects with no array: each becomes its text (heading, then label, text, title).
+//  b) column objects with no array: each becomes its text (heading, then label, text, title, name: GEM-S1).
 //  c) a plain matrix (no teaching layout, no emphasis, no states) with ids on its rows loses the ids, which nothing refers to.
 // -> { raw, counts } | { left: reason } (a column object was seen and could not be coerced: logged, left to the repair) | null (nothing of this kind).
-const columnText = column => [column?.heading, column?.label, column?.text, column?.title].find(value => typeof value === 'string' && value.trim());
+const columnText = column => [column?.heading, column?.label, column?.text, column?.title, column?.name].find(value => typeof value === 'string' && value.trim());
 const isObject = value => value && typeof value === 'object' && !Array.isArray(value);
 const numericCell = value => (typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'string' && value.trim() && Number.isFinite(Number(value)) ? Number(value) : value === null ? null : undefined);
 function coercedMatrixShape(raw) {
@@ -768,10 +892,8 @@ function correctedMatrix(raw) {
   if (d?.kind !== 'matrix' || !Array.isArray(d.columns) || !Array.isArray(d.rows) || !d.rows.length || !d.rows.every(r => r && typeof r === 'object' && Array.isArray(r.cells))) return null;
   const kinds = [], width = d.columns.length, diffs = d.rows.map(r => width - r.cells.length);
   if (diffs.some(x => x !== 0)) {
-    const short = diffs.filter(x => x > 0), long = diffs.filter(x => x < 0);
-    if (short.length && long.length) return null; // rows disagree with each other: the repair's
-    if (short.length) { if (short.length !== diffs.length || new Set(short).size !== 1) return null; d.rows.forEach(r => { while (r.cells.length < width) r.cells.push('—'); }); kinds.push('matrix_cells_padded'); }
-    else { d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed'); }
+    if (diffs.some(x => x > 0)) return null; // a short row is the repair's
+    d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed');
   }
   if (d.layout === 'teaching' && d.rows.some(r => !r.id || typeof r.id !== 'string') || (d.layout === 'teaching' && new Set(d.rows.map(r => r.id)).size !== d.rows.length)) {
     const used = new Set();
@@ -1167,7 +1289,9 @@ export function explanationLayoutProblem(block, question = '') {
 // depth: kept for the callers; EXP-13 has one budget for every Depth (asked for 600, refused above 700).
 export function explanationProblem(block, depth, question = '') {
   const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
-  const diagrams = [block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(Boolean);
+  // Every wrong-numbers diagram in ONE message (numbersIssue), so the single repair fixes them together; diagramProblem alone names only the first failing fence of each section.
+  const numbers = numbersIssue(block);
+  const diagrams = [...(numbers ? [numbers.problem] : []), ...[block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(p => p && !(numbers && p.startsWith('explanation_bad_numbers')))];
   const pictures = markdownIllustrations(block?.body), ids = pictures.filter(p => p.ok).map(p => p.spec.id);
   const problems = [];
   if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters of prose (paragraph, heading and list text), the limit is ${cap} (aim for ${EXPLANATION_BUDGET.target}); the title, tables, diagrams and illustrations do not count; shorten the prose.`);
@@ -1325,3 +1449,5 @@ function stripBadDetails(md) {
   }
   return changed ? joinBlocks(blocks) : md;
 }
+
+export { split as markdownFences };
