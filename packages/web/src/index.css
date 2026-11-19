@@ -1104,6 +1104,9 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 /* The drag strip keeps its room (the card's top edge and the gap over its title, owner 2026-11-18: diagram and notebook titles hugged the edge) but cannot be dragged. */
 [data-learn-card-view] [data-block] > [data-drag-handle] { visibility: hidden; pointer-events: none; }
 [data-learn-card-view] [data-block] > [data-node-tool] { display: none; }
+/* Learn mode's TOC and Chat (owner 2026-11-18): they scroll under the composer's dock (LearnPane) to the panel's bottom, never cut above it, and their last row
+   can scroll clear of it. */
+[data-learn-panel] :is([data-toc], .no-scrollbar.overflow-y-auto) { padding-bottom: 9rem; } /* the TOC, and AskPanel's conversation scroller (ask.jsx boxRef) */
 /* No Ask a follow-up + under a card in the Cards tab (owner 2026-11-18): the one composer asks. */
 [data-learn-card-view] :is([data-follow-up-toggle], [data-follow-up]) { display: none !important; }
 /* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets

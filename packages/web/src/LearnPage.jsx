@@ -2703,7 +2703,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" {...CHAT_PANEL} keepMounted collapsed={!panelOpen} fill={learning && panelOpen && learnGeo ? learnGeo.width - learnGeo.guide : null} reserve={panelOpen && companion.open && !learning ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
+    <ResizableSidePanel aria-label="Learn agent chat" data-learn-panel={learning || undefined} resizeLabel="Resize Learn panel" {...CHAT_PANEL} keepMounted collapsed={!panelOpen} fill={learning && panelOpen && learnGeo ? learnGeo.width - learnGeo.guide : null} reserve={panelOpen && companion.open && !learning ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
       {/* Learn mode: LearnPane's rows lie over the panel's top (its own tabs are Cards | Canvas | TOC | Chat), so the panel starts under them. */}
       {learning ? <div aria-hidden className="shrink-0" style={{ height: LEARN_TOP + SWITCH_ROW }} /> : <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open, onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />}
@@ -2731,8 +2731,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
-      {/* Learn mode: the composer's dock lies over the panel's bottom (LearnPane), so the TOC and the conversation end above it (owner 2026-11-18). */}
-      {learning && <div aria-hidden data-learn-dock-room className="h-28 shrink-0" />}
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept={acceptList()} className="hidden"
       onChange={event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (files.length) setUploadAsk(files); }} />
