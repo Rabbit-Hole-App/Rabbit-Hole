@@ -1,0 +1,107 @@
+{
+  "requestedWidth": 408,
+  "width": 1296,
+  "height": 1050,
+  "groups": [
+    {
+      "kind": "tensor",
+      "top": 59,
+      "rows": [
+        {
+          "id": "pool-stereo-audio-frame",
+          "top": 116,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 234
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 234
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 140,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 234
+            }
+          ],
+          "bottom": 389
+        },
+        {
+          "id": "pool-granola-batch-ingredients",
+          "top": 385,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 409,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 253
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 409,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 270
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 409,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 275
+            }
+          ],
+          "bottom": 699
+        },
+        {
+          "id": "pool-booklet-press-pages",
+          "top": 695,
+          "previews": [
+            {
+              "level": "overview",
+              "x": 18,
+              "y": 719,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 289
+            },
+            {
+              "level": "standard",
+              "x": 444,
+              "y": 719,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 289
+            },
+            {
+              "level": "deep",
+              "x": 870,
+              "y": 719,
+              "displayWidth": 408,
+              "nativeWidth": 408,
+              "height": 306
+            }
+          ],
+          "bottom": 1040
+        }
+      ],
+      "bottom": 1040
+    }
+  ]
+}

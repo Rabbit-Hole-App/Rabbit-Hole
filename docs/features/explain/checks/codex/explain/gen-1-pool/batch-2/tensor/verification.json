@@ -1,0 +1,198 @@
+{
+  "sha": "f8d2b297ac6e5a2a65dc292386f746771676948e",
+  "records": [
+    {
+      "id": "pool-stereo-audio-frame",
+      "kind": "tensor",
+      "depths": {
+        "overview": {
+          "tokens": 106,
+          "parsedTokens": 106,
+          "nativeWidth": 408,
+          "height": 234,
+          "ownPicks": [
+            {
+              "prompt": "How do I read a frame of stereo audio samples arranged by channel?",
+              "kind": "tensor",
+              "picked": [
+                "pool-stereo-audio-frame"
+              ],
+              "steer": "pool-stereo-audio-frame",
+              "score": 62
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 102,
+          "parsedTokens": 102,
+          "nativeWidth": 408,
+          "height": 234,
+          "ownPicks": [
+            {
+              "prompt": "How do I read a frame of stereo audio samples arranged by channel?",
+              "kind": "tensor",
+              "picked": [
+                "pool-stereo-audio-frame"
+              ],
+              "steer": "pool-stereo-audio-frame",
+              "score": 62
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 110,
+          "parsedTokens": 110,
+          "nativeWidth": 408,
+          "height": 234,
+          "ownPicks": [
+            {
+              "prompt": "How do I read a frame of stereo audio samples arranged by channel?",
+              "kind": "tensor",
+              "picked": [
+                "pool-stereo-audio-frame"
+              ],
+              "steer": "pool-stereo-audio-frame",
+              "score": 62
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-granola-batch-ingredients",
+      "kind": "tensor",
+      "depths": {
+        "overview": {
+          "tokens": 102,
+          "parsedTokens": 102,
+          "nativeWidth": 408,
+          "height": 253,
+          "ownPicks": [
+            {
+              "prompt": "How do I use a tensor to compare ingredient amounts for the granola batches?",
+              "kind": "tensor",
+              "picked": [
+                "pool-granola-batch-ingredients"
+              ],
+              "steer": "pool-granola-batch-ingredients",
+              "score": 62
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 110,
+          "parsedTokens": 110,
+          "nativeWidth": 408,
+          "height": 270,
+          "ownPicks": [
+            {
+              "prompt": "How do I use a tensor to compare ingredient amounts for the granola batches?",
+              "kind": "tensor",
+              "picked": [
+                "pool-granola-batch-ingredients"
+              ],
+              "steer": "pool-granola-batch-ingredients",
+              "score": 62
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 110,
+          "parsedTokens": 110,
+          "nativeWidth": 408,
+          "height": 275,
+          "ownPicks": [
+            {
+              "prompt": "How do I use a tensor to compare ingredient amounts for the granola batches?",
+              "kind": "tensor",
+              "picked": [
+                "pool-granola-batch-ingredients"
+              ],
+              "steer": "pool-granola-batch-ingredients",
+              "score": 62
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-booklet-press-pages",
+      "kind": "tensor",
+      "depths": {
+        "overview": {
+          "tokens": 88,
+          "parsedTokens": 88,
+          "nativeWidth": 408,
+          "height": 289,
+          "ownPicks": [
+            {
+              "prompt": "How can the booklet press page counts be stored in a tensor column?",
+              "kind": "tensor",
+              "picked": [
+                "pool-booklet-press-pages"
+              ],
+              "steer": "pool-booklet-press-pages",
+              "score": 60
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 94,
+          "parsedTokens": 94,
+          "nativeWidth": 408,
+          "height": 289,
+          "ownPicks": [
+            {
+              "prompt": "How can the booklet press page counts be stored in a tensor column?",
+              "kind": "tensor",
+              "picked": [
+                "pool-booklet-press-pages"
+              ],
+              "steer": "pool-booklet-press-pages",
+              "score": 60
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 97,
+          "parsedTokens": 97,
+          "nativeWidth": 408,
+          "height": 306,
+          "ownPicks": [
+            {
+              "prompt": "How can the booklet press page counts be stored in a tensor column?",
+              "kind": "tensor",
+              "picked": [
+                "pool-booklet-press-pages"
+              ],
+              "steer": "pool-booklet-press-pages",
+              "score": 60
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "replay": {
+    "existingPromptDepthCases": 3087,
+    "savedPlannerCases": 474,
+    "overlap": 0,
+    "moves": []
+  },
+  "pool": {
+    "overview": {
+      "before": 0,
+      "after": 3
+    },
+    "standard": {
+      "before": 0,
+      "after": 3
+    },
+    "deep": {
+      "before": 0,
+      "after": 3
+    }
+  },
+  "publishedTip": "f83becfc61fe0ffde2659d607b9649f8466df007",
+  "publishedTree": "f1a8002291c7639b35279643e727da6ec623bab8"
+}
