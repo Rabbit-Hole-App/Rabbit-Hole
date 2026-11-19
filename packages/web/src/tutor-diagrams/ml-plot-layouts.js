@@ -639,6 +639,9 @@ function verticalBars(d, requested, options) {
     const valueText = value => {
       let text = amount(value, unit);
       if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
+      // A negative bar's value stands under the bar end, clear of every other bar; in a plain chart (one series, no box) it only has to stay inside its own slot (measured with the Arial advances), so "-0.108" fits a bar a little narrower than it.
+      // shortcut: a grouped or boxed chart keeps the width of its bar (a neighbouring bar of the cluster could be under the label); upgrade when a grouped chart with negative values needs its own rule.
+      if (showAbove && !boxed && k === 1 && value < 0) return legendTextWidth(text, tickSize) <= slot - 4 ? text : null;
       return showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth) ? text : null;
     };
     // One rule per chart (with no box): every bar carries its value or none does. When one value does not fit its bar ("0.65" where "0.2" does), the chart is drawn again with the unit off the values and printed once after the top axis number; when the bare values do not all fit either, none is printed.

@@ -49,5 +49,15 @@ test('bars: when every value fits every one is printed, and a unit that does not
   assert.equal(valueLabels(loans), 6, 'the bare values all fit');
   assert.ok(centreY(loans, '12.5 books', 15, 500) > 0, 'the unit is printed once, after the top axis number');
   const logits = { kind: 'bar-chart', title: 'Vocabulary logits', bars: [{ label: 'the', value: 0.501 }, { label: 'cat', value: -0.108 }, { label: 'sat', value: 0.78 }, { label: 'on', value: 1.745 }, { label: 'mat', value: 0.201 }, { label: 'slept', value: -0.495 }] };
-  assert.equal(valueLabels(svgOf(logits)), 0, 'the negative values do not fit at 408: none is printed');
+  assert.equal(valueLabels(svgOf(logits)), 6, 'a negative value goes under its bar end, so all six are printed');
+});
+
+test('a plain chart: a negative bar value stands under the bar end (not above), the category names move down to make room, and a chart where a value truly cannot be placed prints none', () => {
+  const logits = svgOf({ kind: 'bar-chart', title: 'Vocabulary logits', bars: [{ label: 'the', value: 0.501 }, { label: 'cat', value: -0.108 }, { label: 'sat', value: 0.78 }, { label: 'on', value: 1.745 }, { label: 'mat', value: 0.201 }, { label: 'slept', value: -0.495 }] });
+  const barEnd = value => { const [, y, height] = logits.match(new RegExp('<rect[^>]* y="([0-9.]+)"[^>]* height="([0-9.]+)"[^>]*data-tutor-bar="' + value + '"')); return Number(y) + Number(height); };
+  for (const [text, value] of [['-0.108', -0.108], ['-0.495', -0.495]]) assert.ok(centreY(logits, text, 15, 600) - 7.5 >= barEnd(value), `${text} stands under its bar end`);
+  assert.ok(centreY(logits, '-0.495', 15, 600) + 7.5 <= centreY(logits, 'slept', 13) - 5, 'the names moved down clear of it');
+  // a value wider than its whole slot cannot be placed: none is printed
+  const crowded = svgOf({ kind: 'bar-chart', title: 'Wide values', bars: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((label, i) => ({ label, value: i % 2 ? -0.123456 : 0.123456 })) });
+  assert.equal(valueLabels(crowded), 0, 'eight wide values in 408 px: none is printed');
 });
