@@ -24,3 +24,12 @@ test('grouped bars: when a value would sit on a taller neighbour no value carrie
   const calm = svgOf({ kind: 'bar-chart', variant: 'grouped', title: 'Label-prior shift', unit: 'samples', categories: ['Class 0', 'Class 1'], series: [{ label: 'Reference window', values: [7, 3] }, { label: 'Current window', values: [3, 7] }] });
   assert.ok(centreY(calm, '7 samples', 15, 600) > 0, 'a chart where no value touches another bar is not changed');
 });
+
+test('coordinate plot: the curve\'s name keeps clear of the printed values (it stood on the 0.71 of the silhouette plot)', () => {
+  const svg = svgOf({ kind: 'coordinate-plot', title: 'Silhouette compares candidate cluster counts', x: { label: 'Number of clusters', min: 2, max: 6 }, y: { label: 'Silhouette score', min: 0, max: 1 },
+    series: [{ label: 'Silhouette', kind: 'line', points: [{ x: 2, y: 0.48 }, { x: 3, y: 0.71 }, { x: 4, y: 0.56 }, { x: 5, y: 0.42 }, { x: 6, y: 0.35 }] }] });
+  const at = attr => { const tag = svg.match(new RegExp(`<text[^>]*${attr}[^>]*>`))[0]; return [Number(tag.match(/ x="([\d.]+)"/)[1]), Number(tag.match(/ y="([\d.]+)"/)[1])]; };
+  const [nx, ny] = at('data-tutor-plot-curve-label'), values = [...svg.matchAll(/<text[^>]*data-tutor-plot-value[^>]*>/g)].map(([tag]) => [Number(tag.match(/ x="([\d.]+)"/)[1]), Number(tag.match(/ y="([\d.]+)"/)[1])]);
+  assert.equal(values.length, 5);
+  for (const [vx, vy] of values) assert.ok(Math.abs(nx - vx) >= 55 || Math.abs(ny - vy) >= 16, `the name (${nx}, ${ny}) is on the value at (${vx}, ${vy})`);
+});

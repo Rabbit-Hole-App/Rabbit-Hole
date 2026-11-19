@@ -146,7 +146,8 @@ function segmentHitsBox([ax, ay], [bx, by], box) {
   }
   return true;
 }
-function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
+// sides: also try the four straight directions at each sample (up, down, right, left) when the outward one is blocked.
+function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE, sides = false) {
   if (series.length > CURVE_LABEL_MAX_SERIES || !series.every(s => s.kind === 'line' && !s.closed && !s.endLabel && s.points[0].low === undefined)) return null;
   const boxes = [], labels = [];
   for (const [i, s] of series.entries()) {
@@ -159,8 +160,9 @@ function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
     let placed = null;
     for (const { p: [px, py], from } of candidates) {
       // Outward is away from the nearest other curve (straight up when there is none).
-      let ox = 0, oy = -1;
-      if (from) { const run = Math.hypot(px - from[0], py - from[1]); if (run > 1) { ox = (px - from[0]) / run; oy = (py - from[1]) / run; } }
+      let ox0 = 0, oy0 = -1;
+      if (from) { const run = Math.hypot(px - from[0], py - from[1]); if (run > 1) { ox0 = (px - from[0]) / run; oy0 = (py - from[1]) / run; } }
+      for (const [ox, oy] of sides ? [[ox0, oy0], [0, -1], [0, 1], [1, 0], [-1, 0]] : [[ox0, oy0]]) {
       const vertical = Math.abs(oy) >= Math.abs(ox);
       const free = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       // The name is 18 px off the curve along the outward axis and slides along the edge of the plot area when it would stick out, the leader staying on the sample.
@@ -176,6 +178,8 @@ function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE) {
       const start = vertical ? [free(px, box.x + 6, box.x + w - 6), oy < 0 ? box.y + hgt : box.y] : [ox < 0 ? box.x + w : box.x, free(py, box.y + 4, box.y + hgt - 4)];
       placed = { padded, label: { i, text, center, start, end: [px, py] } };
       break;
+      }
+      if (placed) break;
     }
     if (!placed) return null;
     boxes.push(placed.padded);
@@ -480,7 +484,7 @@ function plotLayout(diagram, requested, options = {}) {
   for (const [anchor, text] of pointCallouts) callout(anchor, text, 7);
   // A line series draws no marker where a scatter series has a point (within 0.5 px): the scatter's marker stays, drawn last (on top).
   const scatterAt = d.series.flatMap((series, k) => series.kind === 'scatter' ? curves[k] : []);
-  const marks = [], scatterMarks = [], legend = [];
+  const marks = [], scatterMarks = [], legend = [], valueBoxes = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
@@ -518,13 +522,19 @@ function plotLayout(diagram, requested, options = {}) {
         const half = textWidth(String(p.y), body) * 0.55 + 2;
         // A sample on the y axis prints its value to the right of the marker, centred on it (above would sit on the line, below beside the tick labels).
         const onAxis = cx < left + half + 6;
-        foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: body, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
+        const valueX = onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), valueY = onAxis ? cy : cy - MARKER - 11;
+        foreground.push(cloneElement(label(String(p.y), valueX, valueY, { size: body, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
+        // The curve's name is placed after this and keeps clear of every printed value when it can (its own 3 px margin is counted there, so the box is the text's).
+        valueBoxes.push({ x: valueX - textWidth(String(p.y), body) / 2 + 3, y: valueY - lineHeight(body) / 2 + 3, width: textWidth(String(p.y), body) - 6, height: lineHeight(body) - 6 });
       }
     });
     // A plot of one series has no legend: its title and axes name it (a legend pill is for telling two or more series apart).
     if (d.series.length > 1 || legendMode === 'always') legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
   }
-  const callouts = legendMode === 'auto' ? curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied, curveSize) : null; // 'none' and 'always' never name the curves
+  const curveLines = d.series.map(series => series.points.map(xy));
+  // Where the names stand today (callouts), or, when that leaves a name on a printed value, the first place that keeps clear of the values (outward, then straight up, down, right, left); with none, today's.
+  const named = legendMode === 'auto' ? curveLabels(d.series, curveLines, bounds, occupied, curveSize) : null;
+  const callouts = named && valueBoxes.length ? curveLabels(d.series, curveLines, bounds, [...occupied, ...valueBoxes], curveSize) ?? curveLabels(d.series, curveLines, bounds, [...occupied, ...valueBoxes], curveSize, true) ?? named : named; // 'none' and 'always' never name the curves
   if (callouts) {
     legend.length = 0;
     for (const { i, text, center, start, end } of callouts) {
