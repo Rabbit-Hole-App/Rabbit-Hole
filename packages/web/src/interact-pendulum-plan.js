@@ -38,7 +38,7 @@ Object.assign(plan.scene, {
     limits: { maxMass: 3, maxLength: 2 }, layout: LAYOUT, formula: 'T = 2\\pi\\sqrt{L/g}',
     // Brief 35: the card's sentences, each shortened to one line of the note box at the size a frame text draws (15 px, 349 px): 'same timing' leaves the first, 'swings quicker' becomes 'is quicker'.
     notes: { same: 'B matches A: same mass, same length.', mass: 'Same timing: only the mass differs.', longer: 'Slower: a longer string takes longer.', shorter: 'Faster: a shorter string is quicker.' },
-    values: [{ quantity: 'angleB', label: 'Angle B', unit: '°', decimals: 0, kind: 'live', role: 'warning', sample: '-20°' }, { quantity: 'periodB', label: 'Period B', unit: 's', decimals: 2, kind: 'set', role: 'warning', sample: '2.84 s' }, { quantity: 'periodA', label: 'Period A', unit: 's', decimals: 2, kind: 'fixed', role: 'input', sample: '2.01 s' }] },
+    values: [{ quantity: 'angleB', label: 'Angle B', unit: '°', decimals: 0, kind: 'live', of: 'pendulumB', sample: '-20°' }, { quantity: 'periodB', label: 'Period B', unit: 's', decimals: 2, kind: 'set', of: 'pendulumB', sample: '2.84 s' }, { quantity: 'periodA', label: 'Period A', unit: 's', decimals: 2, kind: 'fixed', of: 'pendulumA', sample: '2.01 s' }] },
   entities: [{ id: 'pendulums', label: 'Pendulums', purpose: 'A, the reference, and B, the experiment, swinging side by side.' }, { id: 'plot', label: 'Angle plot', purpose: 'Each pendulum\'s angle against time, a marker on each curve at the current time.' }, { id: 'callout', label: 'What it shows', purpose: 'One sentence about what the current settings show.' }],
   quantities: [
     { id: 'mass', label: 'B mass', unit: 'kg', meaning: 'Mass of the swinging ball B.', reference: 'A is fixed at 1 kg.', formula: 'mass' },

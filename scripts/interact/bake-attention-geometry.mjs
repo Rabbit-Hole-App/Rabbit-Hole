@@ -1,7 +1,7 @@
-// Brief 36: bakes the attention card's token geometry. Runs the card's real program (interact-templates/attention.js source) with a recording sdk at every pick, hands each diagram spec to the written renderer
-// exactly as the host does for a card with a scene layout (renderTutorDiagram with interact-layout.js figureOptions: the stage box, every text 14 px, no title, no caption) and keeps what that call returns:
-// min (the least size the diagram can be drawn at) and the source and target token boxes (geometry.panels[0]), in the picture's own coordinates. The token boxes must be the same at all six picks (the ring and the
-// dot are placed from them without asking the renderer again); a pick that moves a token stops the bake. Refuses when min is larger than the stage box (both sizes reported).
+// Brief 36/37: bakes the attention card's token-links geometry. Runs the card's real program (interact-templates/attention.js source) with a recording sdk at every pick, hands each diagram spec to the written
+// renderer exactly as the host does for a card with a scene layout (renderTutorDiagram with interact-layout.js figureOptions: the picture box the layout module chose, every text 14 px, no title, no caption) and
+// keeps what that call returns: min (the least size the diagram can be drawn at, the same at all six picks). The least size is measured first (it does not depend on the box height), the layout module then
+// chooses the arrangement and the picture box from it (arrangeText), and the diagram is asked for that box. Refuses when min is larger than the box (both sizes reported).
 // Writes packages/web/src/interact-attention-geometry.js; `--check` compares, `--measure` prints the tables and writes nothing. Reads tutor-diagrams/ and changes nothing there.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -10,7 +10,7 @@ import { marksIn } from './svg-under.mjs';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'packages/web/src');
 const load = name => import(pathToFileURL(join(SRC, name)));
-const { source } = await load('interact-templates/attention.js'), { ATTENTION_PLAN } = await load('interact-attention-plan.js'), { figureOptions, layoutById, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
+const { source, figureHeight } = await load('interact-templates/attention.js'), { ATTENTION_PLAN } = await load('interact-attention-plan.js'), { figureOptions, COLUMNS, DRAWN_TEXT_SIZES } = await load('interact-layout.js');
 const { renderTutorDiagram } = await load('tutor-diagrams/TutorDiagram.js'), { textWidth } = await load('tutor-diagrams/primitives.js');
 const { renderToStaticMarkup } = await import(pathToFileURL(join(SRC, '..', 'node_modules/react-dom/server.js')));
 
@@ -19,44 +19,42 @@ const programOf = data => new Function('sdk', `${source({ geometry: { attention:
 const runner = data => { const program = programOf(data); return step => { const out = program({ inputs: { step }, time: 0 }); return { out, objects: out.frame.args[0], diagram: out.frame.args[0].find(o => o.fn === 'diagram') }; }; };
 const r2 = n => Math.round(n * 100) / 100;
 // the card's data with the baked geometry taken out (the program does not read it to build the spec), so a first or stale bake does not refuse itself
-const PLACEHOLDER = { min: { width: 0, height: 0 } };
 const base = structuredClone(ATTENTION_PLAN.scene.data);
-base.geometry = PLACEHOLDER;
+base.geometry = { min: { width: 0, height: 0 } };
 
-// the one renderer call the host makes for this card's diagram
-const figure = figureOptions(base.layout), { box } = figure.options;
-const askRenderer = spec => renderTutorDiagram(spec, box.width, figure.options);
-const draw = runner(base), picks = base.words.map((_, step) => askRenderer(draw(step).diagram.args[0]));
-const tokensOf = rendered => { const [panel] = rendered.geometry.panels; return { sources: panel.sources, targets: panel.targets }; };
-const first = tokensOf(picks[0]);
-picks.forEach((rendered, step) => { if (JSON.stringify(tokensOf(rendered)) !== JSON.stringify(first) || JSON.stringify(rendered.min) !== JSON.stringify(picks[0].min)) throw new Error(`the token boxes or the least size change at the pick "${base.words[step]}"`); });
-const { min } = picks[0];
+// 1) the least size, measured in the slot's own box (it does not depend on the box height)
+const probe = figureOptions(base.layout), draw = runner(base);
+const picks = base.words.map((_, step) => renderTutorDiagram(draw(step).diagram.args[0], probe.options.box.width, probe.options));
+if (picks.some(rendered => JSON.stringify(rendered.min) !== JSON.stringify(picks[0].min))) throw new Error('the least size changes with the picked word');
+const { min } = picks[0], geometry = { min };
+// 2) the layout module chooses the arrangement and the picture box; 3) the diagram is asked for exactly that box
+const height = figureHeight({ geometry: { attention: { ...base, geometry } } }), figure = figureOptions(base.layout, { height }), { box } = figure.options;
 if (min.width > box.width || min.height > box.height) throw new Error(`the diagram needs at least ${min.width} x ${min.height} px; the ${figure.slot} box is ${box.width} x ${box.height} px`);
-const geometry = { min };
-const text = `// Generated by scripts/interact/bake-attention-geometry.mjs (brief 36): what the written renderer returned for the attention card's token-links diagram drawn in the layout's stage box (interact-layout.js figureOptions): the least size it can be drawn at (min), the same at every pick. Do not edit by hand.\nexport const ATTENTION_GEOMETRY = ${JSON.stringify(geometry)};\n`;
+const askRenderer = spec => renderTutorDiagram(spec, box.width, figure.options);
+const text = `// Generated by scripts/interact/bake-attention-geometry.mjs (briefs 36 and 37): what the written renderer returned for the attention card's token-links diagram drawn in the picture box the layout module chose (interact-layout.js arrangeText, figureOptions): the least size it can be drawn at (min), the same at every pick. Do not edit by hand.\nexport const ATTENTION_GEOMETRY = ${JSON.stringify(geometry)};\n`;
 const file = join(SRC, 'interact-attention-geometry.js');
 
 if (process.argv.includes('--check')) { const same = readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text; console.log(same ? 'geometry is current' : 'geometry is STALE'); process.exit(same ? 0 : 1); }
 
 if (process.argv.includes('--measure')) {
   // the card as built from the geometry in the file: the six picks, each diagram object handed to the renderer exactly as the host does
-  const run = runner(structuredClone(ATTENTION_PLAN.scene.data)), rows = [];
+  const run = runner(structuredClone(ATTENTION_PLAN.scene.data)), rows = [], tokensOf = rendered => { const [panel] = rendered.geometry.panels; return { sources: panel.sources, targets: panel.targets }; };
   for (let step = 0; step < 6; step++) { const { diagram, objects } = run(step), r = askRenderer(diagram.args[0]); rows.push({ step, o: diagram.args[1], objects, width: r.width, height: r.height, min: r.min, tokens: tokensOf(r), markup: renderToStaticMarkup(r.element) }); }
   for (const row of rows) console.log(`pick ${base.words[row.step]}: placed x ${row.o.x} y ${row.o.y} w ${row.o.w}; drawn ${row.width}x${row.height} min ${JSON.stringify(row.min)}`);
-  const same = rows.every(row => JSON.stringify(row.tokens) === JSON.stringify(rows[0].tokens));
-  console.log(same ? 'TOKEN POSITIONS IDENTICAL at all six picks' : 'TOKEN POSITIONS DIFFER');
-  console.log(`stage box ${JSON.stringify(box)} at ${JSON.stringify(figure.at)}; the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
+  console.log(rows.every(row => JSON.stringify(row.tokens) === JSON.stringify(rows[0].tokens)) ? 'TOKEN POSITIONS IDENTICAL at all six picks' : 'TOKEN POSITIONS DIFFER');
+  console.log(`picture box ${JSON.stringify(box)} at ${JSON.stringify(figure.at)} (the slot's own height is 299.2); the file is ${readFileSync(file, 'utf8').replace(/\r\n/g, '\n') === text ? 'current' : 'STALE'}`);
   const texts = [...rows[0].markup.matchAll(/<text ([^>]*)>/g)].map(([, attrs]) => `${attrs.match(/font-size="([\d.]+)"/)[1]}/${attrs.match(/font-weight="(\d+)"/)?.[1]}`);
   console.log(`font sizes / weights of every text of the picture: ${[...new Set(texts)].join(', ')} (${texts.length} texts)`);
   const region = [604 - figure.at[0], 12 - figure.at[1], 628 - figure.at[0], 36 - figure.at[1]], under = marksIn(rows[0].markup, region, textWidth);
   console.log(`reset button region in the picture: x ${region[0]}..${region[2]}, y ${region[1]}..${region[3]}; under it: ${under.length ? under.join('; ') : 'nothing'}`);
-  // every value, the formula and the note at every pick against their boxes
-  const size = DRAWN_TEXT_SIZES.value, lines = [];
+  // every value, the formula and each explanation line at every pick against its room
+  const size = DRAWN_TEXT_SIZES.value, lines = [], valueRoom = COLUMNS.valuesBox[1] - 50, lineRoom = COLUMNS.textBox[1] - 2 * COLUMNS.textClear;
   for (const row of rows) {
-    const boxText = id => { const o = row.objects.find(x => x.fn === 'box' && x.args[0] === id); return { w: o.args[3], text: (o.args[5] ?? {}).text }; };
-    lines.push(`pick ${base.words[row.step]}: ${row.objects.filter(o => o.fn === 'box' && o.args[0].startsWith('value.')).map((_, k) => { const b = boxText(`value.${k}`); return `"${b.text}" ${r2(textWidth(b.text, size))}/${r2(b.w - 50)}`; }).join('; ')}; note "${boxText('note').text}" ${r2(textWidth(boxText('note').text, size))}/${boxText('note').w - 16}`);
+    const values = row.objects.filter(o => o.fn === 'box' && o.args[0].startsWith('value.')).map(o => `"${o.args[5].text}" ${r2(textWidth(o.args[5].text, size))}/${valueRoom} (box ${o.args[3]} x ${o.args[4]} at ${o.args[1]}, ${o.args[2]})`);
+    const rowsText = row.objects.filter(o => o.fn === 'text' && o.args[0].startsWith('line.')).map(o => `"${o.args[3]}" ${r2(textWidth(o.args[3], size))}/${lineRoom}`);
+    lines.push(`pick ${base.words[row.step]}: values ${values.join('; ')}; lines ${rowsText.join('; ')}`);
   }
-  const math = rows[0].objects.find(x => x.fn === 'math' && x.args[0] === 'formula'), slot = layoutById('wide').slots.formula.box;
-  lines.push(`formula (math run, no box): "$${math.args[3]}$" ${r2(textWidth(`$${math.args[3]}$`, size))} of ${slot[2] - 16}`);
+  const math = rows[0].objects.find(x => x.fn === 'math' && x.args[0] === 'formula');
+  lines.push(`formula (math run, left aligned at x ${math.args[1]}): "$${math.args[3]}$" ${r2(textWidth(`$${math.args[3]}$`, size))}/${lineRoom}`);
   console.log(lines.join('\n'));
-} else { writeFileSync(file, text); console.log(`wrote ${file}`, JSON.stringify(geometry).slice(0, 300)); }
+} else { writeFileSync(file, text); console.log(`wrote ${file}`, JSON.stringify(geometry).slice(0, 300), `box height ${height}`); }

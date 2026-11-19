@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DRAWN_TEXT_SIZES, LayoutError, VALUE_DOT, checkText, figureOptions, fitValues, layoutById, pickLayout } from '../interact-layout.js';
+import { DRAWN_TEXT_SIZES, LayoutError, arrangeText, figureOptions, pickLayout, roleOf } from '../interact-layout.js';
 import { layoutAnswers as answers } from '../interact-layout-answers.js';
 import { textWidth } from '../tutor-diagrams/primitives.js';
 
@@ -11,7 +11,7 @@ import { textWidth } from '../tutor-diagrams/primitives.js';
 // Brief 35: the card sits on the scene layout its plan declares (docs/features/interact/layout.md, interact-layout.js): the stage and the panel boxes, the values section, the formula and the note, all placed from
 // the layout's boxes when the program is built, every text measured against its box then (a text that does not fit is refused). ponytail: one card, no damping, small-angle start only.
 const text = max => z.string().min(1).max(max);
-const value = z.object({ quantity: z.enum(['angleB', 'periodA', 'periodB']), label: text(12), unit: text(6), decimals: z.number().int().min(0).max(3), kind: z.enum(['live', 'set', 'fixed']), role: text(16), sample: text(10) }).strict();
+const value = z.object({ quantity: z.enum(['angleB', 'periodA', 'periodB']), label: text(12), unit: text(6), decimals: z.number().int().min(0).max(3), kind: z.enum(['live', 'set', 'fixed']), of: z.enum(['pendulumA', 'pendulumB']), sample: text(10) }).strict();
 export const pendulumSchema = z.object({
   title: text(60), g: z.number().positive(), theta0: z.number().positive().max(60), duration: z.number().positive().max(60),
   reference: z.object({ mass: z.number().positive(), length: z.number().positive() }).strict(),
@@ -29,22 +29,33 @@ export const normalize = () => ({});
 export const geometry = range => range;
 export const states = () => ({});
 
-// Everything the layout decides, computed once when the program is built: the boxes, where each value's text stands, and the checks (LayoutError: text_too_wide, layout_contradiction).
+// The roles of the shapes the program draws: the dot of a value that is `of` a pendulum takes its pendulum's role (interact-layout.js roleOf).
+const SHAPES = Object.freeze({ pendulumA: 'input', pendulumB: 'warning' });
+// The stage is drawn by the program: the least height it can be drawn at (the pivot bar 40 px under its top, the longest string and the heaviest ball with 6 px to spare, at a scale of at least 60 px per metre).
+const STAGE_MIN_HEIGHT = 200;
+
+// Everything the layout decides, computed once when the program is built (arrangeText: the arrangement and every box; the checks: LayoutError text_too_wide, layout_contradiction, figure_too_big).
 function place(data) {
-  const id = pickLayout(data.layout, { hasPanel: true }), layout = layoutById(id), size = DRAWN_TEXT_SIZES;
+  const id = pickLayout(data.layout, { hasPanel: true }), size = DRAWN_TEXT_SIZES, { min } = data.plot.geometry;
+  // The card supplies content: its values, its formula and its explanation (one line at each state: the four sentences of `notes`). The layout module chooses the arrangement and the boxes.
+  const values = data.values.map(entry => ({ text: `${entry.label}: ${entry.sample}` }));
+  const variants = Object.values(data.notes).map(sentence => ({ values, explanation: [sentence] }));
+  const arrangement = arrangeText(id, { variants, formula: data.formula, pictureMins: { panel: min.height, stage: STAGE_MIN_HEIGHT } }, size), panel = arrangement.pictures.panel, stage = arrangement.pictures.stage;
   // Brief 36: the plot is drawn in the panel box at its own size, never shrunk; a plot whose least size is larger than the box is refused (the sizes are the renderer's, baked: bake-pendulum-geometry.mjs).
-  const figure = figureOptions(data.layout), { min } = data.plot.geometry, { box } = figure.options;
-  if (min.width > box.width || min.height > box.height) throw new LayoutError('figure_too_big', `the plot needs at least ${min.width} x ${min.height} px; the ${figure.slot} box is ${box.width} x ${box.height} px`, ['plot']);
-  // One box per value with its own text "Label: value unit"; the formula is a math run in its own box; the note is its own box. Each is measured against its box here (a text that does not fit is refused).
-  const fitted = fitValues(id, data.values.map(entry => ({ text: `${entry.label}: ${entry.sample}` })), size);
-  for (const sentence of Object.values(data.notes)) checkText(id, { formula: `$${data.formula}$`, note: sentence }, size);
+  if (min.width > panel[2] || min.height > panel[3]) throw new LayoutError('figure_too_big', `the plot needs at least ${min.width} x ${min.height} px; the panel box is ${panel[2]} x ${panel[3]} px`, ['plot']);
+  if (stage[3] < STAGE_MIN_HEIGHT) throw new LayoutError('figure_too_big', `the stage needs at least ${STAGE_MIN_HEIGHT} px; its box is ${stage[3]} px tall`, ['stage']);
+  // the program draws the one-line note in its box: the one-line explanation keeps the card on ROWS, and a change of content that leaves it is refused here, not drawn wrongly
+  if (arrangement.arrangement !== 'rows') throw new LayoutError('arrangement_changed', 'the pendulum card draws its explanation in a box: its explanation must stay one line that fits the note box', ['notes']);
+  const { dropped } = arrangement;
+  if (dropped.explanationLines || dropped.values) console.log(JSON.stringify({ event: 'interact_layout_dropped', template: 'stepper-pendulum', arrangement: arrangement.arrangement, rowsTall: arrangement.rowsTall, droppedExplanationLines: dropped.explanationLines, droppedValues: dropped.values }));
   return {
-    layout: id, stage: layout.slots.stage.box, panel: layout.slots.panel.box, figure: { at: figure.at, w: box.width },
-    // Amendment D: a value box and the note box are 28 px tall, centred in their 32 px slots; the value's role colour is a dot in its box; the formula has no box, its math run is centred in its slot.
-    values: fitted.values.map((entry, i) => { const [x, y, w, h] = fitted.boxes[i].box; return { ...data.values[i], box: [x, y + (h - 28) / 2, w, 28], dot: [x + VALUE_DOT.centreX, y + h / 2, VALUE_DOT.diameter] }; }),
-    formulaAt: ((x, y, w, h) => [x + w / 2, y + h / 2])(...layout.slots.formula.box), noteBox: ((x, y, w, h) => [x, y + (h - 28) / 2, w, 28])(...layout.slots.note.box),
+    layout: id, arrangement: arrangement.arrangement, rowsTall: arrangement.rowsTall, stage, panel, figure: { at: [panel[0], panel[1]], w: panel[2], h: panel[3] }, shapes: SHAPES,
+    values: arrangement.values.boxes.map((box, i) => ({ ...data.values[i], box, dot: arrangement.values.dots[i], role: roleOf(data.values[i].of, { shapes: SHAPES }) })),
+    formula: arrangement.formula, explanation: arrangement.explanation,
   };
 }
+// The picture's box height the layout module chose (the host asks the renderer for exactly this box: the sealed manifest carries it).
+export const figureHeight = ctx => place(ctx.geometry.pendulum).figure.h;
 
 export function source(ctx) {
   const pendulum = ctx.geometry?.pendulum;
@@ -72,8 +83,8 @@ export function evaluate({inputs,time}){
     const bx=pivotX+len*SCALE*Math.sin(angle*RAD),by=PIVOT_Y+len*SCALE*Math.cos(angle*RAD);
     objects.push(sdk.text('label.'+name,pivotX,SY+22,name+': '+kg(mass)+' kg, '+metre(len)+' m',{align:'middle',role:role}),sdk.polyline('string.'+name,[[pivotX,PIVOT_Y],[bx,by]],{role:role}),sdk.circle('ball.'+name,bx,by,2*radius(mass),{role:role}));
   };
-  swing('A',Math.round(SX+0.19*SW),ref.length,ref.mass,angleA,'input');
-  swing('B',Math.round(SX+0.66*SW),length,mass,angleB,'warning');
+  swing('A',Math.round(SX+0.19*SW),ref.length,ref.mass,angleA,L.shapes.pendulumA);
+  swing('B',Math.round(SX+0.66*SW),length,mass,angleB,L.shapes.pendulumB);
   const curve=(label,period)=>{const times=sampleTimes(period);return {label:label,kind:'line',samples:{x:times.map(value=>Math.round(value*1e4)/1e4),y:times.map(value=>Math.round(T.theta0*Math.cos(2*Math.PI*value/period)*1e3)/1e3)}};};
   const curveA=curve(T.plot.nameA,periodA),curveB=curve(T.plot.nameB,periodB),drawn=c=>spline(c.samples.x,c.samples.y,t);
   const spec={version:1,diagram:{kind:'coordinate-plot',title:T.plot.title,x:{label:T.plot.time,min:0,max:T.duration,unit:'s'},y:{label:T.plot.angle,min:-T.plot.yMax,max:T.plot.yMax,unit:'°'},
@@ -82,14 +93,14 @@ export function evaluate({inputs,time}){
   // The time line and the dots stand on the plot area and the two axis ranges the renderer returned for this plot (picture coordinates, moved to where the picture is drawn).
   const G=T.plot.geometry,A=G.plotArea,F={left:L.figure.at[0]+A.left,right:L.figure.at[0]+A.right,top:L.figure.at[1]+A.top,bottom:L.figure.at[1]+A.bottom};
   const nowX=F.left+(t-G.x.min)/(G.x.max-G.x.min)*(F.right-F.left),at=angle=>F.top+(G.y.max-angle)/(G.y.max-G.y.min)*(F.bottom-F.top);
-  objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:'input'}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:'warning'}));
+  objects.push(sdk.line('now',nowX,F.top,nowX,F.bottom,{role:'neutral'}),sdk.circle('dot.A',nowX,at(drawn(curveA)),12,{role:L.shapes.pendulumA}),sdk.circle('dot.B',nowX,at(drawn(curveB)),12,{role:L.shapes.pendulumB}));
   const quantity={angleB:angleB,periodA:periodA,periodB:periodB};
   L.values.forEach((entry,k)=>{const shown=entry.label+': '+quantity[entry.quantity].toFixed(entry.decimals)+(entry.unit==='°'?'°':' '+entry.unit);
     objects.push(sdk.box('value.'+k,entry.box[0],entry.box[1],entry.box[2],entry.box[3],{role:'neutral',text:shown}),sdk.circle('chip.'+k,entry.dot[0],entry.dot[1],entry.dot[2],{role:entry.role}));});
   // The formula is a math run with no box: a text object's row sits 0.35 of its font size above the y given, so y is the slot's centre plus 5.25 at 15 px.
-  objects.push(sdk.math('formula',L.formulaAt[0],L.formulaAt[1]+5.25,T.formula,{align:'middle',role:'neutral'}));
+  objects.push(sdk.math('formula',L.formula.at[0],L.formula.at[1]+5.25,T.formula,{align:L.formula.align,role:'neutral'}));
   const sameLength=Math.abs(length-ref.length)<1e-9,sameMass=Math.abs(mass-ref.mass)<1e-9;
-  objects.push(sdk.box('note',L.noteBox[0],L.noteBox[1],L.noteBox[2],L.noteBox[3],{role:'neutral',text:sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter}));
+  objects.push(sdk.box('note',L.explanation.box[0],L.explanation.box[1],L.explanation.box[2],L.explanation.box[3],{role:'neutral',text:sameLength&&sameMass?T.notes.same:sameLength?T.notes.mass:length>ref.length?T.notes.longer:T.notes.shorter}));
   return {frame:sdk.frame(objects,{width:640,height:400,readouts:[{id:'periodA',value:periodA},{id:'periodB',value:periodB}]}),quantities:{mass:mass,length:length,periodA:periodA,periodB:periodB}};
 }`;
 }

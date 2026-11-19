@@ -139,6 +139,7 @@ const manifestShape = {
   timeline: timelineSchema.optional(),
   readouts: z.array(readoutSchema).max(CONTRACT_LIMITS.readouts),
   capabilities: z.array(z.string().min(1).max(32)).max(16),
+  figureHeight: z.number().positive().max(2000).optional(), // brief 37: the height of the picture box the layout module chose for a card with a scene layout (the host asks the renderer for exactly this box); absent for every other card
   frameObjects: z.number().int().min(FRAME_OBJECTS_DEFAULT).max(FRAME_OBJECTS_HARD_MAX).optional(), // the approved per-frame object budget (the plan's scene.runtime.frameObjects); absent means the default
 };
 const manifestChecks = (manifest, context) => {

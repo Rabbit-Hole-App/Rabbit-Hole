@@ -792,7 +792,88 @@ export function fitPanel(natural, box, { clearRight = Infinity, align = 'centre'
 // Brief 36: how the layout's picture is drawn. The picture lives in the panel slot when the layout has one, else in the stage slot; it is asked of the written renderer with exactly that slot's box, every text
 // size at the layout's body size, and the `parts` the card's answers name. The host (FrameFigures.jsx DiagramFigure) and the build (interact-templates/pendulum.js, the bake script) both call this, so they
 // ask the same thing. at: where the picture's top left lands in the scene; options: renderTutorDiagram's third argument.
-export function figureOptions(answers) {
-  const id = pickLayout(answers, { hasPanel: answers.pictureCount === 'two' }), slots = layoutById(id).slots, slot = slots.panel ?? slots.stage, [x, y, width, height] = slot.box, size = LAYOUT_BODY_SIZE;
+// Brief 37: height: the picture's box height the layout module chose for this card (a three-rows-tall text area takes the last picture row, arrangeText); absent, the slot's own.
+export function figureOptions(answers, { height: chosen } = {}) {
+  const id = pickLayout(answers, { hasPanel: answers.pictureCount === 'two' }), slots = layoutById(id).slots, slot = slots.panel ?? slots.stage, [x, y, width, slotHeight] = slot.box, size = LAYOUT_BODY_SIZE, height = chosen ?? slotHeight;
   return { layout: id, slot: slots.panel ? 'panel' : 'stage', at: [x, y], options: { box: { width, height }, sizes: { title: size, heading: size, body: size, small: size }, parts: { ...(answers.figureParts ?? {}) } } };
+}
+
+// Brief 37: a value's dot colour by rule. A value names what it measures (`of`). For a shape the program draws, the dot takes that shape's role (the card passes its shapes: { pendulumA: 'input', ... }); for a part
+// of an /explain picture, one table per kind, here: token-links draws the picked word with its process fill (blue: the frame role input) and the word attended to most with its outcome fill (teal: output).
+export const PICTURE_PART_ROLES = Object.freeze({ 'token-links': Object.freeze({ picked: 'input', attended: 'output' }) });
+export function roleOf(of, { shapes = {}, kind = null } = {}) {
+  const role = shapes[of] ?? PICTURE_PART_ROLES[kind]?.[of];
+  if (!role) throw new LayoutError('value_of_unknown', `a value of "${of}" names no shape of the card and no part of ${kind ?? 'a picture'}`, ['values']);
+  return role;
+}
+
+// ---- Brief 37: the text area, arranged by rule (layouts 1 to 4) ---------------------------------------------------------------------------------------------------------------------------------
+// A card supplies content only: its values (in order of importance), its formula and its explanation (one to four lines, most important first; a line may carry the current values). The layout module chooses the
+// arrangement and every box. ROWS (as built before): the explanation is one line that fits the note box. COLUMNS: anything else; the values stack in columns 1 to 4, the formula stands at the top of columns 5 to 12
+// and the explanation under it as bullets. Two rows tall when the card has at most two values and its explanation fits two lines; three rows tall when it needs more and every picture still fits; else two rows.
+// What gives way when it does not all fit: first the last explanation line, then the last value. Never shrunk text, never overlap; a line wider than its room is refused.
+export const COLUMNS = Object.freeze({
+  valuesBox: [12, 200], textBox: [220, 408], formulaBand: 28, lineHeight: 17.5, bullet: '• ', textClear: 8,
+  heights: Object.freeze({ 2: Object.freeze({ y: 319.2, h: 68.8, lastPictureRow: 8 }), 3: Object.freeze({ y: 280.8, h: 107.2, lastPictureRow: 7 }) }),
+});
+const TEXT_LAYOUTS = Object.freeze(['wide', 'side-by-side', 'equal-split', 'stacked']);
+const r2 = value => Math.round(value * 100) / 100;
+const gridBox = ([c0, c1], [r0, r1]) => [r2(GRID.padding + (c0 - 1) * GRID.columnWidth + GRID.inset), r2(GRID.padding + (r0 - 1) * GRID.rowHeight + GRID.inset), r2((c1 - c0 + 1) * GRID.columnWidth - 2 * GRID.inset), r2((r1 - r0 + 1) * GRID.rowHeight - 2 * GRID.inset)];
+// The pictures' boxes: a slot that ends at row 8 ends at row 7 when the text area is three rows tall.
+const pictureBoxes = (layout, rowsTall) => Object.fromEntries(['stage', 'panel'].filter(name => layout.slots[name]).map(name => {
+  const { cols, rows, box } = layout.slots[name];
+  return [name, rows[1] === 8 && rowsTall === 3 ? gridBox(cols, [rows[0], COLUMNS.heights[3].lastPictureRow]) : box];
+}));
+
+// variants: one entry per state the card can show: { values: [{ text }], explanation: [line] } (the texts at that state; every variant has the same number of values and lines). formula: TeX.
+// pictureMins: { stage?: height, panel?: height }, the least height each picture can be drawn at (a renderer min.height, or a program-drawn stage's own stated minimum).
+// -> { layout, arrangement: 'rows' | 'columns', rowsTall (null for rows), pictures: { stage, panel? }, values: { count, boxes: [[x, y, w, h]], dots: [[cx, cy, d]] }, formula: { at: [x, y], align },
+//      explanation: { kind: 'box', box } | { kind: 'lines', x, ys: [centre y of each line] }, dropped: { explanationLines, values } }
+export function arrangeText(layoutId, { variants, formula, pictureMins = {} }, sizes = DRAWN_TEXT_SIZES) {
+  const layout = layoutById(layoutId);
+  if (!layout) throw new LayoutError('layout_unknown', `no layout "${layoutId}"`, ['layout']);
+  if (!variants?.length) throw new LayoutError('explanation_missing', 'a card supplies at least one state with its values and explanation', ['explanation']);
+  const valueCount = variants[0].values.length, lineCount = variants[0].explanation.length;
+  if (variants.some(variant => variant.values.length !== valueCount || variant.explanation.length !== lineCount)) throw new LayoutError('variants_differ', 'every state of a card has the same number of values and explanation lines', ['explanation']);
+  if (lineCount < 1 || lineCount > 4) throw new LayoutError('explanation_lines', `an explanation is one to four lines, not ${lineCount}`, ['explanation']);
+  const noteRoom = layout.slots.note.box[2] - 2 * GRID.textClear, lineRoom = COLUMNS.textBox[1] - 2 * COLUMNS.textClear;
+  const widest = lines => Math.max(...lines.map(line => textWidth(line, sizes.note)));
+  // ROWS: the old arrangement, as built (and the only one for layouts 5 and 6).
+  const oneLine = lineCount === 1 && variants.every(variant => widest(variant.explanation) <= noteRoom);
+  if (oneLine || !TEXT_LAYOUTS.includes(layoutId)) {
+    if (lineCount !== 1) throw new LayoutError('explanation_lines', `layout ${layoutId} takes one explanation line, not ${lineCount}`, ['explanation']);
+    for (const variant of variants) checkText(layoutId, { formula: `$${formula}$`, note: variant.explanation[0] }, sizes);
+    const count = Math.min(...variants.map(variant => fitValues(layoutId, variant.values, sizes).values.length)), boxes = valueBoxes(layoutId, count);
+    const centred = ([x, y, w, h]) => [x, r2(y + (h - 28) / 2), w, 28];
+    const [fx, fy, fw, fh] = layout.slots.formula.box;
+    return {
+      layout: layoutId, arrangement: 'rows', rowsTall: null, pictures: Object.fromEntries(['stage', 'panel'].filter(name => layout.slots[name]).map(name => [name, layout.slots[name].box])),
+      values: { count, boxes: boxes.map(entry => centred(entry.box)), dots: boxes.map(({ box: [x, y, , h] }) => [x + VALUE_DOT.centreX, r2(y + h / 2), VALUE_DOT.diameter]) },
+      formula: { at: [fx + fw / 2, fy + fh / 2], align: 'middle' }, explanation: { kind: 'box', box: centred(layout.slots.note.box) }, dropped: { explanationLines: 0, values: valueCount - count },
+    };
+  }
+  // COLUMNS
+  const formulaWidth = textWidth(`$${formula}$`, sizes.formula);
+  if (formulaWidth > lineRoom) throw new LayoutError('text_too_wide', `the formula needs ${Math.round(formulaWidth)} px; its box allows ${lineRoom} px`, ['formula']);
+  for (const variant of variants) for (const line of variant.explanation) {
+    const width = textWidth(COLUMNS.bullet + line, sizes.note);
+    if (width > lineRoom) throw new LayoutError('text_too_wide', `the explanation line "${line}" needs ${Math.round(width)} px; its box allows ${lineRoom} px`, ['explanation']);
+  }
+  const capacity = tall => ({ values: tall === 2 ? 2 : 3, lines: Math.floor((COLUMNS.heights[tall].h - COLUMNS.formulaBand) / COLUMNS.lineHeight) });
+  const picturesFit = Object.entries(pictureMins).every(([name, min]) => !layout.slots[name] || min <= pictureBoxes(layout, 3)[name][3]);
+  const rowsTall = valueCount <= 2 && lineCount <= capacity(2).lines ? 2 : picturesFit ? 3 : 2, { values: valueCap, lines: lineCap } = capacity(rowsTall), area = COLUMNS.heights[rowsTall];
+  const lines = Math.min(lineCount, lineCap), valueRoom = COLUMNS.valuesBox[1] - 2 * dotSide;
+  let count = Math.min(valueCount, valueCap);
+  while (count > 0 && !variants.every(variant => variant.values.slice(0, count).every(({ text }) => textWidth(text, sizes.value) <= valueRoom))) count--;
+  if (count < 1) throw new LayoutError('values_none', 'not even one value fits its box', ['values']);
+  const slot = (area.h - GRID.valueGap * (count - 1)) / count;
+  const boxes = Array.from({ length: count }, (_, i) => { const top = area.y + i * (slot + GRID.valueGap); return { box: [COLUMNS.valuesBox[0], r2(top + (slot - 28) / 2), COLUMNS.valuesBox[1], 28], dot: [COLUMNS.valuesBox[0] + VALUE_DOT.centreX, r2(top + slot / 2), VALUE_DOT.diameter] }; });
+  const left = COLUMNS.textBox[0] + COLUMNS.textClear, below = area.y + COLUMNS.formulaBand;
+  return {
+    layout: layoutId, arrangement: 'columns', rowsTall, pictures: pictureBoxes(layout, rowsTall),
+    values: { count, boxes: boxes.map(entry => entry.box), dots: boxes.map(entry => entry.dot) },
+    formula: { at: [left, r2(area.y + COLUMNS.formulaBand / 2)], align: 'start' },
+    explanation: { kind: 'lines', x: left, ys: Array.from({ length: lines }, (_, i) => r2(below + COLUMNS.lineHeight * (i + 0.5))) },
+    dropped: { explanationLines: lineCount - lines, values: valueCount - count },
+  };
 }
