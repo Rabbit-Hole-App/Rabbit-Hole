@@ -181,3 +181,13 @@ test('(c) v4-2: "lands at", "comes to", "works out to" (and "sits at") connect a
   assert.match(saysResp('The lower fence sits at 60.').problem, /"lower fence 60"/);
   assert.equal(saysResp('The upper fence lands at 136.25 milliseconds. The IQR comes to 19.5 and the median works out to 95.'), null);
 });
+
+// ---- v4 (3): number words ----
+test('(c) v4-3: number words are read as numbers before the scan (hyphenated, spaced, "point" decimals); a lone "one" and hundreds are left alone', () => {
+  assert.match(saysResp('The median is ninety and the upper fence is one hundred and twenty.').problem, /"median 90"/);
+  assert.doesNotMatch(saysResp('The median is ninety and the upper fence is one hundred and twenty.').problem, /"upper fence /, 'hundreds are not read');
+  assert.equal(saysResp('The IQR is nineteen point five, the lower fence is fifty-eight point two five and the upper fence is one hundred and thirty-six.'), null, 'right in words, hundreds unread');
+  assert.equal(saysResp('The IQR is nineteen point five and the lower fence is fifty-eight point two five. The median is ninety five.'), null, 'right numbers in words pass (ninety five = 95)');
+  assert.match(saysResp('The median is twenty four.').problem, /"median 24"/);
+  assert.equal(saysResp('The median is one of the values and one box shows it.'), null, 'a lone "one" is a pronoun');
+});

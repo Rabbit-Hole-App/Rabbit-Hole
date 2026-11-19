@@ -567,7 +567,17 @@ export function boxFieldsChanged(md) {
 // none, then the number; skipped when it is an operand ("Q3 - Q1", "1.5 x IQR = 9", "= 11.5 + 9") or is followed by a word of its own ("median of 9 values", "IQR 6 points"). shortcut: "Q1 and Q3 are
 // 5.5 and 11.5" (a number two words away) is not read; upgrade on the Reviewer's word.
 const STAT_TEXT = /(?<![\w.]|[-+×*/]\s*|\bx\s*)(upper fence|lower fence|interquartile range|IQR|median|first quartile|lower quartile|third quartile|upper quartile|Q1|Q3)(?!\w|[-+]\d)(?:\s*\([^()]*[A-Za-z][^()]*\))?\s*(?:(?:is|are|was|of|at|equals|sits at|stands at|lands at|comes to|works out to)\b|[=:≈~])?\s*\(?\s*(-?\d+(?:\.\d+)?)/gi;
-const plainStats = text => String(text ?? '').replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1').replace(/\\(?:times|cdot)/g, '×').replace(/\\[,;!]|\\left|\\right|\$|\*\*/g, ' ').replace(/Q_\{?([13])\}?/g, 'Q$1').replace(/[−–‐‑‒—]/g, '-').replace(/[·⋅∙]/g, '×');
+const plainStats = text => String(text ?? '').replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1').replace(/\\(?:times|cdot)/g, '×').replace(/\\[,;!]|\\left|\\right|\$|\*\*/g, ' ').replace(/Q_\{?([13])\}?/g, 'Q$1').replace(/[−–‐‑‒—]/g, '-').replace(/[·⋅∙]/g, '×').replace(WORD_NUMBER, wordsToNumber);
+// Number words read as numbers before the scan (whole numbers to ninety-nine, "point" decimals; hyphenated or spaced): "twenty-four" 24, "thirty-three point five" 33.5. A lone "one" stays a word (it is
+// a pronoun: "one of the values"), and a number word before or after hundred, thousand or million is left alone. shortcut: "thirty one thousand" reads as 30; hundreds are not read; upgrade on the Reviewer's word.
+const WORD_VALUES = Object.fromEntries(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'].map((w, i) => [w, i]).concat(['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'].map((w, i) => [w, 20 + 10 * i])));
+const DIGIT_WORDS = 'zero|one|two|three|four|five|six|seven|eight|nine';
+const WORD_NUMBER = new RegExp(String.raw`(?<![\w-])(?<!(?:hundred|thousand|million)\s+(?:and\s+)?)(?:(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[-\s](one|two|three|four|five|six|seven|eight|nine))?|(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))(?:\s+point((?:\s+(?:${DIGIT_WORDS}))+))?(?![\w-])(?!\s+(?:hundred|thousand|million|billion))`, 'gi');
+function wordsToNumber(whole, tens, unit, single, decimals) {
+  if (!decimals && single?.toLowerCase() === 'one') return whole;
+  const value = (tens ? WORD_VALUES[tens.toLowerCase()] + (unit ? WORD_VALUES[unit.toLowerCase()] : 0) : WORD_VALUES[single.toLowerCase()]);
+  return decimals ? `${value}.${decimals.trim().split(/\s+/).map(w => WORD_VALUES[w.toLowerCase()]).join('')}` : String(value);
+}
 const NOT_OPERAND = /^\s*(?:[+×*/^÷]|-\s*\d|x\s*\d|(?:minus|plus|times|divided|over)\b)|^\w|^\s+(?:values?|numbers?|data|points?|observations?|samples?|items?|elements?|entries|readings?|students?|people|rows|times|more|less|higher|lower|above|below|greater|smaller|larger|bigger|apart|wide|long|away|spread)\b/i;
 const EXPR_RESULT = /^(?:\s*(?:[+×*/÷]|-|x(?=\s*\d))\s*\(?-?\d+(?:\.\d+)?\)?)+\s*=\s*(-?\d+(?:\.\d+)?)/i; // "- 90 = 14", "+ 1.5 × 14 = 125": an expression after the term's first number, and its result
 const STAT_KEY = { 'interquartile range': 'iqr', 'first quartile': 'q1', 'lower quartile': 'q1', 'third quartile': 'q3', 'upper quartile': 'q3' };
