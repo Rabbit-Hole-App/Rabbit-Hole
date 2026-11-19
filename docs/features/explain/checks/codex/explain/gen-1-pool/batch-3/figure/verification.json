@@ -1,0 +1,198 @@
+{
+  "sha": "5d027b67fbe829c8549e7a26003d989f1ef3119d",
+  "records": [
+    {
+      "id": "pool-hanging-shop-sign",
+      "kind": "figure",
+      "depths": {
+        "overview": {
+          "tokens": 114,
+          "parsedTokens": 114,
+          "nativeWidth": 408,
+          "height": 499,
+          "ownPicks": [
+            {
+              "prompt": "How do cable tension and weight balance on a hanging shop sign?",
+              "kind": "figure",
+              "picked": [
+                "pool-hanging-shop-sign"
+              ],
+              "steer": "pool-hanging-shop-sign",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 145,
+          "parsedTokens": 145,
+          "nativeWidth": 408,
+          "height": 562,
+          "ownPicks": [
+            {
+              "prompt": "How do cable tension and weight balance on a hanging shop sign?",
+              "kind": "figure",
+              "picked": [
+                "pool-hanging-shop-sign"
+              ],
+              "steer": "pool-hanging-shop-sign",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 157,
+          "parsedTokens": 157,
+          "nativeWidth": 408,
+          "height": 579,
+          "ownPicks": [
+            {
+              "prompt": "How do cable tension and weight balance on a hanging shop sign?",
+              "kind": "figure",
+              "picked": [
+                "pool-hanging-shop-sign"
+              ],
+              "steer": "pool-hanging-shop-sign",
+              "score": 58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-sliding-shipping-crate",
+      "kind": "figure",
+      "depths": {
+        "overview": {
+          "tokens": 143,
+          "parsedTokens": 143,
+          "nativeWidth": 408,
+          "height": 541,
+          "ownPicks": [
+            {
+              "prompt": "Which forces act on a sliding shipping crate pushed along a level floor?",
+              "kind": "figure",
+              "picked": [
+                "pool-sliding-shipping-crate"
+              ],
+              "steer": "pool-sliding-shipping-crate",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 192,
+          "parsedTokens": 192,
+          "nativeWidth": 408,
+          "height": 649,
+          "ownPicks": [
+            {
+              "prompt": "Which forces act on a sliding shipping crate pushed along a level floor?",
+              "kind": "figure",
+              "picked": [
+                "pool-sliding-shipping-crate"
+              ],
+              "steer": "pool-sliding-shipping-crate",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 212,
+          "parsedTokens": 212,
+          "nativeWidth": 408,
+          "height": 683,
+          "ownPicks": [
+            {
+              "prompt": "Which forces act on a sliding shipping crate pushed along a level floor?",
+              "kind": "figure",
+              "picked": [
+                "pool-sliding-shipping-crate"
+              ],
+              "steer": "pool-sliding-shipping-crate",
+              "score": 58
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pool-double-glazed-window",
+      "kind": "figure",
+      "depths": {
+        "overview": {
+          "tokens": 96,
+          "parsedTokens": 96,
+          "nativeWidth": 408,
+          "height": 355,
+          "ownPicks": [
+            {
+              "prompt": "What is the order of glass and air in the cross-section of a double-glazed window?",
+              "kind": "figure",
+              "picked": [
+                "pool-double-glazed-window"
+              ],
+              "steer": "pool-double-glazed-window",
+              "score": 58
+            }
+          ]
+        },
+        "standard": {
+          "tokens": 121,
+          "parsedTokens": 120,
+          "nativeWidth": 408,
+          "height": 435,
+          "ownPicks": [
+            {
+              "prompt": "What is the order of glass and air in the cross-section of a double-glazed window?",
+              "kind": "figure",
+              "picked": [
+                "pool-double-glazed-window"
+              ],
+              "steer": "pool-double-glazed-window",
+              "score": 58
+            }
+          ]
+        },
+        "deep": {
+          "tokens": 147,
+          "parsedTokens": 146,
+          "nativeWidth": 408,
+          "height": 514,
+          "ownPicks": [
+            {
+              "prompt": "What is the order of glass and air in the cross-section of a double-glazed window?",
+              "kind": "figure",
+              "picked": [
+                "pool-double-glazed-window"
+              ],
+              "steer": "pool-double-glazed-window",
+              "score": 58
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "replay": {
+    "existingPromptDepthCases": 3105,
+    "savedPlannerCases": 474,
+    "overlap": 0,
+    "moves": []
+  },
+  "pool": {
+    "overview": {
+      "before": 0,
+      "after": 3
+    },
+    "standard": {
+      "before": 0,
+      "after": 3
+    },
+    "deep": {
+      "before": 0,
+      "after": 3
+    }
+  },
+  "publishedTip": "83d17a7af04f891849a392a33c292683e99aa8a3",
+  "publishedTree": "0efeac0867b3b22ba824680a53335161e43022d0"
+}
