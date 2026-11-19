@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fallbackOpening, openingMessage, repositoryArrival } from './rehearsal-flow.js';
+import { fallbackOpening, openingEntry, openingMessage, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
 import { openBody } from './source-arrived.js';
 import { SENTENCES } from './tutor-rehearsal-text.js';
 
@@ -36,4 +36,23 @@ test('the opening: the Tutor\'s words and the options as rows; learn_open failin
 test('Run it is a flag, off by default and never set for production', () => {
   assert.match(read('flags.js'), /export const runIt = import\.meta\.env\?\.VITE_RUN_IT === '1'/);
   assert.doesNotMatch(read('../../../scripts/prod-release.mjs'), /VITE_RUN_IT/);
+});
+
+// Reviewer 2026-11-19 08:20: the opening is saved into the chat thread like any Tutor line; a reload shows the same opening with no second model call.
+test('the opening is saved as a Tutor entry and a reload puts it back, rows live, with no learn_open; codebase-options still writes a new one', () => {
+  const entry = openingEntry({ kind: 'repository', options: doc.learn.options, canRun: true });
+  assert.deepEqual(entry, { v: 1, kind: 'opening', seq: 1, source: 'repository', canRun: true, options: [{ id: 'render', label: 'How a widget is drawn', what: 'the render loop' }] });
+  assert.ok(JSON.stringify(entry).length < 4000, 'within the 4 KB the server takes for meta.tutor');
+  const thread = [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'A widget library. What now?', meta: { tutor: entry } }, { role: 'assistant', content: 'other', meta: { tutor: { v: 1, kind: 'route', seq: 1 } } }];
+  const saved = savedOpenings(thread);
+  assert.equal(saved.length, 1);
+  const back = restoreOpenings({ log: [] }, saved, { run: false });
+  assert.deepEqual([back.asked, back.openings, back.opening, back.mode], [1, 1, null, 'learn']);
+  assert.deepEqual([back.log[0].key, back.log[0].text, back.log[0].choices.map(c => c.id)], ['intake', 'A widget library. What now?', ['learn:render']]);
+  assert.equal(restoreOpenings({ log: [] }, []), null, 'none saved: the opening is written');
+  const ui = read('TutorRehearsal.jsx');
+  assert.match(ui, /const back = restoreOpenings\(st\.current, savedOpenings\(chat\.thread\?\.restore\?\.messages\)\);\n\s+if \(back\) \{ patch\(back\); return; \}/, 'the thread is read before any learn_open');
+  assert.match(ui, /saveTutorEntry\(\{ app: canvas, threadId, clientId: `opening-\$\{message\.key\}`, content: message\.text, tutor: openingEntry\(detail\)/);
+  assert.match(read('ChatMessages.jsx'), /\(hideTutor && m\.meta\?\.tutor\?\.kind === hideTutor\) \? null/, 'the transcript leaves it to the flow: never shown twice');
+  assert.match(read('ask.jsx'), /hideTutor=\{REHEARSAL && chat && !tocView \? OPENING_KIND : null\}/);
 });

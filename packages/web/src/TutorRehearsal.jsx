@@ -9,7 +9,8 @@ import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText, routeLearnT
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
-import { appendOpening, askIntake, fallbackOpening, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, openingKey, openingMessage, optionsOpen, repositoryArrival } from './rehearsal-flow.js';
+import { appendOpening, askIntake, fallbackOpening, flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute, openingEntry, openingKey, openingMessage, optionsOpen, repositoryArrival, restoreOpenings, savedOpenings } from './rehearsal-flow.js';
+import { newThreadId, saveTutorEntry } from './chat-persist.js';
 import { SOURCE_ARRIVED_EVENT, openBody, sourceArrived } from './source-arrived.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
 import { chapterCount, cleanOps, planRows, planTree, sectionEntries, storedLearn } from './learn-plan.js';
@@ -506,11 +507,17 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
   }, [stored?.id, !!s.doc, !!repository]); // eslint-disable-line react-hooks/exhaustive-deps
   // Intake asked once (intake-once-spec.md 1): when the catalogue and its options are in and no saved Learn goal brings the flow back, the question is appended to the
   // thread once for this open of the chat; a later render adds nothing.
+  // The chat's thread is read first (its restore): an opening saved there comes back as it was, with no second learn_open (Reviewer 2026-11-19 08:20).
+  const threadStatus = chat.thread?.status;
   useEffect(() => {
-    if (!active || stored || st.current.learn) return;
+    if (!active || stored || st.current.learn || threadStatus === 'loading') return;
+    if (!st.current.asked && askIntake(st.current)) {
+      const back = restoreOpenings(st.current, savedOpenings(chat.thread?.restore?.messages));
+      if (back) { patch(back); return; }
+    }
     const ask = askIntake(st.current);
     if (ask) { patch(ask); sourceArrived(canvas, repositoryArrival(st.current.doc)); }
-  }, [active, !!stored, !!s.doc, s.get?.learn?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, !!stored, !!s.doc, s.get?.learn?.status, threadStatus]); // eslint-disable-line react-hooks/exhaustive-deps
   // Any source arriving (source-arrived.js): the Tutor writes the opening (learn_open) and ONE message joins the thread, its options as rows; a failed call says the fixed
   // sentence with the same rows (the learner always gets the question).
   useEffect(() => {
@@ -523,6 +530,10 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
       if (!live.current) return;
       const message = openingMessage({ key: openingKey(st.current), text: text || fallbackOpening(detail.summary, detail.options), options: detail.options || [], canRun: !!detail.canRun });
       patch(old => appendOpening(old, message));
+      // Saved into the open thread like any Tutor line (a new chat gets its thread here, as a first turn would); a failed save keeps it on screen for this visit.
+      const thread = chatRef.current.thread, fresh = !thread?.id, threadId = thread?.id || newThreadId(), title = fresh ? String(detail.summary || '').replace(/\*\*/g, '').split(':')[0].slice(0, 80) || null : null;
+      saveTutorEntry({ app: canvas, threadId, clientId: `opening-${message.key}`, content: message.text, tutor: openingEntry(detail), mode: thread?.mode || 'auto', title })
+        .then(() => { if (fresh && live.current) chatRef.current.thread?.adopt?.(threadId, title || ''); }).catch(() => {});
     };
     window.addEventListener(SOURCE_ARRIVED_EVENT, onArrived);
     return () => window.removeEventListener(SOURCE_ARRIVED_EVENT, onArrived);

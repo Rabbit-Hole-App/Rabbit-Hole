@@ -26,4 +26,7 @@ This replaces the "intake asked once" draft. The opening question is written by 
    - learn-codebase-source-map.test.js: the prompt is byte-equal to the owner's sentence, one call with the words as material, nothing written, 502 and 400.
    - Browser checks: intake-run-or-learn-check.mjs (the two-step intake it covered is gone) is removed. learn-plan-check.mjs picks its topic from the opening's rows.
 
-Shortcut: the opening lives in the flow's thread state (`state.log`) like the Tutor's other intake lines, so a reload writes it again (once per open). It is not saved into the Chat thread.
+6. **Saved into the chat thread** (Reviewer 2026-11-19 08:20).
+   - Each opening is saved as a Tutor entry (`saveTutorEntry`, `meta.tutor.kind: 'opening'`, with its options and canRun) in the open thread. A new chat gets its thread here, as a first turn would.
+   - A reload reads the thread first (`savedOpenings`, `restoreOpenings`): the same opening comes back with live rows and no second `learn_open`.
+   - The transcript leaves `opening` entries to the Tutor flow (ChatMessages `hideTutor`), so it is never shown twice. codebase-options still writes a new one.

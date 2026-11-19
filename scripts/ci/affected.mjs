@@ -26,13 +26,16 @@ export function select(changes, map, force = false) {
   const linux = Object.keys(map.checks).filter(c => map.checks[c].runner !== 'windows-only');
   const checks = new Set(), unitTests = new Set(), reasons = force ? ['readiness: broad'] : [], unmapped = []; let broad = force;
   for (const c of changes) for (const p of [c.path, c.oldPath].filter(Boolean)) {
+    // A deleted file (status D) needs no mapping of its own and never runs itself (a deleted check, a deleted unit test); a row it still has selects as usual.
+    const gone = c.status === 'D';
     const k = classify(p, map);
     if (k === 'broad') { broad = true; reasons.push(`${p}: broad`); }
-    else if (k === 'unmapped') { unmapped.push(p); reasons.push(`${p}: unmapped`); }
+    else if (k === 'unmapped') { if (!gone) { unmapped.push(p); reasons.push(`${p}: unmapped`); } }
     else if (k === 'mapped') {
       const own = /^packages\/web\/e2e\/([^/]+-check\.mjs)$/.exec(p)?.[1];
+      if (gone && own) continue;
       const hits = own ? [own] : Object.entries(map.mapped).filter(([g]) => rx(g).test(p)).flatMap(([, v]) => v);
-      for (const h of hits) { (h.includes('/') ? unitTests : checks).add(h); reasons.push(`${h}: ${p}`); }
+      for (const h of hits) { if (gone && h === p) continue; (h.includes('/') ? unitTests : checks).add(h); reasons.push(`${h}: ${p}`); }
     }
   }
   if (broad) linux.forEach(c => checks.add(c));

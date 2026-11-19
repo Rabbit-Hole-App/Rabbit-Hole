@@ -479,7 +479,8 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
 // their words in the composer through setInput - a command as its typed /line, which Send runs through the slash path -
 // and Regenerate stays hidden.
 // renderTutor(m): a saved Tutor entry (meta.tutor) drawn by the roadmap transcript, in its own place (RoadmapTranscript.jsx TutorMessage).
-export function ChatMessages({ renderTutor = null, ...given }) {
+// hideTutor: a Tutor entry kind another surface draws (the Tutor flow's opening, TutorRehearsal.jsx), left out here so it is never shown twice.
+export function ChatMessages({ renderTutor = null, hideTutor = null, ...given }) {
   const chat = useChatWorkspace();
   const ops = chat?.canvasOps;
   const typeIn = given.setInput && (({ text = '', command = null }) => {
@@ -496,7 +497,7 @@ ${line}` : line));
     onCreateExplainCard: chat?.ask ? (question => chat.ask({ line: `/${typedOf('explanation')} ${question}` })) : null,
     onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null, outputOps: ops ?? null };
   const { msgs, sheetMode } = props;
-  return msgs.map((m, i) => (sheetMode && m.card) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />);
+  return msgs.map((m, i) => (sheetMode && m.card) || (hideTutor && m.meta?.tutor?.kind === hideTutor) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />);
 }
 
 // Jump to latest (owner 2026-11-08): shown exactly while the list is scrolled away from the bottom (chat-scroll.js atEnd), as its own

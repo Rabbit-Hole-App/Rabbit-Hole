@@ -18,6 +18,7 @@ import { learnOf, optionRows } from './learn-intake.js';
 import { draftText } from './learn-plan.js';
 import { reviewTools, runIt } from './flags.js';
 import { sampleSectionOn } from './learn-sample-section.js';
+import { OPENING_KIND } from './source-arrived.js';
 // Dev build only (Reviewer 2026-11-18 13:32): the built 1.1 fixture onto this fresh canvas, so a layout, walk or contents check costs seconds and no model call.
 const SAMPLE_ROW = { id: 'sample:load', label: 'Load sample section' };
 const sampleRow = () => (sampleSectionOn() ? [SAMPLE_ROW] : []);
@@ -63,6 +64,16 @@ export function askIntake(state, { again = false, run = runIt } = {}) {
 // The opening appended to the thread (the n-th one keyed intake-n). -> the state change.
 export const appendOpening = (state, message) => ({ opening: null, openings: (state.openings || 0) + 1, log: [...(state.log || []), message] });
 export const openingKey = state => ((state.openings || 0) === 0 ? 'intake' : `intake-${(state.openings || 0) + 1}`);
+// Saved into the chat thread like any Tutor line (Reviewer 2026-11-19 08:20): the opening's words and its rows' source, as a Tutor entry (meta.tutor, kind 'opening').
+// A reload rebuilds the opening from it, with no second learn_open. tutor stays small (ids, labels, what): the server takes at most 4 KB.
+export const openingEntry = ({ kind, options = [], canRun = false }) => ({ v: 1, kind: OPENING_KIND, seq: 1, source: kind, canRun: !!canRun, options: options.map(({ id, label, what }) => ({ id, label, what: String(what || '').slice(0, 300) })) });
+export const savedOpenings = messages => (messages || []).filter(m => m?.role === 'assistant' && m?.meta?.tutor?.kind === OPENING_KIND);
+// -> the state change that puts the thread's saved openings back (asked, in order, rows live as before), or null when the thread has none.
+export function restoreOpenings(state, saved, { run = runIt } = {}) {
+  if (!saved?.length) return null;
+  const log = saved.map((m, i) => openingMessage({ key: i === 0 ? 'intake' : `intake-${i + 1}`, text: String(m.content || ''), options: m.meta.tutor.options || [], canRun: !!m.meta.tutor.canRun, run }));
+  return { asked: saved.length, openings: saved.length, opening: null, mode: run ? null : 'learn', log: [...(state.log || []), ...log] };
+}
 
 // The route the pipeline runs once "Use the codebase" is chosen with exactly one practical route.
 export const onlyRoute = doc => { const practical = (doc?.routes || []).filter(route => route.practical); return practical.length === 1 ? practical[0] : null; };

@@ -33,6 +33,12 @@ test('an unmapped executable path is reported and selects no check', () => {
   assert.equal(s.broad, false);
   assert.deepEqual(s.reasons, ['packages/web/src/New.jsx: unmapped']);
 });
+// A deleted file needs no mapping and never runs itself (a branch that removes a check or a component was refused by the plan, run 44472322504).
+test('a deleted path: no unmapped error, a deleted check is not selected, a deleted file still mapped selects its row', () => {
+  const s = select([{ status: 'D', path: 'packages/web/src/Gone.jsx' }, { status: 'D', path: 'packages/web/e2e/gone-check.mjs' }], map);
+  assert.deepEqual([s.unmapped, s.checks], [[], []]);
+  assert.deepEqual(select([{ status: 'D', path: 'packages/web/src/Dive.jsx' }], map).checks, ['dive-check.mjs']);
+});
 // A mapped row may name unit-test files (an entry with a slash) beside browser checks: they go to unitTests, never to checks.
 test('unit-test files in a mapped row are listed as unitTests, never as browser checks', () => {
   const m = { ...map, mapped: { 'packages/web/src/Dive.jsx': ['dive-check.mjs', 'packages/web/src/dive.test.mjs'], 'packages/web/src/x.js': ['packages/web/src/x.test.mjs'] } };
