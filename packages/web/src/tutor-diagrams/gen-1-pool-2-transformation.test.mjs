@@ -31,6 +31,7 @@ for (const { id, name, options, temperature } of fixtures) {
       const { diagram } = spec;
       assert.equal(diagram.op, 'softmax');
       assert.equal(diagram.t, temperature);
+      assert.equal(Object.hasOwn(diagram, 'links'), false);
       assert.equal(Object.hasOwn(diagram.after, 'items'), false);
       assert.deepEqual(diagram.before.items, options.map(({ label }, i) => `${label}: ${scores[i]}`));
       assert.deepEqual(lintDiagramContent(spec), []);

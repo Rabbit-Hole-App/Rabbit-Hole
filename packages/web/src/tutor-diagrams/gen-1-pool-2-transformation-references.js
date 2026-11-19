@@ -2,7 +2,7 @@ import { derived } from './gen-1-pool-2-transformation-data.js';
 
 const { grant, tea } = derived();
 
-function transformation({ id, prompts, keywords, useWhen, title, captions, inputs, scoreLabel, shareLabel, operation, leaderLabel }) {
+function transformation({ id, prompts, keywords, useWhen, title, captions, inputs, scoreLabel, shareLabel, operation }) {
   const depths = Object.fromEntries(Object.entries(captions).map(([level, caption]) => [level, {
     spec: {
       version: 1,
@@ -15,9 +15,6 @@ function transformation({ id, prompts, keywords, useWhen, title, captions, input
         operation,
         op: 'softmax',
         ...(inputs.temperature === undefined ? {} : { t: inputs.temperature }),
-        ...(level === 'overview' ? {} : {
-          links: [{ from: inputs.leader, to: inputs.leader, label: leaderLabel }],
-        }),
       },
     },
   }]));
@@ -40,7 +37,6 @@ export const references = Object.freeze([
     scoreLabel: 'Project scores',
     shareLabel: 'Grant shares',
     operation: 'Exponentiate, then divide by the sum',
-    leaderLabel: 'Largest grant share',
   }),
   transformation({
     id: 'pool-fruit-tea-blend-softmax',
@@ -57,7 +53,6 @@ export const references = Object.freeze([
     scoreLabel: 'Tasting scores',
     shareLabel: 'Blend shares',
     operation: `Divide scores by ${tea.temperature}, then apply softmax`,
-    leaderLabel: 'Largest blend share',
   }),
 ]);
 
