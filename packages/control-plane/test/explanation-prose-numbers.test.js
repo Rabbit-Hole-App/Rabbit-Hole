@@ -32,6 +32,11 @@ test('equations that are right, rounded, or not a plain recompute are never flag
   for (const text of quiet_) assert.deepEqual(proseArithmetic(text), [], text);
 });
 
+test('tolerance is one full unit of the written decimals when the computed value has more digits (a truncated result passes), half a unit when it fits exactly', () => {
+  for (const ok of ['So 7/9 = 0.77 of them.', 'About 1/3 = 0.33.', 'Then $0.755 + 0 = 0.76$.', 'The share is 2/3 = 0.66 here.']) assert.deepEqual(proseArithmetic(ok), [], ok); // 0.7778 vs 0.77, 0.3333 vs 0.33, 0.755 vs 0.76 (half a unit), 0.6667 vs 0.66 (truncated)
+  for (const bad of ['So 7/9 = 0.75 of them.', 'Then $0.755 + 0 = 0.77$.', 'We get 0.5 * 0.8 + 0.5 * -0.5 = 0.34.', 'So 2 + 2 = 5 here.']) assert.equal(proseArithmetic(bad).length, 1, bad); // 0.7778 vs 0.75 (2.8 units), 0.755 vs 0.77 (1.5 units), 0.15 vs 0.34, an exact value keeps half a unit
+});
+
 test('a wrong equation in plain text and in a chain is found; each distinct equation once; the 154 cards stay clean', () => {
   assert.deepEqual(proseArithmetic('The lower fence is $6 - 5.25 = -0.25$ and the upper fence is $9.5 + 5.25 = 18.75$.').map(f => [f.stated, +f.computed.toFixed(4)]), [[-0.25, 0.75], [18.75, 14.75]]);
   assert.equal(proseArithmetic('Adding 104 + 24.75 = 130.25 ms, then again 104 + 24.75 = 130.25 ms.').length, 1);

@@ -452,8 +452,8 @@ function fenceProblem(error) {
   return arithmeticOf(error).length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
 }
 // NUM-2 (Reviewer 2026-11-18, after the VAR-1 bench): two more numbers the server recomputes, arithmetic-tagged like the 154 rules (never dropped or simplified: one repair, then the step fails).
-// (1) A prose equation `a op b ... = c` whose whole left side is numbers and operators (+ - x * / and brackets, in $...$ or plain text): the stated result must be the computed one within half a
-// unit of the decimals written (a result written with %, also as a fraction). A left side with a letter, a power or a function is skipped: no recompute guesses.
+// (1) A prose equation `a op b ... = c` whose whole left side is numbers and operators (+ - x * / and brackets, in $...$ or plain text): the stated result must be the computed one within one full
+// unit of the decimals written (half a unit when the computed value fits those digits exactly) (a result written with %, also as a fraction). A left side with a letter, a power or a function is skipped: no recompute guesses.
 const PROSE_OPS = [[/\\times|\\cdot|×|·|⋅|\*/g, '*'], [/\\div|÷/g, '/'], [/[−–‑]/g, '-'], [/\\left|\\right|\\,|\\;|\\!|~/g, ' ']];
 function arithmeticValue(source) { // a tiny + - * / ( ) evaluator over digits only; null on anything else or a division by zero
   const t = source.replace(/\s+/g, '').replace(/(\d|\))(?=\()/g, '$1*').replace(/\)(?=\d)/g, ')*');
@@ -493,7 +493,10 @@ export function proseArithmetic(text) {
       if (/^[+*/^(]|^-\s*\d|^x\s*[\d(]|^,\d{3}/.test(after)) continue; // the right side is itself an expression, or a number with thousands commas
       const value = arithmeticValue(left);
       if (value === null) continue;
-      const stated = Number(rhs[1]), decimals = (rhs[1].split('.')[1] || '').length, tol = 0.5 * 10 ** -decimals * (1 + 1e-9);
+      const stated = Number(rhs[1]), decimals = (rhs[1].split('.')[1] || '').length, scaled = value * 10 ** decimals;
+      // One full unit when the computed value has more digits than the result is written with (a truncated 1/3 = 0.33 or 7/9 = 0.77 passes; 0.34 for 0.15 does not);
+      // a value that fits the written digits exactly (2 + 2) keeps half a unit, so 2 + 2 = 5 is still wrong.
+      const tol = (Math.abs(scaled - Math.round(scaled)) < 1e-9 ? 0.5 : 1) * 10 ** -decimals * (1 + 1e-9);
       const ok = Math.abs(value - stated) <= tol || (rhs[2] && Math.abs(value * 100 - stated) <= tol);
       const written = `${left} = ${rhs[1]}${rhs[2] ? '%' : ''}`;
       if (!ok && !seen.has(written)) { seen.add(written); flags.push({ text: written, computed: value, stated, decimals }); }
