@@ -1,0 +1,3326 @@
+{
+  "method": "Production lazy library, planWithReferenceKind and selectForAuthor. Catalogue fixtures use one fixed diagram at each depth. Archive fixtures reconstruct the saved planner kind and diagram count. Exact IDs and parent IDs are both recorded. No model calls.",
+  "base": {
+    "commit": "b1cc1eeb3347bedc914983ed0a55dc12af33ef83",
+    "trackedEdits": false
+  },
+  "candidate": {
+    "commit": "5b112b3de6c80b1db7d53f6db12d80fb9924d9b5",
+    "trackedEdits": false
+  },
+  "summary": {
+    "existingCatalogueCases": 3057,
+    "savedPlannerCases": 474,
+    "existingFirstPicksMoved": 0,
+    "existingWrapperOnlyMoves": 0,
+    "existingParentPicksMoved": 0,
+    "existingPlannerKindsMoved": 0,
+    "errors": 0,
+    "newOwnPromptCases": 105,
+    "newOwnPromptFirstPicks": 105,
+    "newOwnExactPromptFirstPicks": 96
+  },
+  "existingMoves": [],
+  "newOwnPromptFirstPicks": [
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/1/brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/1/balanced",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/1/detailed",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "detailed",
+      "plannerKind": "bar-chart",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "bar-chart",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "bar-chart",
+        "resolvedPlannerKind": "bar-chart",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/2/brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Read target source alignment with the unavailable source padding excluded.",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/2/balanced",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Read target source alignment with the unavailable source padding excluded.",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/2/detailed",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Read target source alignment with the unavailable source padding excluded.",
+      "depth": "detailed",
+      "plannerKind": "bar-chart",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "bar-chart",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "bar-chart",
+        "resolvedPlannerKind": "bar-chart",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/3/brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Show cross attention axes for different translation sequences.",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/3/balanced",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Show cross attention axes for different translation sequences.",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/3/detailed",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Show cross attention axes for different translation sequences.",
+      "depth": "detailed",
+      "plannerKind": "bar-chart",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "bar-chart",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "bar-chart",
+        "resolvedPlannerKind": "bar-chart",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/4/brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "How does target source alignment produce a weighted source context?",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/4/balanced",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "How does target source alignment produce a weighted source context?",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/4/detailed",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "How does target source alignment produce a weighted source context?",
+      "depth": "detailed",
+      "plannerKind": "bar-chart",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "bar-chart",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "bar-chart",
+        "resolvedPlannerKind": "bar-chart",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/5/brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Keep source keys fixed and broaden target source alignment weights.",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/5/balanced",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Keep source keys fixed and broaden target source alignment weights.",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/5/detailed",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Keep source keys fixed and broaden target source alignment weights.",
+      "depth": "detailed",
+      "plannerKind": "bar-chart",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "bar-chart",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "bar-chart",
+        "resolvedPlannerKind": "bar-chart",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/6/brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Trace cross attention axes from target query to source values.",
+      "depth": "brief",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/6/balanced",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Trace cross attention axes from target query to source values.",
+      "depth": "balanced",
+      "plannerKind": "heatmap",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "heatmap",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "heatmap",
+        "resolvedPlannerKind": "heatmap",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-cross-attention-alignment/6/detailed",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "promptType": "exact",
+      "prompt": "Trace cross attention axes from target query to source values.",
+      "depth": "detailed",
+      "plannerKind": "bar-chart",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "bar-chart",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-cross-attention-alignment",
+        "firstReferenceId": "ml-transformer-cross-attention-alignment",
+        "firstKind": "bar-chart",
+        "resolvedPlannerKind": "bar-chart",
+        "steer": "ml-transformer-cross-attention-alignment",
+        "offered": [
+          "ml-transformer-cross-attention-alignment"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/1/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-attention",
+        "firstReferenceId": "ml-transformer-attention",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": [
+          "ml-transformer-attention"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/1/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/1/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/2/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Bidirectional and causal attention differ in which keys each query can read.",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/2/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Bidirectional and causal attention differ in which keys each query can read.",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/2/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Bidirectional and causal attention differ in which keys each query can read.",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/3/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Compare architecture context rules for GPT-2, BERT and Transformer-XL.",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-attention",
+        "firstReferenceId": "ml-transformer-attention",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": [
+          "ml-transformer-attention"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/3/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Compare architecture context rules for GPT-2, BERT and Transformer-XL.",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/3/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Compare architecture context rules for GPT-2, BERT and Transformer-XL.",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/4/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "How do architecture context rules hide future current words?",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/4/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "How do architecture context rules hide future current words?",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/4/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "How do architecture context rules hide future current words?",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/5/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Show prior segment context without revealing future current keys.",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/5/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Show prior segment context without revealing future current keys.",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/5/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Show prior segment context without revealing future current keys.",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/6/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Compare architecture context rules on the same words and focus position.",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/6/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Compare architecture context rules on the same words and focus position.",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/6/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "Compare architecture context rules on the same words and focus position.",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/7/brief",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "What changes when prior segment context is added to a causal decoder?",
+      "depth": "brief",
+      "plannerKind": "matrix",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "matrix",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules-single",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "matrix",
+        "resolvedPlannerKind": "matrix",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules-single"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/7/balanced",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "What changes when prior segment context is added to a causal decoder?",
+      "depth": "balanced",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-context-rules/7/detailed",
+      "referenceId": "ml-transformer-context-rules",
+      "promptType": "exact",
+      "prompt": "What changes when prior segment context is added to a causal decoder?",
+      "depth": "detailed",
+      "plannerKind": "comparison",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "comparison",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-context-rules",
+        "firstReferenceId": "ml-transformer-context-rules",
+        "firstKind": "comparison",
+        "resolvedPlannerKind": "comparison",
+        "steer": "ml-transformer-context-rules",
+        "offered": [
+          "ml-transformer-context-rules"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/1/brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "How do the encoder and decoder stacks connect in the original Transformer?",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/1/balanced",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "How do the encoder and decoder stacks connect in the original Transformer?",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/1/detailed",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "How do the encoder and decoder stacks connect in the original Transformer?",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/2/brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "The encoder prepares source representations that the decoder can consult while producing the target.",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/2/balanced",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "The encoder prepares source representations that the decoder can consult while producing the target.",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/2/detailed",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "The encoder prepares source representations that the decoder can consult while producing the target.",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/3/brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/3/balanced",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/3/detailed",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/4/brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/4/balanced",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/4/detailed",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/5/brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "Translation Transformers pair a source encoder with a target decoder.",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/5/balanced",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "Translation Transformers pair a source encoder with a target decoder.",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/5/detailed",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "exact",
+      "prompt": "Translation Transformers pair a source encoder with a target decoder.",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/6/brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "paraphrase",
+      "prompt": "Where does source memory go between the encoder and decoder stacks?",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/6/balanced",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "paraphrase",
+      "prompt": "Where does source memory go between the encoder and decoder stacks?",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-encoder-decoder-memory/6/detailed",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "promptType": "paraphrase",
+      "prompt": "Where does source memory go between the encoder and decoder stacks?",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-encoder-decoder-memory",
+        "firstReferenceId": "ml-transformer-encoder-decoder-memory",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-encoder-decoder-memory",
+        "offered": [
+          "ml-transformer-encoder-decoder-memory"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/1/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/1/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/1/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/2/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/2/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/2/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/3/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/3/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/3/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/4/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/4/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/4/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/5/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Trace successive contextual states at the same token positions.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/5/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Trace successive contextual states at the same token positions.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/5/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Trace successive contextual states at the same token positions.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/6/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "How do position aligned states retain special-token slots?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/6/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "How do position aligned states retain special-token slots?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/6/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "How do position aligned states retain special-token slots?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/7/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Show successive contextual states without confusing them with embedding lookups.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/7/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Show successive contextual states without confusing them with embedding lookups.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/7/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Show successive contextual states without confusing them with embedding lookups.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/8/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Do position aligned states keep the same feature width across layers?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/8/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Do position aligned states keep the same feature width across layers?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/8/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Do position aligned states keep the same feature width across layers?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/9/brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Compare successive contextual states with causal and bidirectional context.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/9/balanced",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Compare successive contextual states with causal and bidirectional context.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-contextual-layer-states/9/detailed",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "promptType": "exact",
+      "prompt": "Compare successive contextual states with causal and bidirectional context.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-contextual-layer-states",
+        "firstReferenceId": "ml-transformer-contextual-layer-states",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-contextual-layer-states",
+        "offered": [
+          "ml-transformer-contextual-layer-states"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/1/brief",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "exact",
+      "prompt": "Why does attention mix words while the feed-forward network is position-wise?",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/1/balanced",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "exact",
+      "prompt": "Why does attention mix words while the feed-forward network is position-wise?",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/1/detailed",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "exact",
+      "prompt": "Why does attention mix words while the feed-forward network is position-wise?",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/2/brief",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "exact",
+      "prompt": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/2/balanced",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "exact",
+      "prompt": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/2/detailed",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "exact",
+      "prompt": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "relationship",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/3/brief",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "paraphrase",
+      "prompt": "Does the same feed-forward network run independently on each token after attention?",
+      "depth": "brief",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/3/balanced",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "paraphrase",
+      "prompt": "Does the same feed-forward network run independently on each token after attention?",
+      "depth": "balanced",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-positionwise-feedforward/3/detailed",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "promptType": "paraphrase",
+      "prompt": "Does the same feed-forward network run independently on each token after attention?",
+      "depth": "detailed",
+      "plannerKind": "relationship",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-positionwise-feedforward",
+        "firstReferenceId": "ml-transformer-positionwise-feedforward",
+        "firstKind": "relationship",
+        "resolvedPlannerKind": "relationship",
+        "steer": "ml-transformer-positionwise-feedforward",
+        "offered": [
+          "ml-transformer-positionwise-feedforward"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/1/brief",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "What are the three sublayers of the original Transformer decoder?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/1/balanced",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "What are the three sublayers of the original Transformer decoder?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/1/detailed",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "What are the three sublayers of the original Transformer decoder?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/2/brief",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/2/balanced",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/2/detailed",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/3/brief",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/3/balanced",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/3/detailed",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "exact",
+      "prompt": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": null,
+        "firstReferenceId": null,
+        "firstKind": null,
+        "resolvedPlannerKind": "block-stack",
+        "steer": null,
+        "offered": []
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": true,
+      "familyChanged": true,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/4/brief",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "paraphrase",
+      "prompt": "What happens inside an original encoder-decoder Transformer decoder layer?",
+      "depth": "brief",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/4/balanced",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "paraphrase",
+      "prompt": "What happens inside an original encoder-decoder Transformer decoder layer?",
+      "depth": "balanced",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    },
+    {
+      "suite": "newOwnPrompt",
+      "key": "ml-transformer-original-decoder-sublayers/4/detailed",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "promptType": "paraphrase",
+      "prompt": "What happens inside an original encoder-decoder Transformer decoder layer?",
+      "depth": "detailed",
+      "plannerKind": "block-stack",
+      "visualCount": 1,
+      "before": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "after": {
+        "firstId": "ml-transformer-original-decoder-sublayers",
+        "firstReferenceId": "ml-transformer-original-decoder-sublayers",
+        "firstKind": "block-stack",
+        "resolvedPlannerKind": "block-stack",
+        "steer": "ml-transformer-original-decoder-sublayers",
+        "offered": [
+          "ml-transformer-original-decoder-sublayers"
+        ]
+      },
+      "firstChanged": false,
+      "familyChanged": false,
+      "kindChanged": false
+    }
+  ],
+  "newOwnPromptMisses": [],
+  "errors": [],
+  "publishedCommit": "5e5381dff2bb03193cb205f994049dbaa711137b",
+  "publishedTree": "3bd966cfebcbf2351e00b5a28548047740f2a058",
+  "publishedBaseline": "4da7d85dc3356700923dc9a6cab676a132f2009a"
+}
