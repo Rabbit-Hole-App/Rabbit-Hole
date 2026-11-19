@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Brief 39: prints the blueprint design phase of one /interactive job on the local interactive stack (8879): the run record the job stored under design:<job>:<rev>:blueprint (control plane, interact-blueprint-design.js).
-//   node scripts/interact/print-blueprint.mjs <run id | latest> [--full] [--log <app.log>]
+//   node scripts/interact/print-blueprint.mjs <run id | latest> [--full | --blueprint] [--log <app.log>]
+// --blueprint prints only the final blueprint: the parsed JSON that passed the full checker, saved beside the record (design:<job>:<rev>:blueprint-final). A run that did not pass has none.
 // The job also writes its record as one `interact_blueprint` line to the stack's app.log; this reads that log (default: the 8879 stack's), so it needs no sign-in. The same record is in the job's diagnostics
 // (GET /api/learn/explain/jobs/<id>?board=<board>&detail=1 with the job owner's session; EXPLAIN_DIAGNOSTICS=true). Default output: the summary, the dice, the calls, the checker's problems and the final blueprint.
 // --full adds the quantities answer, every blueprint answer exactly as returned and the checker outputs.
@@ -10,17 +11,22 @@ const argv = process.argv.slice(2), flag = name => argv.includes(`--${name}`), o
 const LOG = opt('log', 'C:/s/spec/owner-local/persist-8879/app.log'), which = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--log');
 if (!which) { console.log('usage: node scripts/interact/print-blueprint.mjs <run id | latest> [--full] [--log <app.log>]'); process.exit(2); }
 
-const records = [];
+const records = [], finals = new Map();
 for (const line of readFileSync(LOG, 'utf8').split(/\r?\n/)) {
   const at = line.indexOf('{"event":"interact_blueprint"'); if (at < 0) continue;
-  try { const { jobId, record } = JSON.parse(line.slice(at)); if (jobId && record) records.push(record); } catch { /* a cut line is not a record */ }
+  try { const { jobId, record, final } = JSON.parse(line.slice(at)); if (jobId && record) { records.push(record); finals.set(jobId, final ?? null); } } catch { /* a cut line is not a record */ }
 }
 const record = which === 'latest' ? records.at(-1) : records.findLast(r => r.jobId === which || r.jobId === `ej_${which.replace(/^ej_/, '')}`);
 if (!record) { console.log(`no blueprint record ${which === 'latest' ? '' : `for ${which} `}in ${LOG} (${records.length} records there)`); process.exit(1); }
 
+if (flag('blueprint')) {
+  const final = finals.get(record.jobId);
+  if (!final) { console.log(`run ${record.jobId} has no final blueprint (${record.passed ? 'it ran before the final blueprint was saved' : 'it did not pass the full checker'}; --full shows the answers)`); process.exit(1); }
+  console.log(JSON.stringify(final, null, 2)); process.exit(0);
+}
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
 const out = (title, value) => console.log(`\n== ${title}\n${typeof value === 'string' ? value : JSON.stringify(value, null, 2)}`);
-console.log(`run ${record.jobId}: ${record.passed ? 'PASSED the light checker' : 'did NOT pass the light checker'}`);
+console.log(`run ${record.jobId}: ${record.passed ? 'PASSED the checker' : 'did NOT pass the checker'}`);
 console.log(`prompt: ${record.prompt}\ndepth: ${record.depth}   model: ${record.model} (${record.effort})   seed: ${record.seed}   seconds: ${record.seconds}   cost: $${record.costUsd.toFixed(4)}`);
 out('dice', record.dice ?? 'not reached');
 out('calls', record.calls.map(c => `${c.kind}: ${c.ok ? 'answered' : `FAILED ${c.error}`}, ${c.seconds} s, ${c.tokens ? `${c.tokens.input} in + ${c.tokens.thinking} thinking + ${c.tokens.output} out` : 'no usage'}, ${c.costUsd == null ? 'cost unknown' : `$${c.costUsd.toFixed(4)}`}`).join('\n'));

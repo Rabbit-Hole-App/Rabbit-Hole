@@ -1,7 +1,7 @@
 // Brief 39 (MVP 2): the interactive-blueprint design phase as a live job, INTERACT_DESIGN_KIND=blueprint. It is the seeded arm of MVP 1 (scripts/interact/bench-blueprint.mjs) on the job's own prompt and depth:
 //   the quantities call (spec 7.8), dice over the control quantities the model named (spec 8) from seededRandom(job.flow.seed), the blueprint call with the settled relationship and quantities, the light checker
-//   (form, names, the function in QuickJS, claims), and at most one correction call. The prompt files and the schema are MVP 1's, unchanged; nothing here knows the prompt.
-// The job stops after this phase and never enters Build. -> { blueprint: record }; the record is the run record: every answer exactly as returned (the message text, not parsed), the dice, the checker outputs, per call seconds, tokens and cost.
+//   FULL checker (brief 41: all ten checks of interact-blueprint-check.js, not only the light four), and at most one correction call with the problems of whichever check failed. The prompt files and the schema are MVP 1's, unchanged; nothing here knows the prompt.
+// The job stops after this phase and never enters Build. -> { blueprint: record, final }; `final` is the parsed blueprint that passed the full checker (null when none did), saved by the job as its own JSON beside the record; the record is the run record: every answer exactly as returned (the message text, not parsed), the dice, the checker outputs, per call seconds, tokens and cost.
 // A call that fails before it can be answered is recorded with its reason and its problems; one that spent nothing (a refused admission) is the job's, as in the fast path.
 import { providerSchema, quantitiesProviderSchema } from '../../web/src/interact-blueprint.js';
 import { checkBlueprint } from '../../web/src/interact-blueprint-check.js';
@@ -47,19 +47,25 @@ async function callOnce(ctx, role, kind, args) {
   const began = Date.now(); let done = null, error = null;
   try { done = await ctx.interact(role, args); } catch (e) { if (!(e instanceof InteractModelError) || e.code === 'spend_refused') throw e; error = e; }
   const answer = done ?? error, tokens = tokensOf(answer?.usage?.raw ?? null);
-  return { output: done?.output ?? null, raw: answer?.raw ?? null, error,
-    call: { kind, role, ok: !error, seconds: (Date.now() - began) / 1000, finish: done?.stopReason ?? error?.stopRaw ?? null, served: answer?.served?.model ?? null, tokens, costUsd: error?.code === 'unknown_outcome' ? null : costOf(tokens),
+  // The adapter also checks the answer against the sent schema, including string lengths, which MVP 1 left to the checker (a sentence the correction can act on). An answer it refuses on its schema alone, that parses as one JSON object, goes to the checker as it was
+  // returned; truncation, refusal, fenced or malformed text stay failed calls. The refusal is kept in the call's row.
+  let output = done?.output ?? null, refusal = null;
+  if (error?.code === 'schema_mismatch' && typeof answer.raw === 'string') {
+    try { const parsed = JSON.parse(answer.raw); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) { output = parsed; refusal = `${error.code}: ${String(error.message).slice(0, 400)}`; error = null; } } catch { /* not JSON: the call stays failed */ }
+  }
+  return { output, raw: answer?.raw ?? null, error,
+    call: { kind, role, ok: !error, ...(refusal ? { adapterRefusal: refusal } : {}), seconds: (Date.now() - began) / 1000, finish: answer?.stopReason ?? answer?.stopRaw ?? null, served: answer?.served?.model ?? null, tokens, costUsd: error?.code === 'unknown_outcome' ? null : costOf(tokens),
       ...(error ? { error: `${error.code}: ${String(error.message).slice(0, 400)}`, ...(error.problems ? { adapterProblems: error.problems.slice(0, 12) } : {}) } : {}) } };
 }
 const refused = (error, what) => ({ ok: false, failed: 1, problems: [{ check: 1, path: '', message: `${what} was not usable: ${error?.message ?? 'no answer'}` }], measured: null });
 async function checked(answer, settled) {
-  try { return await checkBlueprint(answer, { seeded: settled, light: true }); } catch (e) { return { ok: false, failed: 0, problems: [{ check: 0, path: '', message: `the checker could not run: ${String(e?.message ?? e).slice(0, 300)}` }], measured: null, checkerError: true }; }
+  try { return await checkBlueprint(answer, { seeded: settled }); } catch (e) { return { ok: false, failed: 0, problems: [{ check: 0, path: '', message: `the checker could not run: ${String(e?.message ?? e).slice(0, 300)}` }], measured: null, checkerError: true }; }
 }
 
 export async function blueprintDesign(job, ctx) {
   const depth = job.depth, seed = job.flow.seed, began = Date.now(), calls = [];
   const record = { kind: 'blueprint', version: BLUEPRINT_RECORD_VERSION, jobId: job.id, prompt: job.prompt, depth, seed, model: MODEL, effort: EFFORT, quantities: null, dice: null, settled: null, blueprint: { first: null, corrected: null, final: null }, checks: { first: null, corrected: null }, passed: false, problems: [], calls, seconds: 0, costUsd: 0 };
-  const end = problems => { record.problems = problems; record.seconds = Math.round(Date.now() - began) / 1000; record.costUsd = calls.reduce((t, c) => t + (c.costUsd ?? 0), 0); return { blueprint: record }; };
+  const end = (problems, final = null) => { record.problems = problems; record.seconds = Math.round(Date.now() - began) / 1000; record.costUsd = calls.reduce((t, c) => t + (c.costUsd ?? 0), 0); return { blueprint: record, final }; };
 
   const q = await callOnce(ctx, 'blueprint_quantities', 'quantities', { system: quantitiesPrompt(depth), schema: quantitiesSchema(), input: quantitiesMessage(job.prompt, depth) });
   calls.push(q.call); record.quantities = { raw: q.raw };
@@ -71,12 +77,13 @@ export async function blueprintDesign(job, ctx) {
   const first = seededMessage(job.prompt, depth, record.settled), ask = input => callOnce(ctx, 'blueprint_design', 'blueprint', { system: blueprintPrompt(depth), schema: blueprintSchema(), input });
   const b1 = await ask(first); calls.push(b1.call); record.blueprint.first = { raw: b1.raw };
   record.checks.first = b1.output ? await checked(b1.output, record.settled) : refused(b1.error, 'The answer');
-  if (record.checks.first.ok) { record.passed = true; record.blueprint.final = 'first'; return end([]); }
+  if (record.checks.first.ok) { record.passed = true; record.blueprint.final = 'first'; return end([], b1.output); }
+  if (record.checks.first.checkerError) return end(record.checks.first.problems.map(problem => problem.message)); // the checker failing is not the model's fault: no correction
 
   // one correction, only when the provider answered (a call that failed without an answer says the same again)
   if (b1.raw === null) return end(record.checks.first.problems.map(problem => problem.message));
   const b2 = await ask(correctionMessage(first, b1.raw, record.checks.first.problems.map(problem => problem.message))); calls.push(b2.call); record.blueprint.corrected = { raw: b2.raw };
   record.checks.corrected = b2.output ? await checked(b2.output, record.settled) : refused(b2.error, 'The corrected answer');
-  if (record.checks.corrected.ok) { record.passed = true; record.blueprint.final = 'corrected'; return end([]); }
+  if (record.checks.corrected.ok) { record.passed = true; record.blueprint.final = 'corrected'; return end([], b2.output); }
   return end(record.checks.corrected.problems.map(problem => problem.message));
 }

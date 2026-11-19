@@ -266,8 +266,8 @@ export async function fastDesign(job, ctx) {
 export async function authorDesign(job, ctx) {
   // brief 39: INTERACT_DESIGN_KIND=blueprint runs the interactive-blueprint design phase and stops; no plan, no review, no build.
   if (ctx.designKind === 'blueprint') {
-    const { blueprint } = await blueprintDesign(job, ctx);
-    return { blueprint, ...(blueprint.passed ? { stop: { reason: 'design_gap', category: 'capability', message: GAP_MESSAGE } } : stop('design_invalid', 'spec', `The scene design could not be completed: ${blueprint.problems[0] ?? 'the blueprint could not be made'}. Try again or edit the request.`)) };
+    const { blueprint, final } = await blueprintDesign(job, ctx);
+    return { blueprint, final, ...(blueprint.passed ? { stop: { reason: 'design_gap', category: 'capability', message: GAP_MESSAGE } } : stop('design_invalid', 'spec', `The scene design could not be completed: ${blueprint.problems[0] ?? 'the blueprint could not be made'}. Try again or edit the request.`)) };
   }
   // The fast path runs once per design (design.fast is stored by the first result); an Edit or a retried Opus author never re-enters it.
   let fast;

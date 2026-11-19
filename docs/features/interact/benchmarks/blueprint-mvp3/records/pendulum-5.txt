@@ -1,0 +1,1108 @@
+run ej_31d5c1aaf93e4a279c0b657ae6ae20b5: did NOT pass the checker
+prompt: what changes a pendulum swing
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 889901629   seconds: 98.619   cost: $0.1818
+
+== dice
+{
+  "controlQuantities": [
+    "length",
+    "mass",
+    "angle0",
+    "gravity"
+  ],
+  "n": 4,
+  "k": 3,
+  "ids": [
+    "length",
+    "mass",
+    "gravity"
+  ]
+}
+
+== calls
+quantities: answered, 10.245 s, 1227 in + 1044 thinking + 621 out, $0.0143
+blueprint: answered, 60.991 s, 10322 in + 10840 thinking + 2035 out, $0.1120
+blueprint: answered, 21.567 s, 12424 in + 1417 thinking + 3483 out, $0.0554
+
+== problems
+1. Things overlap in the frame at the defaults, t = 0: {"a":"part.pivotLabel","b":"part.pivotDot","kind":"text-circle","width":12,"height":8.4}.
+
+== blueprint (corrected, not passed): "What Changes a Pendulum Swing?"; controls: length, mass, gravity
+{
+  "version": 1,
+  "relationship": {
+    "statement": "For a simple pendulum at small angles, the swing period depends only on string length and gravity, not on the bob's mass. A larger release angle widens the swing and raises peak speed.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "The string is massless, taut, and rigid, with all mass concentrated at the bob.",
+      "Air resistance and friction at the pivot are neglected.",
+      "The period formula is exact for small angles and shifts slightly upward at large angles."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot point to the center of the pendulum bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the suspended bob, which cancels out of gravitational acceleration."
+    },
+    {
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "fixed",
+      "meaning": "Starting angle from vertical when the bob is released from rest."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "control",
+      "meaning": "Gravitational acceleration pulling the bob downward."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time required to complete one full back-and-forth swing."
+    },
+    {
+      "id": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "role": "result",
+      "meaning": "Number of full swings completed each second."
+    },
+    {
+      "id": "maxSpeed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Maximum speed of the bob at the lowest point of the swing."
+    },
+    {
+      "id": "angle",
+      "label": "Current angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Instantaneous angle of the pendulum from vertical at time t."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    },
+    {
+      "id": "string",
+      "label": "String"
+    },
+    {
+      "id": "velocity",
+      "label": "Velocity"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "min": 0.6,
+      "max": 2.4,
+      "default": 1,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 5,
+      "default": 1,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "min": 2,
+      "max": 16,
+      "default": 9.8,
+      "step": 0.2
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 5,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var L = inputs.length; var m = inputs.mass; var g = inputs.gravity; var angle0 = 30; var angle0Rad = angle0 * Math.PI / 180; var period = 2 * Math.PI * Math.sqrt(L / g); var frequency = 1 / period; var maxSpeed = Math.sqrt(2 * g * L * (1 - Math.cos(angle0Rad))); var omega = 2 * Math.PI / period; var phase = omega * t; var angle = angle0 * Math.cos(phase); var angleRad = angle * Math.PI / 180; var bobX = L * Math.sin(angleRad); var bobY = -L * Math.cos(angleRad); var dThetaDt = -angle0Rad * omega * Math.sin(phase); var vx = L * dThetaDt * Math.cos(angleRad); var vy = L * dThetaDt * Math.sin(angleRad); var velScale = 0.25; var velEndX = bobX + velScale * vx; var velEndY = bobY + velScale * vy; var refY = -L; var releaseX = L * Math.sin(angle0Rad); var releaseY = -L * Math.cos(angle0Rad); var bobSize = 0.25 + 0.7 * (m - 0.5) / 4.5; return { period: period, frequency: frequency, maxSpeed: maxSpeed, angle: angle, bobX: bobX, bobY: bobY, refY: refY, releaseX: releaseX, releaseY: releaseY, velEndX: velEndX, velEndY: velEndY, bobSize: bobSize, isShortFast: period < 1.5, isLongSlow: period > 3.0, isNearBottom: Math.abs(angle) < 5 }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one full back-and-forth swing.",
+        "kind": "number"
+      },
+      {
+        "id": "frequency",
+        "unit": "Hz",
+        "meaning": "Number of full swings completed each second.",
+        "kind": "number"
+      },
+      {
+        "id": "maxSpeed",
+        "unit": "m/s",
+        "meaning": "Peak speed at the lowest point of the swing.",
+        "kind": "number"
+      },
+      {
+        "id": "angle",
+        "unit": "deg",
+        "meaning": "Instantaneous angle from vertical at time t.",
+        "kind": "number"
+      },
+      {
+        "id": "bobX",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bobY",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "refY",
+        "unit": "m",
+        "meaning": "Vertical bottom coordinate of the plumb reference line.",
+        "kind": "number"
+      },
+      {
+        "id": "releaseX",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the 30 degree release marker.",
+        "kind": "number"
+      },
+      {
+        "id": "releaseY",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the 30 degree release marker.",
+        "kind": "number"
+      },
+      {
+        "id": "velEndX",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "velEndY",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "bobSize",
+        "unit": "",
+        "meaning": "Normalized display size representing bob mass.",
+        "kind": "number"
+      },
+      {
+        "id": "isShortFast",
+        "unit": "",
+        "meaning": "True when the swing period is under 1.5 seconds.",
+        "kind": "flag"
+      },
+      {
+        "id": "isLongSlow",
+        "unit": "",
+        "meaning": "True when the swing period is over 3.0 seconds.",
+        "kind": "flag"
+      },
+      {
+        "id": "isNearBottom",
+        "unit": "",
+        "meaning": "True when the bob passes within 5 degrees of vertical.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "ceiling",
+          "from": [
+            -1.2,
+            0
+          ],
+          "to": [
+            1.2,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "verticalRef",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            "refY"
+          ]
+        },
+        {
+          "type": "line",
+          "id": "releaseGuide",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "releaseX",
+            "releaseY"
+          ]
+        },
+        {
+          "type": "trace",
+          "id": "bobTrace",
+          "at": [
+            "bobX",
+            "bobY"
+          ],
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "stringLine",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "bobX",
+            "bobY"
+          ],
+          "of": "string"
+        },
+        {
+          "type": "dot",
+          "id": "pivotDot",
+          "at": [
+            0,
+            0
+          ],
+          "size": "small"
+        },
+        {
+          "type": "dot",
+          "id": "bobDot",
+          "at": [
+            "bobX",
+            "bobY"
+          ],
+          "size": "bobSize",
+          "of": "pendulum"
+        },
+        {
+          "type": "arrow",
+          "id": "velArrow",
+          "from": [
+            "bobX",
+            "bobY"
+          ],
+          "to": [
+            "velEndX",
+            "velEndY"
+          ],
+          "label": "v",
+          "of": "velocity"
+        },
+        {
+          "type": "label",
+          "id": "pivotLabel",
+          "at": [
+            0,
+            0.4
+          ],
+          "text": "Pivot"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing Angle Over Time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angle",
+          "label": "Angle",
+          "of": "pendulum",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "maxSpeed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "velocity"
+    },
+    {
+      "value": "angle",
+      "label": "Angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Mass changes size, not swing speed.",
+      "Period grows with string length."
+    ],
+    "cases": [
+      {
+        "when": "isShortFast",
+        "text": "Short string or strong g: fast swing"
+      },
+      {
+        "when": "isLongSlow",
+        "text": "Long string or weak g: slow swing"
+      },
+      {
+        "when": "isNearBottom",
+        "text": "Near bottom: speed is at its peak."
+      }
+    ],
+    "otherwise": "Mid-range swing at steady rhythm."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "mass"
+    },
+    {
+      "type": "unchanged",
+      "value": "maxSpeed",
+      "when": "mass"
+    },
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "decreases",
+      "value": "period",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "maxSpeed",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "maxSpeed",
+      "with": "length"
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum Swing?",
+    "description": "Adjust string length, bob mass, and gravity while watching a pendulum released from 30 degrees. Track its swing angle over time to see what sets the period.",
+    "instructions": "Use the sliders to vary string length, bob mass, and gravity, and scrub or play time to inspect the velocity arrow and angle graph.",
+    "goal": "Pendulum period increases with string length, decreases with gravity, and does not depend on bob mass."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "For a simple pendulum at small angles, the swing period depends only on string length and gravity, not on the bob's mass. A larger release angle widens the swing and raises peak speed.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "The string is massless, taut, and rigid, with all mass concentrated at the bob.",
+      "Air resistance and friction at the pivot are neglected.",
+      "The period formula is exact for small angles and shifts slightly upward at large angles."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot point to the center of the pendulum bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the suspended bob, which cancels out of gravitational acceleration."
+    },
+    {
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "control",
+      "meaning": "Starting angle from vertical when the bob is released from rest."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "control",
+      "meaning": "Gravitational acceleration pulling the bob downward."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time required to complete one full back-and-forth swing."
+    },
+    {
+      "id": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "role": "result",
+      "meaning": "Number of full swings completed each second."
+    },
+    {
+      "id": "maxSpeed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Maximum speed of the bob at the lowest point of the swing."
+    },
+    {
+      "id": "angle",
+      "label": "Current angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Instantaneous angle of the pendulum from vertical at time t."
+    }
+  ]
+}
+
+== first blueprint answer (exactly as returned)
+{"version":1,"relationship":{"statement":"For a simple pendulum at small angles, the swing period depends only on string length and gravity, not on the bob's mass. A larger release angle widens the swing and raises peak speed.","formula":"T = 2\\pi\\sqrt{L/g}", "assumptions":["The string is massless, taut, and rigid, with all mass concentrated at the bob.","Air resistance and friction at the pivot are neglected.","The period formula is exact for small angles and shifts slightly upward at large angles."]},"quantities":[{"id":"length","label":"String length","unit":"m","role":"control","meaning":"Distance from the pivot point to the center of the pendulum bob."},{"id":"mass","label":"Bob mass","unit":"kg","role":"control","meaning":"Mass of the suspended bob, which cancels out of gravitational acceleration."},{"id":"angle0","label":"Release angle","unit":"deg","role":"fixed","meaning":"Starting angle from vertical when the bob is released from rest."},{"id":"gravity","label":"Gravity","unit":"m/s^2","role":"control","meaning":"Gravitational acceleration pulling the bob downward."},{"id":"period","label":"Period","unit":"s","role":"result","meaning":"Time required to complete one full back-and-forth swing."},{"id":"frequency","label":"Frequency","unit":"Hz","role":"result","meaning":"Number of full swings completed each second."},{"id":"maxSpeed","label":"Peak speed","unit":"m/s","role":"result","meaning":"Maximum speed of the bob at the lowest point of the swing."},{"id":"angle","label":"Current angle","unit":"deg","role":"result","meaning":"Instantaneous angle of the pendulum from vertical at time t."}],"things":[{"id":"pendulum","label":"Pendulum"},{"id":"string","label":"String"},{"id":"velocity","label":"Velocity"}],"inputs":[{"type":"number","id":"length","label":"String length","unit":"m","min":0.6,"max":2.4,"default":1,"step":0.1},{"type":"number","id":"mass","label":"Bob mass","unit":"kg","min":0.5,"max":5,"default":1,"step":0.5},{"type":"number","id":"gravity","label":"Gravity","unit":"m/s^2","min":2,"max":16,"default":9.8,"step":0.2}],"time":{"mode":"continuous","duration":5,"label":"Time","unit":"s"},"math":{"code":"function compute(inputs, t) { var L = inputs.length; var m = inputs.mass; var g = inputs.gravity; var angle0 = 30; var angle0Rad = angle0 * Math.PI / 180; var period = 2 * Math.PI * Math.sqrt(L / g); var frequency = 1 / period; var maxSpeed = Math.sqrt(2 * g * L * (1 - Math.cos(angle0Rad))); var omega = 2 * Math.PI / period; var phase = omega * t; var angle = angle0 * Math.cos(phase); var angleRad = angle * Math.PI / 180; var bobX = L * Math.sin(angleRad); var bobY = -L * Math.cos(angleRad); var dThetaDt = -angle0Rad * omega * Math.sin(phase); var vx = L * dThetaDt * Math.cos(angleRad); var vy = L * dThetaDt * Math.sin(angleRad); var velScale = 0.25; var velEndX = bobX + velScale * vx; var velEndY = bobY + velScale * vy; var refY = -L; var releaseX = L * Math.sin(angle0Rad); var releaseY = -L * Math.cos(angle0Rad); var bobSize = 0.25 + 0.7 * (m - 0.5) / 4.5; return { period: period, frequency: frequency, maxSpeed: maxSpeed, angle: angle, bobX: bobX, bobY: bobY, refY: refY, releaseX: releaseX, releaseY: releaseY, velEndX: velEndX, velEndY: velEndY, bobSize: bobSize, isShortFast: period < 1.5, isLongSlow: period > 3.0, isNearBottom: Math.abs(angle) < 5 }; }","outputs":[{"id":"period","unit":"s","meaning":"Time for one full back-and-forth swing.","kind":"number"},{"id":"frequency","unit":"Hz","meaning":"Number of full swings completed each second.","kind":"number"},{"id":"maxSpeed","unit":"m/s","meaning":"Peak speed at the lowest point of the swing.","kind":"number"},{"id":"angle","unit":"deg","meaning":"Instantaneous angle from vertical at time t.","kind":"number"},{"id":"bobX","unit":"m","meaning":"Horizontal coordinate of the pendulum bob.","kind":"number"},{"id":"bobY","unit":"m","meaning":"Vertical coordinate of the pendulum bob.","kind":"number"},{"id":"refY","unit":"m","meaning":"Vertical bottom coordinate of the plumb reference line.","kind":"number"},{"id":"releaseX","unit":"m","meaning":"Horizontal coordinate of the 30 degree release marker.","kind":"number"},{"id":"releaseY","unit":"m","meaning":"Vertical coordinate of the 30 degree release marker.","kind":"number"},{"id":"velEndX","unit":"m","meaning":"Horizontal coordinate of the velocity arrow tip.","kind":"number"},{"id":"velEndY","unit":"m","meaning":"Vertical coordinate of the velocity arrow tip.","kind":"number"},{"id":"bobSize","unit":"","meaning":"Normalized display size representing bob mass.","kind":"number"},{"id":"isShortFast","unit":"","meaning":"True when the swing period is under 1.5 seconds.","kind":"flag"},{"id":"isLongSlow","unit":"","meaning":"True when the swing period is over 3.0 seconds.","kind":"flag"},{"id":"isNearBottom","unit":"","meaning":"True when the bob passes within 5 degrees of vertical.","kind":"flag"}]},"pictures":{"main":{"type":"parts","unit":"m","parts":[{"type":"line","id":"ceiling","from":[-1.2,0],"to":[1.2,0]},{"type":"line","id":"verticalRef","from":[0,0],"to":[0,"refY"]},{"type":"line","id":"releaseGuide","from":[0,0],"to":["releaseX","releaseY"]},{"type":"trace","id":"bobTrace","at":["bobX","bobY"],"of":"pendulum"},{"type":"line","id":"stringLine","from":[0,0],"to":["bobX","bobY"],"of":"string"},{"type":"dot","id":"pivotDot","at":[0,0],"size":"small"},{"type":"dot","id":"bobDot","at":["bobX","bobY"],"size":"bobSize","of":"pendulum"},{"type":"arrow","id":"velArrow","from":["bobX","bobY"],"to":["velEndX","velEndY"],"label":"v","of":"velocity"},{"type":"label","id":"pivotLabel","at":[0,0.14],"text":"Pivot"}]},"panel":{"type":"kind","kind":"coordinate-plot","title":"Swing Angle Over Time","x":{"over":"time","label":"Time","unit":"s"},"y":{"label":"Angle","unit":"deg"},"series":[{"value":"angle","label":"Angle","of":"pendulum","style":"line"}]}},"values":[{"value":"period","label":"Period","unit":"s","decimals":2,"of":"pendulum"},{"value":"frequency","label":"Frequency","unit":"Hz","decimals":2,"of":"pendulum"},{"value":"maxSpeed","label":"Peak speed","unit":"m/s","decimals":2,"of":"velocity"},{"value":"angle","label":"Angle","unit":"deg","decimals":1,"of":"pendulum"}],"explanation":{"always":["Mass changes size, not swing speed.","Period grows with string length."],"cases":[{"when":"isShortFast","text":"Short string or strong g: fast swing"},{"when":"isLongSlow","text":"Long string or weak g: slow swing"},{"when":"isNearBottom","text":"Near bottom: speed is at its peak."}],"otherwise":"Mid-range swing at steady rhythm."},"layout":{"pictureCount":"two","runs":"compact","panelRole":"records-main"},"claims":[{"type":"unchanged","value":"period","when":"mass"},{"type":"unchanged","value":"maxSpeed","when":"mass"},{"type":"increases","value":"period","with":"length"},{"type":"decreases","value":"period","with":"gravity"},{"type":"increases","value":"maxSpeed","with":"gravity"},{"type":"increases","value":"maxSpeed","with":"length"}],"lesson":{"title":"What Changes a Pendulum Swing?","description":"Adjust string length, bob mass, and gravity while watching a pendulum released from 30 degrees. Track its swing angle over time to see what sets the period.","instructions":"Use the sliders to vary string length, bob mass, and gravity, and scrub or play time to inspect the velocity arrow and angle graph.","goal":"Pendulum period increases with string length, decreases with gravity, and does not depend on bob mass."}}
+
+== corrected blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "For a simple pendulum at small angles, the swing period depends only on string length and gravity, not on the bob's mass. A larger release angle widens the swing and raises peak speed.",
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "assumptions": [
+      "The string is massless, taut, and rigid, with all mass concentrated at the bob.",
+      "Air resistance and friction at the pivot are neglected.",
+      "The period formula is exact for small angles and shifts slightly upward at large angles."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot point to the center of the pendulum bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "control",
+      "meaning": "Mass of the suspended bob, which cancels out of gravitational acceleration."
+    },
+    {
+      "id": "angle0",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "fixed",
+      "meaning": "Starting angle from vertical when the bob is released from rest."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "control",
+      "meaning": "Gravitational acceleration pulling the bob downward."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time required to complete one full back-and-forth swing."
+    },
+    {
+      "id": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "role": "result",
+      "meaning": "Number of full swings completed each second."
+    },
+    {
+      "id": "maxSpeed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Maximum speed of the bob at the lowest point of the swing."
+    },
+    {
+      "id": "angle",
+      "label": "Current angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Instantaneous angle of the pendulum from vertical at time t."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    },
+    {
+      "id": "string",
+      "label": "String"
+    },
+    {
+      "id": "velocity",
+      "label": "Velocity"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "String length",
+      "unit": "m",
+      "min": 0.6,
+      "max": 2.4,
+      "default": 1,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "min": 0.5,
+      "max": 5,
+      "default": 1,
+      "step": 0.5
+    },
+    {
+      "type": "number",
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "min": 2,
+      "max": 16,
+      "default": 9.8,
+      "step": 0.2
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 5,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { var L = inputs.length; var m = inputs.mass; var g = inputs.gravity; var angle0 = 30; var angle0Rad = angle0 * Math.PI / 180; var period = 2 * Math.PI * Math.sqrt(L / g); var frequency = 1 / period; var maxSpeed = Math.sqrt(2 * g * L * (1 - Math.cos(angle0Rad))); var omega = 2 * Math.PI / period; var phase = omega * t; var angle = angle0 * Math.cos(phase); var angleRad = angle * Math.PI / 180; var bobX = L * Math.sin(angleRad); var bobY = -L * Math.cos(angleRad); var dThetaDt = -angle0Rad * omega * Math.sin(phase); var vx = L * dThetaDt * Math.cos(angleRad); var vy = L * dThetaDt * Math.sin(angleRad); var velScale = 0.25; var velEndX = bobX + velScale * vx; var velEndY = bobY + velScale * vy; var refY = -L; var releaseX = L * Math.sin(angle0Rad); var releaseY = -L * Math.cos(angle0Rad); var bobSize = 0.25 + 0.7 * (m - 0.5) / 4.5; return { period: period, frequency: frequency, maxSpeed: maxSpeed, angle: angle, bobX: bobX, bobY: bobY, refY: refY, releaseX: releaseX, releaseY: releaseY, velEndX: velEndX, velEndY: velEndY, bobSize: bobSize, isShortFast: period < 1.5, isLongSlow: period > 3.0, isNearBottom: Math.abs(angle) < 5 }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one full back-and-forth swing.",
+        "kind": "number"
+      },
+      {
+        "id": "frequency",
+        "unit": "Hz",
+        "meaning": "Number of full swings completed each second.",
+        "kind": "number"
+      },
+      {
+        "id": "maxSpeed",
+        "unit": "m/s",
+        "meaning": "Peak speed at the lowest point of the swing.",
+        "kind": "number"
+      },
+      {
+        "id": "angle",
+        "unit": "deg",
+        "meaning": "Instantaneous angle from vertical at time t.",
+        "kind": "number"
+      },
+      {
+        "id": "bobX",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bobY",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "refY",
+        "unit": "m",
+        "meaning": "Vertical bottom coordinate of the plumb reference line.",
+        "kind": "number"
+      },
+      {
+        "id": "releaseX",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the 30 degree release marker.",
+        "kind": "number"
+      },
+      {
+        "id": "releaseY",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the 30 degree release marker.",
+        "kind": "number"
+      },
+      {
+        "id": "velEndX",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "velEndY",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "bobSize",
+        "unit": "",
+        "meaning": "Normalized display size representing bob mass.",
+        "kind": "number"
+      },
+      {
+        "id": "isShortFast",
+        "unit": "",
+        "meaning": "True when the swing period is under 1.5 seconds.",
+        "kind": "flag"
+      },
+      {
+        "id": "isLongSlow",
+        "unit": "",
+        "meaning": "True when the swing period is over 3.0 seconds.",
+        "kind": "flag"
+      },
+      {
+        "id": "isNearBottom",
+        "unit": "",
+        "meaning": "True when the bob passes within 5 degrees of vertical.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "ceiling",
+          "from": [-1.2, 0],
+          "to": [1.2, 0]
+        },
+        {
+          "type": "line",
+          "id": "verticalRef",
+          "from": [0, 0],
+          "to": [0, "refY"]
+        },
+        {
+          "type": "line",
+          "id": "releaseGuide",
+          "from": [0, 0],
+          "to": ["releaseX", "releaseY"]
+        },
+        {
+          "type": "trace",
+          "id": "bobTrace",
+          "at": ["bobX", "bobY"],
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "stringLine",
+          "from": [0, 0],
+          "to": ["bobX", "bobY"],
+          "of": "string"
+        },
+        {
+          "type": "dot",
+          "id": "pivotDot",
+          "at": [0, 0],
+          "size": "small"
+        },
+        {
+          "type": "dot",
+          "id": "bobDot",
+          "at": ["bobX", "bobY"],
+          "size": "bobSize",
+          "of": "pendulum"
+        },
+        {
+          "type": "arrow",
+          "id": "velArrow",
+          "from": ["bobX", "bobY"],
+          "to": ["velEndX", "velEndY"],
+          "label": "v",
+          "of": "velocity"
+        },
+        {
+          "type": "label",
+          "id": "pivotLabel",
+          "at": [0, 0.4],
+          "text": "Pivot"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing Angle Over Time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angle",
+          "label": "Angle",
+          "of": "pendulum",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "maxSpeed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "velocity"
+    },
+    {
+      "value": "angle",
+      "label": "Angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Mass changes size, not swing speed.",
+      "Period grows with string length."
+    ],
+    "cases": [
+      {
+        "when": "isShortFast",
+        "text": "Short string or strong g: fast swing"
+      },
+      {
+        "when": "isLongSlow",
+        "text": "Long string or weak g: slow swing"
+      },
+      {
+        "when": "isNearBottom",
+        "text": "Near bottom: speed is at its peak."
+      }
+    ],
+    "otherwise": "Mid-range swing at steady rhythm."
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "period",
+      "when": "mass"
+    },
+    {
+      "type": "unchanged",
+      "value": "maxSpeed",
+      "when": "mass"
+    },
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "decreases",
+      "value": "period",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "maxSpeed",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "maxSpeed",
+      "with": "length"
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum Swing?",
+    "description": "Adjust string length, bob mass, and gravity while watching a pendulum released from 30 degrees. Track its swing angle over time to see what sets the period.",
+    "instructions": "Use the sliders to vary string length, bob mass, and gravity, and scrub or play time to inspect the velocity arrow and angle graph.",
+    "goal": "Pendulum period increases with string length, decreases with gravity, and does not depend on bob mass."
+  }
+}
+
+== checker output, first answer
+{
+  "ok": false,
+  "failed": 10,
+  "problems": [
+    {
+      "code": "program",
+      "path": "math.code",
+      "message": "Things overlap in the frame at the defaults, t = 0: {\"a\":\"part.pivotLabel\",\"b\":\"part.pivotDot\",\"kind\":\"text-circle\",\"width\":12,\"height\":0.2}.",
+      "check": 10
+    }
+  ],
+  "notes": [],
+  "measured": {
+    "reach": {
+      "minX": -1.4212260648727963,
+      "maxX": 1.4211342126779472,
+      "minY": -2.502904042986234,
+      "maxY": 0.14
+    },
+    "yRange": [
+      -36,
+      36
+    ],
+    "valueTexts": [
+      "Period: 2.01 s",
+      "Frequency: 0.50 Hz",
+      "Peak speed: 1.62 m/s",
+      "Angle: -11.3 deg"
+    ],
+    "variants": [
+      [
+        "Mass changes size, not swing speed.",
+        "Period grows with string length.",
+        "Mid-range swing at steady rhythm."
+      ],
+      [
+        "Mass changes size, not swing speed.",
+        "Period grows with string length.",
+        "Near bottom: speed is at its peak."
+      ],
+      [
+        "Mass changes size, not swing speed.",
+        "Period grows with string length.",
+        "Long string or weak g: slow swing"
+      ]
+    ],
+    "plot": {
+      "geometry": {
+        "min": {
+          "width": 218,
+          "height": 277
+        },
+        "plotArea": {
+          "left": 74,
+          "right": 280,
+          "top": 56,
+          "bottom": 198
+        },
+        "x": {
+          "min": 0,
+          "max": 5
+        },
+        "y": {
+          "min": -36,
+          "max": 36
+        }
+      }
+    },
+    "facts": {
+      "turns": {
+        "angle": 6
+      },
+      "msPerFrameWorst": 10,
+      "programBytes": 10571,
+      "frameObjects": 16,
+      "msPerComputeBatch": 59
+    }
+  }
+}
+
+== checker output, corrected answer
+{
+  "ok": false,
+  "failed": 10,
+  "problems": [
+    {
+      "code": "program",
+      "path": "math.code",
+      "message": "Things overlap in the frame at the defaults, t = 0: {\"a\":\"part.pivotLabel\",\"b\":\"part.pivotDot\",\"kind\":\"text-circle\",\"width\":12,\"height\":8.4}.",
+      "check": 10
+    }
+  ],
+  "notes": [],
+  "measured": {
+    "reach": {
+      "minX": -1.4212260648727963,
+      "maxX": 1.4211342126779472,
+      "minY": -2.502904042986234,
+      "maxY": 0.4
+    },
+    "yRange": [
+      -36,
+      36
+    ],
+    "valueTexts": [
+      "Period: 2.01 s",
+      "Frequency: 0.50 Hz",
+      "Peak speed: 1.62 m/s",
+      "Angle: -11.3 deg"
+    ],
+    "variants": [
+      [
+        "Mass changes size, not swing speed.",
+        "Period grows with string length.",
+        "Mid-range swing at steady rhythm."
+      ],
+      [
+        "Mass changes size, not swing speed.",
+        "Period grows with string length.",
+        "Near bottom: speed is at its peak."
+      ],
+      [
+        "Mass changes size, not swing speed.",
+        "Period grows with string length.",
+        "Long string or weak g: slow swing"
+      ]
+    ],
+    "plot": {
+      "geometry": {
+        "min": {
+          "width": 218,
+          "height": 277
+        },
+        "plotArea": {
+          "left": 74,
+          "right": 280,
+          "top": 56,
+          "bottom": 198
+        },
+        "x": {
+          "min": 0,
+          "max": 5
+        },
+        "y": {
+          "min": -36,
+          "max": 36
+        }
+      }
+    },
+    "facts": {
+      "turns": {
+        "angle": 6
+      },
+      "msPerFrameWorst": 9,
+      "programBytes": 10570,
+      "frameObjects": 16,
+      "msPerComputeBatch": 161
+    }
+  }
+}

@@ -132,7 +132,9 @@ export function yRangeOf(values) {
 // One source text: the data it needs and the placed boxes embedded as JSON, the model's function embedded as written inside a wrapper that hides everything of ours, and our own evaluate.
 // `data` = { P: what evaluate reads of the blueprint, L: the placed boxes }, made by interact-templates/blueprint.js.
 export function programSource(code, data) {
-  return `const compute = (function (sdk, P, L, evaluate, keepIndices, curveOf, specOf, splineAt, diameterOf) {
+  // A Worker bundle (esbuild keepNames) wraps the helper functions in __name(...) calls that toString() carries into the guest text; the guest gets the same no-op the bundler's own helper is.
+  return `const __name = target => target;
+const compute = (function (sdk, P, L, evaluate, keepIndices, curveOf, specOf, splineAt, diameterOf) {
 ${code}
 ;
 return compute;

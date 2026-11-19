@@ -417,7 +417,7 @@ export class ExplainJobs {
       // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
       // server's execution decision, which the card obeys.
       if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
-      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: { ...explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), ...(job.design?.blueprint ? { blueprint: await this.state.storage.get(`design:${job.id}:${job.design.rev}:blueprint`) } : {}) }, ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
+      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: { ...explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), ...(job.design?.blueprint ? { blueprint: await this.state.storage.get(`design:${job.id}:${job.design.rev}:blueprint`), blueprintFinal: await this.state.storage.get(`design:${job.id}:${job.design.rev}:blueprint-final`) ?? null } : {}) }, ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
     }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
@@ -1163,7 +1163,7 @@ export class ExplainJobs {
     const d = job.design, now = Date.now();
     const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
     const keep = (name, value) => this.state.storage.put(`design:${job.id}:${d.rev}:${name}`, value);
-    if (out.blueprint) { await keep('blueprint', out.blueprint); d.blueprint = { passed: out.blueprint.passed, seed: out.blueprint.seed, seconds: out.blueprint.seconds, costUsd: out.blueprint.costUsd, problems: out.blueprint.problems.slice(0, 3) }; console.log(JSON.stringify({ event: 'interact_blueprint', jobId: job.id, record: out.blueprint })); } // brief 39: the interactive-blueprint design phase, then the stop below
+    if (out.blueprint) { await keep('blueprint', out.blueprint); if (out.final) await keep('blueprint-final', out.final); d.blueprint = { passed: out.blueprint.passed, seed: out.blueprint.seed, seconds: out.blueprint.seconds, costUsd: out.blueprint.costUsd, problems: out.blueprint.problems.slice(0, 3) }; console.log(JSON.stringify({ event: 'interact_blueprint', jobId: job.id, record: out.blueprint, final: out.final ?? null })); } // brief 41: the final blueprint (parsed, passed the full checker) is its own key beside the record // brief 39: the interactive-blueprint design phase, then the stop below
     if (out.fast) d.fast = out.fast; // the fast path's record (kind, model, calls, fallback, first problem, cost): kept on a pass, a fallback, a gap and a refused Opus brief alike
     if (out.stop) return this.stopWith(job, out.stop.reason, out.stop.category, out.stop.message, !['design_unresolved', 'design_gap'].includes(out.stop.reason));
     if (out.problems) {
