@@ -12,14 +12,14 @@ const DEPTHS = ['brief', 'balanced', 'detailed'];
 const KINDS = ['flow', 'comparison', 'timeline', 'sequence', 'matrix', 'layers', 'cycle', 'figure', 'tree', 'relationship', 'transformation', 'argument', 'number-line', 'coordinate-plot', 'bar-chart', 't-account', 'waterfall', 'heatmap', 'sample-set', 'histogram', 'box-plot', 'tensor', 'token-links', 'block-stack'];
 const SEEDS = Array.from({ length: 25 }, (_, i) => `request-${i}`);
 
-test('GEN-1 G1 pool: sizes per kind and depth (main plus SAME-1\'s top-k bar-chart plus Codex\'s 10 pool references: number-line, t-account, waterfall, box-plot now 3 each)', () => {
+test('GEN-1 G1 pool: sizes per kind and depth (main plus SAME-1\'s top-k bar-chart plus Codex\'s 22 pool references: every kind now has at least 3)', () => {
   const want = { // [brief, balanced, detailed]
-    flow: [36, 27, 28], comparison: [10, 8, 8], timeline: [10, 10, 10], sequence: [9, 9, 9], matrix: [94, 92, 92], layers: [1, 1, 1], cycle: [5, 5, 4], figure: [0, 0, 0], tree: [14, 14, 14], relationship: [22, 22, 22],
-    transformation: [10, 3, 2], argument: [0, 0, 0], 'number-line': [3, 3, 3], 'coordinate-plot': [95, 96, 96], 'bar-chart': [20, 20, 21], 't-account': [3, 3, 3], waterfall: [3, 3, 3], heatmap: [27, 27, 27],
-    'sample-set': [9, 9, 9], histogram: [5, 5, 5], 'box-plot': [3, 3, 3], tensor: [0, 0, 0], 'token-links': [6, 6, 6], 'block-stack': [29, 29, 29],
+    flow: [36, 27, 28], comparison: [10, 8, 8], timeline: [10, 10, 10], sequence: [9, 9, 9], matrix: [94, 92, 92], layers: [3, 3, 3], cycle: [5, 5, 4], figure: [3, 3, 3], tree: [14, 14, 14], relationship: [22, 22, 22],
+    transformation: [11, 4, 3], argument: [3, 3, 3], 'number-line': [3, 3, 3], 'coordinate-plot': [95, 96, 96], 'bar-chart': [20, 20, 21], 't-account': [3, 3, 3], waterfall: [3, 3, 3], heatmap: [27, 27, 27],
+    'sample-set': [9, 9, 9], histogram: [5, 5, 5], 'box-plot': [3, 3, 3], tensor: [3, 3, 3], 'token-links': [6, 6, 6], 'block-stack': [29, 29, 29],
   };
   for (const kind of KINDS) assert.deepEqual(DEPTHS.map(d => examplePoolSize(kind, d)), want[kind], kind);
-  assert.deepEqual(DEPTHS.map(d => KINDS.reduce((s, k) => s + examplePoolSize(k, d), 0)), [414, 395, 395]);
+  assert.deepEqual(DEPTHS.map(d => KINDS.reduce((s, k) => s + examplePoolSize(k, d), 0)), [426, 407, 407]);
 });
 
 test('GEN-1 G1: three distinct library examples as { id, spec } only, none general-* or shape-*, deterministic for a seed and different across seeds', () => {
@@ -40,14 +40,8 @@ test('GEN-1 G1: three distinct library examples as { id, spec } only, none gener
   assert.notDeepEqual(exampleReferences('flow', 'brief', 'request-1').examples.map(e => e.id), a.examples.map(e => e.id), 'a depth is its own pool');
 });
 
-test('GEN-1 G1: a pool of one is filled with the kind\'s gallery example, a pool of none is the gallery example alone, and the card says it got fewer than three', () => {
-  const one = exampleReferences('layers', 'balanced', 'request-1');
-  assert.equal(one.pool, 1);
-  assert.deepEqual([one.examples.length, one.galleryFilled, one.short], [2, true, true]);
-  assert.equal(one.examples[1].id, 'shape-layers');
-  const none = exampleReferences('figure', 'balanced', 'request-1');
-  assert.deepEqual([none.pool, none.examples.map(e => e.id), none.galleryFilled, none.short], [0, ['shape-figure'], true, true]);
-  assert.equal(exampleReferences('transformation', 'detailed', 'request-1').examples.length, 3, 'pool 2 + the gallery example');
+test('GEN-1 G1: with Codex\'s pool every real kind draws three library examples (the gallery fill is unreachable with this library); an unknown kind draws none', () => {
+  for (const kind of KINDS) for (const depth of DEPTHS) { const r = exampleReferences(kind, depth, 'request-1'); assert.deepEqual([r.examples.length, r.galleryFilled, r.short], [EXAMPLES_WANTED, false, false], `${kind} ${depth}`); }
   assert.deepEqual(exampleReferences('no-such-kind', 'balanced', 'request-1'), { examples: [], pool: 0, galleryFilled: false, short: true });
 });
 
