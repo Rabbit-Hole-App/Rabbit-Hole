@@ -2722,19 +2722,19 @@
       "height": 276
     },
     "permutation-feature-importance/320": {
-      "sha256": "9a4b8c4c91d8035e1009db6d274537fe5411c807627e19880f1e9794a7dccdfa",
+      "sha256": "1a83a0a42690a1dfdab3ed2fc858ba2126189979c7b2adeded94ec0890ea9cbc",
       "width": 408,
-      "height": 436
+      "height": 446
     },
     "permutation-feature-importance/408": {
-      "sha256": "9a4b8c4c91d8035e1009db6d274537fe5411c807627e19880f1e9794a7dccdfa",
+      "sha256": "1a83a0a42690a1dfdab3ed2fc858ba2126189979c7b2adeded94ec0890ea9cbc",
       "width": 408,
-      "height": 436
+      "height": 446
     },
     "permutation-feature-importance/720": {
-      "sha256": "0c871638dc7f934c1e3a847dd42f47886abdd9896131beb4297140f5e7efe230",
+      "sha256": "93868bcd100e621a8bc4ea1e009bb239edff328a542d2d17ff1ebf6ed184a882",
       "width": 720,
-      "height": 397
+      "height": 407
     },
     "permutation-feature-matrix/320": {
       "sha256": "f052eed1d9d674b4153ff2ab4a5d72f29514da192964e59b511697624fd365f5",
@@ -4442,9 +4442,9 @@
       "height": 380
     },
     "ml-transformer-vocabulary-softmax/960": {
-      "sha256": "9af8362b1d8325d2867bdb5f37658ca5b47de5a181b397e3c0c586129dc040a4",
+      "sha256": "2f266437869c865f791ada607dce4cb9003932b00ee159cd539451a28c75e433",
       "width": 720,
-      "height": 363
+      "height": 373
     },
     "ml-transformer-vocabulary-softmax/natural": {
       "sha256": "6ae7c1af74b92a6b98c85ca3a44848945d6f7d1c7714bdd61abf99c77176c7bb",
@@ -4497,9 +4497,9 @@
       "height": 419
     },
     "ml-transformer-vocabulary-softmax-detailed/960": {
-      "sha256": "19dd526539e49a98ddf4d58acd36d43b43c333f47811ee845f52c5ac55ea2685",
+      "sha256": "b00e6da63f210759b39771facfec690b96cf75f15ee381054e9538ccfd582c9b",
       "width": 720,
-      "height": 380
+      "height": 390
     },
     "ml-transformer-vocabulary-softmax-detailed/natural": {
       "sha256": "c0656bc7c67046946cfdfc1da48c5951f3265ebdadfad63c04829320ba4d3ea2",
