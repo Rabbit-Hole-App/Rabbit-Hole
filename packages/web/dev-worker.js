@@ -40,6 +40,8 @@ import { explainRoute } from '../control-plane/src/explain-job.js';
 import quickjsWasm from '../../node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm';
 import { provideEngineWasm } from '../control-plane/src/interact-checks.js';
 provideEngineWasm(quickjsWasm);
+import { provideBlueprintEngineWasm } from './src/interact-blueprint-run.js';
+provideBlueprintEngineWasm(quickjsWasm);
 import { fileJobsRoute } from '../control-plane/src/file-jobs.js';
 import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';

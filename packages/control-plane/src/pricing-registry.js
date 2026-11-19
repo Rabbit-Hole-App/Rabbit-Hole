@@ -75,6 +75,9 @@ row('google', 'gemini-3.5-flash-lite', 'standard', 'output', 2.5, PER.mtok, VERI
 // (ai.google.dev/gemini-api/docs/whats-new-gemini-3.6), read 2026-11-13; the pricing page no longer lists the model (gemini-3.5-flash is deprecated and routed to gemini-3.6-flash), so no official row to verify against.
 row('google', 'gemini-3.5-flash', 'standard', 'input', 1.5, PER.mtok, ESTIMATE, 'second hand: the 3.6 release notes; the pricing page has no 3.5 Flash row', 'https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.6', '2026-11-13');
 row('google', 'gemini-3.5-flash', 'standard', 'output', 9, PER.mtok, ESTIMATE, 'includes thinking tokens; second hand: the 3.6 release notes', 'https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.6', '2026-11-13');
+// Gemini 4 Hydrogen (the interactive-blueprint design roles, briefs 38 and 39): ESTIMATE, the rates the owner gave in brief 38. Thinking tokens are billed as output (the job counts max(completion, total - prompt)).
+row('google', 'gemini-4-hydrogen', 'standard', 'input', 1.5, PER.mtok, ESTIMATE, 'owner brief 38', 'owner brief 38');
+row('google', 'gemini-4-hydrogen', 'standard', 'output', 7.5, PER.mtok, ESTIMATE, 'includes thinking tokens; owner brief 38', 'owner brief 38');
 // JEV 1.13 (practice grading, platform-funded: recorded apart, never in the user's balance): $0.042 per million input, free output.
 for (const model of ['jev-1.13.0', 'jev-1.13']) {
   row('jev', model, 'standard', 'input', 0.042, PER.mtok, VERIFIED, 'platform-funded');

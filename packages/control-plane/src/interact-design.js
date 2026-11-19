@@ -25,6 +25,7 @@ import { designPinOf, pinnedFixtureId } from './interact-design-pin.js';
 import { INTERACT_FAMILIES } from './interact-families.js';
 import { pickFamily, pickThreshold } from './interact-design-pick.js';
 import { fillSystem, formulaProblems } from './interact-design-fill.js';
+import { blueprintDesign } from './interact-blueprint-design.js';
 import { templatePrecheck } from './interact-template.js';
 import { DESIGN_AUTHOR_SYSTEM, DESIGN_AUTHOR_TOOL, DESIGN_AUTHOR_VERSION, designAuthorSchema } from './agents/interact-design-author.js';
 import { DESIGN_REVIEW_SYSTEM, DESIGN_REVIEW_TOOL, DESIGN_REVIEW_VERSION, designReviewSchema } from './agents/interact-design-review.js';
@@ -34,7 +35,7 @@ export const DESIGN_FLOW_VERSION = 1;
 export const DESIGN_STAGES = Object.freeze(['design_authoring', 'design_reviewing', 'design_revising', 'design_verifying']);
 // INT-03-C10: what the learner reads for each server state. The real state stays in diagnostics.
 export const DESIGN_PUBLIC_STATE = Object.freeze({ design_authoring: 'Designing scene', design_reviewing: 'Reviewing scene design', design_revising: 'Updating scene plan', design_verifying: 'Checking scene plan', awaiting_approval: 'Ready to review' });
-export const DESIGN_ROLE_KEY = Object.freeze({ design_author: 'author', design_review: 'review', design_revise: 'revise', design_fill: 'fill' });
+export const DESIGN_ROLE_KEY = Object.freeze({ design_author: 'author', design_review: 'review', design_revise: 'revise', design_fill: 'fill', blueprint_quantities: 'bpq', blueprint_design: 'bp' });
 export const DESIGN_BOUNDS = Object.freeze({ author: INTERACT_LIMITS.calls.design_author, review: INTERACT_LIMITS.calls.design_review, revise: INTERACT_LIMITS.calls.design_revise });
 // rev: the design revision number (an Edit makes the next one); pending: a revision from the reviser that awaits verification. Large bodies (every draft, review and
 // revision) are kept under their own storage keys by the job (design:<job>:<rev>:<name>), only the working set lives on the job record.
@@ -263,6 +264,11 @@ export async function fastDesign(job, ctx) {
 // (3 of 3 live runs, while the same call usually succeeds). The Author gets ONE correction call that names the exact problems and must return the whole corrected plan; a second
 // refusal stops the design with the problems, as before. The second call is counted and bounded like any other (INTERACT_LIMITS.calls.design_author is 2).
 export async function authorDesign(job, ctx) {
+  // brief 39: INTERACT_DESIGN_KIND=blueprint runs the interactive-blueprint design phase and stops; no plan, no review, no build.
+  if (ctx.designKind === 'blueprint') {
+    const { blueprint } = await blueprintDesign(job, ctx);
+    return { blueprint, ...(blueprint.passed ? { stop: { reason: 'design_gap', category: 'capability', message: GAP_MESSAGE } } : stop('design_invalid', 'spec', `The scene design could not be completed: ${blueprint.problems[0] ?? 'the blueprint could not be made'}. Try again or edit the request.`)) };
+  }
   // The fast path runs once per design (design.fast is stored by the first result); an Edit or a retried Opus author never re-enters it.
   let fast;
   // A dev-only design pin (INTERACT_DESIGN_FIXTURE, interact-design-pin.js) that pins this Depth answers the author role from the fixture plan, so the fast path steps aside for it (a pinned job runs no pick and no fill).

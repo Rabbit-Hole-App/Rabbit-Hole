@@ -39,7 +39,7 @@ import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRev
 import { blockedBody, referencesKey, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
-import { INTERACT_DESIGN_KIND_SETTING, INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
+import { BLUEPRINT_ROLES, INTERACT_DESIGN_KIND_SETTING, INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
 import { designPinOf, pinnedDesignCall, pinnedFixtureId } from './interact-design-pin.js';
 import { SCRIPTED_PROFILE, scriptedBuildAdapter, scriptedBuildAllowed } from './interact-scripted.js';
 import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
@@ -417,7 +417,7 @@ export class ExplainJobs {
       // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
       // server's execution decision, which the card obeys.
       if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
-      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
+      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: { ...explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), ...(job.design?.blueprint ? { blueprint: await this.state.storage.get(`design:${job.id}:${job.design.rev}:blueprint`) } : {}) }, ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
     }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
@@ -483,13 +483,13 @@ export class ExplainJobs {
       if (profile.id === SCRIPTED_PROFILE && !scriptedBuildAllowed(this.env)) throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured'); // the scripted profile is dev-only
       // INTERACT_DESIGN_KIND: unset runs the Opus design; 'fast' the fill path (interact-design.js fastDesign) with the Opus design as its fallback. A misspelling is refused, never silently the other path.
       const designKind = this.env[INTERACT_DESIGN_KIND_SETTING] || null;
-      if (designKind !== null && designKind !== 'fast') throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured');
+      if (designKind !== null && designKind !== 'fast' && designKind !== 'blueprint') throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured');
       // INTERACT_GAP (fast path only): 'message' (default) ends a job whose pick found no family with a plain sentence and no Opus call; 'opus' runs the full Opus design for it (measurement). Pinned on the job; a misspelling is refused.
       const gap = designKind === 'fast' ? this.env.INTERACT_GAP || 'message' : null;
       if (gap !== null && gap !== 'message' && gap !== 'opus') throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured');
       const priced = interactReservation(profile, designKind);
       if (priced.preparationMicros == null || priced.generationMicros == null) throw fail('Scene design is not priced for this model profile yet.', 503, 'flow_unpriced'); // an unknown price is never zero
-      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', ...(designKind ? { designKind } : {}), ...(gap ? { gap } : {}), profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
+      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', ...(designKind ? { designKind } : {}), ...(designKind === 'blueprint' ? { seed: crypto.getRandomValues(new Uint32Array(1))[0] } : {}), ...(gap ? { gap } : {}), profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
         design: freshDesign(), prepare: true, reservation: { version: INTERACT_POLICY_VERSION, preparationMicros: priced.preparationMicros, generationMicros: priced.generationMicros } });
     }
     // Generation is admitted up front on the direct path; a prepared request is admitted at approve. Refused: nothing is
@@ -818,8 +818,10 @@ export class ExplainJobs {
     this.active.add(job.id);
     let out, error;
     // design_fill is the one design role that is not Anthropic: the Worker's fetch behind the same spend admission, as the build roles (buildRoleCtx); the call fence above is its admission.
-    const adapters = role === 'design_fill' ? { 'openai-compatible': { name: 'openai-compatible', call: a => interactAdapters({ env: this.env, fetch: this.interactFetch(job, a.config) })['openai-compatible'].call(a) } } : interactAdapters({ env: this.env, callModel: this.interactTransport(job, role) });
+    const grab = { text: null }, keepText = send => (url, init) => send(url, init).then(async response => { try { grab.text = (await response.clone().json())?.choices?.[0]?.message?.content ?? null; } catch { /* no body to keep */ } return response; });
+    const adapters = role === 'design_fill' || BLUEPRINT_ROLES.includes(role) ? { 'openai-compatible': { name: 'openai-compatible', call: a => interactAdapters({ env: this.env, fetch: BLUEPRINT_ROLES.includes(role) ? keepText(this.interactFetch(job, a.config)) : this.interactFetch(job, a.config) })['openai-compatible'].call(a) } } : interactAdapters({ env: this.env, callModel: this.interactTransport(job, role) });
     try { out = await callInteractRole({ env: this.env, profile, adapters, admit: async () => {}, settle: async () => {} }, role, args); } catch (e) { error = e; } finally { this.active.delete(job.id); }
+    if (BLUEPRINT_ROLES.includes(role)) { if (out) out.raw = grab.text; if (error) error.raw = grab.text; }
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
@@ -1065,7 +1067,7 @@ export class ExplainJobs {
     if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
     // interact: the design roles' model calls; a dev-only pin (interact-design-pin.js, never in production) answers them from the fixture plan.
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS,
-      ...(job.flow ? { interact: async (role, args) => { const pin = designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene, designKind: job.flow.designKind, gap: job.flow.gap,
+      ...(job.flow ? { interact: async (role, args) => { const pin = job.flow.designKind === 'blueprint' ? null : designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene, designKind: job.flow.designKind, gap: job.flow.gap,
         // The description fit is a measurement; only the pure estimate exists in a Worker (no DOM), so it runs only when the server setting says so, labelled estimate in the stored receipt.
         descriptionFit: this.deps.descriptionFit ?? (this.env.INTERACT_DESCRIPTION_FIT === 'estimate' ? estimateDescriptionFit : undefined) } : {}) };
     if (this.buildFlow(job)) Object.assign(ctx, { build: await this.loadBuild(job), role: await this.buildRoleCtx(job) });
@@ -1161,6 +1163,7 @@ export class ExplainJobs {
     const d = job.design, now = Date.now();
     const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
     const keep = (name, value) => this.state.storage.put(`design:${job.id}:${d.rev}:${name}`, value);
+    if (out.blueprint) { await keep('blueprint', out.blueprint); d.blueprint = { passed: out.blueprint.passed, seed: out.blueprint.seed, seconds: out.blueprint.seconds, costUsd: out.blueprint.costUsd, problems: out.blueprint.problems.slice(0, 3) }; console.log(JSON.stringify({ event: 'interact_blueprint', jobId: job.id, record: out.blueprint })); } // brief 39: the interactive-blueprint design phase, then the stop below
     if (out.fast) d.fast = out.fast; // the fast path's record (kind, model, calls, fallback, first problem, cost): kept on a pass, a fallback, a gap and a refused Opus brief alike
     if (out.stop) return this.stopWith(job, out.stop.reason, out.stop.category, out.stop.message, !['design_unresolved', 'design_gap'].includes(out.stop.reason));
     if (out.problems) {

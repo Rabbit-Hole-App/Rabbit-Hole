@@ -193,14 +193,14 @@ test('callInteractRole runs a design and a build role on the all-Opus profile an
 test('role bounds and phase reservations come from the profile, with design in preparation and build in generation', () => {
   const profile = resolveInteractProfile('opus-baseline'), bound = role => roleBoundMicros(profile.roles[role]);
   // (input bytes + images x 4,784) x $5 (the 5-minute cache write) + max output x $20, per MTok.
-  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 38000, 815680, 743520, 767840, 240000]); // design_fill is Gemini Flash Lite (the fast design path); the last is the bench judge (Sonnet, $2/$10): in neither reservation below
+  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 38000, 480000, 480000, 815680, 743520, 767840, 240000]); // design_fill is Gemini Flash Lite (the fast design path); the two after it are the blueprint roles (Gemini 4 Hydrogen: 80,000 input bytes at $1.50 and 48,000 output tokens at $7.50, brief 39); the last is the bench judge (Sonnet, $2/$10): in neither reservation below
   const r = interactReservation(profile);
   assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 4 * 595680 + 3 * 675680, 2 * 815680 + 5 * 743520 + 4 * 767840, []]);
-  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 4, 3, 2, 2, 5, 4, 1]); // design_fill: the fill and its one correction; the second author call is the one correction of a refused plan; the build roles get one correction each (build_author 1+1, build_review 1+3+1, build_repair 3+1)
+  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 4, 3, 2, 1, 2, 2, 5, 4, 1]); // blueprint_quantities 1 and blueprint_design 2 (the call and its one correction, brief 39); design_fill: the fill and its one correction; the second author call is the one correction of a refused plan; the build roles get one correction each (build_author 1+1, build_review 1+3+1, build_repair 3+1)
   assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 300000, preparationMs: 600000, jobMs: 1200000 });
   for (const role of ['design_author', 'design_review', 'design_revise']) assert.equal(interactPhase(role), 'preparation', role);
   for (const role of ['build_author', 'build_review', 'build_repair']) assert.equal(interactPhase(role), 'generation', role);
-  assert.deepEqual(INTERACT_ROLE_IDS.map(interactCallKind), ['generation', 'evaluation', 'generation', 'generation', 'generation', 'evaluation', 'repair', 'evaluation']);
+  assert.deepEqual(INTERACT_ROLE_IDS.map(interactCallKind), ['generation', 'evaluation', 'generation', 'generation', 'generation', 'generation', 'generation', 'evaluation', 'repair', 'evaluation']);
   assert.equal(interactPhase('bench_judge'), 'bench');
   assert.throws(() => interactPhase('brief'), { code: 'unknown_role' });
 });

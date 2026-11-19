@@ -15,7 +15,7 @@ import { CONTRACT_LIMITS } from '../../web/src/explain-program/contract.js';
 export { InteractModelError, interactAdapters } from './interact-model-adapters.js';
 
 export const INTERACT_POLICY_VERSION = 1;
-export const INTERACT_DESIGN_KIND_SETTING = 'INTERACT_DESIGN_KIND'; // unset = the Opus design (author, review, revise, verify); 'fast' = the fill path with the Opus design as its fallback
+export const INTERACT_DESIGN_KIND_SETTING = 'INTERACT_DESIGN_KIND'; // unset = the Opus design (author, review, revise, verify); 'fast' = the fill path with the Opus design as its fallback; 'blueprint' = the interactive-blueprint design phase only (brief 39)
 export const INTERACT_PROFILE_SETTING = 'INTERACT_MODEL_PROFILE'; // the server setting; unset or empty means the registry default
 export const INTERACT_BUILD_PROFILE_SETTING = 'INTERACT_BUILD_PROFILE'; // the same choice for the build half (google-low, fireworks-low); INTERACT_MODEL_PROFILE wins when both are set
 export const INTERACT_FALLBACK_SETTING = 'INTERACT_FALLBACK'; // 'off' (benchmarks: a fallback is a failure) runs a role's own provider only, like EXPLANATION_FALLBACK=off
@@ -39,6 +39,9 @@ export const INTERACT_ROLES = deepFreeze({
   design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
   // The fast design path (INTERACT_DESIGN_KIND=fast, brief 12): ONE call that fills a plan brief (interact-design-fill.js), plus one correction. Gemini Flash Lite, never Opus; the profile's design_fill config is below.
   design_fill: { task: 'interact_design_fill', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 0, maxOutputTokens: 8000 },
+  // The interactive-blueprint design phase (brief 39, kind 'blueprint'): Gemini 4 Hydrogen at high. The quantities call, then the blueprint call and at most one correction. Nothing here reaches Build.
+  blueprint_quantities: { task: 'interact_blueprint_quantities', phase: 'preparation', kind: 'generation', calls: 1, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
+  blueprint_design: { task: 'interact_blueprint_design', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
   build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
   build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
@@ -75,6 +78,12 @@ const fastProfile = primary => ({ version: 1, extends: 'opus-baseline', roles: O
 
 // design_fill: Gemini Flash Lite at reasoning low, the fast profile's step for build_author with the fill's own output cap and no fallback chain (a failed fill goes to the Opus design, not to another cheap model).
 const fillRole = () => ({ ...fastStep('design_fill', 'google', false), maxOutputTokens: INTERACT_ROLES.design_fill.maxOutputTokens });
+// The blueprint roles: Gemini 4 Hydrogen at reasoning high, the repo's Google endpoint, strict json_schema (the schema is sent bounds-free with exclusive oneOf as anyOf, as MVP 1 sent it; the checker holds the bounds), no temperature, no fallback.
+export const BLUEPRINT_ROLES = Object.freeze(['blueprint_quantities', 'blueprint_design']);
+const HYDROGEN_MODEL = 'gemini-4-hydrogen';
+const blueprintRole = role => ({ role, task: INTERACT_ROLES[role].task, provider: 'google', model: HYDROGEN_MODEL, adapter: 'openai-compatible', endpoint: CHAIN_ENDPOINTS.google.url.replace(/\/chat\/completions$/, ''), credentialRef: CHAIN_STEPS.google.credentialRef,
+  maxOutputTokens: INTERACT_ROLES[role].maxOutputTokens, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: 0, timeoutMs: 300000, settings: { reasoning_effort: 'high' }, pricingKey: { provider: 'google', model: HYDROGEN_MODEL, tier: 'standard' },
+  capabilities: { vision: false, structuredOutput: 'json_schema', oneOf: 'anyOf', settings: ['reasoning_effort'], stripBounds: false, sanitize: false }, servedModelAliases: [], servedMatch: 'snapshot' });
 
 const ADAPTERS = ['anthropic', 'openai-compatible'];
 // The all-Opus role config: the existing automatic-tool approach (one tool on auto), no thinking, effort or fallback setting of its own.
@@ -99,7 +108,7 @@ export const INTERACT_REGISTRY = deepFreeze({
   defaultProfile: 'opus-baseline',
   providers: { anthropic: { credentialRef: 'ANTHROPIC_API_KEY' }, celeris: { credentialRef: 'CELERIS_API_KEY' }, google: { credentialRef: CHAIN_STEPS.google.credentialRef }, fireworks: { credentialRef: CHAIN_STEPS.fireworks.credentialRef } },
   endpointAllowlist: ['https://inference.celeris.ai', ...['google', 'fireworks'].map(p => new URL(CHAIN_ENDPOINTS[p].url).origin)],
-  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, role === 'design_fill' ? fillRole() : opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks'),
+  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, role === 'design_fill' ? fillRole() : BLUEPRINT_ROLES.includes(role) ? blueprintRole(role) : opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks'),
     // DEV-ONLY: opus-baseline's roles, but the build roles are answered by interact-scripted.js with no model call; refused unless scriptedBuildAllowed(env) (never in production).
     scripted: { version: 1, extends: 'opus-baseline', roles: {} } },
 });
@@ -185,7 +194,8 @@ export function roleBoundMicros(config) {
 // null and names the roles; it is never a smaller number.
 // kind 'fast' (INTERACT_DESIGN_KIND=fast): the preparation phase is the fill and its correction only; the Opus design roles are reserved when the fallback starts (interactReservation(profile) alone). Any other kind leaves the fill out.
 export function interactReservation(profile, kind) {
-  const left = role => (kind === 'fast' ? ['design_author', 'design_review', 'design_revise'] : ['design_fill']).includes(role);
+  // kind 'blueprint': the preparation phase is the two blueprint roles only. Any other kind leaves them out.
+  const left = role => (kind === 'blueprint' ? INTERACT_ROLES[role].phase === 'preparation' && !BLUEPRINT_ROLES.includes(role) : (kind === 'fast' ? ['design_author', 'design_review', 'design_revise'] : ['design_fill']).includes(role) || BLUEPRINT_ROLES.includes(role));
   const perRole = Object.fromEntries(INTERACT_ROLE_IDS.filter(role => INTERACT_ROLES[role].phase !== 'bench' && !left(role)).map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
   const phase = name => { const roles = INTERACT_ROLE_IDS.filter(r => INTERACT_ROLES[r].phase === name && !left(r)); return roles.some(r => perRole[r].boundMicros == null) ? null : roles.reduce((t, r) => t + perRole[r].calls * perRole[r].boundMicros, 0); };
   return { version: INTERACT_POLICY_VERSION, profile: { id: profile.id, version: profile.version }, preparationMicros: phase('preparation'), generationMicros: phase('generation'),

@@ -5,8 +5,9 @@
 import { loadEngine, runProgram } from './explain-program/runtime.js';
 import { BATCH_TIMES } from './interact-blueprint-constants.js';
 
-let engine;
-const engineOnce = async () => (engine ??= await loadEngine());
+let engine, engineWasm;
+export const provideBlueprintEngineWasm = wasmModule => { engineWasm = wasmModule; }; // a Worker bundles the wasm and hands it over once (dev-worker.js); Node loads the engine itself
+const engineOnce = async () => (engine ??= await loadEngine(undefined, engineWasm));
 
 // shadowed names: the function cannot reach the sdk, the checker's own bindings or the module's exports
 export const getEngine = engineOnce;
