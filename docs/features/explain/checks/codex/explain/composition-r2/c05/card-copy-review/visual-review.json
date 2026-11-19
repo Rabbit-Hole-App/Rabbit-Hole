@@ -1,0 +1,48 @@
+{
+  "commit": "3812a839ff3b779d023ab2d58cfd95a759d907a1",
+  "tree": "8082aa959c4a78921a3f4961366f7a600ca46c04",
+  "viewsRead": 18,
+  "noteExceptions": [
+    {
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "depth": "deep",
+      "role": "detail",
+      "visibleLines": 11,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "depth": "overview",
+      "role": "main",
+      "visibleLines": 8,
+      "reason": "The current relationship renderer puts the arrow labels into 5 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 10,
+      "reason": "The current relationship renderer puts the arrow labels into 8 numbered-list text lines below the diagram. The caption takes 2."
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 9,
+      "reason": "The current relationship renderer puts the arrow labels into 6 numbered-list text lines below the diagram. The caption takes 3."
+    },
+    {
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "depth": "standard",
+      "role": "main",
+      "visibleLines": 17,
+      "reason": "The current relationship renderer puts the arrow labels into 14 numbered-list text lines below the diagram. The caption takes 3."
+    }
+  ],
+  "observations": [
+    "The relationship graph renderer leaves node boxes unfilled and numbers its arrow labels in these references: `ml-recurrent-training-gradient-horizons`, `ml-recurrent-training-shared-parameter-gradients`, `ml-recurrent-networks-recurrent-update`, `ml-recurrent-networks-recurrent-next-token-training`. These views are listed for the renderer review.",
+    "The Detailed companion for `ml-recurrent-training-shared-parameter-gradients` shows 0.75 and 1.25 with the shared derivative in its caption. The Detailed companion for `ml-recurrent-networks-recurrent-update` shows 2.5 and 0. Its Detailed main has coincident first-step markers because ReLU preserves the positive first input, and the second step separates the negative input from zero.",
+    "The Detailed main for `ml-recurrent-networks-recurrent-next-token-training` now prints 0.032, 0.573 and 0.394. Its Detailed companion prints 2.625 and 1.625. The Standard authored caption takes three lines.",
+    "The tranche has no raw feature labels or registered author-single panel slices."
+  ]
+}

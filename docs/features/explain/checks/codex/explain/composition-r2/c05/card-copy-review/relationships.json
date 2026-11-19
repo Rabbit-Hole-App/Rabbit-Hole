@@ -1,0 +1,348 @@
+{
+  "commit": "3812a839ff3b779d023ab2d58cfd95a759d907a1",
+  "tree": "8082aa959c4a78921a3f4961366f7a600ca46c04",
+  "draft": false,
+  "scannedReferenceIds": [
+    "ml-recurrent-training-gradient-horizons",
+    "ml-recurrent-training-shared-parameter-gradients",
+    "ml-recurrent-networks-recurrent-update",
+    "ml-recurrent-networks-recurrent-next-token-training"
+  ],
+  "additionalReusedIds": [],
+  "references": [
+    {
+      "id": "ml-recurrent-training-gradient-horizons",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [],
+        "deep": [
+          {
+            "role": "detail",
+            "path": [
+              "diagram"
+            ],
+            "title": "Backward signal stops; forward state passes",
+            "edgeCount": 8,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h1",
+                "to": "h2",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h2",
+                "to": "h3",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "h3",
+                "to": "h4",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h4",
+                "to": "h5",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h5",
+                "to": "h6",
+                "label": "forward",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "loss",
+                "to": "h6",
+                "label": "gradient",
+                "words": 1
+              },
+              {
+                "edgeIndex": 6,
+                "from": "h6",
+                "to": "h5",
+                "label": "gradient",
+                "words": 1
+              },
+              {
+                "edgeIndex": 7,
+                "from": "h5",
+                "to": "detach",
+                "label": "gradient",
+                "words": 1
+              }
+            ]
+          }
+        ]
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-training-shared-parameter-gradients",
+      "inventory": "added",
+      "depths": {
+        "overview": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Both losses train the same recurrent parameter",
+            "edgeCount": 5,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "a",
+                "to": "h1",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "a",
+                "to": "h2",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "h1",
+                "to": "h2",
+                "label": "handoff",
+                "words": 1
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h1",
+                "to": "l1",
+                "label": "via readout",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h2",
+                "to": "l2",
+                "label": "via readout",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Shared recurrence and losses",
+            "edgeCount": 8,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h0",
+                "to": "h1",
+                "label": "+x1",
+                "words": 1
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h1",
+                "to": "h2",
+                "label": "+x2",
+                "words": 1
+              },
+              {
+                "edgeIndex": 2,
+                "from": "a",
+                "to": "h1",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "a",
+                "to": "h2",
+                "label": "scale carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h1",
+                "to": "p1",
+                "label": "readout",
+                "words": 1
+              },
+              {
+                "edgeIndex": 5,
+                "from": "h2",
+                "to": "p2",
+                "label": "readout",
+                "words": 1
+              },
+              {
+                "edgeIndex": 6,
+                "from": "p1",
+                "to": "l1",
+                "label": "target y1",
+                "words": 2
+              },
+              {
+                "edgeIndex": 7,
+                "from": "p2",
+                "to": "l2",
+                "label": "target y2",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-networks-recurrent-update",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Fresh inputs, state handoff and both outputs",
+            "edgeCount": 6,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "h0",
+                "to": "h1",
+                "label": "scaled carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h1",
+                "to": "h2",
+                "label": "scaled carry",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "x1",
+                "to": "h1",
+                "label": "add before ReLU",
+                "words": 3
+              },
+              {
+                "edgeIndex": 3,
+                "from": "x2",
+                "to": "h2",
+                "label": "add before ReLU",
+                "words": 3
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h1",
+                "to": "y1",
+                "label": "scale activation",
+                "words": 2
+              },
+              {
+                "edgeIndex": 5,
+                "from": "h2",
+                "to": "y2",
+                "label": "scale activation",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    },
+    {
+      "id": "ml-recurrent-networks-recurrent-next-token-training",
+      "inventory": "added",
+      "depths": {
+        "overview": [],
+        "standard": [
+          {
+            "role": "main",
+            "path": [
+              "diagram"
+            ],
+            "title": "Marked first prediction and next-token target",
+            "edgeCount": 7,
+            "labels": [
+              {
+                "edgeIndex": 0,
+                "from": "x1",
+                "to": "h1",
+                "label": "encode observation",
+                "words": 2
+              },
+              {
+                "edgeIndex": 1,
+                "from": "h1",
+                "to": "h2",
+                "label": "carry state",
+                "words": 2
+              },
+              {
+                "edgeIndex": 2,
+                "from": "x2",
+                "to": "h2",
+                "label": "encode observation",
+                "words": 2
+              },
+              {
+                "edgeIndex": 3,
+                "from": "h1",
+                "to": "p1",
+                "label": "softmax readout",
+                "words": 2
+              },
+              {
+                "edgeIndex": 4,
+                "from": "h2",
+                "to": "p2",
+                "label": "softmax readout",
+                "words": 2
+              },
+              {
+                "edgeIndex": 5,
+                "from": "p1",
+                "to": "l1",
+                "label": "worked example loss",
+                "words": 3
+              },
+              {
+                "edgeIndex": 6,
+                "from": "p2",
+                "to": "l2",
+                "label": "next-token loss",
+                "words": 2
+              }
+            ]
+          }
+        ],
+        "deep": []
+      },
+      "authorSingles": []
+    }
+  ],
+  "wordCountMethod": "Nonempty whitespace-delimited terms in the resolved label"
+}
