@@ -2317,19 +2317,19 @@
       "height": 1369
     },
     "ml-recurrent-attention-decoder-context/320": {
-      "sha256": "6cce36227aa92b257cf3faafe5ee15bc26e00638d52904f11fafb1c4ab19a9f5",
+      "sha256": "ca7bf0763373127f2a14b8a9f281b900a95d8f5a3f5a12340f5aa93e7e82d193",
       "width": 454,
       "height": 1163
     },
     "ml-recurrent-attention-decoder-context/408": {
-      "sha256": "6cce36227aa92b257cf3faafe5ee15bc26e00638d52904f11fafb1c4ab19a9f5",
+      "sha256": "ca7bf0763373127f2a14b8a9f281b900a95d8f5a3f5a12340f5aa93e7e82d193",
       "width": 454,
       "height": 1163
     },
     "ml-recurrent-attention-decoder-context/720": {
-      "sha256": "15e5e836e1efcbfe7416a26c5d15377687ad420d2a1ed80012f38ec6a4a39377",
+      "sha256": "2369c654c20f41d6cc544d7d423e009b9052a9689c332a8be6f025c85b6e5e0f",
       "width": 720,
-      "height": 1163
+      "height": 1146
     },
     "ml-recurrent-networks-recurrent-next-token-training/320": {
       "sha256": "fdc99a6ff9bd7ab8c58277ff9c40ba760e0ea554f44edca6aca8e20d65a2d9db",

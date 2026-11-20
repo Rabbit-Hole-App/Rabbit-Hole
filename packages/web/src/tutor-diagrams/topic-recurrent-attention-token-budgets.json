@@ -6,8 +6,8 @@
       "overview": [
         {
           "field": "spec",
-          "tokens": 223,
-          "sha256": "bcd698900ea0eecdbe0efa4adb1e96d885fd4aa5d4e899a788833b18a2346a58"
+          "tokens": 240,
+          "sha256": "688742106598646d730910f57f617b00a0dd548cfbd134159d658e0964397c1a"
         },
         {
           "field": "detailSpec",
@@ -18,8 +18,8 @@
       "standard": [
         {
           "field": "spec",
-          "tokens": 287,
-          "sha256": "859bb0062b59239839a50d73388fe64c133f851f6b426f901c8ccf8557d160f9"
+          "tokens": 286,
+          "sha256": "4009ae9a9c64d3be7f10ccf0158bc129441c595a11857fcfb2d8d81e324d48e5"
         },
         {
           "field": "detailSpec",

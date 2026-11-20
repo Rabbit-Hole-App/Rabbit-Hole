@@ -3,13 +3,25 @@ import manifest from './topic-attention-sources.json' with { type: 'json' };
 const d = derived(), p = d.parameters, spec = diagram => ({ version: 1, diagram });
 const edge = (from, to, label) => ({ from, to, label });
 const overview = { kind: 'relationship', layout: 'graph', title: 'Two reads enter two recurrent updates',
-  nodes: [{ id: 'enc', label: 'Shared encoder' }, { id: 's0', label: 'Initial state' }, { id: 'c1', label: 'Read context A' }, { id: 's1', label: 'Update A' }, { id: 'c2', label: 'Read context B' }, { id: 's2', label: 'Update B' }],
-  edges: [edge('enc', 'c1', 'memory'), edge('s0', 'c1', 'query'), edge('c1', 's1', 'add'), edge('s0', 's1', 'scale carry'), edge('enc', 'c2', 'memory'), edge('s1', 'c2', 'query'), edge('c2', 's2', 'add'), edge('s1', 's2', 'scale carry')],
-  caption: 'Toy recurrence: each updated state queries the same encoder source for the following read.' };
+  nodes: [{ id: 'enc', label: 'Encoder memory' }, { id: 's0', label: 'Initial state' }, { id: 'c1', label: 'Read context A' }, { id: 's1', label: 'Update A' }, { id: 'c2', label: 'Read context B' }, { id: 's2', label: 'Update B' }],
+  edges: [
+    edge('enc', 'c1', 'Feeds attention'), edge('s0', 'c1', 'Feeds attention'),
+    edge('c1', 's1', 'Adds context'), edge('s0', 's1', 'Scales prior state'),
+    edge('enc', 'c2', 'Feeds attention'), edge('s1', 'c2', 'Feeds attention'),
+    edge('c2', 's2', 'Adds context'), edge('s1', 's2', 'Scales prior state'),
+  ],
+  caption: 'In this toy, prior states query shared memory. Add input and context to the scaled state.' };
 const unroll = { kind: 'relationship', layout: 'graph', title: 'Context enters each update',
-  nodes: [{ id: 'enc', label: 'Encoder source' }, { id: 's0', label: 'Initial state' }, { id: 'read1', label: 'Attention A' }, { id: 'c1', label: 'Context A' }, { id: 's1', label: 'Update A' }, { id: 'read2', label: 'Attention B' }, { id: 'c2', label: 'Context B' }, { id: 's2', label: 'Update B' }],
-  edges: [edge('enc', 'read1', 'memory'), edge('s0', 'read1', 'query'), edge('read1', 'c1', 'weighted sum'), edge('c1', 's1', 'add'), edge('s0', 's1', 'scale'), edge('enc', 'read2', 'memory'), edge('s1', 'read2', 'query'), edge('read2', 'c2', 'weighted sum'), edge('c2', 's2', 'add'), edge('s1', 's2', 'scale')],
-  caption: `Toy $c=softmax(s_{prev}E)E$; $s=${p.recurrent}s_{prev}+x+c$. The first update supplies the next query.` };
+  nodes: [{ id: 'enc', label: 'Encoder memory' }, { id: 's0', label: 'Initial state' }, { id: 'read1', label: 'Attention A' }, { id: 'c1', label: 'Context A' }, { id: 's1', label: 'Update A' }, { id: 'read2', label: 'Attention B' }, { id: 'c2', label: 'Context B' }, { id: 's2', label: 'Update B' }],
+  edges: [
+    edge('enc', 'read1', 'Input'), edge('s0', 'read1', 'Input'),
+    edge('read1', 'c1', 'Context'), edge('c1', 's1', 'Context'),
+    edge('s0', 's1', 'Scaled state'),
+    edge('enc', 'read2', 'Input'), edge('s1', 'read2', 'Input'),
+    edge('read2', 'c2', 'Context'), edge('c2', 's2', 'Context'),
+    edge('s1', 's2', 'Scaled state'),
+  ],
+  caption: `Toy $c=softmax(s_{prev}E)E$, $s=${p.recurrent}s_{prev}+x+c$. Prior state queries shared $E$.` };
 const weights = (rows, title) => ({ kind: 'heatmap', title, rowLabel: 'Decoder query', columnLabel: 'Encoder key', columns: d.positions,
   rows: rows.map((row, i) => ({ label: 'Step ' + row.step, cells: row.display.weights })), range: { min: 0, max: 1 },
   caption: `Toy $E=(${p.encoder})$, $s_0=${p.initial}$, $x=(${p.inputs})$. Scores use the previous state; normalize over encoder keys.` });
