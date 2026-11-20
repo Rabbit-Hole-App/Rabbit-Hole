@@ -72,7 +72,7 @@ export function stripUnknown(value, schema, kind, out) {
   if (Array.isArray(value)) return s.items ? value.map(v => stripUnknown(v, s.items, kind, out)) : value;
   if (!s.properties) return value;
   const own = typeof value.kind === 'string' ? value.kind : typeof value.k === 'string' ? value.k : kind;
-  return Object.fromEntries(Object.entries(value).filter(([key]) => Object.hasOwn(s.properties, key) || (out.push({ kind: own, key }), false))
+  return Object.fromEntries(Object.entries(value).filter(([key]) => Object.hasOwn(s.properties, key) || (key === 'variables' && Object.hasOwn(s.properties, 'kind')) /* MVP4: the optional variables list of any diagram kind is the parser's to accept or refuse, not stripped */ || (out.push({ kind: own, key }), false))
     .map(([key, v]) => [key, stripUnknown(v, s.properties[key], own, out)]));
 }
 // -> { visuals, stripped: [{ kind, key }] }: the author's visuals with every undeclared key removed (an unknown kind or shape is left for the parser to name).

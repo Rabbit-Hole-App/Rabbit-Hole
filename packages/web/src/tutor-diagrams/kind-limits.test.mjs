@@ -108,6 +108,11 @@ const LISTS = {
     },
   },
 };
+// MVP4: the optional variables list of every kind (spec.js) is a list field too: its own length and a variable's list value.
+for (const kind of Object.keys(LISTS)) {
+  LISTS[kind].variables = (d, n) => Object.assign(d, { variables: range(n).map(i => ({ name: `v${i}`, role: 'input', type: 'float', min: 0, max: 1, value: 0.5 })) });
+  LISTS[kind]['variables[].value|1'] = (d, n) => Object.assign(d, { variables: [{ name: 'v', role: 'input', type: 'float', min: 0, max: 1, value: range(n).map(() => 0.5) }] });
+}
 const UNREACHABLE = new Set(['flow|highlightPath|1[]|min']); // two routes of two nodes cannot both end at one terminal and meet at a merge: that is a rule between fields.
 const listCases = FITTED.flatMap(kind => kindLimits(kind).filter(entry => entry.type === 'list').map(entry => [kind, entry]));
 
