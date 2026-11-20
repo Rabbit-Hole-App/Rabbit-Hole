@@ -1,0 +1,136 @@
+{
+  "outputs": {
+    "period": [
+      1.55,
+      4.44
+    ],
+    "frequency": [
+      0.225,
+      0.643
+    ],
+    "maxSpeed": [
+      0.567,
+      3.21
+    ],
+    "angle": [
+      -30,
+      30
+    ],
+    "bobX": [
+      -1.2,
+      1.2
+    ],
+    "bobY": [
+      -2.4,
+      -0.52
+    ],
+    "refY": [
+      -2.4,
+      -0.6
+    ],
+    "releaseX": [
+      0.3,
+      1.2
+    ],
+    "releaseY": [
+      -2.08,
+      -0.52
+    ],
+    "velEndX": [
+      -1.42,
+      1.42
+    ],
+    "velEndY": [
+      -2.5,
+      -0.47
+    ],
+    "bobSize": [
+      0.25,
+      0.95
+    ]
+  },
+  "flags": {
+    "isShortFast": "false",
+    "isLongSlow": "both",
+    "isNearBottom": "both"
+  },
+  "reach": {
+    "verticalRef": [
+      0,
+      0,
+      -2.4,
+      0
+    ],
+    "releaseGuide": [
+      0,
+      1.2,
+      -2.08,
+      0
+    ],
+    "bobTrace": [
+      -1.2,
+      1.2,
+      -2.4,
+      -0.52
+    ],
+    "stringLine": [
+      -1.2,
+      1.2,
+      -2.4,
+      0
+    ],
+    "bobDot": [
+      -1.2,
+      1.2,
+      -2.4,
+      -0.52
+    ],
+    "velArrow": [
+      -1.42,
+      1.42,
+      -2.5,
+      -0.47
+    ]
+  },
+  "widths": {
+    "labels": {
+      "velArrow": 9.52,
+      "pivotLabel": 43.4
+    },
+    "values": [
+      112,
+      155,
+      173,
+      131
+    ],
+    "explanation": {
+      "always": [
+        303,
+        274
+      ],
+      "cases": [
+        309,
+        283,
+        285
+      ],
+      "otherwise": 296
+    },
+    "formula": 99,
+    "kind": {
+      "title": [
+        21,
+        182
+      ],
+      "lines": [
+        [
+          5,
+          43.4
+        ]
+      ]
+    }
+  },
+  "turns": {
+    "angle": 6
+  },
+  "kinds": {}
+}

@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "layout": "tall-with-panel",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 95,
+        "originPx": [164, 184.5]
+      },
+      "fixedParts": [
+        {
+          "id": "beam",
+          "from": [-1.4, 1.5],
+          "to": [1.4, 1.5]
+        },
+        {
+          "id": "vert_ref",
+          "from": [-0.7, 1.5],
+          "to": [-0.7, 0]
+        },
+        {
+          "id": "string",
+          "from": [-0.7, 1.5],
+          "to": ["bob_x", "bob_y"]
+        },
+        {
+          "id": "ref_vert",
+          "from": [0.7, 1.5],
+          "to": [0.7, 0]
+        },
+        {
+          "id": "ref_string",
+          "from": [0.7, 1.5],
+          "to": ["ref_x", "ref_y"]
+        }
+      ],
+      "labels": [
+        {
+          "id": "lbl_test",
+          "near": "vert_ref",
+          "side": "above",
+          "text": "Adjustable g"
+        },
+        {
+          "id": "lbl_ref",
+          "near": "ref_vert",
+          "side": "above",
+          "text": "Earth g = 9.8"
+        }
+      ],
+      "arrows": [
+        {
+          "id": "grav_arrow",
+          "lengthFactor": 2.05,
+          "startAtEdge": false
+        },
+        {
+          "id": "ref_grav",
+          "lengthFactor": 2.05,
+          "startAtEdge": false
+        }
+      ],
+      "dropped": []
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": false,
+        "legend": "none"
+      },
+      "texts": {
+        "labels": ["Test", "Earth"]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "rows",
+    "values": [
+      {
+        "id": "period",
+        "label": "T",
+        "decimals": 2
+      },
+      {
+        "id": "frequency",
+        "label": "f",
+        "decimals": 2
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "explanation": {
+      "always": ["Fixed: L = 1.5 m, m = 1 kg, 25 deg."],
+      "cases": [
+        {
+          "when": "is_slower",
+          "text": "Weaker gravity slows the swing."
+        },
+        {
+          "when": "is_faster",
+          "text": "Stronger g speeds the swing."
+        }
+      ],
+      "otherwise": "Matches Earth g at 9.8 m/s²."
+    }
+  },
+  "time": {
+    "duration": 6
+  },
+  "changes": [
+    "Chose tall-with-panel so the main stage has 376 px height for the gravity arrows to clear the bobs at low g without clipping at high g.",
+    "Scaled both gravity arrows by lengthFactor 2.05 so the arrowhead stays clear of the 18 px bob radius at g = 1.5 while staying inside the stage at g = 25.",
+    "Placed lbl_test and lbl_ref above the vertical reference lines so they sit clear of the beam, swinging strings, and bobs.",
+    "Turned off the coordinate-plot title and legend so the plot fits inside the 304 x 222.4 px panel slot.",
+    "Kept the two most important values (period and frequency) and shortened their labels to T and f to fit the 148 px boxes.",
+    "Dropped the second always explanation line so total explanation fits the two-line note limit, and shortened two case lines to fit 288 px."
+  ]
+}

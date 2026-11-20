@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {"pxPerUnit": 78, "originPx": [164, 56]},
+      "fixedParts": [
+        {"id": "beam", "from": [-1.4, 0], "to": [1.4, 0]},
+        {"id": "test_eq", "from": [-1, 0], "to": [-1, "eq_y"]},
+        {"id": "ref_eq", "from": [1.1, 0], "to": [1.1, -1]}
+      ],
+      "labels": [
+        {"id": "test_label", "near": "test_eq", "side": "above", "text": "Test"},
+        {"id": "ref_label", "near": "ref_eq", "side": "above", "text": "1 m ref"}
+      ],
+      "arrows": [{"id": "vel_arrow", "lengthFactor": 0.7, "startAtEdge": true}],
+      "dropped": []
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {"title": true, "legend": "always"},
+      "texts": {"title": "Swing angle over time", "labels": ["Test", "1 m ref"]},
+      "ranges": {"y": [-33, 33]}
+    }
+  },
+  "texts": {
+    "arrangement": "rows",
+    "values": [
+      {"id": "T", "label": "Period", "decimals": 2},
+      {"id": "f", "label": "Frequency", "decimals": 2},
+      {"id": "v_max", "label": "Peak speed", "decimals": 2},
+      {"id": "theta", "label": "Angle", "decimals": 1}
+    ],
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "explanation": {
+      "always": [],
+      "cases": [{"when": "is_slower", "text": "Longer than 1 m: swings slower"}, {"when": "is_faster", "text": "Shorter than 1 m: swings faster"}],
+      "otherwise": "At 1.0 m: matches reference period"
+    }
+  },
+  "time": {"duration": 6},
+  "changes": [
+    "labels shortened to 'Test' and '1 m ref' and moved above the plumb lines, clear of the beam",
+    "two 'always' lines dropped: rows arrangement shows one line at a time",
+    "velocity arrow drawn at 0.7 of its computed length so its head clears the far side of the stage at peak speed",
+    "y range widened to ±33 from the sampled ±30"
+  ]
+}

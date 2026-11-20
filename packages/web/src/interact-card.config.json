@@ -1,0 +1,110 @@
+{
+  "scene": {
+    "width": 640,
+    "height": 400,
+    "padding": 8,
+    "grid": {
+      "columns": 12,
+      "rows": 10,
+      "columnWidth": 52,
+      "rowHeight": 38.4,
+      "inset": 4
+    },
+    "reset": {
+      "cell": [580, 8, 52, 38.4],
+      "button": [604, 12, 24, 24]
+    }
+  },
+  "layouts": {
+    "wide": {
+      "stage": [12, 12, 616, 299.2],
+      "values": [12, 319.2, 616, 30.4],
+      "formula": [12, 357.6, 252, 30.4],
+      "note": [272, 357.6, 356, 30.4]
+    },
+    "side-by-side": {
+      "stage": [12, 12, 304, 299.2],
+      "panel": [324, 12, 304, 299.2],
+      "values": [12, 319.2, 616, 30.4],
+      "formula": [12, 357.6, 252, 30.4],
+      "note": [272, 357.6, 356, 30.4]
+    },
+    "equal-split": {
+      "stage": [12, 12, 304, 299.2],
+      "panel": [324, 12, 304, 299.2],
+      "values": [12, 319.2, 616, 30.4],
+      "formula": [12, 357.6, 252, 30.4],
+      "note": [272, 357.6, 356, 30.4]
+    },
+    "stacked": {
+      "stage": [12, 12, 616, 145.6],
+      "panel": [12, 165.6, 616, 145.6],
+      "values": [12, 319.2, 616, 30.4],
+      "formula": [12, 357.6, 252, 30.4],
+      "note": [272, 357.6, 356, 30.4]
+    },
+    "tall": {
+      "stage": [12, 12, 356, 376],
+      "values": [376, 12, 252, 145.6],
+      "formula": [376, 165.6, 252, 107.2],
+      "note": [376, 280.8, 252, 107.2]
+    },
+    "tall-with-panel": {
+      "stage": [12, 12, 304, 376],
+      "panel": [324, 12, 304, 222.4],
+      "values": [324, 242.4, 304, 68.8],
+      "formula": [324, 319.2, 304, 30.4],
+      "note": [324, 357.6, 304, 30.4]
+    }
+  },
+  "text": {
+    "bodySize": 14,
+    "lineHeight": 17.5
+  },
+  "boxes": {
+    "valueHeight": 28,
+    "valueGap": 8,
+    "valueDot": {
+      "diameter": 10,
+      "centreX": 14,
+      "textClear": 6
+    },
+    "valueTextRoomLess": 50,
+    "textClear": 8,
+    "columns": {
+      "valuesBox": [12, 200],
+      "textBox": [272, 356],
+      "formulaBand": 28,
+      "lineHeight": 17.5,
+      "bullet": "• ",
+      "heights": {
+        "2": {
+          "y": 319.2,
+          "h": 68.8,
+          "lastPictureRow": 8
+        },
+        "3": {
+          "y": 280.8,
+          "h": 107.2,
+          "lastPictureRow": 7
+        }
+      }
+    }
+  },
+  "parts": {
+    "dot": {
+      "small": 12,
+      "medium": 24,
+      "large": 36,
+      "outputRange": [12, 36]
+    },
+    "arrowDotGap": 2,
+    "tracePoints": 32
+  },
+  "controls": {
+    "selectRow": 560,
+    "buttonPad": 28,
+    "gap": 8,
+    "max": 3
+  }
+}

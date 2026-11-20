@@ -45,7 +45,7 @@ export const traceFrame = frame => ({ width: frame.width, height: frame.height }
 const shapeBox = o => (o.kind === 'circle' ? { xMin: o.x - o.w / 2, xMax: o.x + o.w / 2, yMin: o.y - o.w / 2, yMax: o.y + o.w / 2 }
   : o.kind === 'box' ? { xMin: o.x, xMax: o.x + o.w, yMin: o.y, yMax: o.y + o.h } : null);
 // The box of an arrowhead as the written connector draws it (tutor-diagrams/primitives.js connector: 7 px long, 3.4 px either side); null for a point-length arrow.
-const HEAD_LENGTH = 7, HEAD_HALF_WIDTH = 3.4;
+export const HEAD_LENGTH = 7, HEAD_HALF_WIDTH = 3.4;
 const headBox = o => {
   if (o.kind !== 'arrow' || !o.from || !o.to) return null;
   const length = Math.hypot(o.to.x - o.from.x, o.to.y - o.from.y);

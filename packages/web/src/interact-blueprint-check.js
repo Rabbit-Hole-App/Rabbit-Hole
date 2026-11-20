@@ -106,7 +106,7 @@ export function checkNames(blueprint, seeded = null) {
 }
 
 // ---- sampling: the function run over the grid (check 3) ---------------------------------------------------------------------------------------------------------------------------------
-async function sample(blueprint) {
+export async function sample(blueprint) {
   const runner = blueprintRunner(blueprint), settings = settingsGrid(blueprint), problems = [], seen = new Set();
   const checkTimes = timesOf(blueprint, SAMPLE_TIMES), fineTimes = timesOf(blueprint, WINDOW_TIMES), graphTimes = blueprint.pictures.panel?.x.over === 'time' ? timesOf(blueprint, GRAPH_SAMPLES) : [], all = [...checkTimes, ...fineTimes, ...graphTimes];
   const points = [], add = (key, message, path = 'math.code') => { if (!seen.has(key)) { seen.add(key); problems.push({ code: 'function', path, message }); } };
@@ -157,7 +157,7 @@ function checkParts(blueprint, sampled) {
 }
 
 // ---- check 7: a kind picture is drawable ------------------------------------------------------------------------------------------------------------------------------------------------------
-async function sampleGraph(blueprint, sampled) {
+export async function sampleGraph(blueprint, sampled) {
   const panel = blueprint.pictures.panel;
   if (!panel) return { out: [], plot: null };
   const over = panel.x.over, input = blueprint.inputs.find(entry => entry.id === over), xs = over === 'time' ? grid(0, blueprint.time.duration, GRAPH_SAMPLES) : grid(input.min, input.max, GRAPH_SAMPLES), values = panel.series.map(series => series.value);

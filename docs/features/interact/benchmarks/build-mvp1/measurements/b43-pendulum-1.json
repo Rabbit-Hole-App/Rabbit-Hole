@@ -1,0 +1,109 @@
+{
+  "outputs": {
+    "period": [
+      1.42,
+      3.04
+    ],
+    "frequency": [
+      0.328,
+      0.704
+    ],
+    "max_speed": [
+      0.386,
+      4.43
+    ],
+    "angle": [
+      -60,
+      60
+    ],
+    "bob_x": [
+      -1.73,
+      1.73
+    ],
+    "bob_y": [
+      -2,
+      -0.453
+    ],
+    "bob_size": [
+      0.2,
+      0.8
+    ],
+    "vel_tip_x": [
+      -1.87,
+      1.87
+    ],
+    "vel_tip_y": [
+      -2.19,
+      -0.354
+    ]
+  },
+  "flags": {
+    "is_wide_swing": "both",
+    "is_short_rod": "both",
+    "is_long_rod": "both"
+  },
+  "reach": {
+    "bob_trace": [
+      -1.73,
+      1.73,
+      -2,
+      -0.453
+    ],
+    "rod": [
+      -1.73,
+      1.73,
+      -2,
+      0
+    ],
+    "bob": [
+      -1.73,
+      1.73,
+      -2,
+      -0.453
+    ],
+    "vel_arrow": [
+      -1.87,
+      1.87,
+      -2.19,
+      -0.354
+    ]
+  },
+  "widths": {
+    "labels": {
+      "ref_label": 116,
+      "vel_arrow": 9.52
+    },
+    "values": [
+      112,
+      155,
+      173,
+      131
+    ],
+    "explanation": {
+      "always": [],
+      "cases": [
+        247,
+        246,
+        236
+      ],
+      "otherwise": 288
+    },
+    "formula": 99,
+    "kind": {
+      "title": [
+        21,
+        182
+      ],
+      "lines": [
+        [
+          5,
+          43.4
+        ]
+      ]
+    }
+  },
+  "turns": {
+    "angle": 8
+  },
+  "kinds": {}
+}

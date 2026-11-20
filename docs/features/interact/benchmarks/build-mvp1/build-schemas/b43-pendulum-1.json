@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 70,
+        "originPx": [164, 78]
+      },
+      "fixedParts": [
+        {
+          "id": "support",
+          "from": [-0.5, 0],
+          "to": [0.5, 0]
+        },
+        {
+          "id": "vertical_ref",
+          "from": [0, 0],
+          "to": [0, -2.4]
+        },
+        {
+          "id": "pivot",
+          "at": [0, 0],
+          "size": "small"
+        },
+        {
+          "id": "rod",
+          "from": [0, 0],
+          "to": ["bob_x", "bob_y"]
+        }
+      ],
+      "labels": [
+        {
+          "id": "ref_label",
+          "near": "vertical_ref",
+          "side": "below",
+          "text": "0 deg vertical"
+        },
+        {
+          "id": "vel_arrow",
+          "near": "vel_arrow",
+          "side": "below",
+          "text": "v"
+        }
+      ],
+      "arrows": [
+        {
+          "id": "vel_arrow",
+          "lengthFactor": 1,
+          "startAtEdge": true
+        }
+      ],
+      "dropped": []
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": true,
+        "legend": "auto"
+      },
+      "texts": {
+        "title": "Swing Angle Over Time",
+        "labels": ["Angle"]
+      },
+      "ranges": {
+        "x": [0, 4],
+        "y": [-60, 60]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "rows",
+    "values": [
+      {
+        "id": "period",
+        "label": "Period",
+        "decimals": 2
+      },
+      {
+        "id": "frequency",
+        "label": "Freq",
+        "decimals": 2
+      },
+      {
+        "id": "max_speed",
+        "label": "Speed",
+        "decimals": 2
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L/g}",
+    "explanation": {
+      "always": [],
+      "cases": [
+        {
+          "when": "is_wide_swing",
+          "text": "Wide angle adds a small delay."
+        },
+        {
+          "when": "is_short_rod",
+          "text": "Short rod gives a fast swing."
+        },
+        {
+          "when": "is_long_rod",
+          "text": "Long rod gives a slow swing."
+        }
+      ],
+      "otherwise": "Small angle matches ideal formula."
+    }
+  },
+  "time": {
+    "duration": 4
+  },
+  "changes": [
+    "Used side-by-side layout with rows text arrangement so both the pendulum stage and the coordinate plot fit with full height.",
+    "Extended vertical_ref from [0, -2.2] to [0, -2.4] so ref_label below it clears the largest bob and velocity arrow.",
+    "Placed ref_label below vertical_ref so the swinging rod and bob never cross it.",
+    "Started vel_arrow at the bob edge (startAtEdge: true) so its arrowhead never overlaps the bob circle, with label v below.",
+    "Shortened Frequency to Freq and Peak speed to Speed, and dropped the 4th value Angle (already plotted) so 3 values fit.",
+    "Shortened duration from 6 s to 4 s to reduce fast-swing graph turns from 8 to 5 while keeping over a full cycle for slow swings."
+  ]
+}

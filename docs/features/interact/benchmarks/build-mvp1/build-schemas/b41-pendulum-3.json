@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 90,
+        "originPx": [164, 42]
+      },
+      "fixedParts": [
+        {
+          "id": "support_bar",
+          "from": [-0.65, 0],
+          "to": [0.65, 0]
+        },
+        {
+          "id": "test_axis",
+          "from": [-0.5, 0],
+          "to": [-0.5, -1.55]
+        },
+        {
+          "id": "ref_axis",
+          "from": [0.5, 0],
+          "to": [0.5, -1.55]
+        },
+        {
+          "id": "test_rod",
+          "from": [-0.5, 0],
+          "to": ["test_x", "test_y"]
+        },
+        {
+          "id": "ref_rod",
+          "from": [0.5, 0],
+          "to": ["ref_x", "ref_y"]
+        }
+      ],
+      "labels": [
+        {
+          "id": "test_label",
+          "near": "test_axis",
+          "side": "above",
+          "text": "Test bob"
+        },
+        {
+          "id": "ref_label",
+          "near": "ref_axis",
+          "side": "above",
+          "text": "1 kg ref"
+        }
+      ],
+      "arrows": [
+        {
+          "id": "test_force",
+          "lengthFactor": 1,
+          "startAtEdge": true
+        },
+        {
+          "id": "ref_force",
+          "lengthFactor": 1,
+          "startAtEdge": true
+        }
+      ],
+      "dropped": []
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": true,
+        "legend": "none"
+      },
+      "texts": {
+        "title": "Swing angle over time",
+        "labels": ["Test bob"]
+      },
+      "ranges": {
+        "x": [0, 6],
+        "y": [-15, 15]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "columns",
+    "values": [
+      {
+        "id": "period",
+        "label": "Period",
+        "decimals": 2
+      },
+      {
+        "id": "weight",
+        "label": "Weight",
+        "decimals": 1
+      },
+      {
+        "id": "angle",
+        "label": "Angle",
+        "decimals": 1
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "explanation": {
+      "always": [
+        "Mass scales force, not acceleration",
+        "L = 1.5 m, g = 9.81 m/s^2, 14 deg"
+      ],
+      "cases": [
+        {
+          "when": "is_lighter",
+          "text": "Lighter bob: same swing period"
+        },
+        {
+          "when": "is_equal_ref",
+          "text": "Matches 1 kg reference bob"
+        },
+        {
+          "when": "is_heavier",
+          "text": "Heavier bob: same swing period"
+        }
+      ],
+      "otherwise": "Same length and gravity, same swing"
+    }
+  },
+  "time": {
+    "duration": 6
+  },
+  "changes": [
+    "Used side-by-side layout with 3-row columns text arrangement so the formula and all three explanation lines fit cleanly.",
+    "Dropped the fourth value (Peak speed) because the 3-row columns text area holds at most three values and its label is too wide.",
+    "Shortened reference label from '1 kg reference' to '1 kg ref' so both top labels sit centered above their axes without overlapping.",
+    "Started both gravity force arrows at the bobs' edges (+2 px) so arrowheads never overlap the bob circles.",
+    "Hid the coordinate-plot legend (one series only) so the panel fits the 260.8 px height left by the 3-row text area.",
+    "Set coordinate-plot y range to [-15, 15] deg to frame the +-14 deg swing cleanly."
+  ]
+}

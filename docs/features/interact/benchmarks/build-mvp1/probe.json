@@ -1,0 +1,12 @@
+{
+  "accepted": true,
+  "reexpressed": false,
+  "attempts": [
+    {
+      "schema": "the reference schema as given (pairsAsLists applied)",
+      "status": 200,
+      "ok": true,
+      "error": null
+    }
+  ]
+}
