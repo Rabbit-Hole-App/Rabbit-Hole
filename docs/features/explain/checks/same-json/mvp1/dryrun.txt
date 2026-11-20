@@ -1,0 +1,6 @@
+OK  top-k: ref ml-sampling-top-k | shape shape-bar-chart | planKind bar-chart (planner) | system 16278 -> 16393 chars | only the two sentences differ: true
+OK  regression-mean-baseline: ref regression-mean-baseline | shape shape-coordinate-plot | planKind coordinate-plot (planner) | system 16520 -> 16635 chars | only the two sentences differ: true
+OK  confusion-matrix-counts: ref confusion-matrix-counts | shape shape-heatmap | planKind heatmap (planner) | system 16297 -> 16412 chars | only the two sentences differ: true
+OK  softmax-probabilities: ref softmax-probabilities | shape shape-bar-chart | planKind bar-chart (planner) | system 16107 -> 16222 chars | only the two sentences differ: true
+OK  ml-self-attention-token-links: ref ml-self-attention-token-links | shape shape-token-links | planKind token-links (planner) | system 16396 -> 16511 chars | only the two sentences differ: true
+all 5 prompts: the request carries its reference and the shape example in both arms; no provider call made

@@ -1,0 +1,1 @@
+running SETTLED total (earlier runs included) US$0.1355 after 50 runs (settled ledger cost + reservations of unknown-cost calls + US$0.0002 planner estimate per run); stop line US$0.50; arms before,after

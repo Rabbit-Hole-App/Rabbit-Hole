@@ -1,0 +1,172 @@
+[
+ {
+  "tag": "top-k",
+  "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+  "expectedRef": "ml-sampling-top-k",
+  "expectedKind": "bar-chart",
+  "ok": true,
+  "onlyTwoSentencesDiffer": true,
+  "newNumberRuleCountAfter": 1,
+  "newHeadingCountAfter": 1,
+  "before": {
+   "planKind": "bar-chart",
+   "kindSource": null,
+   "references": [
+    "ml-sampling-top-k"
+   ],
+   "shapeId": "shape-bar-chart",
+   "seeded": false,
+   "systemChars": 16278,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  },
+  "after": {
+   "planKind": "bar-chart",
+   "kindSource": null,
+   "references": [
+    "ml-sampling-top-k"
+   ],
+   "shapeId": "shape-bar-chart",
+   "seeded": false,
+   "systemChars": 16393,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  }
+ },
+ {
+  "tag": "regression-mean-baseline",
+  "prompt": "What does predicting the mean give as a regression baseline?",
+  "expectedRef": "regression-mean-baseline",
+  "expectedKind": "coordinate-plot",
+  "ok": true,
+  "onlyTwoSentencesDiffer": true,
+  "newNumberRuleCountAfter": 1,
+  "newHeadingCountAfter": 1,
+  "before": {
+   "planKind": "coordinate-plot",
+   "kindSource": null,
+   "references": [
+    "regression-mean-baseline"
+   ],
+   "shapeId": "shape-coordinate-plot",
+   "seeded": false,
+   "systemChars": 16520,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  },
+  "after": {
+   "planKind": "coordinate-plot",
+   "kindSource": null,
+   "references": [
+    "regression-mean-baseline"
+   ],
+   "shapeId": "shape-coordinate-plot",
+   "seeded": false,
+   "systemChars": 16635,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  }
+ },
+ {
+  "tag": "confusion-matrix-counts",
+  "prompt": "Explain a confusion matrix with exact counts.",
+  "expectedRef": "confusion-matrix-counts",
+  "expectedKind": "heatmap",
+  "ok": true,
+  "onlyTwoSentencesDiffer": true,
+  "newNumberRuleCountAfter": 1,
+  "newHeadingCountAfter": 1,
+  "before": {
+   "planKind": "heatmap",
+   "kindSource": null,
+   "references": [
+    "confusion-matrix-counts"
+   ],
+   "shapeId": "shape-heatmap",
+   "seeded": false,
+   "systemChars": 16297,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  },
+  "after": {
+   "planKind": "heatmap",
+   "kindSource": null,
+   "references": [
+    "confusion-matrix-counts"
+   ],
+   "shapeId": "shape-heatmap",
+   "seeded": false,
+   "systemChars": 16412,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  }
+ },
+ {
+  "tag": "softmax-probabilities",
+  "prompt": "How do softmax probabilities compare two multiclass predictions?",
+  "expectedRef": "softmax-probabilities",
+  "expectedKind": "bar-chart",
+  "ok": true,
+  "onlyTwoSentencesDiffer": true,
+  "newNumberRuleCountAfter": 1,
+  "newHeadingCountAfter": 1,
+  "before": {
+   "planKind": "bar-chart",
+   "kindSource": null,
+   "references": [
+    "softmax-probabilities"
+   ],
+   "shapeId": "shape-bar-chart",
+   "seeded": false,
+   "systemChars": 16107,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  },
+  "after": {
+   "planKind": "bar-chart",
+   "kindSource": null,
+   "references": [
+    "softmax-probabilities"
+   ],
+   "shapeId": "shape-bar-chart",
+   "seeded": false,
+   "systemChars": 16222,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  }
+ },
+ {
+  "tag": "ml-self-attention-token-links",
+  "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+  "expectedRef": "ml-self-attention-token-links",
+  "expectedKind": "token-links",
+  "ok": true,
+  "onlyTwoSentencesDiffer": true,
+  "newNumberRuleCountAfter": 1,
+  "newHeadingCountAfter": 1,
+  "before": {
+   "planKind": "token-links",
+   "kindSource": null,
+   "references": [
+    "ml-self-attention-token-links"
+   ],
+   "shapeId": "shape-token-links",
+   "seeded": false,
+   "systemChars": 16396,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  },
+  "after": {
+   "planKind": "token-links",
+   "kindSource": null,
+   "references": [
+    "ml-self-attention-token-links"
+   ],
+   "shapeId": "shape-token-links",
+   "seeded": false,
+   "systemChars": 16511,
+   "referenceLineInSystem": true,
+   "shapeLineInSystem": true
+  }
+ }
+]
