@@ -9,7 +9,7 @@ import { TEACHING_ROLE_FILL } from './teaching-theme.js';
 import kindGallery from './kind-gallery.json' with { type: 'json' };
 import { diagramReferences } from './reference-library.js';
 import { illustrationSpecs } from '../../scripts/illustration-previews.mjs';
-import { labelDistances, relationshipGeometry } from './test-relationship-geometry.mjs';
+import { foreignBoxes, labelDistances, relationshipGeometry, relationshipNodes } from './test-relationship-geometry.mjs';
 
 const draw = (diagram, width = 408) => { const r = renderTutorDiagram({ version: 1, diagram: { kind: 'relationship', layout: 'graph', title: 'Graph', ...diagram } }, width); return { svg: renderToStaticMarkup(r.element), width: r.width }; };
 const badges = svg => [...svg.matchAll(/<circle[^>]*r="10"[^>]*\/?>(?:<\/circle>)?<text[^>]*><tspan[^>]*>(\d+)<\/tspan>/g)].map(match => Number(match[1]));
@@ -68,7 +68,7 @@ const relationshipSpecs = () => {
   return [...specs].filter(([, { diagram: d }]) => d.kind === 'relationship' && (d.layout === 'graph' || d.nodes?.some(n => n.tensor)));
 };
 const ownsLabel = (edges, edge) => { const { own, other } = labelDistances(edges, edge); return own <= NEAR && other - own >= CLEAR; };
-const drawn = (spec, width) => { const r = renderTutorDiagram(spec, width); return { edges: relationshipGeometry(r.element), text: shown(renderToStaticMarkup(r.element)) }; };
+const drawn = (spec, width) => { const r = renderTutorDiagram(spec, width); return { edges: relationshipGeometry(r.element), nodes: relationshipNodes(r.element), text: shown(renderToStaticMarkup(r.element)) }; };
 
 test('the rule rejects a label that stands as the old placements did: 7 to 8 px from its wire, a foreign wire 7 px away or 19 px away', () => {
   const edge = (x, label) => ({ segments: [{ x1: x, y1: 0, x2: x, y2: 300 }], label });
@@ -99,6 +99,31 @@ test('the named failures: a label that is not the nearest to its own arrow is in
     const { edges, text } = drawn(specs.get(id), width);
     const edge = edges.find(e => e.label?.text === sentence);
     if (edge) assert.ok(ownsLabel(edges, edge), `${id} @ ${width}: ${sentence}`);
-    else assert.match(text, new RegExp(`\d\. ${sentence}`), `${sentence} is in the numbered list`);
+    else assert.match(text, new RegExp(`\\d\\. ${sentence}`), `${sentence} is in the numbered list`);
   }
+});
+
+// REL-1b: a label directly below a box stands there only when that box is its edge's source, directly above a box only when that box is its edge's target.
+test('all 57 relationship specs: no label on an arrow sits under a box it does not come from or over a box it does not go to (320, 408, 720 and 960 px)', () => {
+  const specs = relationshipSpecs();
+  let checked = 0;
+  for (const width of [320, 408, 720, 960]) for (const [id, spec] of specs) {
+    const { edges, nodes } = drawn(spec, width);
+    for (const edge of edges.filter(e => e.label)) {
+      checked++;
+      assert.ok(edge.id.split(':').every(node => nodes.has(node)), `${id}: edge ${edge.id} names two nodes`);
+      assert.deepEqual(foreignBoxes(edge, nodes), [], `${id} @ ${width}: "${edge.label.text}" (${edge.id})`);
+    }
+  }
+  assert.ok(checked > 400, `${checked} labels checked`);
+});
+
+test('the rule sees a label under a box that is not its source and over a box that is not its target', () => {
+  const nodes = new Map([['a', { x1: 0, y1: 0, x2: 180, y2: 56 }], ['b', { x1: 0, y1: 104, x2: 180, y2: 160 }]]);
+  const edge = (id, x1, y1, x2 = x1 + 100) => ({ id, segments: [{ x1: 300, y1: 28, x2: 300, y2: 132 }], label: { text: 't', box: { x1, y1, x2, y2: y1 + 17 } } });
+  assert.deepEqual(foreignBoxes(edge('a:b', 100, 70), nodes), [], 'in the gap under its source and over its target');
+  assert.deepEqual(foreignBoxes(edge('b:a', 100, 70), nodes), ['below a', 'above b']);
+  assert.deepEqual(foreignBoxes(edge('b:a', 190, 70, 290), nodes), ['below a', 'above b'], 'between the boxes and its own wire, against their corners');
+  assert.deepEqual(foreignBoxes(edge('b:a', 305, 70), nodes), [], 'beyond its own wire, not under the boxes');
+  assert.deepEqual(foreignBoxes(edge('b:a', 100, 20), nodes), [], 'beside a box, not in a row gap');
 });

@@ -295,10 +295,11 @@ function graph(d, preferredWidth, hasTensor) {
   const nodeX = PAD + gutters.left + (baseWidth - 2 * PAD - gutters.left - gutters.right - nodeW) / 2;
   const positions = new Map();
   let y = PAD;
+  const rowGap = 48;
   for (const n of d.nodes) {
     const measured = measure(n, nodeW), content = { ...measured, height: Math.max(56, measured.height) };
     positions.set(n.id, { x: nodeX, y, width: nodeW, content });
-    y += content.height + 48;
+    y += content.height + rowGap;
   }
   const port = (id, route) => {
     const pos = positions.get(id);
@@ -327,6 +328,13 @@ function graph(d, preferredWidth, hasTensor) {
     const own = nearest(box, wireLines(r));
     return own <= LABEL_NEAR && nearest(box, routes.filter(other => other !== r).flatMap(wireLines)) - own >= LABEL_CLEAR;
   };
+  // REL-1b: a label in the row gap directly under a box reads as that box's, so it stands there only when the box is its arrow's source; directly over a box, only when the box is its arrow's target.
+  // "Directly under" covers the box's own span and the corridor between the box and the label's own wire (a label there sits against the box's corner).
+  const standsFrom = (box, r) => d.nodes.every((n, i) => {
+    const b = nodeBoxes[i];
+    if (box.x2 <= Math.min(b.x1, r.laneX) || Math.max(b.x2, r.laneX) <= box.x1) return true;
+    return !(box.y1 >= b.y2 && box.y2 <= b.y2 + rowGap && n.id !== r.from) && !(box.y2 <= b.y1 && box.y1 >= b.y1 - rowGap && n.id !== r.to);
+  });
   const badgeBox = r => solid(r.laneX - 10, r.badgeY - 10, r.laneX + 10, r.badgeY + 10);
   const labelHeight = textHeight;
   const candidates = (r, text, width) => {
@@ -352,14 +360,17 @@ function graph(d, preferredWidth, hasTensor) {
     const generous = Math.ceil(textWidth(text, SMALL));
     return out.filter(box => box.x1 >= PAD && box.x2 <= width - PAD && (box.anchor === 'end' ? box.x - generous >= PAD : box.x + generous <= width - PAD));
   };
-  const placeLabels = width => {
+  const placeLabels = (width, byBox = false) => {
     const placed = new Map();
     const taken = [];
     for (const note of notes) {
       if (note.routes.length > 1) continue; // arrows that share a sentence share one numbered note
       const [r] = note.routes;
       const obstacles = [...nodeBoxes, ...routes.flatMap(other => other === r ? [] : [...wireBoxes(other), badgeBox(other)]), ...wireBoxes(r), ...taken];
-      const spot = candidates(r, note.text, width).find(box => obstacles.every(other => apart(box, other)) && ownsBox(box, r));
+      const all = candidates(r, note.text, width), fits = box => obstacles.every(other => apart(box, other)) && ownsBox(box, r);
+      const first = all.find(fits);
+      // First place fails REL-1b: the other side of its own wire at that height, then the other places along its lane; none passes, a numbered note.
+      const spot = first && (!byBox || standsFrom(first, r) ? first : [...all.filter(box => box.y === first.y), ...all].find(box => fits(box) && standsFrom(box, r)));
       if (!spot) continue;
       placed.set(note, spot); taken.push(spot);
     }
@@ -375,6 +386,7 @@ function graph(d, preferredWidth, hasTensor) {
     }
     if (placed.size < single && width === baseWidth) placed = placeLabels(baseWidth);
   }
+  placed = placeLabels(width, true); // the card's width is REL-1's; only the places change
   const listed = notes.filter(note => !placed.has(note));
   listed.forEach((note, i) => { note.number = i + 1; });
   const roleOf = id => !d.edges.some(e => e.from === id) ? 'outcome' : !d.edges.some(e => e.to === id) ? 'input' : 'process'; // no arrow out: outcome (also a box with no arrow at all); else no arrow in: input; else process

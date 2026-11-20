@@ -35,3 +35,29 @@ export function labelDistances(edges, edge) {
   const nearest = list => Math.min(...list.flatMap(e => e.segments.map(segment => gaps(edge.label.box, segment))));
   return { own: nearest([edge]), other: nearest(edges.filter(e => e !== edge)) };
 }
+
+// -> Map(node id -> { x1, y1, x2, y2 }): the box each relationship node was drawn with.
+export function relationshipNodes(root) {
+  const out = new Map();
+  const visit = element => {
+    const id = element.props['data-tutor-node'];
+    if (id === undefined) return kids(element).forEach(visit);
+    const { x, y, width, height } = find(element, e => e.type === 'rect').props;
+    out.set(id, { x1: x, y1: y, x2: x + width, y2: y + height });
+  };
+  visit(root);
+  return out;
+}
+
+// REL-1b: the node boxes a label reads as belonging to that it does not belong to. A label directly below a box (in the row gap under it, over the box's span or the corridor between the box and the label's
+// own wire) belongs to that box only when the box is its edge's source; directly above a box, only when the box is its edge's target. -> ['below Name' | 'above Name', ...]
+export function foreignBoxes(edge, nodes, rowGap = 48) {
+  const [from, to] = edge.id.split(':'), { box } = edge.label, out = [];
+  const lane = edge.segments.find(s => s.x1 === s.x2 && s.y1 < s.y2)?.x1; // the wire's own vertical run
+  for (const [id, n] of nodes) {
+    if (box.x2 <= Math.min(n.x1, lane ?? n.x1) || Math.max(n.x2, lane ?? n.x2) <= box.x1) continue;
+    if (box.y1 >= n.y2 && box.y2 <= n.y2 + rowGap && id !== from) out.push(`below ${id}`);
+    if (box.y2 <= n.y1 && box.y1 >= n.y1 - rowGap && id !== to) out.push(`above ${id}`);
+  }
+  return out;
+}
