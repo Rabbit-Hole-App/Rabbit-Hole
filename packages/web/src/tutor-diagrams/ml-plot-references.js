@@ -1,6 +1,10 @@
 // These fixed, deliberately small datasets teach geometry. They are illustrative
 // examples for the author, never empirical evidence or values to copy over sources.
+import { softmaxCalculation, softmaxStored, softmaxWeights } from './ml-softmax-probabilities-data.js';
 const xy = values => values.map(([x, y]) => ({ x, y }));
+// MVP4: a reference with a calculation carries its variables in the stored diagram and the calculation itself (the server runs it on the author's inputs).
+const withCalculation = (reference, calculation) => ({ ...reference, calculation,
+  spec: { ...reference.spec, diagram: { ...reference.spec.diagram, variables: calculation.variables.map(variable => ({ ...variable })) } } });
 const series = (label, values, kind = 'line') => ({ label, kind, points: xy(values) });
 const axis = (label, min, max, extra = {}) => ({ label, min, max, ...extra });
 const plot = (title, x, y, series, annotations = []) => ({ kind: 'coordinate-plot', title,
@@ -71,9 +75,9 @@ export const references = [
       series('True class 1', [[0.01, 4.605], [0.1, 2.303], [0.25, 1.386], [0.5, 0.693], [0.75, 0.288], [0.9, 0.105], [0.99, 0.01]]),
       series('True class 0', [[0.01, 0.01], [0.1, 0.105], [0.25, 0.288], [0.5, 0.693], [0.75, 1.386], [0.9, 2.303], [0.99, 4.605]]),
     ])),
-  ref('softmax-probabilities', ['03'], 'How do softmax probabilities compare two multiclass predictions?', ['softmax', 'multiclass', 'probability', 'attention weights'],
+  withCalculation(ref('softmax-probabilities', ['03'], 'How do softmax probabilities compare two multiclass predictions?', ['softmax', 'multiclass', 'probability', 'attention weights'],
     'Group two normalized probability vectors by class.',
-    bar('Two softmax probability vectors', 'grouped', ['Cat', 'Dog', 'Bird'], [{ label: 'Input A', values: [0.7, 0.2, 0.1] }, { label: 'Input B', values: [0.15, 0.6, 0.25] }])) ,
+    bar('Two softmax probability vectors', 'grouped', ['Cat', 'Dog', 'Bird'], [{ label: 'Input A', values: softmaxStored.probabilitiesA }, { label: 'Input B', values: softmaxStored.probabilitiesB }])), softmaxCalculation),
   ref('tree-impurity-mixtures', ['04'], 'Why is a pure decision-tree node less impure than a mixed node?', ['impurity', 'gini', 'class mixture'],
     'Show equal-size class counts so purity can be compared without a size confound.',
     bar('Class mixtures in equal-size tree nodes', 'stacked', ['Pure', 'Mostly A', 'Mixed'], [{ label: 'Class A', values: [10, 8, 5] }, { label: 'Class B', values: [0, 2, 5] }], 'samples')),
