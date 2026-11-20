@@ -183,6 +183,11 @@ for (const ref of FUNCTION_REFERENCES) {
     assert.equal(value.anyOf[1].type, 'array');
     assert.equal(value.anyOf[1].items.type, 'number');
     assert.deepEqual(diagramBundle({ references: [ref] }).variablesKinds, [kind]);
+    // The author may use only the reference's own variable names, and no more entries than it declares.
+    const names = ref.calculation.variables.map(variable => variable.name), list = withVariables[0].properties.variables;
+    assert.deepEqual(list.items.properties.name.enum, names);
+    assert.equal(list.maxItems, names.length);
+    assert.deepEqual(diagramBundle({ references: [ref] }).variablesNames, names);
   });
 
   test(`${ref.id}: its request carries the explanation number rule in place of main's and the inputs and starting-numbers sentences`, () => {

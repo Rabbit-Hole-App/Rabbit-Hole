@@ -93,16 +93,30 @@ test('runCalculation: a value list is read as a list and an input that moved cha
   assert.equal(run2.diagram.variables[1].value, 6);
 });
 
-test('runCalculation: a card with no variables list, a missing variable or the wrong role is a problem', () => {
+test('runCalculation: a card with no variables list, an undrawn variable it does not list, or the wrong role is a problem', () => {
   const none = diagram(); delete none.variables;
-  assert.match(runCalculation(none, calculation).problem, /no variables list/);
-  const missing = diagram(); missing.variables = missing.variables.filter(v => v.name !== 'a');
-  assert.match(runCalculation(missing, calculation).problem, /variables has no input named a/);
-  assert.match(runCalculation(withVariable('a', { role: 'result' }), calculation).problem, /variables has no input named a/, 'an input written as a result');
-  assert.match(runCalculation(withVariable('sum', { role: 'input' }), calculation).problem, /variables has no result named sum/, 'a result written as an input');
-  const noResult = diagram(); noResult.variables = noResult.variables.filter(v => v.name !== 'dbl');
-  assert.match(runCalculation(noResult, calculation).problem, /variables has no result named dbl/);
-  assert.match(runCalculation({ kind: 'demo', variables: 'x' }, calculation).problem, /no variables list/);
+  assert.match(runCalculation(none, calculation).problem, /no variables list/, 'the undrawn input hidden has nowhere to be read from');
+  const missing = diagram(); missing.variables = missing.variables.filter(v => v.name !== 'hidden');
+  assert.match(runCalculation(missing, calculation).problem, /variables has no input named hidden/);
+  assert.match(runCalculation(withVariable('a', { role: 'result' }), calculation).problem, /variables names a as something other than an input/, 'an input written as a result');
+  assert.match(runCalculation(withVariable('sum', { role: 'input' }), calculation).problem, /variables names sum as something other than a result/, 'a result written as an input');
+});
+
+test('runCalculation: a drawn variable the card does not list is found where the reference says it is drawn; an undrawn result it does not list is computed but not written', () => {
+  const unlistedDrawn = diagram(); unlistedDrawn.variables = unlistedDrawn.variables.filter(v => v.name !== 'a' && v.name !== 'sum');
+  const run = runCalculation(unlistedDrawn, calculation);
+  assert.equal(run.problem, undefined);
+  assert.equal(run.values.a, 3, 'the drawn input a is read at x');
+  assert.equal(run.diagram.total, 33, 'the drawn result sum is written at total');
+  assert.ok(run.overwritten.includes('sum'));
+  const unlistedUndrawn = diagram(); unlistedUndrawn.variables = unlistedUndrawn.variables.filter(v => v.name !== 'dbl');
+  const run2 = runCalculation(unlistedUndrawn, calculation);
+  assert.equal(run2.problem, undefined);
+  assert.equal(run2.values.dbl, 6, 'computed, so a placeholder may name it');
+  assert.equal(run2.diagram.variables.some(v => v.name === 'dbl'), false, 'but not added to the list');
+  assert.equal(run2.overwritten.includes('dbl'), false);
+  const moved = diagram(); moved.variables = moved.variables.map(v => (v.name === 'sum' ? { ...v, at: 'elsewhere' } : v)); moved.elsewhere = 0;
+  assert.equal(runCalculation(moved, calculation).diagram.elsewhere, 33, 'the card\'s own entry names the place when it lists the variable');
 });
 
 test('runCalculation: an input that is not where variables says is a problem naming the path', () => {
