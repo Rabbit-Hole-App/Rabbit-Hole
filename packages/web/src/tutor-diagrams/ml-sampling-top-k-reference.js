@@ -1,4 +1,4 @@
-import { declareReference, declareSpec } from './calculation.js';
+import { declareSpec } from './calculation.js';
 import { samplingTopK, topKCalculation, topKInputs } from './ml-sampling-top-k-data.js';
 
 const { tokens, fullPercent, filteredPercent } = samplingTopK;
@@ -24,7 +24,7 @@ const standard = declared(groupedBars('Full softmax and top-{{v:k}} sampling',
 const deep = declared(groupedBars('Top-{{v:k}} renormalizes the kept mass',
   `For a kept token, $p_i'=p_i/\\sum_{j\\in K}p_j$. For "${tokens[0]}", {{v:full.0}}% / {{v:keptShare}}% = {{v:renormalized.0}}%.`));
 
-export const samplingTopKReference = declareReference({
+export const samplingTopKReference = {
   id: 'ml-sampling-top-k',
   lessons: [],
   prompts: ['Does top-k filtering affect the reported probability of the chosen token?'],
@@ -32,4 +32,5 @@ export const samplingTopKReference = declareReference({
   useWhen: 'Compare the full model distribution with the filtered distribution used for sampling. A reported probability depends on which distribution is logged.',
   ...standard,
   depths: { overview, standard, deep },
-}, topKCalculation, topKInputs);
+  calculation: topKCalculation,
+};

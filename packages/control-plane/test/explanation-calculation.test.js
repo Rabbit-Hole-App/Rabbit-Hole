@@ -124,9 +124,8 @@ test('prose number check: a caption may use the placeholders', () => {
   assert.equal(fences(placeholder.block.body)[0].diagram.caption, 'Input A puts 0.39 on Cat.');
 });
 
-// BUG (reported to the lead, not fixed here: explanation-calculation.js printedNumbers): the description of a diagram (describeTutorDiagram) ends with the caption line, and printedNumbers adds the whole
-// description after its first line, so the caption's own numbers count as printed and a typed "0.70" in a caption passes. The comment above printedNumbers says the caption is not counted. Remove `todo` when fixed.
-test('prose number check: the caption of every diagram is read too: a number the picture does not print, typed in a caption, is refused', { todo: 'bug: the caption prints its own numbers through the description line' }, () => {
+// The description of a diagram ends with the caption line: printedNumbers leaves the title and the caption out of it (a caption cannot print its own numbers for itself).
+test('prose number check: the caption of every diagram is read too: a number the picture does not print, typed in a caption, is refused', () => {
   const typed = apply(fence(softmaxCard(d => { d.caption = 'Input A puts 0.70 on Cat.'; return d; })), [softmax]);
   assert.match(typed.problem, /^explanation_bad_prose_number: the text writes 0\.70/);
   const percent = apply(fence(topKCard({}, d => { d.caption = 'The kept tokens hold 70% of it.'; return d; })), [topK]);

@@ -51,7 +51,11 @@ function printedNumbers(diagram) {
   let parsed = null;
   try { parsed = parseTutorDiagram({ version: 1, diagram }); fillAllDerived(parsed.diagram); } catch { /* an invalid diagram is the card's own check */ }
   walk(parsed?.diagram ?? diagram, '');
-  if (parsed) { const description = describeTutorDiagram(parsed); add(Array.isArray(description) ? description.slice(1).join('\n') : String(description).split('\n').slice(1).join('\n')); }
+  if (parsed) { // the numbers its description states, with neither the title nor the caption (a caption cannot print its own numbers for itself)
+    const bare = { ...parsed, diagram: { ...parsed.diagram, title: 'T' } }; delete bare.diagram.caption;
+    const description = describeTutorDiagram(bare);
+    add((Array.isArray(description) ? description : String(description).split('\n')).slice(1).join('\n'));
+  }
   return printed;
 }
 
