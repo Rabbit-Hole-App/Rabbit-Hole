@@ -56,6 +56,7 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
+import { applyCalculations } from './explanation-calculation.js';
 import { ARTIFACT_SYSTEM, EXPLANATION_NUMBER_RULE, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
 import { capExampleList, exampleReferences } from './explanation-examples.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
@@ -305,6 +306,9 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
         { const hier = treesAsHierarchy(block.body); if (hier.count) { block = { ...block, body: hier.md }; corrections.tree_hierarchy_layout = hier.count; } } // batch-1 audit 2026-11-09: a short-key tree is drawn top-down, not as an outline
         block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
+        // MVP4: a card made from a reference that has a calculation: the author's inputs are read through the diagram's variables, the function runs, its results are written onto the card and the {{v:name}} placeholders are filled,
+        // before any check reads the numbers. A problem is a card problem: the one repair.
+        { const calculated = applyCalculations(block, prepared.diagramReferences); if (calculated.problem) throw new Error(calculated.problem); block = calculated.block; if (trace && calculated.steps.length) trace.calculation = calculated.steps; }
         // VAR-1 step 2: a {{d:N.path}} in the prose becomes the figure's own number before any check reads the text; the archive keeps the body as written (trace.bodyWithTokens).
         { const tokens = fillTokens(block); if (tokens.problem) throw new Error(tokens.problem); block = tokens.block; if (trace) Object.assign(trace, { tokensFilled: tokens.filled, bodyWithTokens: tokens.authored }); }
         if (attempt >= limit) {

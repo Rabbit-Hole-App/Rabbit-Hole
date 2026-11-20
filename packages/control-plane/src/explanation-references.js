@@ -1,5 +1,5 @@
 import { referenceLibrary } from './reference-library-lazy.js'; // START-3: the library is loaded on first use, not at worker start
-import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import { parseTutorDiagram, variablesJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
 import { resolveTokens, varySpec } from '../../web/src/tutor-diagrams/vary.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
@@ -131,7 +131,8 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
     const spec = parseTutorDiagram(sampledSpec(ref, seed));
     const compact = { id: ref.id, useWhen: ref.useWhen, spec,
       ...(ref.detailSpec ? { detailSpec: parseTutorDiagram(ref.detailSpec) } : {}),
-      ...(ref.sourceId ? { sourceId: ref.sourceId, partIndex: ref.partIndex } : {}) };
+      ...(ref.sourceId ? { sourceId: ref.sourceId, partIndex: ref.partIndex } : {}),
+      ...(ref.calculation ? { calculation: ref.calculation, ...(ref.template ? { template: ref.template } : {}) } : {}) }; // MVP4: the function and the title and caption templates of a reference that has a calculation
     const length = JSON.stringify(compact).length;
     if (chars + length > MAX_CONTEXT) continue;
     picked.push(compact);
@@ -185,8 +186,16 @@ const maskNumbers = (value, key = '') => {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, maskNumbers(item, name)]));
   return value;
 };
-const maskSpec = spec => (spec?.diagram ? { ...spec, diagram: maskNumbers(spec.diagram) } : spec);
-const shownReference = ref => (ref.shape || ref.seededExample ? ref : { ...ref, spec: maskSpec(ref.spec), ...(ref.detailSpec ? { detailSpec: maskSpec(ref.detailSpec) } : {}) });
+// MVP4: the `variables` list keeps its names, roles, types, limits and paths (the author is shown the limits) and masks only a stored `value`; a reference with a calculation shows its title and
+// caption with the numbers written as {{v:name}} (`template`) instead of "?".
+const maskDiagram = (diagram, template) => {
+  const { variables, ...rest } = diagram;
+  const masked = maskNumbers(rest);
+  if (template) { masked.title = template.title; if (template.caption !== undefined) masked.caption = template.caption; }
+  return variables ? { ...masked, variables: variables.map(entry => ('value' in entry ? { ...entry, value: maskNumbers(entry.value) } : entry)) } : masked;
+};
+const maskSpec = (spec, template) => (spec?.diagram ? { ...spec, diagram: maskDiagram(spec.diagram, template) } : spec);
+const shownReference = ref => (ref.shape || ref.seededExample ? ref : { ...ref, spec: maskSpec(ref.spec, ref.template), ...(ref.detailSpec ? { detailSpec: maskSpec(ref.detailSpec) } : {}) });
 // MVP3 (owner 2026-11-19): eight distinct whole numbers from 5 to 60 drawn from the request's seed (the same seed gives the same eight, another seed others). They are offered as starting numbers
 // when a stored reference is shown with its numbers removed.
 const startingNumbers = seed => {
@@ -201,7 +210,11 @@ export function diagramReferenceContext(references, requestSeed = null) {
   // MVP3: a stored reference is shown (masked) and the request has a seed: the starting numbers end the heading, after the sentence about "?".
   const startingSentence = requestSeed && !references.every(ref => ref.seededExample) && references.some(ref => !ref.shape && !ref.seededExample)
     ? ' For this card, build your input values from these starting numbers, in this order, scaling or rounding them where the diagram needs shares or weights: ' + startingNumbers(requestSeed).join(', ') + '.' : '';
-  const heading = startingSentence ? baseHeading.slice(0, -1) + startingSentence + baseHeading.slice(-1) : baseHeading;
+  // MVP4: a stored reference with a calculation is shown: one more sentence says who chooses what.
+  const calculationSentence = !references.every(ref => ref.seededExample) && references.some(ref => ref.calculation && !ref.shape && !ref.seededExample)
+    ? ' You choose the inputs of the variables list; the results are computed for you from them, and a number from the variables written in a title, a caption or a sentence is written as {{v:name}}, never typed.' : '';
+  const extraSentences = startingSentence + calculationSentence;
+  const heading = extraSentences ? baseHeading.slice(0, -1) + extraSentences + baseHeading.slice(-1) : baseHeading;
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
@@ -243,6 +256,7 @@ export function plannedBundleKinds({ source, visuals } = {}) {
 }
 export function diagramBundle({ references = [], requiredKinds = [], plannedKinds = [] } = {}) {
   const diagrams = references.flatMap(ref => [ref.spec.diagram, ...(ref.detailSpec ? [ref.detailSpec.diagram] : [])]);
+  const calculationKinds = [...new Set(references.filter(ref => ref.calculation && !ref.shape && !ref.seededExample).map(ref => ref.spec.diagram.kind))];
   const kinds = new Set([...requiredKinds, ...diagrams.map(d => d.kind)]);
   const tensorHosts = ['flow', 'relationship', 'transformation'].filter(kind => diagrams.some(d => d.kind === kind && (usesNodeTensors(d) || usesTensorItems(d))));
   return { ...(plannedKinds.length ? { only: [...plannedKinds] } : {}), quant: QUANT_KINDS.some(k => kinds.has(k)), fresh: NEW_KINDS.some(k => kinds.has(k)),
@@ -254,6 +268,7 @@ export function diagramBundle({ references = [], requiredKinds = [], plannedKind
     ...(diagrams.some(d => compactPlot(d) || d.panels?.some(panel => compactPlot(panel.diagram))) ? { compactPlots: true } : {}),
     ...(tensorHosts.length ? { tensorHosts } : {}),
     ...(diagrams.some(usesParallelPaths) ? { parallelPaths: true } : {}),
+    ...(calculationKinds.length ? { variablesKinds: calculationKinds } : {}), // MVP4: a card whose shown reference has a calculation gets the variables list in its answer schema, for that reference's kind only
   };
 }
 
@@ -314,6 +329,12 @@ export function bundledAuthorSchema(schema, bundle) {
     .map(withoutSmooth); // Codex c92ec1279: `smooth` is renderer-side (the author never sets it); leaving it out keeps every Gemini bundle byte-identical to before
   // Scope the additional sample fields to steered requests so unrelated Gemini fallback bundles keep their previous size.
   if (!bundle.compactPlots) keepExplicitPlotPoints(union);
+  // MVP4: the variables list is added back, and required, on the branches of the kinds whose reference has a calculation (no other request carries it: the Gemini answer schema limit is 362 properties).
+  if (bundle.variablesKinds?.length) for (const branch of union[key]) {
+    if (!bundle.variablesKinds.includes(diagramKindOf(branch))) continue;
+    branch.properties.variables = structuredClone(variablesJsonSchema());
+    branch.required = [...new Set([...(branch.required ?? []), 'variables'])];
+  }
   // Owner M4 (2026-11-08): at most two panels in the bundle (the spec allows three): each panel costs about 1.5 s of output (966 output tokens, 5.0 s,
   // for one two-panel comparison). The validator still reads a saved three-panel card.
   const comparison = union[key].find(b => b.properties.kind.const === 'comparison');
