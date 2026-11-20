@@ -117,6 +117,25 @@ test('block-stack text and description preserve authored annotations and the mea
   assert.match(description, /Attention heads.*8/);
 });
 
+test('STACK-C: a block with no role takes the step fill (process blue); a norm block stays transparent; a roled block keeps its own fill', () => {
+  const blocks = [{ id: 'a', label: 'No role' }, { id: 'b', label: 'Normalize', role: 'norm' }, { id: 'c', label: 'Mix tokens', role: 'attention' }, { id: 'd', label: 'Also no role' }];
+  const scene = draw({ kind: 'block-stack', title: 'Unroled blocks', blocks }, 408);
+  const props = findAll(scene.elements, 'data-block-stack-node').map(element => element.props.children[0].props);
+  assert.deepEqual(props.map(({ fill }) => fill), [PALETTE.process, 'none', TEACHING.blueFill, PALETTE.process]);
+  assert.deepEqual(props.map(({ stroke, strokeWidth }) => [stroke, strokeWidth]), props.map(() => [TEACHING.outline, 1.5]));
+});
+
+test('STACK-C rules: a block that holds an inset never takes the fill; in a stack with a changed block a block without a role stays unfilled', () => {
+  const fills = diagram => findAll(draw(diagram, 408).elements, 'data-block-stack-node').map(element => element.props.children[0].props.fill);
+  const inset = { kind: 'flow', steps: ['Normalize input', 'Mix tokens'] };
+  const withInset = fills({ kind: 'block-stack', title: 'Inset', blocks: [{ id: 'a', label: 'Holds a flow', diagram: inset }, { id: 'b', label: 'Leaf' }] });
+  assert.notEqual(withInset[0], PALETTE.process, 'a block with an inset keeps no fill');
+  assert.equal(withInset[1], PALETTE.process, 'a leaf block beside it still takes the step fill');
+  const marked = fills({ kind: 'block-stack', title: 'Changed', blocks: [{ id: 'a', label: 'Compare', role: 'changed' }, { id: 'b', label: 'No role' }, { id: 'c', label: 'Also no role' }] });
+  assert.equal(marked[0], TEACHING.blueFill, 'the changed block keeps its highlight fill');
+  assert.ok(marked.slice(1).every(fill => fill !== PALETTE.process), 'blocks without a role stay unfilled when a block is changed');
+});
+
 test('explicit block and inset roles change paint without moving the geometry', () => {
   const roles = ['norm', 'attention', 'feedforward', 'embedding', 'output', 'changed'];
   const labels = ['Read state', 'Mix tokens', 'Update features', 'Read embeddings', 'Return output', 'Compare block'];

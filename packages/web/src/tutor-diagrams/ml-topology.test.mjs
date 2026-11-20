@@ -233,7 +233,7 @@ test('relationship graph brings outside routes closer while clearing node boxes 
       const arrow = parts.find(e => e.props['data-tutor-arrowhead'] !== undefined);
       const tip = points(arrow.props.points)[0];
       assert.ok(Math.abs(Math.hypot(tip[0] - end[0], tip[1] - end[1]) - 2) < 0.01, 'the arrowhead tip stops 2 px short of the wire end');
-      const badge = parts.find(e => e.type === 'circle').props;
+      const badge = parts.find(e => e.type === 'circle')?.props ?? { r: 0 }; // a label drawn on its arrow has no badge
       const side = bend[0] < from.x ? 'left' : 'right';
       const nodeEdge = rect => side === 'left' ? rect.x : rect.x + rect.width;
       const gap = Math.abs(bend[0] - nodeEdge(from));

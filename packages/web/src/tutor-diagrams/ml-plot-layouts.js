@@ -89,7 +89,7 @@ const ARIAL = { ' ': 278, '!': 278, '"': 355, '#': 556, '$': 556, '%': 889, '&':
   A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611, '[': 278, ']': 278, '^': 469, _: 556,
   a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222, j: 222, k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333, s: 500, t: 278, u: 556, v: 500, w: 722, x: 500, y: 500, z: 500, '{': 334, '|': 260, '}': 334, '~': 584 };
 // The ARIAL table above assumes figures draw in Arial / Liberation Sans, which they do only because TEACHING_FONT names 'Inter' while the loaded family is 'Inter Variable' (teaching-theme.js).
-function legendTextWidth(text, size) {
+export function legendTextWidth(text, size) {
   if (text.includes('$')) return textWidth(text, size);
   let em = 0;
   for (const char of text) em += (char >= '0' && char <= '9' ? 556 : ARIAL[char] ?? (char.codePointAt(0) > 0x2ff ? 1000 : 600)) / 1000;
