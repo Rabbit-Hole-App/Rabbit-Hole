@@ -15,7 +15,7 @@ test('C04 modality paths retain different extractors, feature spaces and task he
   assert.strictEqual(reference.topic, 'transfer-learning');
   const table = reference.spec.diagram;
   assert.strictEqual(table.kind, 'matrix');
-  assert.deepStrictEqual(table.columns, ['Input', 'Extractor', 'Feature vector', 'Classifier']);
+  assert.deepStrictEqual(table.columns, ['Input', 'Model', 'Vector', 'Head']);
   assert.deepStrictEqual(table.rows.map(row => row.cells), modalities.map(row => [row.input, row.extractor, row.name + ' vector', row.head]));
   const paths = [reference.depths.deep.spec.diagram, reference.depths.deep.detailSpec.diagram];
   for (const [i, path] of paths.entries()) {

@@ -5,9 +5,9 @@ const spec = diagram => ({ version: 1, diagram });
 const overview = { kind: 'matrix', title: 'One feature-to-classifier pattern', columns: ['Feature extractor', 'Vector readout'],
   rows: d.modalities.map(row => ({ heading: row.name, cells: [row.extractor, row.head] })),
   caption: 'Text and images need different feature extractors. Each task head reads its own learned feature vector.' };
-const comparison = { kind: 'matrix', title: 'Distinct inputs, same classifier recipe', columns: ['Input', 'Extractor', 'Feature vector', 'Classifier'],
+const comparison = { kind: 'matrix', title: 'Distinct inputs, same classifier recipe', columns: ['Input', 'Model', 'Vector', 'Head'],
   rows: d.modalities.map(row => ({ heading: row.name, cells: [row.input, row.extractor, row.name + ' vector', row.head] })),
-  caption: 'Separate pipelines: each extractor builds its own feature vector for its own classifier. No shared decoder.' };
+  caption: 'Each model extracts its own feature vector for its own classifier head. The text and image paths are independent.' };
 const path = row => ({ kind: 'block-stack', title: row.name + ' features feed their own classifier',
   blocks: [{ id: 'encoder', label: row.extractor },
     { id: 'features', label: row.name + ' vector', diagram: { kind: 'tensor', tensor: { rows: 1, columns: row.featureCount, dimensions: `${row.featureCount} features` } } },

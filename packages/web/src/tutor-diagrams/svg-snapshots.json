@@ -2407,19 +2407,19 @@
       "height": 727.5
     },
     "ml-transfer-learning-modality-feature-classifier/320": {
-      "sha256": "ae9ba08a307b9cbb7e511805f194e3559143d89151bc8bce1ca7ab19ff22989a",
+      "sha256": "ffe6483583686b64d06945c7cc6ba0d115123e9662c54f63141dcb4a960d2590",
       "width": 412,
-      "height": 358
+      "height": 340
     },
     "ml-transfer-learning-modality-feature-classifier/408": {
-      "sha256": "ae9ba08a307b9cbb7e511805f194e3559143d89151bc8bce1ca7ab19ff22989a",
+      "sha256": "ffe6483583686b64d06945c7cc6ba0d115123e9662c54f63141dcb4a960d2590",
       "width": 412,
-      "height": 358
+      "height": 340
     },
     "ml-transfer-learning-modality-feature-classifier/720": {
-      "sha256": "1c6d28ca561b7d7d9e76c152a9211f41966e79706cdc4bccb03ab4a35c580b74",
+      "sha256": "bdd80aa4674df929f764a49e8e13b2e8eca17c4bddf2f45cdd7f9f1e850687ca",
       "width": 720,
-      "height": 281
+      "height": 263
     },
     "ml-transformer-attention/320": {
       "sha256": "ba69142937b1f70ef4fc9858f5fc8f6509858f95104e22ae6d075803e6c1470f",
