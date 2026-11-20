@@ -120,6 +120,31 @@ test('sample-set preserves identity, class, sample weights and replacement multi
   assert.equal(visibleText(samples).filter(text => text === 'c').length, 3, 'Omitted and OOB labels each count as visible');
 });
 
+// SAMP-3: only a replacement draw reads 'n draws · m unique' with '× n' on its members; any other group is a plain list.
+test('sample-set: a group without replacement reads "n items" and prints no × 1; replacement groups are unchanged', () => {
+  const classes = { kind: 'sample-set', title: 'Supervised pairs',
+    samples: [{ id: 'm1', class: 'Request' }, { id: 'm2', class: 'Request' }, { id: 'm3', class: 'Notice' }],
+    groups: [{ id: 'request', label: 'Request', members: ['m1', 'm2'] }, { id: 'notice', label: 'Notice', members: ['m3'] }] };
+  const plain = svg(classes).svg;
+  assert.match(plain, />2 items</);
+  assert.match(plain, />1 item</);
+  assert.doesNotMatch(plain, /draws|unique|× /);
+  assert.deepEqual(marks(plain, 'data-tutor-sample-member').map(v => v.value), ['request:m1', 'request:m2', 'notice:m3']);
+  assert.deepEqual(describe(classes).slice(3), ['Request (2 items): m1, m2', 'Notice (1 item): m3']);
+  // a replacement group in which every member is drawn once still reads draws / unique and keeps its × 1
+  const once = copy(classes);
+  once.groups[0].replacement = true;
+  const drawn = svg(once, 720).svg; // wide enough that the count stays on one line
+  assert.match(drawn, />2 draws · 2 unique · with replacement</);
+  assert.equal((drawn.match(/>× 1</g) ?? []).length, 2);
+  assert.match(describe(once).join('\n'), /Request \(2 draws, 2 unique\): m1 × 1, m2 × 1/);
+  // the existing bootstrap fixture: the drawn group keeps draws / unique and multiplicities, the out-of-bag group stays 'not drawn'
+  const boot = svg(samples, 720).svg;
+  assert.match(boot, />3 draws · 2 unique · with replacement</);
+  assert.match(boot, />1 not drawn</);
+  assert.match(describe(samples).join('\n'), /Bootstrap draw \(3 draws, 2 unique\): a × 2, b × 1/);
+});
+
 test('sample-set rejects duplicate identities, unknown IDs, undeclared replacement and false OOB claims', () => {
   const invalid = [
     d => { d.samples[1].id = 'a'; }, d => { d.groups[0].members.push('unknown'); },
