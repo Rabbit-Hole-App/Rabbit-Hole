@@ -272,7 +272,7 @@ export function diagramBundle({ references = [], requiredKinds = [], plannedKind
     ...(diagrams.some(d => compactPlot(d) || d.panels?.some(panel => compactPlot(panel.diagram))) ? { compactPlots: true } : {}),
     ...(tensorHosts.length ? { tensorHosts } : {}),
     ...(diagrams.some(usesParallelPaths) ? { parallelPaths: true } : {}),
-    ...(calculationKinds.length ? { variablesKinds: calculationKinds } : {}), // MVP4: a card whose shown reference has a calculation gets the variables list in its answer schema, for that reference's kind only
+    ...(calculationKinds.length ? { variablesKinds: calculationKinds, variablesNames: [...new Set(references.filter(ref => hasFunction(ref) && !ref.shape && !ref.seededExample).flatMap(ref => ref.calculation.variables.map(variable => variable.name)))] } : {}), // MVP4: a card whose shown reference has a calculation gets the variables list in its answer schema, for that reference's kind only
   };
 }
 
@@ -337,6 +337,12 @@ export function bundledAuthorSchema(schema, bundle) {
   if (bundle.variablesKinds?.length) for (const branch of union[key]) {
     if (!bundle.variablesKinds.includes(diagramKindOf(branch))) continue;
     branch.properties.variables = structuredClone(variablesJsonSchema());
+    // The names of the reference's own variables are the only ones the author may use, and no more entries than it declares.
+    if (bundle.variablesNames?.length) {
+      const item = branch.properties.variables.items;
+      item.properties.name = { type: 'string', enum: bundle.variablesNames };
+      branch.properties.variables.maxItems = bundle.variablesNames.length;
+    }
     branch.required = [...new Set([...(branch.required ?? []), 'variables'])];
   }
   // Owner M4 (2026-11-08): at most two panels in the bundle (the spec allows three): each panel costs about 1.5 s of output (966 output tokens, 5.0 s,

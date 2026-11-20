@@ -62,14 +62,16 @@ const valueOf = (diagram, entry) => (entry?.at !== undefined ? readAt(diagram, e
 // a result outside its limits, or a result that cannot be written where it is drawn.
 export function runCalculation(diagram, calculation) {
   const entries = declared(diagram);
-  if (!entries) return { problem: 'the diagram has no variables list (write the variables as the example does)' };
-  const byName = new Map(entries.filter(entry => entry && typeof entry === 'object').map(entry => [entry.name, entry]));
+  const byName = new Map((entries ?? []).filter(entry => entry && typeof entry === 'object').map(entry => [entry.name, entry]));
   const inputs = {};
   for (const spec of calculation.variables.filter(variable => variable.role === 'input')) {
+    // An input the reference's figure draws is found where the reference says it is; an input the figure does not draw (a list of weights, a k) is read from the card's own variables list.
     const entry = byName.get(spec.name);
-    if (!entry || entry.role !== 'input') return { problem: `variables has no input named ${spec.name}` };
-    const value = valueOf(diagram, entry);
-    if (value === undefined) return { problem: `input ${spec.name} is not where variables says (${entry.at !== undefined ? `no number at ${entry.at}` : 'no value'})` };
+    if (entry && entry.role !== 'input') return { problem: `variables names ${spec.name} as something other than an input` };
+    const at = entry?.at ?? spec.at;
+    if (!entry && at === undefined) return { problem: entries ? `variables has no input named ${spec.name}` : 'the diagram has no variables list (write the variables as the example does)' };
+    const value = at !== undefined ? readAt(diagram, at) : entry.value;
+    if (value === undefined) return { problem: `input ${spec.name} is not where variables says (${at !== undefined ? `no number at ${at}` : 'no value'})` };
     const bad = limitProblem(spec, value);
     if (bad) return { problem: `input ${spec.name} ${bad}` };
     inputs[spec.name] = value;
@@ -81,16 +83,18 @@ export function runCalculation(diagram, calculation) {
   }
   const next = structuredClone(diagram), overwritten = [], before = {};
   for (const spec of calculation.variables.filter(variable => variable.role === 'result')) {
+    // A result the figure draws is written where the reference says it is drawn (the card's entry may name another place); a result the card did not list is still computed (a placeholder may name it).
     const entry = byName.get(spec.name);
-    if (!entry || entry.role !== 'result') return { problem: `variables has no result named ${spec.name}` };
+    if (entry && entry.role !== 'result') return { problem: `variables names ${spec.name} as something other than a result` };
     const value = computed[spec.name], bad = limitProblem(spec, value);
     if (bad) return { problem: `result ${spec.name} ${bad}` };
-    const written = valueOf(diagram, entry);
+    const at = entry?.at ?? spec.at;
+    const written = at !== undefined ? readAt(diagram, at) : entry?.value;
     before[spec.name] = written;
-    if (entry.at !== undefined) {
-      if (!writeAt(next, entry.at, value)) return { problem: `result ${spec.name} cannot be written at ${entry.at}` };
-    } else next.variables[next.variables.findIndex(variable => variable.name === spec.name)].value = value;
-    if (JSON.stringify(written) !== JSON.stringify(value)) overwritten.push(spec.name);
+    if (at !== undefined) {
+      if (!writeAt(next, at, value)) return { problem: `result ${spec.name} cannot be written at ${at}` };
+    } else if (entry) next.variables[next.variables.findIndex(variable => variable.name === spec.name)].value = value;
+    if ((at !== undefined || entry) && JSON.stringify(written) !== JSON.stringify(value)) overwritten.push(spec.name);
   }
   return { diagram: next, values: { ...inputs, ...computed }, overwritten, written: before };
 }
