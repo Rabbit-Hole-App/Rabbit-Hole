@@ -185,6 +185,21 @@ test('residuals leave before their source block, route outside it and rejoin aft
   }
 });
 
+test('the repeat bracket breaks short of its pill instead of running behind it', () => {
+  const all = (item, type) => item?.type === type ? [item] : [item?.props?.children].flat(Infinity).filter(Boolean).flatMap(child => all(child, type));
+  for (const width of [320, 408, 960]) {
+    const [group] = findAll(draw(architecture, width).elements, 'data-block-stack-group');
+    const [pill] = all(group, 'rect');
+    const lines = all(group, 'polyline').map(line => line.props.points.split(' ').map(point => point.split(',').map(Number)));
+    assert.equal(lines.length, 2);
+    for (const points of lines) for (const [[, y1], [, y2]] of points.slice(1).map((point, i) => [points[i], point])) {
+      // A segment may touch the pill's row only if it is a horizontal tick; a vertical run must end before the pill with clear space.
+      const [low, high] = [Math.min(y1, y2), Math.max(y1, y2)];
+      assert.ok(high < pill.props.y || low > pill.props.y + pill.props.height, `bracket segment ${low}-${high} overlaps pill ${pill.props.y}`);
+    }
+  }
+});
+
 test('callouts occupy available margins and keep a highlighted value, with numbered rows at 320', () => {
   const narrow = draw(simple, 320);
   assert.match(narrow.svg, /data-block-stack-callout-badge="1"/);

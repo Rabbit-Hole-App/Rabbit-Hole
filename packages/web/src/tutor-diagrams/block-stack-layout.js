@@ -16,6 +16,7 @@ const PREFERRED_BLOCK_WIDTH = 234;
 const BLOCK_GAP = 18;
 const INPUT_GAP = 18;
 const FORK_LANE = 12;
+const PILL_GAP = 4; // clear space between the repeat pill and the bracket line
 const NOTE_GAP = 18;
 const ROW_GAP = 6;
 const REPEAT_LANE = 50;
@@ -375,9 +376,12 @@ export function layoutBlockStack(diagram, preferredWidth, renderChild) {
     const bracketX = right + skipBand + (group.lane + 0.5) * REPEAT_LANE;
     const top = positions.get(group.id).top - 4, bottom = positions.get(group.repeatTo).bottom + 4;
     const count = pill(repeatText(group.repeat), REPEAT_LANE);
+    const pillTop = (top + bottom - count.height) / 2;
+    // The pill is transparent, so the bracket stops short of it on both sides instead of running behind the text.
     return h('g', { 'data-block-stack-group': `${group.id}:${group.repeatTo}` },
-      connector([[bracketX - 10, top], [bracketX, top], [bracketX, bottom], [bracketX - 10, bottom]], { arrow: false }),
-      ...drawPill(count, bracketX - count.width / 2, (top + bottom - count.height) / 2));
+      connector([[bracketX - 10, top], [bracketX, top], [bracketX, Math.max(top, pillTop - PILL_GAP)]], { arrow: false }),
+      connector([[bracketX, Math.min(bottom, pillTop + count.height + PILL_GAP)], [bracketX, bottom], [bracketX - 10, bottom]], { arrow: false }),
+      ...drawPill(count, bracketX - count.width / 2, pillTop));
   });
   const scene = [...brackets, ...wires, ...nodes, ...joins, ...annotations];
   const ledger = [];
