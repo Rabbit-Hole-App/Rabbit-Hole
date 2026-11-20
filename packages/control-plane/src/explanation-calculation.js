@@ -114,7 +114,9 @@ export function applyCalculations(block, references) {
     if (left.length) return { block, steps, problem: `explanation_bad_placeholder: the diagram still has a "?" where a number belongs (${left.slice(0, 3).join(', ')}); write the number, or {{v:name}} for one of the variables` };
   }
   // A number of the prose or of a caption that the picture does not print.
+  // The numbers the card prints: its pictures' own, and the results the function computed (they reach the card as drawn numbers or through {{v:name}} in a title, a caption, a label or a sentence). An input is not one.
   const printed = new Set(diagrams.flatMap(diagram => [...printedNumbers(diagram)]));
+  for (const step of steps) for (const value of Object.values(step.results)) for (const item of (Array.isArray(value) ? value : [value])) if (typeof item === 'number') printed.add(item);
   const unprinted = [];
   for (const md of bodies) if (typeof md === 'string') walkFences(md, () => null, line => { unprinted.push(...unprintedNumbers(line, printed)); return line; });
   for (const diagram of diagrams) if (typeof diagram.caption === 'string') unprinted.push(...unprintedNumbers(diagram.caption, printed));
