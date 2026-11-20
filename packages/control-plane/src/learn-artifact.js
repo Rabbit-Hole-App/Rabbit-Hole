@@ -156,7 +156,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds, plannedKinds: input.plan ? plannedBundleKinds(resolved) : [] })); }
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
-  const system = withInputsRule((input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '')) + diagramReferenceContext(diagramReferences);
+  const system = withInputsRule((input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '')) + diagramReferenceContext(diagramReferences, requestSeed);
   return { request, ready, messages, diagramReferences, requestSeed, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 

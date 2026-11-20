@@ -4,6 +4,7 @@ import { resolveTokens, varySpec } from '../../web/src/tutor-diagrams/vary.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { cardVisuals, visualKinds } from './explanation-planner.js';
+import { seededRandom } from '../../web/src/tutor-diagrams/random.js';
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
@@ -186,10 +187,21 @@ const maskNumbers = (value, key = '') => {
 };
 const maskSpec = spec => (spec?.diagram ? { ...spec, diagram: maskNumbers(spec.diagram) } : spec);
 const shownReference = ref => (ref.shape || ref.seededExample ? ref : { ...ref, spec: maskSpec(ref.spec), ...(ref.detailSpec ? { detailSpec: maskSpec(ref.detailSpec) } : {}) });
-export function diagramReferenceContext(references) {
+// MVP3 (owner 2026-11-19): eight distinct whole numbers from 5 to 60 drawn from the request's seed (the same seed gives the same eight, another seed others). They are offered as starting numbers
+// when a stored reference is shown with its numbers removed.
+const startingNumbers = seed => {
+  const pool = Array.from({ length: 56 }, (_, index) => index + 5), random = seededRandom(`${seed}:starting-numbers`);
+  for (let i = 0; i < 8; i++) { const j = i + Math.floor(random() * (pool.length - i)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return pool.slice(0, 8);
+};
+export function diagramReferenceContext(references, requestSeed = null) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count. A "?" in an example stands for a number that was removed: choose your own.\n';
+  const baseHeading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count. A "?" in an example stands for a number that was removed: choose your own.\n';
+  // MVP3: a stored reference is shown (masked) and the request has a seed: the starting numbers end the heading, after the sentence about "?".
+  const startingSentence = requestSeed && !references.every(ref => ref.seededExample) && references.some(ref => !ref.shape && !ref.seededExample)
+    ? ' For this card, build your input values from these starting numbers, in this order, scaling or rounding them where the diagram needs shares or weights: ' + startingNumbers(requestSeed).join(', ') + '.' : '';
+  const heading = startingSentence ? baseHeading.slice(0, -1) + startingSentence + baseHeading.slice(-1) : baseHeading;
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
