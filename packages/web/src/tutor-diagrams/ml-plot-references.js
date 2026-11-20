@@ -1,10 +1,9 @@
 // These fixed, deliberately small datasets teach geometry. They are illustrative
 // examples for the author, never empirical evidence or values to copy over sources.
-import { softmaxCalculation, softmaxStored, softmaxWeights } from './ml-softmax-probabilities-data.js';
+import { declareReference } from './calculation.js';
+import { meanBaselineCalculation } from './ml-regression-mean-baseline-data.js';
+import { softmaxCalculation, softmaxInputs } from './ml-softmax-probabilities-data.js';
 const xy = values => values.map(([x, y]) => ({ x, y }));
-// MVP4: a reference with a calculation carries its variables in the stored diagram and the calculation itself (the server runs it on the author's inputs).
-const withCalculation = (reference, calculation) => ({ ...reference, calculation,
-  spec: { ...reference.spec, diagram: { ...reference.spec.diagram, variables: calculation.variables.map(variable => ({ ...variable })) } } });
 const series = (label, values, kind = 'line') => ({ label, kind, points: xy(values) });
 const axis = (label, min, max, extra = {}) => ({ label, min, max, ...extra });
 const plot = (title, x, y, series, annotations = []) => ({ kind: 'coordinate-plot', title,
@@ -36,9 +35,9 @@ export const references = [
       { kind: 'segment', from: { x: 2, y: 3 }, to: { x: 2, y: 2 }, label: 'Residual -1' },
       { kind: 'segment', from: { x: 3, y: 4 }, to: { x: 3, y: 5 }, label: 'Residual +1' },
     ])),
-  ref('regression-mean-baseline', ['02', '19'], 'What does predicting the mean give as a regression baseline?', ['mean baseline', 'regression', 'baseline'],
+  declareReference(ref('regression-mean-baseline', ['02', '19'], 'What does predicting the mean give as a regression baseline?', ['mean baseline', 'regression', 'baseline'],
     'Show the constant mean prediction against a small set of targets.',
-    plot('A constant mean baseline', axis('Sample', 1, 5), axis('Target', 0, 6), [series('Targets', [[1, 1], [2, 4], [3, 2], [4, 5], [5, 3]], 'scatter')], [line('y', 3, 'Mean prediction of 3')])),
+    plot('A constant mean baseline', axis('Sample', 1, 5), axis('Target', 0, 6), [series('Targets', [[1, 1], [2, 4], [3, 2], [4, 5], [5, 3]], 'scatter')], [line('y', 3, 'Mean prediction of {{v:mean}}')])), meanBaselineCalculation),
   ref('gradient-descent-contours', ['02'], 'How does gradient descent move through a loss contour map?', ['gradient descent', 'contour', 'optimization'],
     'Use closed loss contours and mark the sequence of decreasing-loss steps.',
     plot('A descent path on a quadratic loss', axis('Weight 1', -3, 3), axis('Weight 2', -3, 3), [
@@ -75,9 +74,9 @@ export const references = [
       series('True class 1', [[0.01, 4.605], [0.1, 2.303], [0.25, 1.386], [0.5, 0.693], [0.75, 0.288], [0.9, 0.105], [0.99, 0.01]]),
       series('True class 0', [[0.01, 0.01], [0.1, 0.105], [0.25, 0.288], [0.5, 0.693], [0.75, 1.386], [0.9, 2.303], [0.99, 4.605]]),
     ])),
-  withCalculation(ref('softmax-probabilities', ['03'], 'How do softmax probabilities compare two multiclass predictions?', ['softmax', 'multiclass', 'probability', 'attention weights'],
+  declareReference(ref('softmax-probabilities', ['03'], 'How do softmax probabilities compare two multiclass predictions?', ['softmax', 'multiclass', 'probability', 'attention weights'],
     'Group two normalized probability vectors by class.',
-    bar('Two softmax probability vectors', 'grouped', ['Cat', 'Dog', 'Bird'], [{ label: 'Input A', values: softmaxStored.probabilitiesA }, { label: 'Input B', values: softmaxStored.probabilitiesB }])), softmaxCalculation),
+    bar('Two softmax probability vectors', 'grouped', ['Cat', 'Dog', 'Bird'], [{ label: 'Input A', values: [0.7, 0.2, 0.1] }, { label: 'Input B', values: [0.15, 0.6, 0.25] }])), softmaxCalculation, softmaxInputs),
   ref('tree-impurity-mixtures', ['04'], 'Why is a pure decision-tree node less impure than a mixed node?', ['impurity', 'gini', 'class mixture'],
     'Show equal-size class counts so purity can be compared without a size confound.',
     bar('Class mixtures in equal-size tree nodes', 'stacked', ['Pure', 'Mostly A', 'Mixed'], [{ label: 'Class A', values: [10, 8, 5] }, { label: 'Class B', values: [0, 2, 5] }], 'samples')),

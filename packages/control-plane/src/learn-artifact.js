@@ -57,6 +57,7 @@ const lengths = schema => Object.entries(schema.properties || {}).filter(([, fie
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
 import { applyCalculations } from './explanation-calculation.js';
+import { isDeclared } from '../../web/src/tutor-diagrams/calculation.js';
 import { ARTIFACT_SYSTEM, EXPLANATION_NUMBER_RULE, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
 import { capExampleList, exampleReferences } from './explanation-examples.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
@@ -150,8 +151,11 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const seeded = requestSeed && planKind && !topicalReferences.length && ready.includes('explanation') ? capExampleList(exampleReferences(planKind, input.depth, requestSeed).examples).map(example => ({ ...example, seededExample: true })) : [];
   const shape = planKind ? planShape({ kind: planKind }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = seeded.length ? seeded : shape ? [shape, ...topicalReferences] : topicalReferences;
   // GEN-1 G2 (R2): the seeded examples come with the inputs sentence right after the number rule (agents/learn-artifact.js INPUTS_RULE); every other request is untouched.
-  const withInputsRule = text => (seeded.length ? [NUMBER_RULE, EXPLANATION_NUMBER_RULE].reduce((t, rule) => t.replace(rule, () => `${rule} ${INPUTS_RULE}`), text) : text);
+  const withInputsRule = text => (seeded.length ? text.replace(NUMBER_RULE, () => `${NUMBER_RULE} ${INPUTS_RULE}`) : text);
   if (seeded.length) { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.description = withInputsRule(t.description); }
+  // Same-JSON change set: a request that shows a declared reference (web/src/tutor-diagrams/calculation.js) carries the explanation card's own number rule (the author builds a small worked example of its own); every
+  // other request keeps main's wording, byte for byte.
+  if (diagramReferences.some(isDeclared)) { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.description = t.description.replace(NUMBER_RULE, () => EXPLANATION_NUMBER_RULE); }
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
   if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds, plannedKinds: input.plan ? plannedBundleKinds(resolved) : [] })); }

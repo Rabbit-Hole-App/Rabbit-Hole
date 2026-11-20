@@ -1,6 +1,7 @@
 import { referenceLibrary } from './reference-library-lazy.js'; // START-3: the library is loaded on first use, not at worker start
 import { parseTutorDiagram, variablesJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
 import { resolveTokens, varySpec } from '../../web/src/tutor-diagrams/vary.js';
+import { hasFunction, isDeclared } from '../../web/src/tutor-diagrams/calculation.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { cardVisuals, visualKinds } from './explanation-planner.js';
@@ -175,44 +176,47 @@ export function selectForAuthor({ prompt, context = '', depth, plan = null, aske
 export const REFERENCE_MARK = '\n# Examples\n'; // GEN-1 G2: the block's first line only, so the seeded examples may carry another second line (the old mark 'Approved diagram references' stays a prefix of today's heading)
 // GEN-1 G2 (R2, wording for the Reviewer to approve): the heading of the seeded examples (GEN-1 G1), starting text from the spec; `# Examples` stays the first line. No number wording here (owner N1): the inputs sentence goes after the number rule (agents/learn-artifact.js INPUTS_RULE).
 export const SEEDED_EXAMPLES_HEADING = '\n# Examples\nDiagram examples on other subjects. They show what a good diagram of this kind looks like: several concrete items, real values, short labels. Do not reuse their subject, labels or values. Build this card\'s diagram from the concrete things in the learner\'s question and its context (the names, sizes and values given there); where none are given, choose a small concrete example of your own. Do not exceed this card\'s visual count.\n';
-// MVP2 (owner 2026-11-19): a stored reference shown as an example is written with its numbers removed. Every numeric field of its diagram (and of its detail diagram) and every number
-// written inside a text field becomes the text "?". Fields that name things (ids, endpoints, enumerations) keep their text. Only the written line changes: the reference object itself
-// (its kind, the answer schema, the trace) is untouched. The shape example and the seeded examples are not masked.
+// A stored reference that DECLARES a calculation (its function, or that it needs none; web/src/tutor-diagrams/calculation.js) is shown to the author as an example without its numbers: every numeric field
+// of its diagram (and of its detail diagram) and every number written inside a text field becomes the text "?", except where the text carries a {{v:name}} placeholder (a number that follows from the inputs
+// stood there) and in the limits of its variables list (the author is shown the limits; only a stored value is masked). Fields that name things (ids, endpoints, enumerations) keep their text. Only the
+// written line changes: the reference object itself (its kind, the answer schema, the trace) is untouched. The shape example, the seeded examples and every reference that does not declare are not masked.
 const NAME_KEYS = new Set(['id', 'from', 'to', 'node', 'parent', 'repeatTo', 'highlightPath', 'kind', 'role', 'stackRole', 'variant', 'layout', 'figure', 'side', 'orientation', 'direction', 'anchor', 'type']);
+const maskText = text => text.split(/(\{\{v:[^{}]*\}\})/).map(part => (part.startsWith('{{v:') ? part : part.replace(/[0-9]+(?:[.,][0-9]+)*/g, '?'))).join('');
 const maskNumbers = (value, key = '') => {
   if (typeof value === 'number') return '?';
-  if (typeof value === 'string') return NAME_KEYS.has(key) ? value : value.replace(/[0-9]+(?:[.,][0-9]+)*/g, '?');
+  if (typeof value === 'string') return NAME_KEYS.has(key) ? value : maskText(value);
   if (Array.isArray(value)) return value.map(item => maskNumbers(item, key));
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, maskNumbers(item, name)]));
   return value;
 };
-// MVP4: the `variables` list keeps its names, roles, types, limits and paths (the author is shown the limits) and masks only a stored `value`; a reference with a calculation shows its title and
-// caption with the numbers written as {{v:name}} (`template`) instead of "?".
-const maskDiagram = (diagram, template) => {
+const maskDiagram = diagram => {
   const { variables, ...rest } = diagram;
   const masked = maskNumbers(rest);
-  if (template) { masked.title = template.title; if (template.caption !== undefined) masked.caption = template.caption; }
   return variables ? { ...masked, variables: variables.map(entry => ('value' in entry ? { ...entry, value: maskNumbers(entry.value) } : entry)) } : masked;
 };
-const maskSpec = (spec, template) => (spec?.diagram ? { ...spec, diagram: maskDiagram(spec.diagram, template) } : spec);
-const shownReference = ref => (ref.shape || ref.seededExample ? ref : { ...ref, spec: maskSpec(ref.spec, ref.template), ...(ref.detailSpec ? { detailSpec: maskSpec(ref.detailSpec) } : {}) });
-// MVP3 (owner 2026-11-19): eight distinct whole numbers from 5 to 60 drawn from the request's seed (the same seed gives the same eight, another seed others). They are offered as starting numbers
-// when a stored reference is shown with its numbers removed.
+const maskSpec = spec => (spec?.diagram ? { ...spec, diagram: maskDiagram(spec.diagram) } : spec);
+// What the author is shown: a declared reference with a template shows the template (its text fields carry {{v:name}} where a number that follows from the inputs stood).
+const shownReference = ref => (ref.shape || ref.seededExample || !isDeclared(ref) ? ref
+  : { ...ref, useWhen: maskText(ref.useWhen), spec: maskSpec(ref.template ?? ref.spec), ...(ref.detailSpec ? { detailSpec: maskSpec(ref.detailSpec) } : {}) });
+// Eight distinct whole numbers from 5 to 60 drawn from the request's seed (the same seed gives the same eight, another seed others). They are offered as starting numbers when a declared reference is shown.
 const startingNumbers = seed => {
   const pool = Array.from({ length: 56 }, (_, index) => index + 5), random = seededRandom(`${seed}:starting-numbers`);
   for (let i = 0; i < 8; i++) { const j = i + Math.floor(random() * (pool.length - i)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   return pool.slice(0, 8);
 };
+// The heading of the references block. Main's own wording stays for every request that shows no declared reference. A declared reference gets the wording that tells the author to write its own version of
+// what is illustrative, then the starting numbers (a seeded request) and, for a reference with a function, who chooses what.
+const MAIN_HEADING = '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+const DECLARED_HEADING = '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count. A "?" in an example stands for a number that was removed: choose your own.\n';
 export function diagramReferenceContext(references, requestSeed = null) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const baseHeading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count. A "?" in an example stands for a number that was removed: choose your own.\n';
-  // MVP3: a stored reference is shown (masked) and the request has a seed: the starting numbers end the heading, after the sentence about "?".
-  const startingSentence = requestSeed && !references.every(ref => ref.seededExample) && references.some(ref => !ref.shape && !ref.seededExample)
-    ? ' For this card, build your input values from these starting numbers, in this order, scaling or rounding them where the diagram needs shares or weights: ' + startingNumbers(requestSeed).join(', ') + '.' : '';
-  // MVP4: a stored reference with a calculation is shown: one more sentence says who chooses what.
-  const calculationSentence = !references.every(ref => ref.seededExample) && references.some(ref => ref.calculation && !ref.shape && !ref.seededExample)
-    ? ' You choose the inputs of the variables list; the results are computed for you from them, and a number from the variables written in a title, a caption or a sentence is written as {{v:name}}, never typed.' : '';
+  const declared = !references.every(ref => ref.seededExample) && references.some(ref => !ref.shape && !ref.seededExample && isDeclared(ref));
+  const baseHeading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : declared ? DECLARED_HEADING : MAIN_HEADING;
+  const startingSentence = declared && requestSeed
+    ? ' For this card, build your input values from these starting numbers, in this order, scaling or rounding them where the diagram needs shares or weights: ' + startingNumbers(requestSeed).join(', ') + '. Do not mention these starting numbers in the card.' : '';
+  const calculationSentence = declared && references.some(ref => !ref.shape && !ref.seededExample && hasFunction(ref))
+    ? ' You choose the inputs of the variables list; the results are computed for you from them, and a number from the variables written in a title, a caption, a label or a sentence is written as {{v:name}}, never typed.' : '';
   const extraSentences = startingSentence + calculationSentence;
   const heading = extraSentences ? baseHeading.slice(0, -1) + extraSentences + baseHeading.slice(-1) : baseHeading;
   let out = heading;
@@ -256,7 +260,7 @@ export function plannedBundleKinds({ source, visuals } = {}) {
 }
 export function diagramBundle({ references = [], requiredKinds = [], plannedKinds = [] } = {}) {
   const diagrams = references.flatMap(ref => [ref.spec.diagram, ...(ref.detailSpec ? [ref.detailSpec.diagram] : [])]);
-  const calculationKinds = [...new Set(references.filter(ref => ref.calculation && !ref.shape && !ref.seededExample).map(ref => ref.spec.diagram.kind))];
+  const calculationKinds = [...new Set(references.filter(ref => hasFunction(ref) && !ref.shape && !ref.seededExample).map(ref => ref.spec.diagram.kind))];
   const kinds = new Set([...requiredKinds, ...diagrams.map(d => d.kind)]);
   const tensorHosts = ['flow', 'relationship', 'transformation'].filter(kind => diagrams.some(d => d.kind === kind && (usesNodeTensors(d) || usesTensorItems(d))));
   return { ...(plannedKinds.length ? { only: [...plannedKinds] } : {}), quant: QUANT_KINDS.some(k => kinds.has(k)), fresh: NEW_KINDS.some(k => kinds.has(k)),

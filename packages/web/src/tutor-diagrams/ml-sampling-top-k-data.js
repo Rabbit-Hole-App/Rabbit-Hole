@@ -1,65 +1,48 @@
 import { CalculationRefused } from './calculation.js';
-import { normalise } from './derived.js';
+import { evenPercents } from './shares.js';
 
 const k = 2;
-// Log-integer scores keep the worked example's percentages exact.
+// Log-integer scores keep the worked example's percentages exact: the weights are the integers whose logarithms are the scores.
 const candidates = [['on', 21], ['near', 14], ['under', 8], ['by', 4], ['in', 3]];
 const tokens = candidates.map(([token]) => token);
-const logits = candidates.map(([, weight]) => Math.log(weight));
+const weights = candidates.map(([, weight]) => weight);
+const logits = weights.map(weight => Math.log(weight));
 const sum = values => values.reduce((total, value) => total + value, 0);
-const percent = probability => Math.round(probability * 100);
 
-const maxLogit = Math.max(...logits);
-const exponentials = logits.map(logit => Math.exp(logit - maxLogit));
-const denominator = sum(exponentials);
-const full = exponentials.map(value => value / denominator);
-
-const ranked = logits.map((_, i) => i).sort((i, j) => logits[j] - logits[i]);
-const kept = new Set(ranked.slice(0, k));
-const keptMass = sum(full.filter((_, i) => kept.has(i)));
-const filtered = full.map((probability, i) => kept.has(i) ? probability / keptMass : 0);
-
-// MVP4: the calculation of this reference. Inputs: the first row of shares (percent, adding to 100) and k. Results: the second row (the kept shares renormalized to add to exactly 100, the others 0)
-// and the kept share. It refuses inputs that cannot be right: a k below 1 or not smaller than the number of items, a first row that does not add to 100. Any number of items.
-export function topK({ full: row, k: keep }) {
-  if (!Array.isArray(row) || row.length < 2) throw new CalculationRefused('the first row needs at least two items');
-  if (!Number.isInteger(keep) || keep < 1 || keep >= row.length) throw new CalculationRefused(`k must be a whole number from 1 to ${row.length - 1}, below the ${row.length} items`);
-  const total = sum(row);
-  if (Math.abs(total - 100) > 0.01) throw new CalculationRefused(`the first row must add to 100 (it adds to ${Number(total.toFixed(6))})`);
-  const order = row.map((_, i) => i).sort((i, j) => row[j] - row[i] || i - j);
+// The calculation of this reference. Inputs: a list of raw weights (not drawn: any positive numbers) and k (the number of items kept; not drawn). Results: the first row (every weight's share of the
+// total, in percent, adding to exactly 100), the second row (the kept items' shares of the kept total, the others 0, adding to exactly 100) and the kept share (what the kept items hold of the first
+// row). Inputs are free numbers: nothing about their sum is refused; only a k that cannot keep some and drop some. Equal weights show as equal shares (shares.js). Any number of items.
+export function topK({ weights: raw, k: keep }) {
+  if (!Array.isArray(raw) || raw.length < 2) throw new CalculationRefused('the weights need at least two items');
+  if (!Number.isInteger(keep) || keep < 1 || keep >= raw.length) throw new CalculationRefused(`k must be a whole number from 1 to ${raw.length - 1}, below the ${raw.length} weights`);
+  if (raw.some(weight => !(weight > 0))) throw new CalculationRefused('every weight must be above 0');
+  const full = evenPercents(raw);
+  const order = raw.map((_, i) => i).sort((i, j) => raw[j] - raw[i] || i - j);
   const keptAt = new Set(order.slice(0, keep));
-  const keptShare = Number(sum(row.filter((_, i) => keptAt.has(i))).toFixed(6));
-  if (!(keptShare > 0)) throw new CalculationRefused('the kept items hold no share');
-  const shares = normalise(row.filter((_, i) => keptAt.has(i)), 2); // the kept shares as whole percents of the kept total, adding to exactly 1
+  const kept = evenPercents(raw.filter((_, i) => keptAt.has(i)));
   let next = 0;
-  return { renormalized: row.map((_, i) => (keptAt.has(i) ? Math.round(shares[next++] * 100) : 0)), keptShare };
+  return { full, renormalized: raw.map((_, i) => (keptAt.has(i) ? kept[next++] : 0)), keptShare: Number(sum(full.filter((_, i) => keptAt.has(i))).toFixed(6)) };
 }
 
-const fullPercent = full.map(percent);
-const worked = topK({ full: fullPercent, k });
-
-// The limits are this reference's choice: shares from 0 to 100, a k up to 7 (the bar chart holds at most 8 items), a kept share above 0.
-export const topKVariables = [
-  { name: 'full', role: 'input', type: 'float', min: 0, max: 100, at: 'series.0.values' },
-  { name: 'k', role: 'input', type: 'int', min: 1, max: 7, value: k },
-  { name: 'renormalized', role: 'result', type: 'float', min: 0, max: 100, at: 'series.1.values' },
-  { name: 'keptShare', role: 'result', type: 'float', min: 1, max: 100, value: worked.keptShare },
-];
-export const topKCalculation = { variables: topKVariables, run: topK };
-
-// The title and caption of each depth with the numbers written as {{v:name}} (what the author is shown); the stored text is these with the worked example's numbers filled in.
-export const topKTemplates = {
-  overview: { title: 'Keeping only the likeliest tokens',
-    caption: 'Keep the top {{v:k}} tokens. The other tokens drop to zero, and each kept token gets a bigger share.' },
-  standard: { title: 'Full softmax and top-{{v:k}} sampling',
-    caption: 'The kept tokens originally hold {{v:keptShare}}% of the probability. Divide each kept probability by that total.' },
-  deep: { title: 'Top-{{v:k}} renormalizes the kept mass',
-    caption: `For a kept token, $p_i'=p_i/\\sum_{j\\in K}p_j$. For "${tokens[0]}", {{v:full.0}}% / {{v:keptShare}}% = {{v:renormalized.0}}%.` },
+// The limits are this reference's choice: a weight from 1 to 1000, a k up to 7 (the bar chart holds at most 8 items), shares from 0 to 100, a kept share above 0. `at` is where the figure draws a number.
+export const topKCalculation = {
+  variables: [
+    { name: 'weights', role: 'input', type: 'float', min: 1, max: 1000, drawn: false },
+    { name: 'k', role: 'input', type: 'int', min: 1, max: 7, drawn: false },
+    { name: 'full', role: 'result', type: 'float', min: 0, max: 100, at: 'series.0.values' },
+    { name: 'renormalized', role: 'result', type: 'float', min: 0, max: 100, at: 'series.1.values' },
+    { name: 'keptShare', role: 'result', type: 'float', min: 1, max: 100, drawn: false },
+  ],
+  run: topK,
 };
+export const topKInputs = { weights, k };
 
+const worked = topK(topKInputs);
 export const samplingTopK = {
-  k, tokens, logits, full, filtered,
-  fullPercent,
+  k, tokens, logits,
+  full: weights.map(weight => weight / sum(weights)),
+  filtered: worked.renormalized.map(share => share / 100),
+  fullPercent: worked.full,
   filteredPercent: worked.renormalized,
   keptMassPercent: worked.keptShare,
 };

@@ -1,7 +1,9 @@
+import { needsNoCalculation } from './calculation.js';
+
 const sentence = ['the', 'cat', 'sat', 'on', 'the', 'mat'];
 
 export const tokenLinksReferences = [
-  {
+  needsNoCalculation({
     id: 'ml-self-attention-token-links',
     lessons: [],
     prompts: ['When the word sat attends to the sentence the cat sat on the mat, which words matter most?'],
@@ -17,5 +19,5 @@ export const tokenLinksReferences = [
         caption: 'Thicker, darker arrows carry more weight. In this unmasked example, the six weights from “sat” sum to 1.',
       },
     },
-  },
+  }),
 ];

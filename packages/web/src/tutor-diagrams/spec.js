@@ -47,7 +47,7 @@ const numeric = z.number().min(-1e9).max(1e9);
 // its type and limits, and where it is: `at` (a dot path into the diagram, a list when it points at one: the type and limits then apply to every item) or `value` (a number or a list, for
 // something not drawn), never both. The parser accepts it everywhere; no JSON schema a model is shown carries it (stripVariables below) except the bundle of a card whose reference has a function.
 const variableName = z.string().regex(/^[A-Za-z][A-Za-z0-9]{0,23}$/, 'Use a short name of letters and digits');
-const variablePath = z.string().max(60).regex(/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*$/, 'Use a dot path such as series.0.values');
+const variablePath = z.string().max(60).regex(/^[A-Za-z][A-Za-z0-9]*(?:\.(?:[A-Za-z0-9]+|\*))*$/, 'Use a dot path such as series.0.values, or series.0.points.*.y for every item of a list');
 const variable = z.strictObject({
   name: variableName, role: z.enum(['input', 'result']), type: z.enum(['int', 'float']), min: numeric, max: numeric,
   at: variablePath.optional(), value: z.union([numeric, z.array(numeric).min(1).max(12)]).optional(),
