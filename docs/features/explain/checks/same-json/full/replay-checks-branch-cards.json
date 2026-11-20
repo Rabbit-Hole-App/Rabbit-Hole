@@ -1,0 +1,64 @@
+{
+ "tally": {
+  "full|ml-sampling-top-k": {
+   "cards": 9,
+   "rejected": 0
+  },
+  "full|softmax-probabilities": {
+   "cards": 15,
+   "rejected": 0
+  },
+  "full|regression-mean-baseline": {
+   "cards": 16,
+   "rejected": 1
+  },
+  "full|confusion-matrix-counts": {
+   "cards": 16,
+   "rejected": 0
+  },
+  "full|ml-self-attention-token-links": {
+   "cards": 17,
+   "rejected": 0
+  },
+  "full2|ml-sampling-top-k": {
+   "cards": 13,
+   "rejected": 2
+  },
+  "full2|softmax-probabilities": {
+   "cards": 17,
+   "rejected": 0
+  },
+  "full2|regression-mean-baseline": {
+   "cards": 17,
+   "rejected": 0
+  },
+  "full2|confusion-matrix-counts": {
+   "cards": 17,
+   "rejected": 0
+  },
+  "full2|ml-self-attention-token-links": {
+   "cards": 17,
+   "rejected": 0
+  }
+ },
+ "rejected": [
+  {
+   "arm": "full",
+   "ref": "regression-mean-baseline",
+   "seed": "bench-32-2",
+   "problem": "explanation_bad_calculation: result mean cannot be written at annotations.0.value"
+  },
+  {
+   "arm": "full2",
+   "ref": "ml-sampling-top-k",
+   "seed": "bench-10-5",
+   "problem": "explanation_bad_prose_number: the text writes 68.0, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  },
+  {
+   "arm": "full2",
+   "ref": "ml-sampling-top-k",
+   "seed": "bench-11-1",
+   "problem": "explanation_bad_prose_number: the text writes 59.6, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  }
+ ]
+}

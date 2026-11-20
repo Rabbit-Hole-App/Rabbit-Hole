@@ -1,0 +1,17 @@
+{
+ "references": 492,
+ "prompts": 742,
+ "requestsPerPrompt": 4,
+ "identical": 737,
+ "differInDeclared": 5,
+ "differInUndeclared": [],
+ "declared": [
+  "confusion-matrix-counts",
+  "regression-mean-baseline",
+  "softmax-probabilities",
+  "ml-self-attention-token-links",
+  "ml-sampling-top-k"
+ ],
+ "undeclaredPrompts": 737,
+ "undeclaredIdentical": 737
+}

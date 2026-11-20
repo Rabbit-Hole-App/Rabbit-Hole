@@ -1,0 +1,154 @@
+{
+ "tally": {
+  "after|ml-sampling-top-k": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "before|ml-sampling-top-k": {
+   "cards": 5,
+   "rejected": 1
+  },
+  "before|regression-mean-baseline": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after|regression-mean-baseline": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after|confusion-matrix-counts": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "before|confusion-matrix-counts": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "before|softmax-probabilities": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after|softmax-probabilities": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after|ml-self-attention-token-links": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "before|ml-self-attention-token-links": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after2|ml-sampling-top-k": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after2|regression-mean-baseline": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after2|confusion-matrix-counts": {
+   "cards": 5,
+   "rejected": 2
+  },
+  "after2|softmax-probabilities": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after2|ml-self-attention-token-links": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after3|ml-sampling-top-k": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after3|regression-mean-baseline": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after3|confusion-matrix-counts": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after3|softmax-probabilities": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after3|ml-self-attention-token-links": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after4|ml-sampling-top-k": {
+   "cards": 4,
+   "rejected": 2
+  },
+  "after4|regression-mean-baseline": {
+   "cards": 5,
+   "rejected": 0
+  },
+  "after4|confusion-matrix-counts": {
+   "cards": 5,
+   "rejected": 1
+  },
+  "after4|softmax-probabilities": {
+   "cards": 5,
+   "rejected": 1
+  },
+  "after4|ml-self-attention-token-links": {
+   "cards": 5,
+   "rejected": 1
+  }
+ },
+ "rejected": [
+  {
+   "arm": "before",
+   "ref": "ml-sampling-top-k",
+   "seed": "bench-3-3",
+   "problem": "explanation_bad_prose_number: the text writes 0.7, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  },
+  {
+   "arm": "after2",
+   "ref": "confusion-matrix-counts",
+   "seed": "bench-12-2",
+   "problem": "explanation_bad_prose_number: the text writes 0.78, 0.875, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  },
+  {
+   "arm": "after2",
+   "ref": "confusion-matrix-counts",
+   "seed": "bench-13-3",
+   "problem": "explanation_bad_prose_number: the text writes 0.78, 0.88, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  },
+  {
+   "arm": "after4",
+   "ref": "ml-sampling-top-k",
+   "seed": "bench-4-4",
+   "problem": "explanation_bad_placeholder: the diagram still has a \"?\" where a number belongs (series.1.label); write the number, or {{v:name}} for one of the variables"
+  },
+  {
+   "arm": "after4",
+   "ref": "ml-sampling-top-k",
+   "seed": "bench-5-5",
+   "problem": "explanation_bad_placeholder: the diagram still has a \"?\" where a number belongs (series.1.label); write the number, or {{v:name}} for one of the variables"
+  },
+  {
+   "arm": "after4",
+   "ref": "confusion-matrix-counts",
+   "seed": "bench-11-1",
+   "problem": "explanation_bad_prose_number: the text writes 0.65, 0.76, 0.71, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  },
+  {
+   "arm": "after4",
+   "ref": "softmax-probabilities",
+   "seed": "bench-19-4",
+   "problem": "explanation_bad_prose_number: the text writes 0.70, 0.33, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  },
+  {
+   "arm": "after4",
+   "ref": "ml-self-attention-token-links",
+   "seed": "bench-22-2",
+   "problem": "explanation_bad_prose_number: the text writes 0.21, 0.18, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number"
+  }
+ ]
+}
