@@ -3,18 +3,16 @@
 // only when the earlier ones pass. The model's function runs only in the pinned QuickJS engine (interact-blueprint-run.js). Texts that go into an /explain spec are counted by /explain's own parser
 // (parseTutorDiagram, which applies its shownLength inside); a picture's room is measured with the renderer (renderTutorDiagram with figureOptions) and the card's own texts with the layout module (arrangeText).
 import { checkForm } from './interact-blueprint-form.js';
-import { blueprintRunner, getEngine } from './interact-blueprint-run.js';
+import { blueprintRunner } from './interact-blueprint-run.js';
 import {
   FRAME_MS, MAX_PROBLEMS, MIN_MOVE_PX, REL_TOLERANCE, SAMPLE_POSITIONS, SAMPLE_TIMES, SELECT_BUTTON_PAD_PX, SELECT_GAP_PX, SELECT_ROW_PX, STAGE_MIN_HEIGHT, TURN_LIMIT, WINDOW_PAD_PX, WINDOW_TIMES, GRAPH_SAMPLES, KEPT_SAMPLES,
 } from './interact-blueprint-constants.js';
 import { curveOf, defaultsOf, fitWindow, linesAt, outputsOfPart, pointsOf, reachOf, resolve, rolesOf, settingsGrid, specOf, timesOf, turnsOf, valueText, yRangeOf } from './interact-blueprint-build.js';
-import { blueprintCardSchema, place, source as programSourceOf } from './interact-templates/blueprint.js';
+import { place } from './interact-templates/blueprint.js';
 import { DRAWN_TEXT_SIZES, LayoutError, figureOptions, layoutById, pickLayout } from './interact-layout.js';
 import { renderTutorDiagram } from './tutor-diagrams/TutorDiagram.js';
 import { parseTutorDiagram } from './tutor-diagrams/spec.js';
 import { textWidth } from './tutor-diagrams/primitives.js';
-import { CONTRACT_LIMITS } from './explain-program/contract.js';
-import { runProgram } from './explain-program/runtime.js';
 
 const code = text => `\`${text}\``;
 const num = value => (Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000));
@@ -258,40 +256,13 @@ function checkLayout(blueprint, sampled, graph) {
   return { problems: [], measured };
 }
 
-async function checkProgram(blueprint, sampled, measured) {
-  const out = [], notes = [], dropped = [], bad = message => out.push({ code: 'program', path: 'math.code', message });
-  let source;
-  try { source = programSourceOf({ geometry: { blueprint: { blueprint, measured } } }); } catch (error) { return [{ code: 'program', path: error.path ?? 'blueprint', message: `The Program cannot be built: ${error.message}.` }]; }
-  const bytes = new TextEncoder().encode(source).length;
-  if (bytes > CONTRACT_LIMITS.sourceBytes) return [{ code: 'program', path: 'math.code', message: `The Program is ${bytes} bytes; at most ${CONTRACT_LIMITS.sourceBytes}. The function and the texts are too long; shorten ${code('compute')}.` }];
-  const { parseFrame } = await import('./explain-program/contract.js'), { normalizeFrame } = await import('./explain-program/frame.js'), { frameOverlaps, layoutProblems } = await import('./explain-program/frame-overlap.js');
-  const engine = await getEngine(), settings = [sampled.points[0], sampled.points.at(-1), sampled.points.at(-2)].filter(Boolean), times = [0, blueprint.time.duration / 2, blueprint.time.duration];
-  let worst = 0, objects = 0;
-  for (const setting of settings) for (const time of times) {
-    const started = performance.now(), run = runProgram(engine, { source, request: { requestId: '1', inputs: setting.inputs, time, seed: 1, state: null }, sdkVersion: 'sdk-8' }), ms = performance.now() - started;
-    worst = Math.max(worst, ms);
-    if (!run.ok) { bad(run.code === 'runtime_limit' ? `One frame takes longer than ${FRAME_MS} ms at ${describe(setting, time)}; make ${code('compute')} cheaper (the Program calls it up to 129 times per frame).` : `The Program does not run at ${describe(setting, time)}: ${run.detail}.`); return { out, source, worst, objects }; }
-    const frame = run.value.frame; objects = Math.max(objects, frame.objects.length);
-    // brief 44: a label with no clear side is left out of the frame by the program and counted (notes and measured.facts.droppedLabels); it no longer fails the check.
-    const drawn = new Set(frame.objects.map(object => object.id)), parts = blueprint.pictures.main.parts, leftOut = parts.filter(part => part.type === 'label' && !drawn.has(`part.${part.id}`) && (part.near === undefined || drawn.has(`part.${part.near}`)));
-    leftOut.forEach(part => { notes.push(`label ${part.id} left out at ${describe(setting, time)}: no clear side`); dropped.push({ label: part.id, near: part.near ?? null, at: describe(setting, time) }); });
-    if (frame.objects.length >= CONTRACT_LIMITS.objects) bad(`One frame has ${frame.objects.length} objects; at most ${CONTRACT_LIMITS.objects - 1}. Draw fewer parts.`);
-    const parsed = parseFrame(frame); if (!parsed.ok) { bad(`The frame is refused by the host at ${describe(setting, time)}: ${parsed.error ?? JSON.stringify(parsed).slice(0, 160)}.`); return { out, source, worst, objects }; }
-    const normalized = normalizeFrame(frame); if (!normalized.ok) { bad(`The frame cannot be normalized at ${describe(setting, time)}.`); return { out, source, worst, objects }; }
-    const overlaps = frameOverlaps({ ...frame, bodySize: 14 }), problems = layoutProblems({ ...frame, bodySize: 14 });
-    if (overlaps.length || problems.length) { bad(`Things overlap in the frame at ${describe(setting, time)}: ${JSON.stringify([...overlaps, ...problems][0]).slice(0, 160)}.`); return { out, source, worst, objects }; }
-  }
-  if (worst > FRAME_MS) bad(`One frame takes ${Math.round(worst)} ms; the limit is ${FRAME_MS}. Make ${code('compute')} cheaper.`);
-  return { out, notes, dropped, source, worst, objects };
-}
-
 // ---- the whole checker ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // light: the form, the names, the function run over the grid, and the claims only (MVP 1 as cut by the owner, 2026-11-19): no moves, controls-matter, parts, graph, layout or Program checks and no measured facts.
 // legacyLabels (offline only, brief 43): a stored blueprint whose label still has `at` (brief 41's) is checked as it is; its labels are placed around that point. The form check sees each such label with a stand-in `near`.
-// through: the last check to run. 10 (the default, Build's) builds the Program and tests the frame; the design phase asks for 9 (brief 42): the blueprint is checked as a design, and check 10 is Build's.
+// The design checks are 1 to 9 (brief 46): check 10, building the Program and testing its frames, is Build's and runs on the build-schema (interact-build-frames.js).
 const withStandIn = value => { const copy = structuredClone(value), first = copy.pictures?.main?.parts?.find(part => part.type !== 'label'); for (const part of copy.pictures?.main?.parts ?? []) if (part.type === 'label' && part.at && first) { delete part.at; part.near = first.id; } return copy; };
 const withAtBack = (parsed, original) => { for (const part of parsed.pictures.main.parts) { const was = original.pictures.main.parts.find(other => other.id === part.id); if (part.type === 'label' && was?.at) { part.at = was.at; delete part.near; } } return parsed; };
-export async function checkBlueprint(value, { seeded = null, light = false, through = 10, legacyLabels = false } = {}) {
+export async function checkBlueprint(value, { seeded = null, light = false, legacyLabels = false } = {}) {
   const notes = [], done = (failed, problems, measured = null) => ({ ok: !failed, failed, problems: problems.slice(0, MAX_PROBLEMS).map(problem => ({ ...problem, check: failed })), notes, measured });
   const form = checkForm(legacyLabels ? withStandIn(value) : value);
   if (!form.ok) return done(1, form.problems);
@@ -309,14 +280,7 @@ export async function checkBlueprint(value, { seeded = null, light = false, thro
   if (claims.length) return done(8, claims);
   const layout = checkLayout(blueprint, sampled, graph);
   if (layout.problems.length) return done(9, layout.problems, layout.measured);
-  if (through < 10) return { ok: true, failed: 0, problems: [], notes, measured: layout.measured, blueprint };
-  const program = await checkProgram(blueprint, sampled, layout.measured);
   const turns = {};
   if (graph.plot) graph.plot.series.forEach((series, k) => { turns[series.value] = Math.max(...graph.curves.map(entry => turnsOf(entry.ys[k]))); });
-  const measured = { ...layout.measured, facts: { droppedLabels: program.dropped ?? [], turns, msPerFrameWorst: Math.round(program.worst * 10) / 10, programBytes: program.source ? new TextEncoder().encode(program.source).length : null, frameObjects: program.objects, msPerComputeBatch: Math.round(Math.max(...sampled.points.map(point => point.ms))) } };
-  notes.push(...(program.notes ?? []));
-  if (program.out.length) return done(10, program.out, measured);
-  const card = blueprintCardSchema.safeParse({ blueprint: legacyLabels ? withStandIn(blueprint) : blueprint, measured });
-  if (!card.success) return done(10, [{ code: 'program', path: 'blueprint', message: `What was measured does not fit the card's data: ${card.error.issues[0].message}.` }], measured);
-  return { ok: true, failed: 0, problems: [], notes, measured, blueprint };
+  return { ok: true, failed: 0, problems: [], notes, measured: { ...layout.measured, facts: { turns } }, blueprint };
 }

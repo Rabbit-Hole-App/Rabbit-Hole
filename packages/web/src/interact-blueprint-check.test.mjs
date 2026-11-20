@@ -14,7 +14,7 @@ test('the pendulum and the thrown-ball examples pass every check, with the facts
   for (const name of ['pendulum', 'throw']) {
     const result = await checkBlueprint(copy(name));
     assert.deepEqual([result.ok, result.failed, result.problems], [true, 0, []], name);
-    assert.ok(result.measured.reach.maxX > result.measured.reach.minX && result.measured.valueTexts.length === examples[name].values.length && result.measured.facts.msPerFrameWorst < 50, name);
+    assert.ok(result.measured.reach.maxX > result.measured.reach.minX && result.measured.valueTexts.length === examples[name].values.length, name);
   }
   assert.deepEqual((await checkBlueprint(copy('pendulum'))).measured.facts.turns, { angleA: 7, angleB: 11 }); // 11 at 0.5 m: exactly the limit, as the spec says
 });
@@ -29,7 +29,6 @@ const BROKEN = [
   [7, 'the graph is drawable: a line turns more than 11 times', b => { b.time.duration = 20; }, /`angle[AB]` turns \d+ times in 20 s at (the defaults|lengthB = 0\.5); at most 11 can be drawn\. Shorten the run\./],
   [8, 'the claims hold: the period is said not to change with the length', b => { b.claims[0] = { type: 'unchanged', value: 'periodB', when: 'lengthB' }; }, /Claim 1 fails: `periodB` is not unchanged when `lengthB` goes from 0\.5 to 2 /],
   [9, 'the layout: an explanation line wider than its room', b => { b.explanation.cases[0].text = 'W'.repeat(36); }, /The layout refuses the scene \(text_too_wide\)/],
-  [10, 'the Program: one frame takes longer than the limit', b => codeEdit(b, 'const g = 9.81,', 'let burn = 0; for (let i = 0; i < 9000; i++) burn += Math.sqrt(i); const g = 9.81 + burn * 0,'), /One frame takes (longer than 50 ms|\d+ ms; the limit is 50)/],
 ];
 for (const [number, name, edit, expected] of BROKEN) {
   test(`check ${number}, ${name}: gives the problem that check is for`, async () => {

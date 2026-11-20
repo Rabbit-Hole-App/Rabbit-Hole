@@ -10,8 +10,10 @@ import * as treeMotion from './interact-templates/tree-motion.js';
 import * as voteMotion from './interact-templates/vote-motion.js';
 import * as pendulum from './interact-templates/pendulum.js';
 import * as attention from './interact-templates/attention.js';
+import * as blueprint from './interact-templates/blueprint.js';
 import { PENDULUM_PLANS } from './interact-pendulum-plan.js';
 import { ATTENTION_PLAN } from './interact-attention-plan.js';
+import { BLUEPRINT_PLANS, BLUEPRINT_PIN_FAMILIES } from './interact-blueprint-plan.js';
 import { MOTION_PLANS } from './interact-motion-plans.js';
 import {
   canonicalIds, DEPTH_LIMITS, WORDS, compositionSchemaFor, fillCompositionSchemaFor, parseComposition, plainText, schemaFailures, wordsSchema,
@@ -319,6 +321,7 @@ export function extractBrief(plan) {
 export function context({ scene }) {
   if (scene.template === 'stepper-pendulum') return { range: { pendulum: pendulum.pendulumSchema.parse(scene.data) }, units: {} };
   if (scene.template === 'stepper-attention') return { range: { attention: attention.attentionSchema.parse(scene.data) }, units: {} };
+  if (scene.template === 'stepper-blueprint') return { range: { blueprint: blueprint.blueprintCardSchema.parse(scene.data) }, units: {} };
   if (scene.template === 'stepper-tree-motion') return { range: { tree: treeMotion.treeMotionSchema.parse(scene.data) }, units: {} };
   if (scene.template === 'stepper-vote-motion') return { range: { vote: voteMotion.voteMotionSchema.parse(scene.data) }, units: {} };
   if (scene.template === 'stepper-tree-trace') return { range: { tree: treeTrace.treeTraceSchema.parse(scene.data) }, units: {} };
@@ -342,15 +345,15 @@ const freezeData = value => {
 export const compositions = freezeData(Object.fromEntries(canonicalIds.map(canonical => [canonical,
   Object.fromEntries(depthNames.map(depth => [depth, referenceComposition(canonical, depth)])),
 ])));
-export const templateModules = Object.freeze(Object.fromEntries(templates.map(name => [name, ({ 'stepper-tree-trace': treeTrace, 'stepper-tree-motion': treeMotion, 'stepper-vote-motion': voteMotion, 'stepper-pendulum': pendulum, 'stepper-attention': attention })[name] ?? stepperScene])));
-export const fixtureGroups = catalogueHash => ({ stepperPlans: Object.fromEntries(Object.entries({ ...STEPPER_PLANS, 'stepper-tree-trace-brief': TREE_TRACE_PLAN, ...MOTION_PLANS, ...PENDULUM_PLANS, 'stepper-attention-brief': ATTENTION_PLAN }).map(([name, stored]) => {
+export const templateModules = Object.freeze(Object.fromEntries(templates.map(name => [name, ({ 'stepper-tree-trace': treeTrace, 'stepper-tree-motion': treeMotion, 'stepper-vote-motion': voteMotion, 'stepper-pendulum': pendulum, 'stepper-attention': attention, 'stepper-blueprint': blueprint })[name] ?? stepperScene])));
+export const fixtureGroups = catalogueHash => ({ stepperPlans: Object.fromEntries(Object.entries({ ...STEPPER_PLANS, 'stepper-tree-trace-brief': TREE_TRACE_PLAN, ...MOTION_PLANS, ...PENDULUM_PLANS, ...BLUEPRINT_PLANS, 'stepper-attention-brief': ATTENTION_PLAN }).map(([name, stored]) => {
   const plan = structuredClone(stored);
   plan.scene.runtime.catalogueHash = catalogueHash;
   return [name, plan];
 })) });
 export const pins = Object.freeze({
-  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }), 'tree-trace': Object.freeze({ brief: 'stepper-tree-trace-brief' }), motion: Object.freeze({ brief: 'stepper-tree-motion-brief', balanced: 'stepper-vote-motion-balanced', detailed: 'stepper-pendulum-detailed' }), 'layout-cards': Object.freeze({ brief: 'stepper-attention-brief', detailed: 'stepper-pendulum-detailed' }) }), // brief 36: one pin answers both layout cards by Depth (the attention card brief, the pendulum card detailed)
-  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']), 'stepper-tree-trace-brief': Object.freeze(['stepper-tree-trace-brief', 'brief', 'stepperPlans']), 'stepper-tree-motion-brief': Object.freeze(['stepper-tree-motion-brief', 'brief', 'stepperPlans']), 'stepper-vote-motion-balanced': Object.freeze(['stepper-vote-motion-balanced', 'balanced', 'stepperPlans']), 'stepper-pendulum-detailed': Object.freeze(['stepper-pendulum-detailed', 'detailed', 'stepperPlans']), 'stepper-attention-brief': Object.freeze(['stepper-attention-brief', 'brief', 'stepperPlans']) }),
+  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }), 'tree-trace': Object.freeze({ brief: 'stepper-tree-trace-brief' }), motion: Object.freeze({ brief: 'stepper-tree-motion-brief', balanced: 'stepper-vote-motion-balanced', detailed: 'stepper-pendulum-detailed' }), 'layout-cards': Object.freeze({ brief: 'stepper-attention-brief', detailed: 'stepper-pendulum-detailed' }), ...BLUEPRINT_PIN_FAMILIES }), // brief 36: one pin answers both layout cards by Depth (the attention card brief, the pendulum card detailed)
+  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']), 'stepper-tree-trace-brief': Object.freeze(['stepper-tree-trace-brief', 'brief', 'stepperPlans']), 'stepper-tree-motion-brief': Object.freeze(['stepper-tree-motion-brief', 'brief', 'stepperPlans']), 'stepper-vote-motion-balanced': Object.freeze(['stepper-vote-motion-balanced', 'balanced', 'stepperPlans']), 'stepper-pendulum-detailed': Object.freeze(['stepper-pendulum-detailed', 'detailed', 'stepperPlans']), 'stepper-attention-brief': Object.freeze(['stepper-attention-brief', 'brief', 'stepperPlans']), ...Object.fromEntries(Object.values(BLUEPRINT_PIN_FAMILIES).flatMap(family => Object.entries(family).map(([depth, id]) => [id, Object.freeze([id, depth, 'stepperPlans'])]))) }),
 });
 export const checkMap = Object.freeze({
   'packages/web/src/interact-family-stepper.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],

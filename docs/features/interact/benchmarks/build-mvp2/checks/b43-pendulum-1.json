@@ -1,0 +1,279 @@
+{
+  "name": "b43-pendulum-1",
+  "written": true,
+  "validate": {
+    "ok": true,
+    "problems": []
+  },
+  "frames": {
+    "ok": true,
+    "firstSentence": null,
+    "list": [
+      {
+        "setting": "the defaults",
+        "time": 0,
+        "ok": true,
+        "objects": 17,
+        "ms": 51.2,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "the defaults",
+        "time": 3,
+        "ok": true,
+        "objects": 18,
+        "ms": 14.6,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "the defaults",
+        "time": 6,
+        "ok": true,
+        "objects": 18,
+        "ms": 39.1,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "every number control at its maximum",
+        "time": 0,
+        "ok": true,
+        "objects": 17,
+        "ms": 13.7,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "every number control at its maximum",
+        "time": 3,
+        "ok": true,
+        "objects": 18,
+        "ms": 15.6,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "every number control at its maximum",
+        "time": 6,
+        "ok": true,
+        "objects": 19,
+        "ms": 17.1,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "every number control at its minimum",
+        "time": 0,
+        "ok": true,
+        "objects": 17,
+        "ms": 17.4,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "every number control at its minimum",
+        "time": 3,
+        "ok": true,
+        "objects": 18,
+        "ms": 19.9,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "every number control at its minimum",
+        "time": 6,
+        "ok": true,
+        "objects": 18,
+        "ms": 56,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      }
+    ]
+  },
+  "dropped": {
+    "labels": 0,
+    "arrows": 8
+  },
+  "placed": {
+    "layout": "side-by-side",
+    "arrangement": "rows",
+    "rowsTall": null,
+    "stage": [
+      12,
+      12,
+      304,
+      299.2
+    ],
+    "panel": [
+      324,
+      12,
+      304,
+      299.2
+    ],
+    "valueCount": 3,
+    "valueBoxes": [
+      [
+        12,
+        320.4,
+        200,
+        28
+      ],
+      [
+        220,
+        320.4,
+        200,
+        28
+      ],
+      [
+        428,
+        320.4,
+        200,
+        28
+      ]
+    ],
+    "valueDots": [
+      [
+        26,
+        334.4,
+        10
+      ],
+      [
+        234,
+        334.4,
+        10
+      ],
+      [
+        442,
+        334.4,
+        10
+      ]
+    ],
+    "formula": {
+      "at": [
+        138,
+        372.8
+      ],
+      "align": "middle"
+    },
+    "explanation": {
+      "kind": "box",
+      "box": [
+        272,
+        358.8,
+        356,
+        28
+      ]
+    },
+    "plotGeometry": {
+      "plotArea": {
+        "left": 74,
+        "right": 280,
+        "top": 56,
+        "bottom": 238
+      },
+      "x": {
+        "min": 0,
+        "max": 4,
+        "scale": "linear"
+      },
+      "y": {
+        "min": -60,
+        "max": 60,
+        "scale": "linear"
+      },
+      "min": {
+        "width": 218,
+        "height": 237,
+        "parts": [
+          {
+            "axis": "height",
+            "part": "title",
+            "px": 35
+          },
+          {
+            "axis": "height",
+            "part": "top margin and y axis title",
+            "px": 21
+          },
+          {
+            "axis": "height",
+            "part": "plot area",
+            "px": 120
+          },
+          {
+            "axis": "height",
+            "part": "x tick numbers",
+            "px": 31
+          },
+          {
+            "axis": "height",
+            "part": "x axis title",
+            "px": 30
+          },
+          {
+            "axis": "width",
+            "part": "y axis title band and tick numbers",
+            "px": 74
+          },
+          {
+            "axis": "width",
+            "part": "plot area floor",
+            "px": 120
+          },
+          {
+            "axis": "width",
+            "part": "right margin",
+            "px": 24
+          }
+        ]
+      }
+    },
+    "dropped": []
+  },
+  "bytes": 15552
+}

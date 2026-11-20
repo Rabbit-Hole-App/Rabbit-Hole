@@ -71,6 +71,7 @@
     },
     "valueTextRoomLess": 50,
     "textClear": 8,
+    "noteTwoLines": 38,
     "columns": {
       "valuesBox": [12, 200],
       "textBox": [272, 356],

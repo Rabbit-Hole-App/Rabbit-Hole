@@ -1,0 +1,263 @@
+{
+  "name": "b43-pendulum-3",
+  "written": true,
+  "validate": {
+    "ok": true,
+    "problems": []
+  },
+  "frames": {
+    "ok": true,
+    "firstSentence": null,
+    "list": [
+      {
+        "setting": "the defaults",
+        "time": 0,
+        "ok": true,
+        "objects": 20,
+        "ms": 43.3,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "the defaults",
+        "time": 3,
+        "ok": true,
+        "objects": 23,
+        "ms": 15.4,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "the defaults",
+        "time": 6,
+        "ok": true,
+        "objects": 23,
+        "ms": 30,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "L = 2.5",
+        "time": 0,
+        "ok": true,
+        "objects": 20,
+        "ms": 22.6,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "L = 2.5",
+        "time": 3,
+        "ok": true,
+        "objects": 22,
+        "ms": 53.6,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "L = 2.5",
+        "time": 6,
+        "ok": true,
+        "objects": 23,
+        "ms": 17.5,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "L = 2.25",
+        "time": 0,
+        "ok": true,
+        "objects": 20,
+        "ms": 14,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "L = 2.25",
+        "time": 3,
+        "ok": true,
+        "objects": 22,
+        "ms": 15.3,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "L = 2.25",
+        "time": 6,
+        "ok": true,
+        "objects": 22,
+        "ms": 18.2,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "vel_arrow"
+          ]
+        },
+        "attempts": 1
+      }
+    ]
+  },
+  "dropped": {
+    "labels": 0,
+    "arrows": 6
+  },
+  "placed": {
+    "layout": "side-by-side",
+    "arrangement": "columns",
+    "rowsTall": 2,
+    "stage": [
+      12,
+      12,
+      304,
+      299.2
+    ],
+    "panel": [
+      324,
+      12,
+      304,
+      299.2
+    ],
+    "valueCount": 2,
+    "valueBoxes": [
+      [
+        12,
+        320.4,
+        200,
+        28
+      ],
+      [
+        12,
+        358.8,
+        200,
+        28
+      ]
+    ],
+    "valueDots": [
+      [
+        26,
+        334.4,
+        10
+      ],
+      [
+        26,
+        372.8,
+        10
+      ]
+    ],
+    "formula": {
+      "at": [
+        280,
+        333.2
+      ],
+      "align": "start"
+    },
+    "explanation": {
+      "kind": "lines",
+      "x": 280,
+      "ys": [
+        355.95,
+        373.45
+      ]
+    },
+    "plotGeometry": {
+      "plotArea": {
+        "left": 49,
+        "right": 280,
+        "top": 44,
+        "bottom": 198
+      },
+      "x": {
+        "min": 0,
+        "max": 6,
+        "scale": "linear"
+      },
+      "y": {
+        "min": -30,
+        "max": 30,
+        "scale": "linear"
+      },
+      "min": {
+        "width": 193,
+        "height": 265,
+        "parts": [
+          {
+            "axis": "height",
+            "part": "top margin and y axis title",
+            "px": 44
+          },
+          {
+            "axis": "height",
+            "part": "plot area",
+            "px": 120
+          },
+          {
+            "axis": "height",
+            "part": "x tick numbers",
+            "px": 31
+          },
+          {
+            "axis": "height",
+            "part": "x axis title",
+            "px": 30
+          },
+          {
+            "axis": "height",
+            "part": "legend rows",
+            "px": 40
+          },
+          {
+            "axis": "width",
+            "part": "y axis title band and tick numbers",
+            "px": 49
+          },
+          {
+            "axis": "width",
+            "part": "plot area floor",
+            "px": 120
+          },
+          {
+            "axis": "width",
+            "part": "right margin",
+            "px": 24
+          }
+        ]
+      }
+    },
+    "dropped": []
+  },
+  "bytes": 15538
+}

@@ -4,7 +4,7 @@ import { textWidthPx } from '../interact-description-fit.js';
 import { LAYOUT_BODY_SIZE } from '../scene-style.js';
 import { BUILT_SCHEMA } from '../interact-blueprint.js';
 import { DEFAULT_DECIMALS, STAGE_MIN_HEIGHT, WINDOW_PAD_PX } from '../interact-blueprint-constants.js';
-import { fitWindow, programSource, rolesOf } from '../interact-blueprint-build.js';
+import { fitWindow, placeFromBuild, programFromBuild, rolesOf } from '../interact-blueprint-build.js';
 
 // Brief 38 spec section 6: the template that builds any checked interactive-blueprint into a card's Program, the way pendulum.js and attention.js build theirs: the layout module places everything (arrangeText),
 // the model's function is embedded as written, the Program draws the parts through one window, a graph through sdk.diagram and its marker, the values, the formula and the explanation. No subject appears here and
@@ -22,7 +22,8 @@ export const measuredSchema = z.object({
   plot: z.object({ geometry: plotGeometry, figureParts: z.object({ title: z.literal(false) }).strict().optional() }).strict().nullable(), // figureParts: the graph is drawn without its title (brief 44, a title's height too tall)
   facts: z.record(z.string(), z.unknown()).optional(), // what the report shows (turn counts, milliseconds per frame): the Program does not read it
 }).strict();
-export const blueprintCardSchema = z.object({ blueprint: BUILT_SCHEMA, measured: measuredSchema }).strict();
+// Brief 46: a card is { blueprint, buildSchema } (blueprint-schema.js); the Program is written from them by programFromBuild. `measuredSchema` and `place` below are what the design check 9 still uses.
+export { blueprintCardSchema } from './blueprint-schema.js';
 
 export const roles = Object.freeze([]);
 export const normalize = () => ({});
@@ -52,25 +53,12 @@ export function place(data) {
     formula: B.relationship.formula === null ? null : arrangement.formula, explanation: arrangement.explanation, bullet: COLUMNS.bullet,
   };
 }
-// The picture's box height the layout module chose (the host asks the renderer for exactly this box: the sealed manifest carries it). A card with no graph has no such box.
-export const figureHeight = ctx => place(ctx.geometry.blueprint).figure?.h;
+// The picture's box height (the host asks the renderer for exactly this box: the sealed manifest carries it): the panel box of the build-schema's layout and arrangement, from the config. A card with no graph has no such box.
+export const figureHeight = ctx => { const data = ctx.geometry.blueprint; return placeFromBuild(data.blueprint, data.buildSchema).panel?.[3]; };
 
-// What `evaluate` reads of the blueprint: the settings' defaults, the parts with their roles, the graph, the texts.
-export function runtimeOf(data, roles = rolesOf(data.blueprint)) {
-  const B = data.blueprint, panel = B.pictures.panel, over = panel?.x.over, input = B.inputs.find(entry => entry.id === over);
-  return {
-    duration: B.time.duration, defaults: Object.fromEntries(B.inputs.map(entry => [entry.id, entry.default])),
-    parts: B.pictures.main.parts.map(({ of, ...part }) => ({ ...part, role: of ? roles.things[of] : 'neutral' })),
-    plot: panel ? { title: panel.title, over, x: { label: panel.x.label, unit: panel.x.unit }, xRange: over === 'time' ? [0, B.time.duration] : [input.min, input.max], y: { label: panel.y.label, unit: panel.y.unit }, yRange: data.measured.yRange, series: roles.series } : null,
-    formula: B.relationship.formula, always: B.explanation.always, cases: B.explanation.cases, otherwise: B.explanation.otherwise,
-    quantityIds: [...B.math.outputs.filter(output => output.kind === 'number').map(output => output.id), ...B.math.outputs.filter(output => output.kind === 'flag').map(output => output.id)],
-  };
-}
-
+// The card's Program (brief 46): written from the blueprint's function and the build-schema's decisions, no judgment of its own (interact-blueprint-build.js programFromBuild).
 export function source(ctx) {
   const data = ctx.geometry?.blueprint;
   if (!data) { const e = new Error('blueprint requires its validated data'); e.code = 'part_binding'; e.path = 'geometry.blueprint'; throw e; }
-  let placed;
-  try { placed = place(data); } catch (error) { if (error.name === 'LayoutError') { const e = new Error(error.message); e.code = error.code; e.path = error.path.join('.'); throw e; } throw error; }
-  return programSource(data.blueprint.math.code, { P: runtimeOf(data), L: placed });
+  try { return programFromBuild(data).source; } catch (error) { const e = new Error(error.message); e.code = error.code ?? 'part_binding'; e.path = 'geometry.buildSchema'; throw e; }
 }

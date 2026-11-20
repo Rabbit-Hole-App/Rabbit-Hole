@@ -1,0 +1,272 @@
+{
+  "name": "b41-pendulum-1",
+  "written": true,
+  "validate": {
+    "ok": true,
+    "problems": []
+  },
+  "frames": {
+    "ok": true,
+    "firstSentence": null,
+    "list": [
+      {
+        "setting": "the defaults",
+        "time": 0,
+        "ok": true,
+        "objects": 22,
+        "ms": 39.4,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "velArrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "the defaults",
+        "time": 2.5,
+        "ok": true,
+        "objects": 24,
+        "ms": 18.7,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "velArrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "the defaults",
+        "time": 5,
+        "ok": true,
+        "objects": 24,
+        "ms": 15.3,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "velArrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "length = 2",
+        "time": 0,
+        "ok": true,
+        "objects": 22,
+        "ms": 33.4,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "velArrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "length = 2",
+        "time": 2.5,
+        "ok": true,
+        "objects": 25,
+        "ms": 21.2,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "length = 2",
+        "time": 5,
+        "ok": true,
+        "objects": 25,
+        "ms": 22.1,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "length = 1.8",
+        "time": 0,
+        "ok": true,
+        "objects": 22,
+        "ms": 26.4,
+        "dropped": {
+          "labels": [],
+          "arrows": [
+            "velArrow"
+          ]
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "length = 1.8",
+        "time": 2.5,
+        "ok": true,
+        "objects": 25,
+        "ms": 17.6,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      },
+      {
+        "setting": "length = 1.8",
+        "time": 5,
+        "ok": true,
+        "objects": 25,
+        "ms": 18.4,
+        "dropped": {
+          "labels": [],
+          "arrows": []
+        },
+        "attempts": 1
+      }
+    ]
+  },
+  "dropped": {
+    "labels": 0,
+    "arrows": 5
+  },
+  "placed": {
+    "layout": "side-by-side",
+    "arrangement": "columns",
+    "rowsTall": 3,
+    "stage": [
+      12,
+      12,
+      304,
+      260.8
+    ],
+    "panel": [
+      324,
+      12,
+      304,
+      260.8
+    ],
+    "valueCount": 3,
+    "valueBoxes": [
+      [
+        12,
+        282,
+        200,
+        28
+      ],
+      [
+        12,
+        320.4,
+        200,
+        28
+      ],
+      [
+        12,
+        358.8,
+        200,
+        28
+      ]
+    ],
+    "valueDots": [
+      [
+        26,
+        296,
+        10
+      ],
+      [
+        26,
+        334.4,
+        10
+      ],
+      [
+        26,
+        372.8,
+        10
+      ]
+    ],
+    "formula": {
+      "at": [
+        280,
+        294.8
+      ],
+      "align": "start"
+    },
+    "explanation": {
+      "kind": "lines",
+      "x": 280,
+      "ys": [
+        317.55,
+        335.05
+      ]
+    },
+    "plotGeometry": {
+      "plotArea": {
+        "left": 74,
+        "right": 280,
+        "top": 21,
+        "bottom": 160
+      },
+      "x": {
+        "min": 0,
+        "max": 5,
+        "scale": "linear"
+      },
+      "y": {
+        "min": -24,
+        "max": 24,
+        "scale": "linear"
+      },
+      "min": {
+        "width": 218,
+        "height": 242,
+        "parts": [
+          {
+            "axis": "height",
+            "part": "top margin and y axis title",
+            "px": 21
+          },
+          {
+            "axis": "height",
+            "part": "plot area",
+            "px": 120
+          },
+          {
+            "axis": "height",
+            "part": "x tick numbers",
+            "px": 31
+          },
+          {
+            "axis": "height",
+            "part": "x axis title",
+            "px": 30
+          },
+          {
+            "axis": "height",
+            "part": "legend rows",
+            "px": 40
+          },
+          {
+            "axis": "width",
+            "part": "y axis title band and tick numbers",
+            "px": 74
+          },
+          {
+            "axis": "width",
+            "part": "plot area floor",
+            "px": 120
+          },
+          {
+            "axis": "width",
+            "part": "right margin",
+            "px": 24
+          }
+        ]
+      }
+    },
+    "dropped": []
+  },
+  "bytes": 15420
+}
