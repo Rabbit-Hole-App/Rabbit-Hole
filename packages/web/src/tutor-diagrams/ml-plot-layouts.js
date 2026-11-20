@@ -1,5 +1,6 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
+import { titleWithUnit } from './axis-title.js';
 import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, mixHex, teachingConnector } from './teaching-theme.js';
@@ -189,7 +190,7 @@ function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE, s
 }
 
 // An axis title on the figure: the label and unit. axisName (ml-plot-spec.js) also adds "log scale" for the written description; the sampled ticks already say it here.
-const titleOf = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
+const titleOf = axis => titleWithUnit(axis.label, axis.unit);
 
 // A tick label's horizontal extent, from its anchor (start, middle or end).
 const tickSpan = ({ at, lines, anchor }, size = TICK) => {

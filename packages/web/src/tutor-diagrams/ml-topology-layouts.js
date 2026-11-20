@@ -1,5 +1,6 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wire, wrap } from './primitives.js';
+import { titleWithUnit } from './axis-title.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
 import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topology-spec.js';
 import { dotTree } from './dot-tree-layout.js';
@@ -175,7 +176,7 @@ function dendrogram(d, preferredWidth) {
   const cellWidth = Math.max(92, ...leaves.map(n => nodeWidth(n, 130)));
   const axisX = PAD + Math.max(32, textWidth(String(d.heightAxis.max), SMALL)) + 9;
   const width = Math.max(preferredWidth, axisX + 14 + leaves.length * (cellWidth + GAP) - GAP + PAD);
-  const titleLines = wrap(`${d.heightAxis.label}${d.heightAxis.unit ? ` (${d.heightAxis.unit})` : ''}`, width - 2 * PAD, TEXT);
+  const titleLines = wrap(titleWithUnit(d.heightAxis.label, d.heightAxis.unit), width - 2 * PAD, TEXT);
   const top = PAD + titleLines.length * lineHeight(TEXT) + 20;
   const bottom = top + 280;
   const valueY = height => bottom - height / d.heightAxis.max * (bottom - top);

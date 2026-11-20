@@ -1,5 +1,6 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap } from './primitives.js';
+import { titleWithUnit } from './axis-title.js';
 import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
 import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
 
@@ -7,7 +8,7 @@ const PAD = 12;
 const SMALL = 12;
 const NOTE = 13, TICK = 15; // readouts and counts 13 px muted; tick labels 15 px / 500 muted (the coordinate plot's sizes)
 const scale = (min, max, start, end) => value => start + (value - min) / (max - min) * (end - start);
-const axisName = (label, unit) => unit ? `${label} (${unit})` : label;
+const axisName = titleWithUnit;
 const formulaWidth = (values, size) => Math.max(0, ...values.filter(Boolean).map(value => widestFormula(value, size)));
 
 function textBlock(elements, text, x, top, width, options = {}) {
