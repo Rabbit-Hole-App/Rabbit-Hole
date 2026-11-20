@@ -1,0 +1,6 @@
+OK  top-k: ref ml-sampling-top-k | shape shape-bar-chart unchanged true | numbers left 0, "?" 10, digit strings left [] | system 16393 -> 16482 chars | only ref line and sentence differ: true
+OK  regression-mean-baseline: ref regression-mean-baseline | shape shape-coordinate-plot unchanged true | numbers left 0, "?" 15, digit strings left [] | system 16635 -> 16740 chars | only ref line and sentence differ: true
+OK  confusion-matrix-counts: ref confusion-matrix-counts | shape shape-heatmap unchanged true | numbers left 0, "?" 8, digit strings left [] | system 16412 -> 16496 chars | only ref line and sentence differ: true
+OK  softmax-probabilities: ref softmax-probabilities | shape shape-bar-chart unchanged true | numbers left 0, "?" 6, digit strings left [] | system 16222 -> 16295 chars | only ref line and sentence differ: true
+OK  ml-self-attention-token-links: ref ml-self-attention-token-links | shape shape-token-links unchanged true | numbers left 0, "?" 7, digit strings left [] | system 16511 -> 16584 chars | only ref line and sentence differ: true
+all 5 prompts ok; no provider call made

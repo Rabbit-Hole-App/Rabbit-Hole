@@ -1,0 +1,87 @@
+[
+ {
+  "tag": "top-k",
+  "ok": true,
+  "refId": "ml-sampling-top-k",
+  "shapeId": "shape-bar-chart",
+  "versionKept": 1,
+  "numbersLeftInDiagram": 0,
+  "questionMarks": 10,
+  "stringsWithDigitsLeft": [],
+  "onlyRefLineAndSentenceDiffer": true,
+  "referenceObjectUntouched": true,
+  "shapeLineIdentical": true,
+  "systemChars": {
+   "after": 16393,
+   "after2": 16482
+  }
+ },
+ {
+  "tag": "regression-mean-baseline",
+  "ok": true,
+  "refId": "regression-mean-baseline",
+  "shapeId": "shape-coordinate-plot",
+  "versionKept": 1,
+  "numbersLeftInDiagram": 0,
+  "questionMarks": 15,
+  "stringsWithDigitsLeft": [],
+  "onlyRefLineAndSentenceDiffer": true,
+  "referenceObjectUntouched": true,
+  "shapeLineIdentical": true,
+  "systemChars": {
+   "after": 16635,
+   "after2": 16740
+  }
+ },
+ {
+  "tag": "confusion-matrix-counts",
+  "ok": true,
+  "refId": "confusion-matrix-counts",
+  "shapeId": "shape-heatmap",
+  "versionKept": 1,
+  "numbersLeftInDiagram": 0,
+  "questionMarks": 8,
+  "stringsWithDigitsLeft": [],
+  "onlyRefLineAndSentenceDiffer": true,
+  "referenceObjectUntouched": true,
+  "shapeLineIdentical": true,
+  "systemChars": {
+   "after": 16412,
+   "after2": 16496
+  }
+ },
+ {
+  "tag": "softmax-probabilities",
+  "ok": true,
+  "refId": "softmax-probabilities",
+  "shapeId": "shape-bar-chart",
+  "versionKept": 1,
+  "numbersLeftInDiagram": 0,
+  "questionMarks": 6,
+  "stringsWithDigitsLeft": [],
+  "onlyRefLineAndSentenceDiffer": true,
+  "referenceObjectUntouched": true,
+  "shapeLineIdentical": true,
+  "systemChars": {
+   "after": 16222,
+   "after2": 16295
+  }
+ },
+ {
+  "tag": "ml-self-attention-token-links",
+  "ok": true,
+  "refId": "ml-self-attention-token-links",
+  "shapeId": "shape-token-links",
+  "versionKept": 1,
+  "numbersLeftInDiagram": 0,
+  "questionMarks": 7,
+  "stringsWithDigitsLeft": [],
+  "onlyRefLineAndSentenceDiffer": true,
+  "referenceObjectUntouched": true,
+  "shapeLineIdentical": true,
+  "systemChars": {
+   "after": 16511,
+   "after2": 16584
+  }
+ }
+]
