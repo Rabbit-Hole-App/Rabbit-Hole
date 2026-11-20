@@ -1,6 +1,7 @@
 // Four bounded teaching schemas. Positions, colors and derived density heights
 // remain renderer-owned; all values here are the author's literal data.
 import { checkDerived, absentFrom, histogramCounts, heatmapRange, withValueStats } from './derived.js';
+import { titleWithUnit } from './axis-title.js';
 
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const cell = z.strictObject({ row: z.int().min(0).max(5), column: z.int().min(0).max(5) });
@@ -215,7 +216,7 @@ export function sampleMemberships(group) {
   for (const id of group.members) counts.set(id, (counts.get(id) || 0) + 1);
   return [...counts].map(([id, count]) => ({ id, count, text: `${id} × ${count}` }));
 }
-const axisName = axis => axis.unit ? `${axis.label} (${axis.unit})` : axis.label;
+const axisName = axis => titleWithUnit(axis.label, axis.unit);
 export function boxSummary(box) {
   return `Whiskers: ${box.whiskerLow}, ${box.whiskerHigh}; Q1: ${box.q1}; Median: ${box.median}; Q3: ${box.q3}`;
 }
