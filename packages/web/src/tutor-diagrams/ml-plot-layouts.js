@@ -639,10 +639,16 @@ function verticalBars(d, requested, options) {
     const valueText = value => {
       let text = amount(value, unit);
       if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
+      // A negative bar's value stands under the bar end, clear of every other bar; in a plain chart (one series, no box) it only has to stay inside its own slot (measured with the Arial advances), so "-0.108" fits a bar a little narrower than it.
+      // shortcut: a grouped or boxed chart keeps the width of its bar (a neighbouring bar of the cluster could be under the label); upgrade when a grouped chart with negative values needs its own rule.
+      if (showAbove && !boxed && k === 1 && value < 0) return legendTextWidth(text, tickSize) <= slot - 4 ? text : null;
       return showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth) ? text : null;
     };
+    // One rule per chart (with no box): every bar carries its value or none does. When one value does not fit its bar ("0.65" where "0.2" does), the chart is drawn again with the unit off the values and printed once after the top axis number; when the bare values do not all fit either, none is printed.
+    const hideValues = !boxed && showAbove && !values.every(value => valueText(value) !== null);
+    if (hideValues && d.unit && !unitInTick) return { dropUnit: true };
     // A negative bar's value stands 12 px under its end; when that reaches the category names (a bar down to the axis end) the names move down by what it takes, so the two never overlap.
-    const nameDrop = Math.ceil(Math.max(0, ...values.filter(value => value < 0 && valueText(value) !== null).map(value => y(clamp(value)) + 12 + tickSize / 2 - (bottom + 10))));
+    const nameDrop = Math.ceil(Math.max(0, ...values.filter(value => !hideValues && value < 0 && valueText(value) !== null).map(value => y(clamp(value)) + 12 + tickSize / 2 - (bottom + 10))));
     const bars = [], labels = [], geometryBars = [], pending = [];
     categories.forEach((category, i) => {
       const start = left + slot * i + (slot - cluster) / 2;
@@ -657,7 +663,7 @@ function verticalBars(d, requested, options) {
         else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
         const bar = { label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) };
         geometryBars.push(bar);
-        const text = valueText(value);
+        const text = hideValues ? null : valueText(value);
         if (text !== null) pending.push({ bar, value, text, cx, at: value < 0 ? end + 12 : end - 12, slot: labels.push(null) - 1 }); // the label keeps its place in the drawing order
       });
     });

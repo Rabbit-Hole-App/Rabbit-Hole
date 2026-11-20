@@ -4767,9 +4767,9 @@
       "height": 380
     },
     "ml-transformer-vocabulary-softmax/408": {
-      "sha256": "6ae7c1af74b92a6b98c85ca3a44848945d6f7d1c7714bdd61abf99c77176c7bb",
+      "sha256": "0cf75b433e3cba4c15cb24b276e61554cd8d05634d90fcc6c0e7e8769202365a",
       "width": 408,
-      "height": 380
+      "height": 390
     },
     "ml-transformer-vocabulary-softmax/960": {
       "sha256": "2f266437869c865f791ada607dce4cb9003932b00ee159cd539451a28c75e433",
@@ -4777,9 +4777,9 @@
       "height": 373
     },
     "ml-transformer-vocabulary-softmax/natural": {
-      "sha256": "6ae7c1af74b92a6b98c85ca3a44848945d6f7d1c7714bdd61abf99c77176c7bb",
+      "sha256": "0cf75b433e3cba4c15cb24b276e61554cd8d05634d90fcc6c0e7e8769202365a",
       "width": 408,
-      "height": 380
+      "height": 390
     },
     "ml-transformer-vocabulary-softmax-detail/320": {
       "sha256": "0b8507c4d29ec00a6ae63995b9c096546a8d4f3c61cf45c11fb1307543b0ad87",
@@ -4822,9 +4822,9 @@
       "height": 208
     },
     "ml-transformer-vocabulary-softmax-detailed/408": {
-      "sha256": "c0656bc7c67046946cfdfc1da48c5951f3265ebdadfad63c04829320ba4d3ea2",
+      "sha256": "c3f39b470819f42784fbb3d94ba47d4019e2f71b2b1d038740c4e19635c7079f",
       "width": 408,
-      "height": 419
+      "height": 429
     },
     "ml-transformer-vocabulary-softmax-detailed/960": {
       "sha256": "b00e6da63f210759b39771facfec690b96cf75f15ee381054e9538ccfd582c9b",
@@ -4832,9 +4832,9 @@
       "height": 390
     },
     "ml-transformer-vocabulary-softmax-detailed/natural": {
-      "sha256": "c0656bc7c67046946cfdfc1da48c5951f3265ebdadfad63c04829320ba4d3ea2",
+      "sha256": "c3f39b470819f42784fbb3d94ba47d4019e2f71b2b1d038740c4e19635c7079f",
       "width": 408,
-      "height": 419
+      "height": 429
     },
     "ml-transformer-vocabulary-softmax-detailed-detail/320": {
       "sha256": "1eb0c5fc8438da66933144185b723e0c6f761601b7ec3ce8d812e667a97e8950",
