@@ -735,7 +735,9 @@ function barChart(d, requested, options) {
     }
     top += height + 6;
     if (d.variant === 'stacked') {
-      const totals = `+${group.positive} / ${group.negative}; net ${group.positive + group.negative}${d.unit ? ` ${d.unit}` : ''}`;
+      const unit = d.unit ? ` ${d.unit}` : '';
+      // With no negative part there is nothing to net: the line is just the total.
+      const totals = group.negative < 0 ? `+${group.positive} / ${group.negative}; net ${group.positive + group.negative}${unit}` : `total ${group.positive}${unit}`;
       const lines = wrap(`${group.segments.map(s => `${s.label}: ${s.value}`).join('; ')} · ${totals}`, width - 2 * PAD);
       elements.push(label(lines, PAD, top + lines.length * lineHeight(SMALL) / 2, { anchor: 'start', size: SMALL }));
       top += lines.length * lineHeight(SMALL) + 10;

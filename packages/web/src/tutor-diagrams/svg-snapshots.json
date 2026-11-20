@@ -142,17 +142,17 @@
       "height": 451.5
     },
     "bias-variance-decomposition/320": {
-      "sha256": "d8b4b79e638e5349ac2f655568a730a3bb8f2a8409da8836064a65172086785f",
+      "sha256": "394d72dbf7c8c2382fe80aa3db3b4d9565cdc5a91511081eeac1ae2a5659446e",
       "width": 408,
       "height": 473
     },
     "bias-variance-decomposition/408": {
-      "sha256": "d8b4b79e638e5349ac2f655568a730a3bb8f2a8409da8836064a65172086785f",
+      "sha256": "394d72dbf7c8c2382fe80aa3db3b4d9565cdc5a91511081eeac1ae2a5659446e",
       "width": 408,
       "height": 473
     },
     "bias-variance-decomposition/720": {
-      "sha256": "7966eda3b3835cc956e54802c9637c8735fc3900ec37b0a7f551d9f92377f64f",
+      "sha256": "5748001f8f05d148aa6bfa4cfd42eafd89bfe2eb889d018a93c81b9fdce11cad",
       "width": 720,
       "height": 389
     },
@@ -172,17 +172,17 @@
       "height": 451.5
     },
     "boosting-signed-corrections/320": {
-      "sha256": "8c1e51cf149e6fbacbca0f05fc664bd238109026f091a499718b9267bd5db20e",
+      "sha256": "8dec4de7c65862106c976d4e5c9aacb29cb4e16a0774a6210fda8d2ba209c9cf",
       "width": 408,
-      "height": 524
+      "height": 509
     },
     "boosting-signed-corrections/408": {
-      "sha256": "8c1e51cf149e6fbacbca0f05fc664bd238109026f091a499718b9267bd5db20e",
+      "sha256": "8dec4de7c65862106c976d4e5c9aacb29cb4e16a0774a6210fda8d2ba209c9cf",
       "width": 408,
-      "height": 524
+      "height": 509
     },
     "boosting-signed-corrections/720": {
-      "sha256": "819a344946d517683322e28369ca09d0985c057486c5c580e671afe9232d9921",
+      "sha256": "badd2fcc5eaf17ff3b6445ce8204dd104061bc12f6f615c53208c1cbb9582b2f",
       "width": 720,
       "height": 410
     },
@@ -3907,17 +3907,17 @@
       "height": 228
     },
     "tree-impurity-mixtures/320": {
-      "sha256": "70aa0eda6ba635356e0ab2b5eb7dd88139a66973a629cb02cdab079b7e6a92cf",
+      "sha256": "7b63cd90a10034ecc5f471cc8ffa4959ca14138fe7017b40fe0bd44d1b26303f",
       "width": 408,
-      "height": 449
+      "height": 404
     },
     "tree-impurity-mixtures/408": {
-      "sha256": "70aa0eda6ba635356e0ab2b5eb7dd88139a66973a629cb02cdab079b7e6a92cf",
+      "sha256": "7b63cd90a10034ecc5f471cc8ffa4959ca14138fe7017b40fe0bd44d1b26303f",
       "width": 408,
-      "height": 449
+      "height": 404
     },
     "tree-impurity-mixtures/720": {
-      "sha256": "a44b73313a82c27fb9fc8ffd6512a93ca8f77267e679a614301143b2c33c43f9",
+      "sha256": "9a93fc22ca93dc2378b3f36f76d73734e4941f9472ac55bac558f6321d29373d",
       "width": 720,
       "height": 365
     },
