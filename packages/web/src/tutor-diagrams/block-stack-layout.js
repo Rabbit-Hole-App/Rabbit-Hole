@@ -16,7 +16,6 @@ const PREFERRED_BLOCK_WIDTH = 234;
 const BLOCK_GAP = 18;
 const INPUT_GAP = 18;
 const FORK_LANE = 12;
-const PILL_GAP = 4; // clear space between the repeat pill and the bracket line
 const NOTE_GAP = 18;
 const ROW_GAP = 6;
 const REPEAT_LANE = 50;
@@ -157,15 +156,12 @@ function numberedBadge(number, x, y) {
     label(String(number), x, y, { size: SMALL, weight: 700 })];
 }
 
-function drawBlock(block, content, x, top, width, height, numbered, plainFill) {
+function drawBlock(block, content, x, top, width, height, numbered) {
   const { title, rows, child } = content;
   const center = x + width / 2;
   const badgeHeight = numbered.length ? 2 * BADGE_RADIUS + ROW_GAP : 0;
   let y = top + INSET + (height - content.height - badgeHeight) / 2;
-  // STACK-C (Reviewer 2026-11-19): a leaf block with no role takes the step fill (blue, as an unroled step in a child flow does) unless it holds an inset (a child diagram hides behind the fill)
-  // or the stack marks a block as changed (the highlight must stay the only blue); norm stays transparent on purpose.
-  const filled = !block.role && !child && plainFill;
-  const elements = [block.role ? paintBlock(box(x, top, width, height), block.role) : filled ? box(x, top, width, height, { role: 'process' }) : box(x, top, width, height),
+  const elements = [paintBlock(box(x, top, width, height), block.role),
     label(title.lines, center, y + title.height / 2, { weight: 700 })];
   y += title.height;
   for (const row of rows) {
@@ -248,9 +244,7 @@ function drawJoin(operation, x, y) {
     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
 }
 
-const hasChangedBlock = blocks => blocks.some(block => block.role === 'changed');
 function layoutBlockRow(blocks, preferredWidth, renderChild) {
-  const plainFill = !hasChangedBlock(blocks);
   const { children, widths } = rowMetrics(blocks);
   const rows = wrapRows(widths, tensorRowBudget(preferredWidth));
   const width = Math.max(preferredWidth, ...rows.map(row => row.width));
@@ -272,7 +266,7 @@ function layoutBlockRow(blocks, preferredWidth, renderChild) {
     const height = Math.max(40, ...row.indices.map(index => contents[index].height));
     let x = (width - widest) / 2 + PAD;
     const drawn = row.indices.map(index => {
-      const element = drawBlock(blocks[index], contents[index], x, y, widths[index], height, [], plainFill);
+      const element = drawBlock(blocks[index], contents[index], x, y, widths[index], height, []);
       x += widths[index] + ROW_GAP;
       return element;
     });
@@ -284,7 +278,6 @@ function layoutBlockRow(blocks, preferredWidth, renderChild) {
 
 export function layoutBlockStack(diagram, preferredWidth, renderChild) {
   const { blocks, callouts = [] } = diagram;
-  const plainFill = !hasChangedBlock(blocks);
   if (diagram.orientation === 'horizontal') return layoutBlockRow(blocks, preferredWidth, renderChild);
   const { order, groups, skipBand, rightBand, leftBand, inputWidth, children, minBlockWidth, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
   const available = callouts.length && preferredWidth > 320
@@ -342,7 +335,7 @@ export function layoutBlockStack(diagram, preferredWidth, renderChild) {
     const height = Math.max(40, content.height + badgeHeight, sideHeight + 8);
     const bottom = top + height;
     const sideTop = top + (height - sideHeight) / 2;
-    nodes.push(drawBlock(block, content, x, top, blockWidth, height, noteWidth ? [] : blockNotes, plainFill));
+    nodes.push(drawBlock(block, content, x, top, blockWidth, height, noteWidth ? [] : blockNotes));
     if (!block.merge) nodes.push(...drawInputs(inputs, inputX, sharedLeft ? sideTop : top + (height - inputHeight) / 2, inputWidth, x));
     if (noteWidth) annotations.push(...drawSideNotes(blockNotes, sharedLeft ? sideTop + sideInputHeight + ROW_GAP : top + (height - notesHeight) / 2,
       side, noteX, noteWidth, x, right));
@@ -382,12 +375,9 @@ export function layoutBlockStack(diagram, preferredWidth, renderChild) {
     const bracketX = right + skipBand + (group.lane + 0.5) * REPEAT_LANE;
     const top = positions.get(group.id).top - 4, bottom = positions.get(group.repeatTo).bottom + 4;
     const count = pill(repeatText(group.repeat), REPEAT_LANE);
-    const pillTop = (top + bottom - count.height) / 2;
-    // The pill is transparent, so the bracket stops short of it on both sides instead of running behind the text.
     return h('g', { 'data-block-stack-group': `${group.id}:${group.repeatTo}` },
-      connector([[bracketX - 10, top], [bracketX, top], [bracketX, Math.max(top, pillTop - PILL_GAP)]], { arrow: false }),
-      connector([[bracketX, Math.min(bottom, pillTop + count.height + PILL_GAP)], [bracketX, bottom], [bracketX - 10, bottom]], { arrow: false }),
-      ...drawPill(count, bracketX - count.width / 2, pillTop));
+      connector([[bracketX - 10, top], [bracketX, top], [bracketX, bottom], [bracketX - 10, bottom]], { arrow: false }),
+      ...drawPill(count, bracketX - count.width / 2, (top + bottom - count.height) / 2));
   });
   const scene = [...brackets, ...wires, ...nodes, ...joins, ...annotations];
   const ledger = [];

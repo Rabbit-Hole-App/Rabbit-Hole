@@ -1,7 +1,6 @@
 // The author supplies data coordinates and semantic marks; styles and placement
 // remain renderer-owned. No extension field changes a saved basic plot's layout.
 import { checkDerived, fillDerived } from './derived.js';
-import { titleWithUnit } from './axis-title.js';
 
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const coordinate = z.strictObject({ x: numeric, y: numeric });
@@ -237,7 +236,7 @@ export function validate(diagram, issue) {
 }
 
 export const axisName = axis => {
-  const name = titleWithUnit(axis.label, axis.unit);
+  const name = `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
   // The suffix is added once: a label that already says "log scale" is left as the author wrote it.
   return axis.scale === 'log' && !/log scale/iu.test(name) ? `${name} · log scale` : name;
 };

@@ -1,7 +1,6 @@
 // Four bounded teaching schemas. Positions, colors and derived density heights
 // remain renderer-owned; all values here are the author's literal data.
 import { checkDerived, absentFrom, histogramCounts, heatmapRange, withValueStats } from './derived.js';
-import { titleWithUnit } from './axis-title.js';
 
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const cell = z.strictObject({ row: z.int().min(0).max(5), column: z.int().min(0).max(5) });
@@ -208,15 +207,14 @@ export function validate(diagram, issue) {
   }
 }
 
-export const itemCount = group => `${group.members.length} ${group.members.length === 1 ? 'item' : 'items'}`;
-// Only a replacement draw has multiplicities. Any other group (a class, a split, an out-of-bag set) is a plain list: each member is named, with no "× n".
+// An out-of-bag group (outOfBagFor) lists the samples that were never drawn: each one is named, with no "× n".
 export function sampleMemberships(group) {
-  if (!group.replacement) return group.members.map(id => ({ id, count: 1, text: id }));
+  if (group.outOfBagFor) return group.members.map(id => ({ id, count: 1, text: id }));
   const counts = new Map();
   for (const id of group.members) counts.set(id, (counts.get(id) || 0) + 1);
   return [...counts].map(([id, count]) => ({ id, count, text: `${id} × ${count}` }));
 }
-const axisName = axis => titleWithUnit(axis.label, axis.unit);
+const axisName = axis => axis.unit ? `${axis.label} (${axis.unit})` : axis.label;
 export function boxSummary(box) {
   return `Whiskers: ${box.whiskerLow}, ${box.whiskerHigh}; Q1: ${box.q1}; Median: ${box.median}; Q3: ${box.q3}`;
 }
@@ -231,7 +229,7 @@ export function describe(d) {
     case 'sample-set': return [
       ...d.samples.map(sample => `${sample.id}${sample.label ? `: ${sample.label}` : ''}${sample.class ? `; class ${sample.class}` : ''}${sample.weight !== undefined ? `; weight ${sample.weight}` : ''}`),
       ...d.groups.flatMap(group => [
-        `${group.label} (${group.outOfBagFor ? `${group.members.length} not drawn` : group.replacement ? `${group.members.length} draws, ${new Set(group.members).size} unique` : itemCount(group)}): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
+        `${group.label} (${group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws, ${new Set(group.members).size} unique`}): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
         ...(group.omitted ? [`Omitted: ${group.omitted.join(', ') || 'none'}`] : []),
         ...(group.outOfBagFor ? [`Out of bag for ${d.groups.find(other => other.id === group.outOfBagFor).label}`] : []),
       ]),

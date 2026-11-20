@@ -1,6 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
-import { titleWithUnit } from './axis-title.js';
 import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, mixHex, teachingConnector } from './teaching-theme.js';
@@ -90,7 +89,7 @@ const ARIAL = { ' ': 278, '!': 278, '"': 355, '#': 556, '$': 556, '%': 889, '&':
   A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611, '[': 278, ']': 278, '^': 469, _: 556,
   a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222, j: 222, k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333, s: 500, t: 278, u: 556, v: 500, w: 722, x: 500, y: 500, z: 500, '{': 334, '|': 260, '}': 334, '~': 584 };
 // The ARIAL table above assumes figures draw in Arial / Liberation Sans, which they do only because TEACHING_FONT names 'Inter' while the loaded family is 'Inter Variable' (teaching-theme.js).
-export function legendTextWidth(text, size) {
+function legendTextWidth(text, size) {
   if (text.includes('$')) return textWidth(text, size);
   let em = 0;
   for (const char of text) em += (char >= '0' && char <= '9' ? 556 : ARIAL[char] ?? (char.codePointAt(0) > 0x2ff ? 1000 : 600)) / 1000;
@@ -190,7 +189,7 @@ function curveLabels(series, lines, bounds, occupied, size = CURVE_LABEL_SIZE, s
 }
 
 // An axis title on the figure: the label and unit. axisName (ml-plot-spec.js) also adds "log scale" for the written description; the sampled ticks already say it here.
-const titleOf = axis => titleWithUnit(axis.label, axis.unit);
+const titleOf = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
 
 // A tick label's horizontal extent, from its anchor (start, middle or end).
 const tickSpan = ({ at, lines, anchor }, size = TICK) => {
@@ -640,16 +639,10 @@ function verticalBars(d, requested, options) {
     const valueText = value => {
       let text = amount(value, unit);
       if (boxed && textWidth(text, tickSize) > barWidth) text = amount(value);
-      // A negative bar's value stands under the bar end, clear of every other bar; in a plain chart (one series, no box) it only has to stay inside its own slot (measured with the Arial advances), so "-0.108" fits a bar a little narrower than it.
-      // shortcut: a grouped or boxed chart keeps the width of its bar (a neighbouring bar of the cluster could be under the label); upgrade when a grouped chart with negative values needs its own rule.
-      if (showAbove && !boxed && k === 1 && value < 0) return legendTextWidth(text, tickSize) <= slot - 4 ? text : null;
       return showAbove && textWidth(text, tickSize) <= (boxed ? barWidth : barWidth + inner + 0.4 * barWidth) ? text : null;
     };
-    // One rule per chart (with no box): every bar carries its value or none does. When one value does not fit its bar ("0.65" where "0.2" does), the chart is drawn again with the unit off the values and printed once after the top axis number; when the bare values do not all fit either, none is printed.
-    const hideValues = !boxed && showAbove && !values.every(value => valueText(value) !== null);
-    if (hideValues && d.unit && !unitInTick) return { dropUnit: true };
     // A negative bar's value stands 12 px under its end; when that reaches the category names (a bar down to the axis end) the names move down by what it takes, so the two never overlap.
-    const nameDrop = Math.ceil(Math.max(0, ...values.filter(value => !hideValues && value < 0 && valueText(value) !== null).map(value => y(clamp(value)) + 12 + tickSize / 2 - (bottom + 10))));
+    const nameDrop = Math.ceil(Math.max(0, ...values.filter(value => value < 0 && valueText(value) !== null).map(value => y(clamp(value)) + 12 + tickSize / 2 - (bottom + 10))));
     const bars = [], labels = [], geometryBars = [], pending = [];
     categories.forEach((category, i) => {
       const start = left + slot * i + (slot - cluster) / 2;
@@ -664,7 +657,7 @@ function verticalBars(d, requested, options) {
         else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
         const bar = { label: category, ...(grouped ? { series: entry.label } : {}), value, ...(clamp(value) !== value ? { clamped: true } : {}), x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end) };
         geometryBars.push(bar);
-        const text = hideValues ? null : valueText(value);
+        const text = valueText(value);
         if (text !== null) pending.push({ bar, value, text, cx, at: value < 0 ? end + 12 : end - 12, slot: labels.push(null) - 1 }); // the label keeps its place in the drawing order
       });
     });
@@ -742,9 +735,7 @@ function barChart(d, requested, options) {
     }
     top += height + 6;
     if (d.variant === 'stacked') {
-      const unit = d.unit ? ` ${d.unit}` : '';
-      // With no negative part there is nothing to net: the line is just the total.
-      const totals = group.negative < 0 ? `+${group.positive} / ${group.negative}; net ${group.positive + group.negative}${unit}` : `total ${group.positive}${unit}`;
+      const totals = `+${group.positive} / ${group.negative}; net ${group.positive + group.negative}${d.unit ? ` ${d.unit}` : ''}`;
       const lines = wrap(`${group.segments.map(s => `${s.label}: ${s.value}`).join('; ')} · ${totals}`, width - 2 * PAD);
       elements.push(label(lines, PAD, top + lines.length * lineHeight(SMALL) / 2, { anchor: 'start', size: SMALL }));
       top += lines.length * lineHeight(SMALL) + 10;

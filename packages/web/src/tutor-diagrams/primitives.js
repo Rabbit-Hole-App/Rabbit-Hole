@@ -75,14 +75,6 @@ export function wrap(text, width, size = 15) {
   return fitLines(mathLabel(text), width, size);
 }
 
-// MAT-F: headings of one kind (the headings of a header row, the row headings of a column) share one size, the smallest any of them needs. width is one number or one per text.
-export function wrapShared(texts, width, size = 15) {
-  const at = index => (Array.isArray(width) ? width[index] : width);
-  const wrapped = texts.map((text, index) => wrap(text, at(index), size));
-  const shared = Math.min(size, ...wrapped.map(lines => lines.fontSize ?? size));
-  return shared === size ? wrapped : texts.map((text, index) => Object.assign(wrap(text, at(index), shared), { fontSize: shared }));
-}
-
 function wrapLabel({ source, math }, width, size) {
   const fits = value => measure({ source: value, math }, size) <= width;
   const lines = [];

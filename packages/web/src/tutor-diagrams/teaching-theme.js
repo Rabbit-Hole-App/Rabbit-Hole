@@ -52,7 +52,7 @@ export const TEACHING_STYLE = Object.freeze({
 });
 export function teachingBox(x, y, width, height, { role = 'plain', active = false } = {}) {
   const fill = role === 'process' ? TEACHING.blueFill : role === 'outcome' ? TEACHING.tealFill
-    : role === 'decision' ? TEACHING.mustardFill : role === 'input' ? TEACHING.lavender : 'none'; // a plain box is transparent; an input (the relationship graph's box with no arrow into it) is the scene theme's operator lavender
+    : role === 'decision' ? TEACHING.mustardFill : 'none'; // a plain box is transparent
   return cloneElement(box(x, y, width, height), {
     rx: 9, fill, stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 1.5,
   });

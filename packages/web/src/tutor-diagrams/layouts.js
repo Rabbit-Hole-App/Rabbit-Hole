@@ -7,7 +7,7 @@ import { createLayouts as compositionLayouts } from './ml-composition-layouts.js
 import { balanceLayouts } from './balance-layouts.js';
 import { layoutFigure } from './figure-layout.js';
 import { cloneElement, createElement as h } from 'react';
-import { backEdge, box, connector, dot, label, lineHeight, longestWordWidth, SURFACE, textWidth, wire, wrap, wrapShared } from './primitives.js';
+import { backEdge, box, connector, dot, label, lineHeight, longestWordWidth, SURFACE, textWidth, wire, wrap } from './primitives.js';
 import { TEACHING as T, TEACHING_GRID } from './teaching-theme.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
 import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
@@ -206,8 +206,7 @@ function matrix(diagram, width, options) {
     const minCell = Math.max(72, tupleCell, wordCell);
     const grid = columnsFor(width, diagram.columns.length + 1, minCell, 7);
     const elements = [];
-    const headings = wrapShared(diagram.columns, grid.cell - 12, body);
-    const rowHeadings = wrapShared(diagram.rows.map(row => tuplePlainText(row.heading)), grid.cell - 12, body); // MAT-F: one size for every row heading
+    const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12, body));
     const headerHeight = rowHeight(headings, body);
     const geometry = { cells: [], rowHeadings: [], columnHeadings: [] };
     for (let index = 0; index < headings.length; index++) {
@@ -218,7 +217,7 @@ function matrix(diagram, width, options) {
     }
     let y = PAD + headerHeight + 7, rowsHeight = 0;
     diagram.rows.forEach((row, rowIndex) => {
-      const cells = [rowHeadings[rowIndex], ...row.cells.map(cell => wrap(tuplePlainText(cell), grid.cell - 12, body))];
+      const cells = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), grid.cell - 12, body));
       const height = rowHeight(cells, body) + rowExtra(rowIndex);
       for (let index = 0; index < cells.length; index++) {
         const x = grid.xAt(index);

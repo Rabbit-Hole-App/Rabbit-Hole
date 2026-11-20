@@ -2,7 +2,6 @@ import { createElement as h } from 'react';
 import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { connector, label, lineHeight, textWidth, wrap, INK, PALETTE, SURFACE } from './primitives.js';
-import { titleWithUnit } from './axis-title.js';
 
 const PAD = 12;
 const SMALL = 12;
@@ -132,7 +131,7 @@ function seriesLine(points, style, smooth = false) {
     h(tag, { ...attributes, stroke: PALETTE[style.role], strokeWidth: 1.7 }));
 }
 
-const axisName = axis => titleWithUnit(axis.label, axis.unit);
+const axisName = axis => axis.unit ? `${axis.label} (${axis.unit})` : axis.label;
 
 function coordinatePlot(diagram, width) {
   const { x: xAxis, y: yAxis, series } = diagram;

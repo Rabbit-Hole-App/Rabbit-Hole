@@ -52,7 +52,7 @@ test('flow keeps an inline tensor and its label inside the decision diamond', ()
   }
 });
 
-test('relationship embeds tensors in measured graph nodes and draws each label on its arrow or in a note without the node names', () => {
+test('relationship embeds tensors in measured graph nodes and names unlabeled endpoints in its legend', () => {
   const d = { nodes: [
     { id: 'scores', tensor: output },
     { id: 'selected', tensor: { rows: 1, columns: 2, dimensions: '1 × 2' } },
@@ -62,9 +62,8 @@ test('relationship embeds tensors in measured graph nodes and draws each label o
   const nodes = d.nodes.map(n => nodeFor(scene, n.id));
   assert.ok(nodes.every(Boolean), 'graph draws each tensor in its own node even without an explicit layout');
   assert.deepEqual(nodes.slice(0, 2).map(item => item.props['aria-label']), ['Scores', '1 × 2']);
-  assert.match(text(scene.elements), /Keep top two/);
-  assert.match(text(scene.elements), /Pass to consumer/);
-  assert.doesNotMatch(text(scene.elements), /→/, 'a note never restates the node names: its badge is on the arrow');
+  assert.match(text(scene.elements), /Scores → 1 × 2: Keep top two/);
+  assert.match(text(scene.elements), /1 × 2 → Consumer: Pass to consumer/);
   const cards = new Map(nodes.map(item => [item.props['data-tutor-node'], item.props.children[0].props]));
   for (const item of nodes.slice(0, 2)) {
     const box = cards.get(item.props['data-tutor-node']);

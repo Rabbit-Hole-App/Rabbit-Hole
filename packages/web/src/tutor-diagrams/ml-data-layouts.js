@@ -1,6 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
-import { titleWithUnit } from './axis-title.js';
 import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
 import { TEACHING, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
@@ -72,7 +71,7 @@ function timeline(d, requestedWidth) {
   const left = PAD + 8, right = width - PAD - 8;
   const position = scale(d.domain.min, d.domain.max, left, right);
   const elements = [];
-  const axisTitle = wrap(titleWithUnit(d.domain.label ?? 'Time', d.domain.unit), width - PAD * 2);
+  const axisTitle = wrap(`${d.domain.label ?? 'Time'} (${d.domain.unit})`, width - PAD * 2);
   const titleHeight = axisTitle.length * lineHeight();
   elements.push(label(axisTitle, PAD, PAD + titleHeight / 2, { anchor: 'start', weight: 700 }));
   let y = PAD + titleHeight + 10;
