@@ -186,17 +186,17 @@ export const references = [
   depth => graph(
     brief(depth) ? 'One operation on two carried streams' : 'Read, transform, and write parallel residual streams',
     [
-      ['a', detailed(depth) ? 'Stream A starts at ' + streams.input[0] : 'First stream'],
-      ['b', detailed(depth) ? 'Stream B starts at ' + streams.input[1] : 'Second stream'],
+      ['a', 'First stream' + (detailed(depth) ? ' starts at ' + streams.input[0] : '') + ' (read weight $1/4$)'],
+      ['b', 'Second stream' + (detailed(depth) ? ' starts at ' + streams.input[1] : '') + ' (read weight $3/4$)'],
       ['read', detailed(depth) ? 'Combined read ' + streams.read : 'Combined read'],
       ['update', detailed(depth) ? 'Shared update ' + streams.change : 'One shared operation'],
-      ['write-a', 'First updated stream'], ['write-b', 'Second updated stream'],
+      ['write-a', 'First stream plus half the update'], ['write-b', 'Second stream plus a quarter of the update'],
     ],
     [
-      edge('a', 'read', 'Contributes one quarter'), edge('b', 'read', 'Contributes three quarters'),
+      edge('a', 'read', 'Contributes to the read'), edge('b', 'read', 'Contributes to the read'),
       edge('read', 'update', 'Supplies one input'),
-      edge('update', 'write-a', 'Adds half the update'), edge('update', 'write-b', 'Adds a quarter of the update'),
-      edge('a', 'write-a', 'Carries the first stream'), edge('b', 'write-b', 'Carries the second stream'),
+      edge('update', 'write-a', 'Adds a share of the update'), edge('update', 'write-b', 'Adds a share of the update'),
+      edge('a', 'write-a', 'Carries the old stream'), edge('b', 'write-b', 'Carries the old stream'),
     ],
     detailed(depth) ? 'Identity carry keeps each stream separate. A mixing carry blends the old streams before the same two gated writes.' :
       'Two streams supply one input. The same operation contributes a different amount to each updated stream.',
@@ -258,9 +258,9 @@ export const references = [
     ],
     [
       edge('enc', 'global', 'Builds prefix memory'),
-      edge('global', 'first', 'Supplies shared memory'), edge('global', 'second', 'Reuses shared memory'),
-      edge('local', 'first', 'Supplies nearby context'), edge('local', 'second', 'Supplies decoder history'),
       edge('first', 'second', 'Passes the updated state'),
+      edge('global', 'first', 'Supplies shared memory'), edge('global', 'second', 'Supplies shared memory'),
+      edge('local', 'first', 'Supplies nearby context'), edge('local', 'second', 'Supplies nearby context'),
     ],
     detailed(depth) ? 'Global keys and values come from encoder features. Decoder-local history and layer queries remain separate inputs.' :
       'The two layers can consult the same earlier-text notes and their nearby writing context.',
@@ -359,9 +359,9 @@ export const references = [
       ['early', 'First attention read'], ['late', 'Later attention read'],
     ],
     [
-      edge('index', 'early', 'Limits the positions read'), edge('index', 'late', 'Shares the chosen positions'),
-      edge('cache', 'early', 'Supplies key and value rows'), edge('cache', 'late', 'Reuses key and value rows'),
-      edge('early', 'late', 'Passes the updated state'),
+      edge('early', 'late', 'Passes updated state'),
+      edge('index', 'early', 'Limits the positions read'), edge('index', 'late', 'Limits the positions read'),
+      edge('cache', 'early', 'Supplies key and value rows'), edge('cache', 'late', 'Supplies key and value rows'),
     ],
     detailed(depth) ? 'The two reads reuse the same records. Different queries give ' +
       math(vector(share.weights[0].map(value => Number(value.toFixed(2))))) + ' and ' +
