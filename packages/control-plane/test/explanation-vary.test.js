@@ -5,6 +5,7 @@ import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '.
 import { selectDiagramReferences, selectWithSteer, selectForAuthor } from '../src/explanation-references.js';
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import { isDeclared } from '../../web/src/tutor-diagrams/calculation.js';
 import { OWNER } from './explain-fixture.js';
 
 const PROMPT = 'What does predicting the mean give as a regression baseline?';
@@ -81,10 +82,15 @@ test('a reference with vary is drawn from its bands under a seed, repeats for th
   assert.deepEqual(a.spec.diagram.x, plain.spec.diagram.x);
 });
 
-test('the author request is byte-identical with and without a seed (no reference carries vary), and reports its seed', () => {
+test('the author request is byte-identical with and without a seed (no reference carries vary; a declared reference adds only its starting numbers), and reports its seed', () => {
   for (const args of [PROMPT, 'How is a binary tree traversed in order?', 'Show a box plot', 'Explain softmax']) {
     const plain = prepareArtifactAuthorRequest({}, { command: 'explanation', args }), seeded = prepareArtifactAuthorRequest({}, { command: 'explanation', args, requestSeed: 'abc' });
-    assert.equal(JSON.stringify(seeded.body), JSON.stringify(plain.body), args);
+    // A request that shows a declared reference (PROMPT: regression-mean-baseline) carries the starting numbers of its seed, and nothing else differs; every other request is byte-identical.
+    const startingNumbers = / For this card, build your input values from these starting numbers, in this order, scaling or rounding them where the diagram needs shares or weights: [0-9, ]+\. Do not mention these starting numbers in the card\./;
+    if (plain.diagramReferences.some(isDeclared)) {
+      assert.match(JSON.stringify(seeded.body), startingNumbers, args);
+      assert.equal(JSON.stringify(seeded.body).replace(startingNumbers, ''), JSON.stringify(plain.body), args);
+    } else assert.equal(JSON.stringify(seeded.body), JSON.stringify(plain.body), args);
     assert.deepEqual([plain.requestSeed, seeded.requestSeed], [null, 'abc']);
   }
 });

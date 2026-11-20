@@ -8,6 +8,7 @@ import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { illustrateExplanation } from '../src/explanation-figures.js';
 import { composeVisuals, dropInvalidDiagrams, explanationLayoutProblem, PRIMITIVES, settleExplanationBody } from '../src/learn-primitives.js';
 import { withFormulaSeries } from '../src/explanation-formula-series.js';
+import { isDeclared } from '../../web/src/tutor-diagrams/calculation.js';
 
 const fastEnv = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'offline-fixture' };
 const paraphrases = {
@@ -34,7 +35,8 @@ for (const { id, prompts, spec } of illustrationReferences) {
       // a selected two-panel reference goes out as its one-diagram -single variant (owner 2026-11-08, Codex set 3): the sent example is the panel reference or its single
       const sent = request.diagramReferences[0];
       assert.equal(sent?.id.replace(/-single$/, ''), id);
-      assert.ok(request.body.system.includes(JSON.stringify(sent.spec)));
+      // a reference that declares a calculation (ml-self-attention-token-links declares none needed) is shown without its numbers (explanation-references.js): its line is there by id, not as stored
+      if (isDeclared(sent)) { assert.ok(request.body.system.includes(`{"id":"${sent.id}"`)); assert.ok(!request.body.system.includes(JSON.stringify(sent.spec))); } else assert.ok(request.body.system.includes(JSON.stringify(sent.spec)));
     }
   });
 }
