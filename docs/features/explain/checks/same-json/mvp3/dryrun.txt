@@ -1,0 +1,6 @@
+OK  top-k: seed dry-A [15,14,57,20,30,49,6,7] | seed dry-B [53,28,13,21,39,10,58,41] | same seed same numbers true | only the sentence differs from MVP2 true | no seed equals MVP2 true | system 16482 -> 16663
+OK  regression-mean-baseline: seed dry-A [15,14,57,20,30,49,6,7] | seed dry-B [53,28,13,21,39,10,58,41] | same seed same numbers true | only the sentence differs from MVP2 true | no seed equals MVP2 true | system 16740 -> 16921
+OK  confusion-matrix-counts: seed dry-A [15,14,57,20,30,49,6,7] | seed dry-B [53,28,13,21,39,10,58,41] | same seed same numbers true | only the sentence differs from MVP2 true | no seed equals MVP2 true | system 16496 -> 16677
+OK  softmax-probabilities: seed dry-A [15,14,57,20,30,49,6,7] | seed dry-B [53,28,13,21,39,10,58,41] | same seed same numbers true | only the sentence differs from MVP2 true | no seed equals MVP2 true | system 16295 -> 16476
+OK  ml-self-attention-token-links: seed dry-A [15,14,57,20,30,49,6,7] | seed dry-B [53,28,13,21,39,10,58,41] | same seed same numbers true | only the sentence differs from MVP2 true | no seed equals MVP2 true | system 16584 -> 16765
+all 5 prompts ok; no provider call made

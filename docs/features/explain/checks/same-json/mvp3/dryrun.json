@@ -1,0 +1,162 @@
+[
+ {
+  "tag": "top-k",
+  "ok": true,
+  "refId": "ml-sampling-top-k",
+  "seedA": [
+   15,
+   14,
+   57,
+   20,
+   30,
+   49,
+   6,
+   7
+  ],
+  "seedB": [
+   53,
+   28,
+   13,
+   21,
+   39,
+   10,
+   58,
+   41
+  ],
+  "sameSeedSame": true,
+  "onlySentenceDiffers": true,
+  "noSeedEqualsMvp2": true,
+  "systemChars": {
+   "after2": 16482,
+   "after3": 16663
+  }
+ },
+ {
+  "tag": "regression-mean-baseline",
+  "ok": true,
+  "refId": "regression-mean-baseline",
+  "seedA": [
+   15,
+   14,
+   57,
+   20,
+   30,
+   49,
+   6,
+   7
+  ],
+  "seedB": [
+   53,
+   28,
+   13,
+   21,
+   39,
+   10,
+   58,
+   41
+  ],
+  "sameSeedSame": true,
+  "onlySentenceDiffers": true,
+  "noSeedEqualsMvp2": true,
+  "systemChars": {
+   "after2": 16740,
+   "after3": 16921
+  }
+ },
+ {
+  "tag": "confusion-matrix-counts",
+  "ok": true,
+  "refId": "confusion-matrix-counts",
+  "seedA": [
+   15,
+   14,
+   57,
+   20,
+   30,
+   49,
+   6,
+   7
+  ],
+  "seedB": [
+   53,
+   28,
+   13,
+   21,
+   39,
+   10,
+   58,
+   41
+  ],
+  "sameSeedSame": true,
+  "onlySentenceDiffers": true,
+  "noSeedEqualsMvp2": true,
+  "systemChars": {
+   "after2": 16496,
+   "after3": 16677
+  }
+ },
+ {
+  "tag": "softmax-probabilities",
+  "ok": true,
+  "refId": "softmax-probabilities",
+  "seedA": [
+   15,
+   14,
+   57,
+   20,
+   30,
+   49,
+   6,
+   7
+  ],
+  "seedB": [
+   53,
+   28,
+   13,
+   21,
+   39,
+   10,
+   58,
+   41
+  ],
+  "sameSeedSame": true,
+  "onlySentenceDiffers": true,
+  "noSeedEqualsMvp2": true,
+  "systemChars": {
+   "after2": 16295,
+   "after3": 16476
+  }
+ },
+ {
+  "tag": "ml-self-attention-token-links",
+  "ok": true,
+  "refId": "ml-self-attention-token-links",
+  "seedA": [
+   15,
+   14,
+   57,
+   20,
+   30,
+   49,
+   6,
+   7
+  ],
+  "seedB": [
+   53,
+   28,
+   13,
+   21,
+   39,
+   10,
+   58,
+   41
+  ],
+  "sameSeedSame": true,
+  "onlySentenceDiffers": true,
+  "noSeedEqualsMvp2": true,
+  "systemChars": {
+   "after2": 16584,
+   "after3": 16765
+  }
+ }
+]
