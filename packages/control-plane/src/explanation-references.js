@@ -173,17 +173,31 @@ export function selectForAuthor({ prompt, context = '', depth, plan = null, aske
 export const REFERENCE_MARK = '\n# Examples\n'; // GEN-1 G2: the block's first line only, so the seeded examples may carry another second line (the old mark 'Approved diagram references' stays a prefix of today's heading)
 // GEN-1 G2 (R2, wording for the Reviewer to approve): the heading of the seeded examples (GEN-1 G1), starting text from the spec; `# Examples` stays the first line. No number wording here (owner N1): the inputs sentence goes after the number rule (agents/learn-artifact.js INPUTS_RULE).
 export const SEEDED_EXAMPLES_HEADING = '\n# Examples\nDiagram examples on other subjects. They show what a good diagram of this kind looks like: several concrete items, real values, short labels. Do not reuse their subject, labels or values. Build this card\'s diagram from the concrete things in the learner\'s question and its context (the names, sizes and values given there); where none are given, choose a small concrete example of your own. Do not exceed this card\'s visual count.\n';
+// MVP2 (owner 2026-11-19): a stored reference shown as an example is written with its numbers removed. Every numeric field of its diagram (and of its detail diagram) and every number
+// written inside a text field becomes the text "?". Fields that name things (ids, endpoints, enumerations) keep their text. Only the written line changes: the reference object itself
+// (its kind, the answer schema, the trace) is untouched. The shape example and the seeded examples are not masked.
+const NAME_KEYS = new Set(['id', 'from', 'to', 'node', 'parent', 'repeatTo', 'highlightPath', 'kind', 'role', 'stackRole', 'variant', 'layout', 'figure', 'side', 'orientation', 'direction', 'anchor', 'type']);
+const maskNumbers = (value, key = '') => {
+  if (typeof value === 'number') return '?';
+  if (typeof value === 'string') return NAME_KEYS.has(key) ? value : value.replace(/[0-9]+(?:[.,][0-9]+)*/g, '?');
+  if (Array.isArray(value)) return value.map(item => maskNumbers(item, key));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, maskNumbers(item, name)]));
+  return value;
+};
+const maskSpec = spec => (spec?.diagram ? { ...spec, diagram: maskNumbers(spec.diagram) } : spec);
+const shownReference = ref => (ref.shape || ref.seededExample ? ref : { ...ref, spec: maskSpec(ref.spec), ...(ref.detailSpec ? { detailSpec: maskSpec(ref.detailSpec) } : {}) });
 export function diagramReferenceContext(references) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count.\n';
+  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). An example on this card\'s subject shows a correct structure: keep its structure and its facts. Write your own version of what is illustrative in it: the example items, their names, the input values and the title. Do not copy an example\'s values, labels or prose, force a reference, or exceed this card\'s visual count. A "?" in an example stands for a number that was removed: choose your own.\n';
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
   }
   for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones
-    const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec,
-      ...(ref.detailSpec ? { detailSpec: ref.detailSpec } : {}) }) + '\n';
+    const shown = shownReference(ref);
+    const line = JSON.stringify({ id: shown.id, useWhen: shown.useWhen, spec: shown.spec,
+      ...(shown.detailSpec ? { detailSpec: shown.detailSpec } : {}) }) + '\n';
     if (out.length + line.length <= MAX_CONTEXT) out += line;
   }
   return out === heading ? '' : out;
