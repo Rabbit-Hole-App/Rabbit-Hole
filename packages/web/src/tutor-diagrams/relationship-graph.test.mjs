@@ -124,6 +124,7 @@ test('the rule sees a label under a box that is not its source and over a box th
   assert.deepEqual(foreignBoxes(edge('a:b', 100, 70), nodes), [], 'in the gap under its source and over its target');
   assert.deepEqual(foreignBoxes(edge('b:a', 100, 70), nodes), ['below a', 'above b']);
   assert.deepEqual(foreignBoxes(edge('b:a', 190, 70, 290), nodes), ['below a', 'above b'], 'between the boxes and its own wire, against their corners');
+  assert.deepEqual(foreignBoxes(edge('b:a', 190, 90, 290), nodes), ['below a'], 'a label that reaches into the next row is still under the box above');
   assert.deepEqual(foreignBoxes(edge('b:a', 305, 70), nodes), [], 'beyond its own wire, not under the boxes');
   assert.deepEqual(foreignBoxes(edge('b:a', 100, 20), nodes), [], 'beside a box, not in a row gap');
 });

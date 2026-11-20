@@ -328,12 +328,12 @@ function graph(d, preferredWidth, hasTensor) {
     const own = nearest(box, wireLines(r));
     return own <= LABEL_NEAR && nearest(box, routes.filter(other => other !== r).flatMap(wireLines)) - own >= LABEL_CLEAR;
   };
-  // REL-1b: a label in the row gap directly under a box reads as that box's, so it stands there only when the box is its arrow's source; directly over a box, only when the box is its arrow's target.
+  // REL-1b: a label whose top is in the row gap directly under a box (a label that reaches into the next row still counts) reads as that box's, so it stands there only when the box is its arrow's source; directly over a box, only when the box is its arrow's target.
   // "Directly under" covers the box's own span and the corridor between the box and the label's own wire (a label there sits against the box's corner).
   const standsFrom = (box, r) => d.nodes.every((n, i) => {
     const b = nodeBoxes[i];
     if (box.x2 <= Math.min(b.x1, r.laneX) || Math.max(b.x2, r.laneX) <= box.x1) return true;
-    return !(box.y1 >= b.y2 && box.y2 <= b.y2 + rowGap && n.id !== r.from) && !(box.y2 <= b.y1 && box.y1 >= b.y1 - rowGap && n.id !== r.to);
+    return !(box.y1 >= b.y2 && box.y1 < b.y2 + rowGap && n.id !== r.from) && !(box.y2 <= b.y1 && box.y2 > b.y1 - rowGap + 0.5 && n.id !== r.to);
   });
   const badgeBox = r => solid(r.laneX - 10, r.badgeY - 10, r.laneX + 10, r.badgeY + 10);
   const labelHeight = textHeight;

@@ -1957,14 +1957,14 @@
       "height": 893
     },
     "ml-neural-network-weights/320": {
-      "sha256": "0cbac1217f584e20999ae02fb5d3ba2e48a494db87f30d35a9ef55759b288d63",
+      "sha256": "f28d879ed2f717c6730965db4cf76145bc885bce733c6286073c59dc60ffeb1a",
       "width": 358,
-      "height": 757
+      "height": 782
     },
     "ml-neural-network-weights/408": {
-      "sha256": "a94cdbbd19088a67e13021cf5e42987c66f733ac4ecd8613f600255e6b1bd53a",
+      "sha256": "1fe7493ff1dd4a4512dd4a00813e1859ad749269a24919647d1fa5b12c6f175c",
       "width": 408,
-      "height": 740
+      "height": 765
     },
     "ml-neural-network-weights/720": {
       "sha256": "a55eba95bb293ca2425ac312df0260c7b49ba3c6c71ad5515cea48d28dca26bd",
@@ -2437,14 +2437,14 @@
       "height": 960
     },
     "ml-version-lineage/320": {
-      "sha256": "6d03d0f8545a2f386a9b3a7c07fbac1365b21fe9dfe215fa9adc9b4113faeb78",
+      "sha256": "c828e129965dec99dcfbc12792df236b6eac4e837ce7bfda701ccfe64ba02e3d",
       "width": 360,
-      "height": 779
+      "height": 804
     },
     "ml-version-lineage/408": {
-      "sha256": "b7e74a117cca76b902706a05aa72e39ed090cffd6e9a5176d8d50a3f9253b4d6",
+      "sha256": "576993cbbf3605a5a759393d95e0f43e4a6bd34855c9f847537c15f619d5d3c0",
       "width": 408,
-      "height": 754
+      "height": 779
     },
     "ml-version-lineage/720": {
       "sha256": "2a71c6052d212a8a30a8dce9d2ec65873a26931a0f1271f31c53136d4bf43c20",
@@ -9537,9 +9537,9 @@
       "height": 490.5
     },
     "d2l-regularized-forward-graph/408": {
-      "sha256": "98e0a1a85323452ef160482df28d334d07f00a2ad7038c9ea4eeaf82cadc04b4",
+      "sha256": "50f9256e32bb42b9f65487c27da4005a6df0094ffb97728df5e1ce20b7f122be",
       "width": 408,
-      "height": 948
+      "height": 998
     },
     "d2l-regularized-forward-graph/960": {
       "sha256": "d8b3a2636d66da32530bb4f1293da34bcf63d7cecbf179140aa66262134d8812",
@@ -9547,14 +9547,14 @@
       "height": 884
     },
     "d2l-regularized-forward-graph/natural": {
-      "sha256": "d502870937824da036dc7e2f01c068c2be6c018a5b0ea7b13728754794bf4ce8",
+      "sha256": "6dec15eff60ea102e25eac9f4a98da983184336acbfcd5915a87d8c066d28ef3",
       "width": 382,
-      "height": 973
+      "height": 1023
     },
     "d2l-regularized-forward-graph-brief/408": {
-      "sha256": "48d3614c65cd73ff1d0431e3e41a9009ba6d731dbd110ba83a74b12ba738d566",
+      "sha256": "9a45416828d121f9a26cb161974b92714e29557f36d4c9335fd284b2243fb4ea",
       "width": 408,
-      "height": 926
+      "height": 976
     },
     "d2l-regularized-forward-graph-brief/960": {
       "sha256": "1819d7cdc8f4971f42259ec41b7aafc32b987c9b9be0626c821c527c00e1f0fd",
@@ -9562,14 +9562,14 @@
       "height": 884
     },
     "d2l-regularized-forward-graph-brief/natural": {
-      "sha256": "e7dbeefeb9ceefe5dc0fd35cf265a9e979b3e472aa84cfbff2032ee804093767",
+      "sha256": "45052ba9c0c921798bf99595e2ce2ee73bb21e2b7ab454163699e0df51a439d9",
       "width": 382,
-      "height": 951
+      "height": 1001
     },
     "d2l-regularized-forward-graph-detailed/408": {
-      "sha256": "dc7b5fdfb69cf81ad7a4b8ebbfca501c2b173161cca0be9a375a10344045fd42",
+      "sha256": "ebc855361237414ed554bf871b45d0e1df7f28eb0d8c0dcfafb488d137c1fa3c",
       "width": 408,
-      "height": 948
+      "height": 998
     },
     "d2l-regularized-forward-graph-detailed/960": {
       "sha256": "c465f815ddc7a6e1ff80c97402a6a6cc04709256aa0e303104807bf02c43d3ec",
@@ -9577,9 +9577,9 @@
       "height": 884
     },
     "d2l-regularized-forward-graph-detailed/natural": {
-      "sha256": "7df7770c80d96e699fdd9acce04a8164fe97ff387e10fd407841cb271c731f5d",
+      "sha256": "67b0c3a12d436fb7856b663fe4a000fb39967f378d9b75a5b1b575a665bfc743",
       "width": 382,
-      "height": 973
+      "height": 1023
     },
     "d2l-inverted-dropout-mask/408": {
       "sha256": "d660469961fead2fffea31c6e2b4131bf38fe7040f0698a6b83ccebf21cffd32",
@@ -11472,7 +11472,7 @@
       "height": 352
     },
     "d2l-recurrent-next-character-targets-detailed-detail/408": {
-      "sha256": "3c0da5ac223388a9806990d9971ee9a26013a0bff7f55eef667935012ed6d085",
+      "sha256": "3ae414722091b15daf7b5e70d49d040abe287782912ab53898a3b0a94d4437d5",
       "width": 408,
       "height": 480
     },
@@ -11482,7 +11482,7 @@
       "height": 480
     },
     "d2l-recurrent-next-character-targets-detailed-detail/natural": {
-      "sha256": "502dc125206ebc150823e9d59ac143fae9f2f739a732588eb21f0fe2ab7fe4fb",
+      "sha256": "5d430843463d343a48b20b9803c293d81fe6a1ecc2067c025bcefd5aeb0584be",
       "width": 320,
       "height": 544
     },
