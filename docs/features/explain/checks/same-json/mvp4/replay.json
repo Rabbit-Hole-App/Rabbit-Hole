@@ -1,0 +1,454 @@
+[
+ {
+  "seed": "bench-1-1",
+  "ref": "ml-sampling-top-k",
+  "ask": 1,
+  "wrongInAfter3": false,
+  "problem": null,
+  "overwritten": [
+   "renormalized",
+   "keptShare"
+  ],
+  "inputs": {
+   "full": [
+    39,
+    24,
+    19,
+    12,
+    6
+   ],
+   "k": 3
+  },
+  "before": {
+   "rows": [
+    [
+     39,
+     24,
+     19,
+     12,
+     6
+    ],
+    [
+     47.5,
+     29.3,
+     23.2,
+     0,
+     0
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens originally hold 82% of the probability. Divide each kept probability by that total."
+  },
+  "after": {
+   "rows": [
+    [
+     39,
+     24,
+     19,
+     12,
+     6
+    ],
+    [
+     48,
+     29,
+     23,
+     0,
+     0
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens originally hold 82% of the probability. Divide each kept probability by that total."
+  }
+ },
+ {
+  "seed": "bench-2-2",
+  "ref": "ml-sampling-top-k",
+  "ask": 2,
+  "wrongInAfter3": true,
+  "problem": null,
+  "overwritten": [
+   "renormalized",
+   "keptShare"
+  ],
+  "inputs": {
+   "full": [
+    50,
+    30,
+    10,
+    6,
+    4
+   ],
+   "k": 3
+  },
+  "before": {
+   "rows": [
+    [
+     50,
+     30,
+     10,
+     6,
+     4
+    ],
+    [
+     55.6,
+     33.3,
+     11.1,
+     0,
+     0
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens hold 80% of the probability. Divide each kept probability by that total."
+  },
+  "after": {
+   "rows": [
+    [
+     50,
+     30,
+     10,
+     6,
+     4
+    ],
+    [
+     56,
+     33,
+     11,
+     0,
+     0
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens hold 80% of the probability. Divide each kept probability by that total."
+  }
+ },
+ {
+  "seed": "bench-3-3",
+  "ref": "ml-sampling-top-k",
+  "ask": 3,
+  "wrongInAfter3": false,
+  "problem": "explanation_bad_calculation: the inputs are refused: k must be a whole number from 1 to 2, below the 3 items",
+  "overwritten": null,
+  "inputs": null,
+  "before": {
+   "rows": [
+    [
+     50,
+     30,
+     20
+    ],
+    [
+     50,
+     30,
+     20
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens originally hold 100% of the probability. Divide each kept probability by that total."
+  },
+  "after": null
+ },
+ {
+  "seed": "bench-4-4",
+  "ref": "ml-sampling-top-k",
+  "ask": 4,
+  "wrongInAfter3": true,
+  "problem": null,
+  "overwritten": [
+   "renormalized",
+   "keptShare"
+  ],
+  "inputs": {
+   "full": [
+    38,
+    32,
+    20,
+    7,
+    3
+   ],
+   "k": 2
+  },
+  "before": {
+   "rows": [
+    [
+     38,
+     32,
+     20,
+     7,
+     3
+    ],
+    [
+     54.3,
+     45.7,
+     0,
+     0,
+     0
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens originally hold 70% of the probability. Divide each kept probability by that total."
+  },
+  "after": {
+   "rows": [
+    [
+     38,
+     32,
+     20,
+     7,
+     3
+    ],
+    [
+     54,
+     46,
+     0,
+     0,
+     0
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens originally hold 70% of the probability. Divide each kept probability by that total."
+  }
+ },
+ {
+  "seed": "bench-5-5",
+  "ref": "ml-sampling-top-k",
+  "ask": 5,
+  "wrongInAfter3": false,
+  "problem": "explanation_bad_calculation: the inputs are refused: k must be a whole number from 1 to 2, below the 3 items",
+  "overwritten": null,
+  "inputs": null,
+  "before": {
+   "rows": [
+    [
+     53,
+     16,
+     8
+    ],
+    [
+     69,
+     21,
+     10
+    ]
+   ],
+   "title": "Full softmax and top-3 sampling",
+   "caption": "The kept tokens originally hold 77% of the probability. Divide each kept probability by that total."
+  },
+  "after": null
+ },
+ {
+  "seed": "bench-16-1",
+  "ref": "softmax-probabilities",
+  "ask": 1,
+  "wrongInAfter3": true,
+  "problem": null,
+  "overwritten": [
+   "probabilitiesA",
+   "probabilitiesB"
+  ],
+  "inputs": {
+   "weightsA": [
+    54,
+    5,
+    29
+   ],
+   "weightsB": [
+    39,
+    50,
+    20
+   ]
+  },
+  "before": {
+   "rows": [
+    [
+     54,
+     5,
+     29
+    ],
+    [
+     39,
+     50,
+     20
+    ]
+   ],
+   "title": "Two softmax probability vectors",
+   "caption": "Illustrative values; compare categories on the shared scale."
+  },
+  "after": {
+   "rows": [
+    [
+     0.61,
+     0.06,
+     0.33
+    ],
+    [
+     0.36,
+     0.46,
+     0.18
+    ]
+   ],
+   "title": "Two softmax probability vectors",
+   "caption": "Illustrative values; compare categories on the shared scale."
+  }
+ },
+ {
+  "seed": "bench-17-2",
+  "ref": "softmax-probabilities",
+  "ask": 2,
+  "wrongInAfter3": false,
+  "problem": "explanation_bad_calculation: input weightsA must be from 1 to 1000 (got 0.58)",
+  "overwritten": null,
+  "inputs": null,
+  "before": {
+   "rows": [
+    [
+     0.58,
+     0.21,
+     0.21
+    ],
+    [
+     0.13,
+     0.4,
+     0.47
+    ]
+   ],
+   "title": "Two softmax probability vectors",
+   "caption": "Illustrative values; compare categories on the shared scale."
+  },
+  "after": null
+ },
+ {
+  "seed": "bench-18-3",
+  "ref": "softmax-probabilities",
+  "ask": 3,
+  "wrongInAfter3": true,
+  "problem": null,
+  "overwritten": [
+   "probabilitiesA",
+   "probabilitiesB"
+  ],
+  "inputs": {
+   "weightsA": [
+    55,
+    7,
+    22
+   ],
+   "weightsB": [
+    54,
+    46,
+    6
+   ]
+  },
+  "before": {
+   "rows": [
+    [
+     55,
+     7,
+     22
+    ],
+    [
+     54,
+     46,
+     6
+    ]
+   ],
+   "title": "Illustrative Softmax Probabilities",
+   "caption": "Compare categories on the shared scale."
+  },
+  "after": {
+   "rows": [
+    [
+     0.66,
+     0.08,
+     0.26
+    ],
+    [
+     0.51,
+     0.43,
+     0.06
+    ]
+   ],
+   "title": "Illustrative Softmax Probabilities",
+   "caption": "Compare categories on the shared scale."
+  }
+ },
+ {
+  "seed": "bench-19-4",
+  "ref": "softmax-probabilities",
+  "ask": 4,
+  "wrongInAfter3": false,
+  "problem": "explanation_bad_calculation: input weightsA must be from 1 to 1000 (got 0.7)",
+  "overwritten": null,
+  "inputs": null,
+  "before": {
+   "rows": [
+    [
+     0.7,
+     0.2,
+     0.1
+    ],
+    [
+     0.4,
+     0.4,
+     0.2
+    ]
+   ],
+   "title": "Two softmax probability vectors",
+   "caption": "Illustrative values; compare categories on the shared scale."
+  },
+  "after": null
+ },
+ {
+  "seed": "bench-20-5",
+  "ref": "softmax-probabilities",
+  "ask": 5,
+  "wrongInAfter3": true,
+  "problem": null,
+  "overwritten": [
+   "probabilitiesA",
+   "probabilitiesB"
+  ],
+  "inputs": {
+   "weightsA": [
+    6,
+    35,
+    32
+   ],
+   "weightsB": [
+    7,
+    45,
+    29
+   ]
+  },
+  "before": {
+   "rows": [
+    [
+     6,
+     35,
+     32
+    ],
+    [
+     7,
+     45,
+     29
+    ]
+   ],
+   "title": "Two softmax probability vectors",
+   "caption": "Illustrative values; compare categories on the shared scale."
+  },
+  "after": {
+   "rows": [
+    [
+     0.08,
+     0.48,
+     0.44
+    ],
+    [
+     0.09,
+     0.55,
+     0.36
+    ]
+   ],
+   "title": "Two softmax probability vectors",
+   "caption": "Illustrative values; compare categories on the shared scale."
+  }
+ }
+]

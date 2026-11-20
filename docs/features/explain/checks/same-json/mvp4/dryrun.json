@@ -1,0 +1,156 @@
+[
+ {
+  "tag": "top-k",
+  "refId": "ml-sampling-top-k",
+  "seed": "bench-1-1",
+  "hasCalculation": true,
+  "requestIdenticalToMvp3": false,
+  "ok": true,
+  "schemaPropertiesAfter3": 28,
+  "schemaPropertiesAfter4": 36,
+  "variablesInSchema": true,
+  "systemChars": {
+   "after3": 16664,
+   "after4": 17236
+  },
+  "variablesShown": [
+   {
+    "name": "full",
+    "role": "input",
+    "type": "float",
+    "min": 0,
+    "max": 100,
+    "at": "series.0.values"
+   },
+   {
+    "name": "k",
+    "role": "input",
+    "type": "int",
+    "min": 1,
+    "max": 7,
+    "value": "?"
+   },
+   {
+    "name": "renormalized",
+    "role": "result",
+    "type": "float",
+    "min": 0,
+    "max": 100,
+    "at": "series.1.values"
+   },
+   {
+    "name": "keptShare",
+    "role": "result",
+    "type": "float",
+    "min": 1,
+    "max": 100,
+    "value": "?"
+   }
+  ]
+ },
+ {
+  "tag": "regression-mean-baseline",
+  "refId": "regression-mean-baseline",
+  "seed": "bench-6-1",
+  "hasCalculation": false,
+  "requestIdenticalToMvp3": true,
+  "ok": true,
+  "schemaPropertiesAfter3": 104,
+  "schemaPropertiesAfter4": 104,
+  "variablesInSchema": false,
+  "systemChars": {
+   "after3": 16923,
+   "after4": 16923
+  },
+  "variablesShown": null
+ },
+ {
+  "tag": "confusion-matrix-counts",
+  "refId": "confusion-matrix-counts",
+  "seed": "bench-11-1",
+  "hasCalculation": false,
+  "requestIdenticalToMvp3": true,
+  "ok": true,
+  "schemaPropertiesAfter3": 31,
+  "schemaPropertiesAfter4": 31,
+  "variablesInSchema": false,
+  "systemChars": {
+   "after3": 16678,
+   "after4": 16678
+  },
+  "variablesShown": null
+ },
+ {
+  "tag": "softmax-probabilities",
+  "refId": "softmax-probabilities",
+  "seed": "bench-16-1",
+  "hasCalculation": true,
+  "requestIdenticalToMvp3": false,
+  "ok": true,
+  "schemaPropertiesAfter3": 28,
+  "schemaPropertiesAfter4": 36,
+  "variablesInSchema": true,
+  "systemChars": {
+   "after3": 16477,
+   "after4": 17069
+  },
+  "variablesShown": [
+   {
+    "name": "weightsA",
+    "role": "input",
+    "type": "float",
+    "min": 1,
+    "max": 1000,
+    "value": [
+     "?",
+     "?",
+     "?"
+    ]
+   },
+   {
+    "name": "weightsB",
+    "role": "input",
+    "type": "float",
+    "min": 1,
+    "max": 1000,
+    "value": [
+     "?",
+     "?",
+     "?"
+    ]
+   },
+   {
+    "name": "probabilitiesA",
+    "role": "result",
+    "type": "float",
+    "min": 0,
+    "max": 1,
+    "at": "series.0.values"
+   },
+   {
+    "name": "probabilitiesB",
+    "role": "result",
+    "type": "float",
+    "min": 0,
+    "max": 1,
+    "at": "series.1.values"
+   }
+  ]
+ },
+ {
+  "tag": "ml-self-attention-token-links",
+  "refId": "ml-self-attention-token-links",
+  "seed": "bench-21-1",
+  "hasCalculation": false,
+  "requestIdenticalToMvp3": true,
+  "ok": true,
+  "schemaPropertiesAfter3": 25,
+  "schemaPropertiesAfter4": 25,
+  "variablesInSchema": false,
+  "systemChars": {
+   "after3": 16767,
+   "after4": 16767
+  },
+  "variablesShown": null
+ }
+]
