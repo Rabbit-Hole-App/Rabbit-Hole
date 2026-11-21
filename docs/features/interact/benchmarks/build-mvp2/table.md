@@ -4,15 +4,15 @@ Made by `scripts/interact/build-programs.mjs`. Each build-schema of `build-mvp1/
 
 | Build-schema | Layout / arrangement | Validate | Frames: pass, or the first frame sentence | Dropped in frames | Program bytes |
 |---|---|---|---|---|---|
-| b41-pendulum-1 | side-by-side / columns | pass | pass (9/9) | 0 labels, 5 arrows | 15420 |
-| b41-pendulum-2 | side-by-side / columns | pass | pass (9/9) | 0 labels, 6 arrows | 15548 |
-| b41-pendulum-3 | side-by-side / columns | pass | pass (9/9) | 0 labels, 0 arrows | 15394 |
-| b41-pendulum-4 | side-by-side / columns | pass | pass (9/9) | 0 labels, 3 arrows | 15790 |
-| b41-pendulum-5 | side-by-side / columns | pass | pass (9/9) | 9 labels, 8 arrows | 15216 |
-| b43-pendulum-1 | side-by-side / rows | pass | pass (9/9) | 0 labels, 8 arrows | 15552 |
-| b43-pendulum-2 | tall-with-panel / rows | pass | pass (9/9) | 0 labels, 0 arrows | 15446 |
-| b43-pendulum-3 | side-by-side / columns | pass | pass (9/9) | 0 labels, 6 arrows | 15538 |
-| b43-pendulum-4 | side-by-side / columns | pass | pass (9/9) | 0 labels, 0 arrows | 15420 |
-| b43-pendulum-5 | side-by-side / columns | pass | pass (9/9) | 0 labels, 0 arrows | 15812 |
+| b41-pendulum-1 | side-by-side / columns | pass | pass (9/9) | 6 labels, 5 arrows | 15688 |
+| b41-pendulum-2 | side-by-side / columns | pass | pass (9/9) | 0 labels, 6 arrows | 15711 |
+| b41-pendulum-3 | side-by-side / columns | pass | pass (9/9) | 0 labels, 0 arrows | 15557 |
+| b41-pendulum-4 | side-by-side / columns | pass | pass (9/9) | 5 labels, 5 arrows | 16040 |
+| b41-pendulum-5 | side-by-side / columns | pass | pass (9/9) | 9 labels, 8 arrows | 15353 |
+| b43-pendulum-1 | side-by-side / rows | pass | pass (9/9) | 8 labels, 8 arrows | 15800 |
+| b43-pendulum-2 | tall-with-panel / rows | pass | pass (9/9) | 0 labels, 0 arrows | 15605 |
+| b43-pendulum-3 | side-by-side / columns | pass | pass (9/9) | 0 labels, 6 arrows | 15701 |
+| b43-pendulum-4 | side-by-side / columns | pass | pass (9/9) | 0 labels, 0 arrows | 15558 |
+| b43-pendulum-5 | side-by-side / columns | pass | pass (9/9) | 0 labels, 0 arrows | 15948 |
 
 Validate passed: 10 of 10. All frames passed: 10 of 10.

@@ -214,10 +214,10 @@ export function programFromBuild({ blueprint, buildSchema: build, yRange: sample
   const parts = bpParts.filter(part => part.type !== 'label' && !dropped.has(part.id)).map(part => {
     const own = fixed[part.id] ?? {}, out = { type: part.type, id: part.id, role: roleOf(part) };
     for (const key of ['from', 'to', 'at', 'size']) if (part[key] !== undefined) out[key] = own[key] ?? part[key];
-    if (part.type === 'arrow') Object.assign(out, { factor: arrows[part.id]?.lengthFactor ?? 1, edge: arrows[part.id]?.startAtEdge === true, ...(labelOf[part.id] ? { label: labelOf[part.id].text } : {}) });
+    if (part.type === 'arrow') Object.assign(out, { factor: arrows[part.id]?.lengthFactor ?? 1, edge: arrows[part.id]?.startAtEdge === true });
     return out;
   });
-  const labels = main.labels.filter(entry => byId[entry.id]?.type === 'label' && !dropped.has(entry.id)).map(entry => ({ id: entry.id, near: entry.near, side: entry.side, text: entry.text, role: roleOf(byId[entry.id]), width: labelWidth(entry.text) }));
+  const labels = main.labels.filter(entry => ['label', 'arrow'].includes(byId[entry.id]?.type) && !dropped.has(entry.id)).map(entry => ({ id: entry.id, object: byId[entry.id].type === 'label' ? `part.${entry.id}` : `part.${entry.id}.label`, near: entry.near, side: entry.side, text: entry.text, role: roleOf(byId[entry.id]), width: labelWidth(entry.text) }));
   // the graph
   let plot = null, plotGeometry = null, figure = null;
   const panel = blueprint.pictures.panel;
@@ -264,7 +264,7 @@ export function evaluate({ inputs, time }) {
   const dots = P.parts.filter(part => part.type === 'dot').map(part => ({ x: X(num(part.at[0])), y: Y(num(part.at[1])), r: diameterOf(part.size, out, NAMED, ${DOT_MIN_PX}, ${DOT_MAX_PX}) / 2 }));
   for (const part of P.parts) {
     const id = 'part.' + part.id, opts = { role: part.role };
-    if (part.type === 'line') { const x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])); objects.push(sdk.line(id, x1, y1, x2, y2, opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] }); }
+    if (part.type === 'line') { const x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1])); objects.push(sdk.polyline(id, [[x1, y1], [x2, y2]], opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] }); }
     else if (part.type === 'arrow') {
       // the arrow's tip is lengthFactor of the way along what the lesson computes; startAtEdge: from a dot's centre it starts at the dot's edge plus ${ARROW_DOT_GAP_PX} px; short of the dot's radius it is left out of this frame (motion decoration)
       let x1 = X(num(part.from[0])), y1 = Y(num(part.from[1])), x2 = X(num(part.to[0])), y2 = Y(num(part.to[1]));
@@ -272,11 +272,12 @@ export function evaluate({ inputs, time }) {
       const whole = Math.hypot(x2 - x1, y2 - y1), dot = part.edge ? dots.find(d => Math.abs(d.x - x1) < 0.01 && Math.abs(d.y - y1) < 0.01) : null;
       if (dot) { if (whole < dot.r + ${ARROW_DOT_GAP_PX} + 1) continue; x1 += (x2 - x1) / whole * (dot.r + ${ARROW_DOT_GAP_PX}); y1 += (y2 - y1) / whole * (dot.r + ${ARROW_DOT_GAP_PX}); }
       const length = Math.hypot(x2 - x1, y2 - y1);
-      let head = null;
-      if (length) { const dx = (x2 - x1) / length, dy = (y2 - y1) / length, tip = Math.min(7, length), bx = x2 - dx * tip, by = y2 - dy * tip, hx = [x2, bx - dy * 3.4, bx + dy * 3.4], hy = [y2, by + dx * 3.4, by - dx * 3.4]; head = [Math.min(...hx), Math.min(...hy), Math.max(...hx), Math.max(...hy)]; }
+      // the head is the composed theme's: 12 px long, 4 px either side of the shaft, drawn as an open V of two strokes from the tip
+      let head = null, wings = null;
+      if (length) { const dx = (x2 - x1) / length, dy = (y2 - y1) / length, back = Math.min(12, length), bx = x2 - dx * back, by = y2 - dy * back; wings = [[bx - dy * 4, by + dx * 4], [x2, y2], [bx + dy * 4, by - dx * 4]]; head = [Math.min(...wings.map(p => p[0])), Math.min(...wings.map(p => p[1])), Math.max(...wings.map(p => p[0])), Math.max(...wings.map(p => p[1]))]; }
       // motion decoration, the same rule: an arrowhead that would land on a dot's box (the frame rules take a circle by its box) is left out of this frame
       if (head && dots.some(d => Math.min(head[2], d.x + d.r) - Math.max(head[0], d.x - d.r) > 0 && Math.min(head[3], d.y + d.r) - Math.max(head[1], d.y - d.r) > 0)) continue;
-      objects.push(sdk.arrow(id, x1, y1, x2, y2, part.label ? { role: part.role, text: part.label } : opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] });
+      objects.push(sdk.polyline(id, [[x1, y1], [x2, y2]], opts)); if (wings) objects.push(sdk.polyline(id + '.head', wings, opts)); extents[part.id] = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)]; obstacles.push({ s: [x1, y1, x2, y2] });
       if (head) obstacles.push({ b: head });
     }
     else if (part.type === 'dot') { const x = X(num(part.at[0])), y = Y(num(part.at[1])), d = diameterOf(part.size, out, NAMED, ${DOT_MIN_PX}, ${DOT_MAX_PX}); objects.push(sdk.circle(id, x, y, d, opts)); extents[part.id] = [x - d / 2, y - d / 2, x + d / 2, y + d / 2]; obstacles.push({ b: extents[part.id] }); }
@@ -290,7 +291,7 @@ export function evaluate({ inputs, time }) {
   for (const label of P.labels) {
     const ext = extents[label.near]; if (!ext) continue;
     const spot = labelAt(ext, label.width, label.side, ${LABEL_GAPS_PX[0]}, obstacles, L.stageBounds); if (!spot) continue;
-    objects.push(sdk.text('part.' + label.id, spot.x, spot.y + 4.9, label.text, { align: 'middle', role: label.role }));
+    objects.push(sdk.text(label.object, spot.x, spot.y + 4.9, label.text, { align: 'middle', role: label.role }));
     obstacles.push({ b: [spot.x - label.width / 2, spot.y - 5.9, spot.x + label.width / 2, spot.y + 10.8] });
   }
   if (P.plot) {

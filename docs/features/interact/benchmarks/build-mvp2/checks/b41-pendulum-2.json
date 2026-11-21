@@ -14,7 +14,7 @@
         "time": 0,
         "ok": true,
         "objects": 23,
-        "ms": 15.6,
+        "ms": 7,
         "dropped": {
           "labels": [],
           "arrows": [
@@ -27,8 +27,8 @@
         "setting": "the defaults",
         "time": 3,
         "ok": true,
-        "objects": 26,
-        "ms": 57.4,
+        "objects": 27,
+        "ms": 6.8,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -39,8 +39,8 @@
         "setting": "the defaults",
         "time": 6,
         "ok": true,
-        "objects": 26,
-        "ms": 59.2,
+        "objects": 27,
+        "ms": 8.4,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -52,7 +52,7 @@
         "time": 0,
         "ok": true,
         "objects": 23,
-        "ms": 17.8,
+        "ms": 7.6,
         "dropped": {
           "labels": [],
           "arrows": [
@@ -66,7 +66,7 @@
         "time": 3,
         "ok": true,
         "objects": 25,
-        "ms": 59.2,
+        "ms": 7.3,
         "dropped": {
           "labels": [],
           "arrows": [
@@ -79,8 +79,8 @@
         "setting": "every number control at its maximum",
         "time": 6,
         "ok": true,
-        "objects": 26,
-        "ms": 84.7,
+        "objects": 27,
+        "ms": 8.8,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -92,7 +92,7 @@
         "time": 0,
         "ok": true,
         "objects": 23,
-        "ms": 33.2,
+        "ms": 6.8,
         "dropped": {
           "labels": [],
           "arrows": [
@@ -106,7 +106,7 @@
         "time": 3,
         "ok": true,
         "objects": 25,
-        "ms": 17.6,
+        "ms": 11,
         "dropped": {
           "labels": [],
           "arrows": [
@@ -120,7 +120,7 @@
         "time": 6,
         "ok": true,
         "objects": 25,
-        "ms": 43.3,
+        "ms": 11.4,
         "dropped": {
           "labels": [],
           "arrows": [
@@ -271,5 +271,5 @@
     },
     "dropped": []
   },
-  "bytes": 15548
+  "bytes": 15711
 }

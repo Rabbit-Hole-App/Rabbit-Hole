@@ -13,8 +13,8 @@
         "setting": "the defaults",
         "time": 0,
         "ok": true,
-        "objects": 22,
-        "ms": 14.2,
+        "objects": 23,
+        "ms": 8,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -25,8 +25,8 @@
         "setting": "the defaults",
         "time": 3,
         "ok": true,
-        "objects": 23,
-        "ms": 15.6,
+        "objects": 24,
+        "ms": 7.2,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -37,8 +37,8 @@
         "setting": "the defaults",
         "time": 6,
         "ok": true,
-        "objects": 23,
-        "ms": 15.5,
+        "objects": 24,
+        "ms": 8.9,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -49,8 +49,8 @@
         "setting": "every number control at its maximum",
         "time": 0,
         "ok": true,
-        "objects": 22,
-        "ms": 15.5,
+        "objects": 23,
+        "ms": 8.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -61,8 +61,8 @@
         "setting": "every number control at its maximum",
         "time": 3,
         "ok": true,
-        "objects": 23,
-        "ms": 17.1,
+        "objects": 24,
+        "ms": 8.2,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -73,8 +73,8 @@
         "setting": "every number control at its maximum",
         "time": 6,
         "ok": true,
-        "objects": 23,
-        "ms": 16.1,
+        "objects": 24,
+        "ms": 7.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -85,8 +85,8 @@
         "setting": "every number control at its minimum",
         "time": 0,
         "ok": true,
-        "objects": 22,
-        "ms": 14.4,
+        "objects": 23,
+        "ms": 6,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -97,8 +97,8 @@
         "setting": "every number control at its minimum",
         "time": 3,
         "ok": true,
-        "objects": 23,
-        "ms": 16.2,
+        "objects": 24,
+        "ms": 8,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -109,8 +109,8 @@
         "setting": "every number control at its minimum",
         "time": 6,
         "ok": true,
-        "objects": 23,
-        "ms": 14.4,
+        "objects": 24,
+        "ms": 8.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -262,5 +262,5 @@
       "bob_lbl"
     ]
   },
-  "bytes": 15812
+  "bytes": 15948
 }

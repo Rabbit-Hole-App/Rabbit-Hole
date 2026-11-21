@@ -26,6 +26,7 @@ const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b2
 // brief 32: --times 0.6,1.8,3 sets the card's time scrubber to each moment (a timed card), saving <id>-t<k>.png, the diagram's SVG and every flow node's box in <id>-times.json; --slider-test plays the card, then moves its x slider to 2 (--slider-name "B length" --slider-value 1.5 for another) and records what changed.
 // brief 34: with --times the card is re-found after a reload of the saved canvas and <id>-visible.json lists every probe point of the card that something else covers.
 // brief 33: --settings "B mass=2,B length=1;B mass=1,B length=2" sets the card's sliders (by their aria-label) before each run of --times; files get -s<k> in their names.
+const SCRUB = `input[type="range"][aria-label="${opt('scrub-label', 'Time')}"]`;
 const GROUPS = opt('settings', '').split(';').filter(Boolean), TIMES = opt('times', '').split(',').filter(Boolean).map(Number), SLIDER_TEST = flag('slider-test'), STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
 if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
 if (!check && !promptsFile) fail(`--prompts <list.json> is required (or --check). ${USAGE}`, 2);
@@ -167,7 +168,7 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
         r.files.nodes = save(`${tag}-nodes.json`, states);
       }
       if (TIMES.length) {
-        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), moments = [], layoutMeasures = [];
+        const scrub = card.locator(SCRUB).first(), moments = [], layoutMeasures = [];
         for (const [gi, group] of (GROUPS.length ? GROUPS : ['']).entries()) {
         if (group) for (const pair of group.split(',')) { const [label, value] = pair.split('='); await card.locator(`input[type="range"][aria-label="${label}"]`).first().fill(value); }
         await page.waitForTimeout(600);
@@ -190,7 +191,7 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
         r.files.times = save(`${tag}-times.json`, moments); r.files.layout = save(`${tag}-layout.json`, layoutMeasures);
       }
       if (SLIDER_TEST) {
-        const scrub = card.locator('input[type="range"][aria-label="Time"]').first(), x = card.locator(`input[type="range"][aria-label="${opt('slider-name', 'x')}"]`).first();
+        const scrub = card.locator(SCRUB).first(), x = card.locator(`input[type="range"][aria-label="${opt('slider-name', 'x')}"]`).first();
         await scrub.fill('0'); await page.waitForTimeout(400);
         const callout = async () => (await card.innerText().catch(() => '')).replace(/\s+/g, ' ');
         const before = { time: await scrub.inputValue(), x: await x.inputValue(), text: await callout() };

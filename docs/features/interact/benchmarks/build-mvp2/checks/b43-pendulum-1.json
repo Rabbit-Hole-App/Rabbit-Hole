@@ -14,9 +14,11 @@
         "time": 0,
         "ok": true,
         "objects": 17,
-        "ms": 51.2,
+        "ms": 6.3,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -28,9 +30,11 @@
         "time": 3,
         "ok": true,
         "objects": 18,
-        "ms": 14.6,
+        "ms": 7.4,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -42,9 +46,11 @@
         "time": 6,
         "ok": true,
         "objects": 18,
-        "ms": 39.1,
+        "ms": 6.1,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -56,9 +62,11 @@
         "time": 0,
         "ok": true,
         "objects": 17,
-        "ms": 13.7,
+        "ms": 7.1,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -70,9 +78,11 @@
         "time": 3,
         "ok": true,
         "objects": 18,
-        "ms": 15.6,
+        "ms": 7.8,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -83,8 +93,8 @@
         "setting": "every number control at its maximum",
         "time": 6,
         "ok": true,
-        "objects": 19,
-        "ms": 17.1,
+        "objects": 21,
+        "ms": 8.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -96,9 +106,11 @@
         "time": 0,
         "ok": true,
         "objects": 17,
-        "ms": 17.4,
+        "ms": 5.1,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -110,9 +122,11 @@
         "time": 3,
         "ok": true,
         "objects": 18,
-        "ms": 19.9,
+        "ms": 6.4,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -124,9 +138,11 @@
         "time": 6,
         "ok": true,
         "objects": 18,
-        "ms": 56,
+        "ms": 6,
         "dropped": {
-          "labels": [],
+          "labels": [
+            "vel_arrow"
+          ],
           "arrows": [
             "vel_arrow"
           ]
@@ -136,7 +152,7 @@
     ]
   },
   "dropped": {
-    "labels": 0,
+    "labels": 8,
     "arrows": 8
   },
   "placed": {
@@ -275,5 +291,5 @@
     },
     "dropped": []
   },
-  "bytes": 15552
+  "bytes": 15800
 }

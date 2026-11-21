@@ -14,7 +14,7 @@
         "time": 0,
         "ok": true,
         "objects": 21,
-        "ms": 34.3,
+        "ms": 17.7,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -26,7 +26,7 @@
         "time": 3.5,
         "ok": true,
         "objects": 22,
-        "ms": 34.3,
+        "ms": 19.2,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -38,7 +38,7 @@
         "time": 7,
         "ok": true,
         "objects": 22,
-        "ms": 53,
+        "ms": 18.1,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -50,7 +50,7 @@
         "time": 0,
         "ok": true,
         "objects": 21,
-        "ms": 33.1,
+        "ms": 15,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -62,7 +62,7 @@
         "time": 3.5,
         "ok": true,
         "objects": 22,
-        "ms": 35.8,
+        "ms": 16.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -74,7 +74,7 @@
         "time": 7,
         "ok": true,
         "objects": 22,
-        "ms": 39.4,
+        "ms": 17.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -86,7 +86,7 @@
         "time": 0,
         "ok": true,
         "objects": 21,
-        "ms": 31.7,
+        "ms": 17.7,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -98,7 +98,7 @@
         "time": 3.5,
         "ok": true,
         "objects": 22,
-        "ms": 32.6,
+        "ms": 18.3,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -110,7 +110,7 @@
         "time": 7,
         "ok": true,
         "objects": 22,
-        "ms": 39.5,
+        "ms": 18.7,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -261,5 +261,5 @@
       "plumb_label"
     ]
   },
-  "bytes": 15420
+  "bytes": 15558
 }

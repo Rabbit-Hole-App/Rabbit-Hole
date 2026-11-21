@@ -13,8 +13,8 @@
         "setting": "the defaults",
         "time": 0,
         "ok": true,
-        "objects": 24,
-        "ms": 28.2,
+        "objects": 26,
+        "ms": 6.2,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -25,8 +25,8 @@
         "setting": "the defaults",
         "time": 3,
         "ok": true,
-        "objects": 25,
-        "ms": 14.2,
+        "objects": 27,
+        "ms": 9.1,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -37,8 +37,8 @@
         "setting": "the defaults",
         "time": 6,
         "ok": true,
-        "objects": 25,
-        "ms": 30.7,
+        "objects": 27,
+        "ms": 8.4,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -49,8 +49,8 @@
         "setting": "mass = 5",
         "time": 0,
         "ok": true,
-        "objects": 24,
-        "ms": 17.2,
+        "objects": 26,
+        "ms": 7.9,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -61,8 +61,8 @@
         "setting": "mass = 5",
         "time": 3,
         "ok": true,
-        "objects": 25,
-        "ms": 36.4,
+        "objects": 27,
+        "ms": 8,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -73,8 +73,8 @@
         "setting": "mass = 5",
         "time": 6,
         "ok": true,
-        "objects": 25,
-        "ms": 13.9,
+        "objects": 27,
+        "ms": 8.2,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -85,8 +85,8 @@
         "setting": "mass = 4.4375",
         "time": 0,
         "ok": true,
-        "objects": 24,
-        "ms": 13.4,
+        "objects": 26,
+        "ms": 8.5,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -97,8 +97,8 @@
         "setting": "mass = 4.4375",
         "time": 3,
         "ok": true,
-        "objects": 25,
-        "ms": 14.3,
+        "objects": 27,
+        "ms": 8,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -109,8 +109,8 @@
         "setting": "mass = 4.4375",
         "time": 6,
         "ok": true,
-        "objects": 25,
-        "ms": 15.8,
+        "objects": 27,
+        "ms": 8.1,
         "dropped": {
           "labels": [],
           "arrows": []
@@ -259,5 +259,5 @@
     },
     "dropped": []
   },
-  "bytes": 15394
+  "bytes": 15557
 }

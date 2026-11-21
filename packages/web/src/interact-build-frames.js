@@ -30,7 +30,7 @@ export async function checkBuilt({ blueprint, buildSchema }) {
   const { parseFrame } = await import('./explain-program/contract.js'), { normalizeFrame } = await import('./explain-program/frame.js'), { frameOverlaps, layoutProblems } = await import('./explain-program/frame-overlap.js');
   const engine = await getEngine(), sampled = result.sampled, settings = [sampled.points[0], sampled.points.at(-1), sampled.points.at(-2)].filter(Boolean), times = [0, blueprint.time.duration / 2, blueprint.time.duration];
   const main = buildSchema.pictures.main, dropped = new Set(main.dropped.map(entry => entry.id)), byId = Object.fromEntries(blueprint.pictures.main.parts.map(part => [part.id, part]));
-  const labelIds = main.labels.filter(entry => byId[entry.id]?.type === 'label' && !dropped.has(entry.id)).map(entry => entry.id), arrowIds = blueprint.pictures.main.parts.filter(part => part.type === 'arrow' && !dropped.has(part.id)).map(part => part.id);
+  const labelEntries = main.labels.filter(entry => ['label', 'arrow'].includes(byId[entry.id]?.type) && !dropped.has(entry.id)).map(entry => ({ id: entry.id, object: byId[entry.id].type === 'label' ? `part.${entry.id}` : `part.${entry.id}.label` })), labelIds = labelEntries.map(entry => entry.id), arrowIds = blueprint.pictures.main.parts.filter(part => part.type === 'arrow' && !dropped.has(part.id)).map(part => part.id);
   for (const setting of settings) for (const time of times) {
     const entry = { setting: setting.name, time, ok: false, objects: null, ms: null, dropped: { labels: [], arrows: [] } };
     result.frames.list.push(entry);
@@ -43,7 +43,7 @@ export async function checkBuilt({ blueprint, buildSchema }) {
     const parsed = parseFrame(frame); if (!parsed.ok) { entry.sentence = `The frame is refused by the host at ${describe(setting, time)}: ${parsed.error ?? JSON.stringify(parsed).slice(0, 160)}.`; validate(entry.sentence); continue; }
     if (!normalizeFrame(frame).ok) { entry.sentence = `The frame cannot be normalized at ${describe(setting, time)}.`; validate(entry.sentence); continue; }
     const drawn = new Set(frame.objects.map(object => object.id));
-    entry.dropped.labels = labelIds.filter(id => !drawn.has(`part.${id}`)); entry.dropped.arrows = arrowIds.filter(id => !drawn.has(`part.${id}`));
+    entry.dropped.labels = labelEntries.filter(item => !drawn.has(item.object)).map(item => item.id); entry.dropped.arrows = arrowIds.filter(id => !drawn.has(`part.${id}`));
     result.dropped.labels += entry.dropped.labels.length; result.dropped.arrows += entry.dropped.arrows.length;
     const found = [...frameOverlaps({ ...frame, bodySize: 14 }), ...layoutProblems({ ...frame, bodySize: 14 })];
     if (found.length) { entry.sentence = `Things overlap in the frame at ${describe(setting, time)}: ${JSON.stringify(found[0]).slice(0, 200)}.`; continue; }

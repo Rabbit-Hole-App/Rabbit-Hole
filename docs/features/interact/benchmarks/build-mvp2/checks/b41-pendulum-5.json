@@ -14,7 +14,7 @@
         "time": 0,
         "ok": true,
         "objects": 19,
-        "ms": 13.8,
+        "ms": 6.8,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -29,8 +29,8 @@
         "setting": "the defaults",
         "time": 2.5,
         "ok": true,
-        "objects": 21,
-        "ms": 52.8,
+        "objects": 22,
+        "ms": 5.5,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -44,7 +44,7 @@
         "time": 5,
         "ok": true,
         "objects": 20,
-        "ms": 14.6,
+        "ms": 6.3,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -60,7 +60,7 @@
         "time": 0,
         "ok": true,
         "objects": 19,
-        "ms": 18.9,
+        "ms": 5.4,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -76,7 +76,7 @@
         "time": 2.5,
         "ok": true,
         "objects": 20,
-        "ms": 14.8,
+        "ms": 7.8,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -92,7 +92,7 @@
         "time": 5,
         "ok": true,
         "objects": 20,
-        "ms": 95,
+        "ms": 7.5,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -108,7 +108,7 @@
         "time": 0,
         "ok": true,
         "objects": 19,
-        "ms": 13.2,
+        "ms": 5.8,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -124,7 +124,7 @@
         "time": 2.5,
         "ok": true,
         "objects": 20,
-        "ms": 15.5,
+        "ms": 5.7,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -140,7 +140,7 @@
         "time": 5,
         "ok": true,
         "objects": 20,
-        "ms": 32.4,
+        "ms": 7.2,
         "dropped": {
           "labels": [
             "pivotLabel"
@@ -293,5 +293,5 @@
     },
     "dropped": []
   },
-  "bytes": 15216
+  "bytes": 15353
 }
