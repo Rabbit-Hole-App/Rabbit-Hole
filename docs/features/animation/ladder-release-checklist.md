@@ -1,6 +1,8 @@
 # Ladder release checklist (one combined release, one tree)
 
-**Reference. Parallel sends commands at the moment of use.** This page says what happens, in what order, and who sends what; the commands are named so they are verified in advance, and none of them is a standing instruction.
+**Historical release procedure.** The checklist below records the original C4 procedure from Decision 23. Decision 38 superseded it for the 4 November release. C14b `18d92571` shipped the scoped ladder implementation under the MVP fast path. The release succeeded, and the read-only checks confirmed the deployed build and activation. Gate 2 qualification, the SGD capability claim, the signed-in SGD acceptance and the weekly canary are parked. [Decision 38](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/superpowers/plans/2026-10-30-animation.md#L1122) · [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
+
+**Reference. Parallel sends commands at the moment of use.** The commands below document the original procedure.
 
 Owner decision 23 (3 November 2026): **one** fast-path release carries MVP2b, MVP3, MVP4 and MVP5, after the `--mvp` branch release and both gates have passed. There is no separate MVP2b or MVP3 release. Owner order (later the same day): the release candidate is **one final tree**, C4 = C5, carrying the copy-and-claim commit, the scripts and this tooling; the recovery-branch cut and the combined smoke run **during** the gates, not after. Plan: `docs/superpowers/plans/2026-10-30-animation.md` sections 8 and 13.3 to 13.4; mechanism: `docs/features/mvp-fast-path.md`; recovery: `recovery-ladder.md`.
 

@@ -1,22 +1,17 @@
 # /animation checklist
 
-Plan: [2026-10-30-animation.md](../../superpowers/plans/2026-10-30-animation.md) (v3.1 with the owner's amendments of 3 November 2026;
-owner decisions 1 to 17 and 20 in section 1; the SGD ladder AN-17 to AN-21 is section 8; kickoff inventory: 14.4). Blockers and
-fixes: [fix.md](fix.md). Spend: [spend.md](spend.md). Billing: [billing-escrow.md](billing-escrow.md). MVP receipt:
-[receipts/M3-8ed7e52ed.md](receipts/M3-8ed7e52ed.md). Ledger parent task `8b56bdab` (MVP1); ladder ledger `857a0d92-9bb6-4b9b-9739-ae85d7df3d27`
-(below). Times are PT (2026-10-30 to 2026-11-03).
+[Implementation plan](../../superpowers/plans/2026-10-30-animation.md) · [Fix log](fix.md) · [Spend](spend.md) · [Billing escrow](billing-escrow.md) · [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
+
+Status reconciled 7 November 2026 against `main` at `19f933c2`. Times are PT.
 
 States: `not_started`, `in_progress`, `blocked`, `pushed`, `tested`, `preview_ready`, `ready_for_owner_review`,
-`owner_approved`, `deployed`, `enabled`, `production_verified`, `deferred`.
+`owner_approved`, `deployed`, `enabled`, `production_verified`, `deferred`, `parked`.
 
-**Production (3 November 2026): `caf7ee9bc7355ba6d76f971d00872b0da8a1254b`**, released 3:09 PM PT (workflow run 41736512175; `rabbit-hole-app`
-version `56df36da-8637-4839-b848-9e5920c48fae`, `rabbit-hole-cp` version `eea10533-f761-4d33-b819-1b839286d58e`; build `a661e0ea0f9717e6`).
-AN-01 to AN-07 (MVP1) are released. Limited acceptance passed on a real grid game; SGD qualification failed and is open; the owner's
-signed-in production smoke is pending. The SGD ladder AN-17 to AN-21 is approved as a scoped exception (decision 15); AN-08 to AN-16
-stay blocked. Kickoff base (history): main `a3376817f003a9c41824fc5b76b644778bc9c6e3`; the old MVP candidate `c9d0c5509126b277603a778fbcdc2b376a08ab42`
-and its preview `rabbit-hole-web-dev-animation` are superseded by the production commit above. A dev preview is a per-candidate clone
-(`docs/features/parallel-dev-deploys.md`); `ANIMATION_DIAGNOSTICS` is never set in production. Production activation: see
-[Production activation](#production-activation) (released).
+**Latest recorded ladder release:** C14b `18d92571`, 4 November 2026 at 12:08 PM PT. Verify, fast-e2e and the production release passed. The read-only checks confirmed the deployed build and activation. SGD qualification is parked under Decision 38. [Production run 41903737638](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41903737638) · [Verify](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41902324893) · [Fast-e2e](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41902325006) · [Decision 38](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/superpowers/plans/2026-10-30-animation.md#L1122)
+
+**Earlier MVP1 release:** `caf7ee9bc`, 3 November 2026 at 3:09 PM PT. AN-01 through AN-07 shipped with limited acceptance on a generated grid game. [MVP1 receipt](receipts/M3-8ed7e52ed.md)
+
+**Rendering:** `/animation` draws a live 3D scene in a Three.js WebGL canvas. The review pipeline captures PNG stills. `/explain` diagrams and `/interactive` scenes use SVG. [Three.js renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/animation3d/renderer.js#L23-L54) · [Explanation SVG renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/tutor-diagrams/TutorDiagram.js#L11-L31) · [Interactive SVG renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AnimatedScene.jsx#L522)
 
 ## Lanes (MVP1, historical)
 
@@ -44,17 +39,17 @@ history, and what is still open from them is in plan section 7. The ladder rows 
 | AN-05 planner, author, review, repair, job | MVP | G (+P) | feat/animation-g | `c7c24b9d0f5ab14682da0cc6c490c220a5aea084` | control-plane animation tests; 4 real accepted builds (receipt) | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
 | AN-06 persistence, cancel, hydration | MVP | A (+P) | feat/animation-a | `7ceb2b57e8ecd17d0f85e9a38bd4de15d1540cdf`; canvas flush on feat/animation | unit; fast-e2e reload with zero job/model requests (mocked job server); start-board save-race regression (FX-AN-017, `622d17501`) | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
 | AN-07 MVP qualification | MVP | V + P | feat/animation-v | `5a9d096558a821e584f5fe65474a944436f1233d` | receipt M3 | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
-| AN-17 honest failure, transport, repair, billing, copy | ladder, MVP2a + MVP2b | G + P | `feat/animation-escrow` (MVP2a) | MVP2a: docs, copy line and escrow committed on the branch; MVP2b not started | `animation-escrow.test.js` (17 tests), `slash.test.mjs`, `client.test.mjs`; CI on the pushed head | not deployed | in_progress: MVP2a pushed, awaiting its gate; MVP2b not_started | MVP2a: ordinary gate, release, Explore Top rides with it; then MVP2b (streaming, deadline, same-job retry, FX-AN-040/043, repair 24,000, strict output) |
-| AN-18 contract primitives (R) | ladder, MVP3 | R | — | — | — | — | not_started | start now, one writer |
-| AN-19 renderer, framing, golden SGD artifact (R + V) | ladder, MVP3 | R + V | — | — | — | — | not_started (depends on AN-18) | after AN-18 lands |
-| AN-20 prompts, archetype, assertions, offline harness, Gate 1 (G + V) | ladder, MVP4 | G + V | — | — | — | — | not_started (prompt cut and harness may start now) | archetype and exemplar after AN-19 |
-| AN-21 full-pipeline qualification, release, canary (V + P) | ladder, MVP5 | V + P | — | — | — | — | not_started (depends on AN-17 to AN-20) | Gate 2 after Gate 1 passes |
+| AN-17 honest failure, transport, repair and billing | MVP2a + MVP2b | G + P | main | `18d92571` | Escrow, streaming, retry, repair and strict-schema evaluation coverage | C14b release | deployed | Strict tool-output schema redesign parked with AN-22 |
+| AN-18 contract primitives | MVP3 | R | main | `18d92571` | Five capability flags and old-client HTTP 409 coverage | C14b release | deployed | — |
+| AN-19 renderer, framing and golden fixture | MVP3 | R + V | main | `18d92571` | Fixture browser check and C14 product-review acceptance for the golden | C14b release | deployed | Golden is a fixture |
+| AN-20 prompts, archetype, assertions and author harness | MVP4 | G + V | main | `18d92571` | C14 validated 20/20 SGD drafts and 8/9 regressions | C14b release | implementation deployed, full Gate 1 parked | Gate 1 requires 9/9 regressions and 16 owner-approved captures |
+| AN-21 qualification harness and scoped release | MVP5 | V + P | main | `18d92571` | C13 Gate 2 accepted 7/9, both targeted C14 reruns rejected | C14b release and read-only verification | release production_verified, SGD qualification parked | SGD claim, signed-in acceptance and weekly canary parked |
 | AN-22 patch-style repair | proposed | G | — | — | — | — | deferred (after the ladder) | not authorized by the ladder |
 | AN-08..AN-16 | post-MVP | — | — | — | — | — | blocked: owner MVP approval | none until approval |
 
 Ladder ledger UUID `857a0d92-9bb6-4b9b-9739-ae85d7df3d27`; children: AN-17 `b8a06a01-84bf-40af-bccb-9c548e55ef57`, AN-18
 `951e8c49-67ee-4f3a-8264-6bff7b67478e`, AN-19 `e6ab6c6c-a7e2-4685-9010-02e15b8a412c`, AN-20 `54823918-c7a9-47d6-8dcc-0a2029be508b`, AN-21
-`d7a65dd9-906e-46db-9be7-f3881353f6f1`. New `fix.md` entries start at FX-AN-044.
+`d7a65dd9-906e-46db-9be7-f3881353f6f1`.
 
 ## Milestones
 
@@ -65,12 +60,12 @@ Ladder ledger UUID `857a0d92-9bb6-4b9b-9739-ae85d7df3d27`; children: AN-17 `b8a0
 | M2 generated slice | done | first accepted real build on `a006319c994a0981b487169b49231a120b2839cf` (game) | deployed | M3 receipt covers it |
 | M3 MVP ready for decision | done (superseded by MVP1) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | clone, superseded | [M3-8ed7e52ed](receipts/M3-8ed7e52ed.md) |
 | MVP1 released | deployed (production), signed-in smoke pending | `caf7ee9bc7355ba6d76f971d00872b0da8a1254b` | n/a | run 41736512175; limited acceptance on a grid game (plan 13.2) |
-| MVP2a honest failure (escrow, copy line, Explore Top) | in_progress: pushed on `feat/animation-escrow`, awaiting its gate | see the branch head | dev clone after the gate | — |
-| MVP2b transport and repair | not_started | | | — |
-| MVP3 primitives (AN-18 + AN-19) | not_started | | | — |
-| MVP4 prompts and Gate 1 (AN-20) | not_started | | | — |
-| MVP5 SGD qualified (AN-21) | not_started | | | — |
-| APPROVAL GATE | AN-08 onward not reached; the ladder is a scoped exception (decision 15) | | | |
+| MVP2a honest failure | deployed | — | production | [Billing escrow](billing-escrow.md) |
+| MVP2b transport and repair | deployed | `18d92571` | production | [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md) |
+| MVP3 primitives and renderer | deployed | `18d92571` | production | Golden fixture accepted on C14 |
+| MVP4 authoring | deployed, full Gate 1 parked | `18d92571` | production | [C13/C14 evidence](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/evidence/README.md#L125) |
+| MVP5 scoped release | production_verified, SGD qualification parked | `18d92571` | production | [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md) |
+| Continuation gate | AN-08 through AN-16 blocked, AN-22 deferred | — | — | [Decision 38](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/superpowers/plans/2026-10-30-animation.md#L1122) |
 
 ## Owner approval record
 
@@ -94,6 +89,8 @@ AN-08 onward stays `blocked: owner MVP approval` until the owner's explicit appr
 with date, time and scope.
 
 ## Production activation
+
+The C14b receipt records the read-only verification at release, including the declared client capabilities and final request copy. The signed-in SGD acceptance and weekly canary are parked. [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
 
 Config (`packages/web/wrangler.rabbit-hole-prod.jsonc`, pinned by `control-plane/test/rabbit-hole-prod-config.test.js`):
 `ANIMATION_JOBS` -> `AnimationJobs`; migration `animation-jobs-1` (new_sqlite_classes `AnimationJobs`) after `file-jobs-1`,

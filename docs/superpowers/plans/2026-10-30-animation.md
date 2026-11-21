@@ -1,24 +1,17 @@
 # Rabbit Hole /animation — MVP-first implementation and completion plan
 
-**Version 3.1 — 3 November 2026, 3:55 PM PT.** Reconciled to production commit `caf7ee9bc7355ba6d76f971d00872b0da8a1254b`. This file is the only brief Parallel receives; it replaces `docs/superpowers/plans/2026-10-30-animation.md` and is committed there as AN-17's first act. The repository copy carries the owner's amendments of 3 November 2026 (decision 17 amended, decisions 20 to 22; see 13.10).
+**Status reconciled 7 November 2026 against `main` at `19f933c2`.** The original v3.1 plan records the 3 November kickoff. Section 8 records the delivered scope and the gate outcomes.
 
 ## Start here
 
-**Done.** Animation MVP1 is live in production since 3:09 PM PT today (release run 41736512175). The limited acceptance passed on a real pipeline-generated 3×3 grid game (24.76 credits, accepted at its first review, receipt in 13.2). Tasks AN-01 to AN-07 are implemented and released; their status table is section 7 and their subtasks, checked, are in 14.7.
+- **MVP1 shipped on 3 November.** AN-01 through AN-07 shipped at `caf7ee9bc` with limited acceptance on a generated grid game. See sections 7 and 13.2.
+- **The scoped ladder shipped on 4 November at 12:08 PM PT.** C14b (`18d92571`) includes the AN-17 transport, repair and billing changes, the AN-18/19 scene contract and renderer, the AN-20 authoring changes, and the AN-21 qualification harness. The release succeeded, and the read-only checks confirmed the deployed build and activation. [Production run 41903737638](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41903737638) · [Verify](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41902324893) · [Fast-e2e](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41902325006) · [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
+- **SGD qualification is parked.** C14 validated 20/20 SGD drafts and 8/9 regression drafts. C13 Gate 2 accepted 7/9 against the required 8/9, and both targeted C14 reruns were rejected. Decision 38 closed the ladder with the SGD capability claim and weekly canary parked. [Decision 38](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/superpowers/plans/2026-10-30-animation.md#L1122) · [C13/C14 evidence](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/evidence/README.md#L125)
+- **Rendering.** The model supplies a structured 3D scene and, for moving scenes, a behavior program. `/animation` draws it in a live WebGL canvas with Three.js and takes PNG stills for review. Written `/explain` diagrams and playable 2D `/interactive` scenes use their own SVG renderers. [Three.js renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/animation3d/renderer.js#L23-L54) · [Explanation SVG renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/tutor-diagrams/TutorDiagram.js#L11-L31) · [Interactive SVG renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AnimatedScene.jsx#L522)
 
-**Not done.** No SGD generation has ever passed the reviewer. The causes are in the scene contract and the author prompt, not in any single run (section 8, first table). Because the feature is public with no allowlist, a learner who asks for SGD today pays 100 to 133 credits for a failure.
+Use the [checklist](../../features/animation/checklist.md) for the task status and [section 8](#8-sgd-qualification-ladder--an-17-to-an-21-owner-approved-3-november-2026) for the delivered scope.
 
-**Start at AN-17.** Section 8 is the work: five tasks, AN-17 to AN-21, in pushable slices MVP2a, MVP2b and MVP3 to MVP5. AN-17 (honest failure, transport, repair, billing) and AN-18 (contract primitives) start now in parallel, with AN-20's prompt cut and harness scripts alongside. AN-17 releases first, in two candidates: MVP2a (the billing escrow, the copy line and Explore Top) now, then MVP2b (decision 20). Everything in AN-08 to AN-16 stays blocked (section 9).
-
-**Push points.** Every independently tested coherent change is pushed to its worker branch at once (section 12). Releases: **MVP2a** now (the billing escrow, the copy line and Explore Top, ordinary gate) and **MVP2b** when the rest of AN-17 passes its own gate (decision 20); **MVP3** when AN-18 and AN-19 together pass their gate and the owner has seen the golden fixture, with Gate 1 run on its frozen candidate's dev preview while it releases (decisions 21 and 22); **MVP4** (the AN-20 prompts on MVP3's release SHA) is the frozen candidate Gate 2 runs on; **MVP5** when Gate 2 passes, with the owner's `!` command; when both gates pass the same day, MVP4 and MVP5 release as one. AN-18 may be pushed to the integration branch before AN-19 without a release. Nothing waits for a milestone to be pushed; only releases serialize.
-
-**Owner actions, in order:** the refund default is settled (decision 17 as amended 3 November: escrow, final attempt only); the signed-in production smoke (13.7); look at the golden fixture after MVP3; look at the Gate 1 captures after MVP4; the `!` command and one SGD request for MVP5.
-
-**Kickoff instruction to paste to Parallel:**
-
-> Read `rabbit-hole-animation-build-plan.md` (v3.1) end to end; section 8 is the work. Your first commit is AN-17's documentation step: this file to `docs/superpowers/plans/2026-10-30-animation.md`, `checklist.md` synced, today's spend rows and the 3 November budget line in `spend.md`. Mint one ladder UUID with a child per AN-17 to AN-21 and record them in the ledger. Owner decisions 11 to 17 in section 1 are approved; cite them in commits. Start now, in isolated worktrees off `main` at `caf7ee9bc`: AN-17 (G+P) and AN-18 (R) in parallel, plus AN-20's prompt cut and harness scripts (G+V). AN-17 releases as MVP2a (escrow, copy line, Explore Top) and then MVP2b, each through the ordinary gate (decision 20). Rules: no new sentence in the author or repair prompts for an individual finding; no raising `maxInputTokens`; no shrinking plans; no full-pipeline SGD job until Gate 1 passes; freeze the SHA before each gate. Before Gate 2, get a second dev test session or a raised dev allowance (13.2). New `fix.md` entries start at FX-AN-044. Hand back per CLAUDE.md; ETA table when asked.
-
-| Production identity | Recorded value |
+| MVP1 production identity (historical) | Recorded value |
 |---|---|
 | Application commit | `caf7ee9bc7355ba6d76f971d00872b0da8a1254b` |
 | Release time | 3:09 PM PT, 3 November 2026 (workflow log: completion at 3:08:39 PM PT) |
@@ -323,9 +316,9 @@ Nothing here is new work. The full subtask lists, with each implemented item che
 
 ## 8. SGD qualification ladder — AN-17 to AN-21 (owner-approved 3 November 2026)
 
-**Authority:** owner decisions 11 to 17 in section 1. This ladder is the work that starts now. It is a scoped exception to the AN-08 gate; nothing here authorizes AN-08 to AN-16.
+**Closeout.** Decision 38 superseded the kickoff release sequence below. The implementation shipped in C14b under the MVP fast path. Checked items describe delivered or verified work. Open qualification items are parked under that decision. [Decision 38](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/superpowers/plans/2026-10-30-animation.md#L1122) · [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
 
-**Goal:** a learner who asks for stochastic gradient descent, or any scene on a continuous surface with a moving marker and a path, gets an accepted card. Qualified when 8 of 10 full-pipeline SGD jobs are accepted (Gate 2), after 16 of 20 author-only samples pass offline (Gate 1). Until then SGD stays out of the claimed capabilities and the product says so.
+**Original goal.** Qualify SGD generation on a frozen candidate. Gate 1 requires at least 16 of 20 valid, owner-accepted SGD captures and 9 of 9 clean regressions. Gate 2 requires at least 8 of the first 9 full jobs accepted and a wrong-subject control that does not silently become SGD.
 
 ### Why SGD fails — read against the code at `caf7ee9bc`
 
@@ -358,47 +351,43 @@ The author obeys its rules. The rules and the contract produce the scene the rev
 
 ### The ladder at a glance
 
-| MVP | Task | What ships | Tested before push by | Release mode | Owner action |
-|---|---|---|---|---|---|
-| MVP2a | AN-17 | Billing escrow (the plan stage stays charged; the generation stage is released on failure; 5 free failures per learner per day, counted per attempt; "You have not been charged."; a retried job is charged only its final attempt); the "loss surfaces and optimizers are not supported yet" copy line; Explore Top | Control-plane unit tests (`animation-escrow.test.js`: a rejected job leaves only the plan charged, a retried job only its final attempt); client tests; the `animation-mvp-check` copy step | Ordinary gate | Sign-in smoke after release |
-| MVP2b | AN-17 | Streamed author and repair calls limited to the Animation roles behind a role flag, with a deadline and one same-job retry; FX-AN-040 and FX-AN-043 applied; repair 24,000 / medium; strict-output evaluation | Control-plane unit tests with a fake SSE transport; its receipt reports the new displayed credit ceiling | Ordinary gate | None |
-| MVP3 | AN-18 + AN-19 | Five client features; renderer and framing; golden SGD artifact as a labelled fixture on the dev preview; browser check registered | `contract.test.mjs`, `scene.test.mjs`, `framing.test.mjs`, `renderer.test.mjs`; the new browser check in `fast-e2e` | Ordinary gate | Look at the fixture on the preview; say whether the diverged state reads. Gate 1 runs on this frozen candidate's preview while it releases (decisions 21 and 22) |
-| MVP4 | AN-20 | Shorter universal prompts; `loss_surface` archetype; plan assertions; offline harness; Gate 1 (decision 22: drafts under these prompt files against MVP3's contract and renderer) passed with a three-plan regression set; MVP4 is MVP3's release SHA plus the AN-20 branch at the hashes Gate 1 recorded, and is the frozen candidate Gate 2 runs on | `animation-fit.test.js` shows the prompt and draft budget before and after; harness tables; Gate 1 table with its three identities (MVP3 SHA, prompt-files hash, golden artifact hash) | Prompt-only: fast path once it exists, else ordinary gate; one release with MVP5 when both gates pass the same day | Look at the Gate 1 captures (about 20 minutes); approve the second test session for Gate 2 |
-| MVP5 | AN-21 | Gate 2 passed; SGD back in the claimed list; copy line removed; weekly canary; closeout | Gate 2 table with job ids and credits, run on MVP4's frozen candidate before any release; `verify`, `fast-e2e`, gate on the exact SHA; one real SGD request in production after release | Ordinary gate (one release with MVP4 when both gates pass the same day) | `!` command to `main`; one SGD request as the signed-in user |
+| Task | Delivered | Recorded verification or remaining status |
+|---|---|---|
+| AN-17 | Generation escrow, streaming and deadlines, same-job retry, repair fixes and 24,000-token repair cap | Focused coverage and release CI. Strict-output evaluation complete. Schema redesign parked under AN-22. |
+| AN-18 | Surface grids, trail points, text readouts, arrow anchors and clamping | Contract tests and old-client HTTP 409 coverage. |
+| AN-19 | Three.js renderer, camera framing, traces and the labeled golden SGD fixture | Browser fixture check and C14 product-review acceptance for the golden. |
+| AN-20 | Shorter prompts, loss-surface archetype, assertions and author harness | C14 validated 20/20 SGD and 8/9 regression drafts. Full Gate 1 acceptance remains open. |
+| AN-21 | Qualification harness, request copy update and scoped C14b release | C13 Gate 2 accepted 7/9. Both C14 targeted reruns were rejected. Qualification, capability claim and canary parked. |
 
-Release mode, decision 23: MVP2b, MVP3, MVP4 and MVP5 are one combined fast-path release carrying one final tree. The ordinary gate applies to MVP2a and to the `--mvp` branch; the combined release is the fast path after both gates pass; `main` is merged once.
+[C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md) · [C13/C14 evidence](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/evidence/README.md#L125)
 
 ### AN-17 — Honest failure, transport, repair and billing (G + P) — MVP2a and MVP2b
 
-**Status (decision 20):** **MVP2a** (documentation, billing escrow, copy line, with Explore Top) is built on `feat/animation-escrow` and awaits its ordinary gate. **MVP2b** (streaming, deadline, same-job retry, FX-AN-040, FX-AN-043, repair 24,000, strict-output evaluation) is not started and is its own candidate. AN-17 releases first because users are paying for SGD failures today.
+**Status:** Billing escrow shipped first. The remaining transport and repair work shipped with C14b. Strict-output evaluation is complete. The schema redesign is parked under AN-22.
 
 **Files:** `animation-job.js` (settle path, retry), `animation-policy.js` (`deadlines`, `roleFailure`, `callAnimationRole`), `ask.js` (`anthropicTransport`), `learn-models.js`, `agents/animation-author.js` (repair tool only), `animation-repair.js`, `Animation3DCard.jsx` and the request UI (copy, failure message), `docs/features/animation/fix.md`, `spend.md`, `checklist.md`, this plan under `docs/superpowers/plans/`.
 
 **MVP2a**
 
 - [x] Commit this plan (v3) to `docs/superpowers/plans/2026-10-30-animation.md`; sync `checklist.md` (it still named candidate `c9d0c5509`); add the 3 November budget line and today's runs (from `C:/s/spec/animation/sgd-mvp1-acceptance/spend-ledger.md`, 538.10 credits against the 620 acceptance cap) to `spend.md`. One commit, no code. *Done on `feat/animation-escrow` (owner decisions 11 to 17 and 20, 3 November 2026).*
-- [x] Copy line in the `/animation` request UI: works best for mechanisms, loops and small games; loss surfaces and optimizers are not supported yet. Copy-only; eligible for gate reuse under `notReusableBetween`. Pushed as its own commit. *Built on `feat/animation-escrow`: the line ends the command's description (`agent/slash.js`), shown in the picker row and in the Slash Commands window; `animation-mvp-check` has a step that asserts it; AN-21 removes it.*
+- [x] Ship the original MVP2a request copy. C14b superseded the temporary loss-surface limitation sentence with the final Decision 38 wording.
 - [x] Billing on a rejected generation. *Built on `feat/animation-escrow`; the owner's final design (3 November 2026, replacing the recommended full refund): the plan stage stays charged; the generation stage is escrowed, its calls settle as they run and an attempt that fails or is stopped has them released at once; at most 5 refunded failed attempts per learner per day, counted per attempt; the failure message is "You have not been charged."; a job that fails, is retried and then succeeds is charged only its final attempt (the job's attempt at ready); the platform ledger keeps the provider cost; jobs made before the change keep the old rules. Unit tests: a rejected job leaves only the plan charged, an accepted job its calls, a retried job only its final attempt, replays change nothing. No migration. Design, states and risks: `docs/features/animation/billing-escrow.md`.*
 
 **MVP2b**
 
-- [ ] Streaming author and repair calls, limited to the Animation roles behind a role flag (decision 20, point 5). In `anthropicTransport`, role calls send `stream: true` and accumulate the message from the SSE events into the same shape the non-streaming path returns, so `callAnimationRole` is unchanged. Add an `AbortController` with `ANIMATION_LIMITS.deadlines.callMs`, raised to 300,000 for the author (measured calls run 87 to 126 s). Unit test with a fake SSE transport.
-- [ ] Same-job retry (FX-AN-041). A 524, 502, 503 or `provider_unavailable` on the author call retries once after `autoRetry.delayMs` without consuming the author ceiling (the refused call already gives its count back); the failure category becomes `provider_unavailable`, not `internal`. The product no longer offers only "Revise plan" after a timeout.
-- [ ] Apply the prepared FX-AN-040 patch (`final-fix3/FX-AN-040.patch`) with its test.
-- [ ] Apply the prepared FX-AN-043 patch: a repair whose tool input lacks `program` is asked once more, and the raw reply (blocks, text, tool input) is retained in diagnostics. Record in `fix.md` the established fact: run 5 repair 1 stopped with `tool_use` at 6,053 of 12,000 tokens and returned 13 artifact fields with `program` absent; the token ceiling is ruled out; the raw reply was not retained.
-- [ ] `animation_repair` to 24,000 output tokens at medium effort (decision 16). Recompute `roleBoundMicros` and the displayed credit ceiling; record the new number in `fix.md` and the receipt.
-- [ ] Strict tool output, evaluated not assumed: read the current Anthropic documentation for strict tool use and its supported schema subset; list every constraint in `ARTIFACT_DRAFT` and `REPAIR_TOOL` the subset would reject; if a conforming schema is possible without losing local validation, enable it for the repair tool first, behind a fixture test that a reply missing `program` is now refused at the API, and keep full local validation. If not possible, record why and close the item.
-- [ ] Tests: `node --test` in `packages/control-plane`; `npm run test:unit` in `packages/web`; the copy step in `animation-mvp-check.mjs` (built in MVP2a, selected by `check-map.json` for `agent/slash.js`).
+- [x] Stream author and repair calls by default, with Animation role deadlines and a recovery flag. The streaming call deadline is 300 seconds.
+- [x] Retry transient failures in the same job after the configured delay without counting a refused call against the author limit (FX-AN-041).
+- [x] Apply the label-rendering fix and its legibility test (FX-AN-040).
+- [x] Retry a repair reply that omits the program and retain the raw reply in diagnostics (FX-AN-043).
+- [x] Raise repair output to 24,000 tokens at medium effort and recompute the credit bound. See the fix log for the updated bound.
+- [x] Evaluate strict tool output against the current schema. The repair schema exceeds the supported optional-field limit. AN-22 tracks the redesign.
+- [x] Record release verification. C14b verify and fast-e2e passed, and the production read-only check confirmed the final request copy.
 
-**Push and release:** **MVP2a** is one candidate (the escrow commits, the copy line and Explore Top), ordinary gate (billing is server code and money). **MVP2b** is its own candidate, ordinary gate. Receipt for each: SHA, `verify` and `fast-e2e` run ids, gate run id, dev deployment version; MVP2b's receipt also reports the new displayed credit ceiling from the 24,000-token repair and the FX-AN-040/041/043 entries with fixing SHA.
-
-**Owner action:** the refund default is settled (3 November); after MVP2a is released, the signed-in production smoke in section 13 if not already done.
-
-**Accept (MVP2a):** a rejected SGD job in production leaves the learner charged for the plan only and says "You have not been charged."; a retried job is charged only its final attempt; the request says what is not supported. **Accept (MVP2b):** an author timeout retries once and the job continues.
+**Release evidence.** See the [fix log](../../features/animation/fix.md) for the implementation fixes and [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md) for the release CI and read-only production checks. The signed-in production SGD smoke belongs to the parked qualification work.
 
 ### AN-18 — Contract primitives and client compatibility (R) — MVP3, first half
 
-**Status:** not started. One writer. Lands before AN-19 starts.
+**Status:** Implemented and released in C14b, with contract and old-client compatibility coverage.
 
 **Files:** `contract.js`, `capabilities.js`, `animation-author.js` (`clientProblems`), `agents/animation-author.js` (`GEOMETRY`, `NODE`, readout and arrow fields in `ARTIFACT_DRAFT`), `client.js` (declares the features), `contract.test.mjs`, `fixtures.js`, `docs/features/animation/old-client-compatibility.md`.
 
@@ -412,75 +401,62 @@ Each feature is a new entry in `ANIMATION_CLIENT_FEATURES`; `clientProblems` ref
 | `arrow_anchor` | arrow gains `offset?: number`; label gains `anchor?: "origin" or "tip"`, honoured when the label's parent is an arrow node | `offset` < `length`; `anchor` on a non-arrow parent is `invalid_value` |
 | `clamp` | node gains `clampTo?: {node: <surface node id>, max?: number}` | the node is a sphere; the target is a surface node; one clamp per node |
 
-- [ ] Schema and validators above in `contract.js`; `GEOMETRY_KINDS` and `FEATURES` extended; `triangleCost` and `linePoints` cover the new kinds; every new field optional so stored artifacts validate unchanged.
-- [ ] `capabilities.js`: the five flags; `client.js` declares them; `clientProblems` refuses undeclared use with a one-line message per field, as the two existing checks do.
-- [ ] `ARTIFACT_DRAFT` in `agents/animation-author.js` gains the fields with one-line descriptions, so the author's tool schema and the contract agree. No prompt text changes here (that is AN-20).
-- [ ] `contract.test.mjs`: each field accepted; each refused on the wrong node kind; each refused without its flag; a stored pre-AN-18 artifact validates unchanged; frame `points` refused on a non-trail node; a 41-character text readout refused.
-- [ ] `fixtures.js`: one fixture using all five, with calculable expected counts. `old-client-compatibility.md` updated with the five flags and the 409 behavior.
+- [x] Extend the artifact contract, validators and cost checks for the five scene capabilities. Existing artifact fields remain compatible.
+- [x] Declare the five capabilities in current clients and return HTTP 409 `client_update_required` when an older client lacks one a scene needs.
+- [x] Extend the author tool schema to match the artifact contract.
+- [x] Cover the new fields, validation bounds, old artifacts and missing client capabilities in contract and route tests.
+- [x] Add a fixture that exercises all five features and document the compatibility rules.
 
-**Push:** unit tests and `verify` green; can be pushed to the integration branch before AN-19 without a release (nothing renders the new kinds yet; the validator accepts them only from a client that declares them).
-
-**Accept:** the contract expresses a surface, a growing path, a status word, an offset arrow with a tip label and a clamped marker, and an old client is refused rather than shown a broken scene.
+**Verification.** See [old-client compatibility](../../features/animation/old-client-compatibility.md) and the C14b release receipt.
 
 ### AN-19 — Renderer, framing and the golden SGD artifact (R + V) — MVP3, second half
 
-**Status:** not started. Depends on AN-18.
+**Status:** Implemented and released in C14b. The labeled golden fixture passed C14 product review.
 
 **Files:** `scene.js`, `framing.js`, `session.js`, `review.js`, `renderer.js`, `animation-render.js` and `animation-review.js` (trace content), their tests, `testdata/sgd-golden.json`, `fixtures.js`, a new `packages/web/e2e/animation-primitives-check.mjs` registered in `scripts/ci/check-map.json`.
 
-- [ ] `scene.js` `meshGeometry`: `surface` as a `PlaneGeometry` of (cols−1)×(rows−1) segments with displaced y plus `LineSegments` contours at `contours` evenly spaced levels; `trail` as a `BufferGeometry` (or `TubeGeometry` when `radius` is set) rebuilt from `points` on each frame that carries them, reusing the allocated buffer up to `max`; arrow `offset` translates the shaft and head along +Y; a label with `anchor: "tip"` places its sprite at the parent arrow's `length` along +Y.
-- [ ] Clamp: after the program's frame is applied, a node with `clampTo` has its world y clamped to the target surface's top (or `max`); the node carries `diverged: true` when clamped; the trace records both the true and the clamped y. Readouts are untouched.
-- [ ] `framing.js` `subjectPoints`: a clamped node contributes its clamped box; `framing.test.mjs` proves a ball at 5.6 against a rim at 2 does not widen the fit. Replace the wall-clock assertion in `animation-sgd-framing.test.js:59` with an assertion on sampled frames.
-- [ ] `review.js` and `animation-review.js`: the capture text names a clamped node as "clamped at the surface top (true y 5.6)" so the reviewer judges the clamp as the host's behavior, category renderer, not the author's.
-- [ ] Golden SGD artifact: start from run 2's repaired draft (`export-4/`, the draft with one major left after the round-4 renderer fixes); rewrite it by hand onto the AN-18 contract (surface grid 24×24 with 8 contours, one ball with `clampTo`, a `trail` and a `ghost`, text readout `status` with the words running, paused, converged, diverged, arrows with `offset` equal to the ball radius and tip labels, comparison at learning rates 0.1 and 1.5). Validate with `validateAnimationArtifact`, render on the dev preview through the review page, look at the captures, spend one review call and keep its report. Store as `testdata/sgd-golden.json`; a unit test validates it on every push.
-- [ ] Show the golden artifact on the dev preview as a labelled fixture card (the way M1 fixtures were shown): visibly a fixture, never claimed as generated.
-- [ ] `animation-primitives-check.mjs`: loads the golden fixture, asserts the surface and trail draw, the status readout shows a word, the clamped ball stays inside the frame at learning rate 1.5, and an old-client request without the flags gets the 409. Registered in `check-map.json` for `scene.js`, `contract.js`, `framing.js`.
+- [x] Render height fields and contours, reuse trail geometry, and place offset arrows and tip-anchored labels in the Three.js scene.
+- [x] Hold a clamped marker at the displayed surface or explicit maximum and keep true coordinates in the trace. The readouts preserve the true value.
+- [x] Frame the drawn scene using the clamped marker. Deterministic frame tests cover the out-of-bounds case.
+- [x] Include clamp information in the review capture and reviewer prompt.
+- [x] Validate and render the checked-in golden SGD artifact. The product reviewer accepted the golden on C13 and C14.
+- [x] Expose the golden as a labeled fixture card.
+- [x] Add and register `animation-primitives-check.mjs` for the fixture's rendering, motion, clamp and compatibility checks. A separate route test verifies the real old-client HTTP 409.
 
-**Push and release:** AN-18 and AN-19 together as one candidate; ordinary gate. Receipt: SHA, run ids, dev deployment version, the golden artifact's hash and its review report, the owner's one-line verdict on the fixture.
-
-**Owner action:** look at the fixture on the preview, especially the diverged state at learning rate 1.5, and say whether it reads.
-
-**Accept:** the golden scene renders smoothly from the five primitives, the diverged ball is visibly clamped with the true value in the readout, and nothing in the existing fixtures regresses.
+**Verification.** The golden is a hand-authored fixture. The receipt records its product-review results separately from generated SGD jobs. [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
 
 ### AN-20 — Prompts, archetype, plan assertions and the offline harness; Gate 1 (G + V) — MVP4
 
-**Status:** not started. The prompt cut and the harness can start now; the archetype and exemplar need AN-19's golden artifact. Gate 1 runs on MVP3's frozen candidate (decisions 21 and 22), so it does not wait for AN-20 to release.
+**Status:** Authoring changes and harness shipped. The C14 batch validated 20/20 SGD drafts and 8/9 regression drafts. Full Gate 1 acceptance remains open.
 
 **Files:** `agents/animation-author.js`, `agents/animation-brief.js`, `animation-author.js` (`planProblems`), `contract.js` (plan `archetype` and `assertions` fields), `animation-repair.js` (`fitProblems` re-measured), `packages/control-plane/test/animation-fit.test.js`, new `scripts/animation/author-sample.mjs` and `author-sample-report.mjs`, `docs/features/animation/planner-eval.md`.
 
-- [ ] Cut `SIZE_RULES` to its general part: keep the one-scale-factor rule for magnitude arrows and the zero-arrow rule; delete the sentences on clamping, off-plot markers, "leaving the drawn area is not divergence", and tube surfaces. Replace the surface instruction with one line: a curved surface is a `surface` geometry; a path is a `trail`; a changing word is a text readout.
-- [ ] `ARCHETYPES`, a frozen object in `agents/animation-author.js`, first entry `loss_surface`: surface grid at least 24×24 with 6 to 8 contours; one ball with `clampTo`; a `trail` for the current path and a `ghost` for a kept one; a text readout `status` with the words running, paused, converged, diverged; arrows with `offset` equal to the ball radius and tip-anchored labels; comparison state is two learning rates, one of which diverges. The planner's `PLAN_TOOL` gains an optional `archetype` enum; the author receives the named archetype's rules and the golden artifact as its one exemplar, in the user content, not the cached system block. No archetype selects a canned scene (decision 13).
-- [ ] Plan assertions: the plan gains optional `assertions` (at most four) of kinds `{kind:"clamp", node}`, `{kind:"compare", parameter, values:[a,b]}`, `{kind:"pathLength", min}`. `planProblems` checks the artifact against them: a `clamp` assertion needs `clampTo` on that node; `compare` needs the parameter range to include both values; `pathLength` needs a trail with `max` ≥ `min`. A failed assertion is a repairable spec problem found before any review is paid. Tests in `animation-author.test.mjs`.
-- [ ] `ANIMATION_REVIEW_SYSTEM`: remove the tube-wireframe sentence; add that polish findings (dot size, a label slightly off, contour count) are minor; a surface, trail or clamp drawn by the host is the host's, category renderer.
-- [ ] Measure: `animation-fit.test.js` records the system prompt bytes and the largest reviewable draft before and after; raise `ANIMATION_DRAFT_BYTES` to what the real review and repair requests now fit (target a 20 KB draft). Update `COMPACT_RULES` to the new number.
-- [ ] `scripts/animation/author-sample.mjs`: input a pinned plan JSON and a count N; for each run, call the author role only through the admitted dev transport, run `validateStage` and the plan assertions, write the draft, problems and token usage to a folder, print a table (run, bytes, tokens, validator pass, assertion pass, settled credits). This script never drives a browser (`CLAUDE.md`); captures come from the dev preview's review page or the owner's local run. `author-sample-report.mjs` lists each run's captures for the owner.
-- [ ] Regression set: besides the pinned SGD plan, three pinned known-good plans (the grid game `aj_1f8eed91`'s plan, the pendulum, the projectile game), three samples each, run with the new prompts. Pass when every regression sample validates and the owner sees no new finding in its captures.
-- [ ] **Gate 1 (decisions 21 and 22):** 20 author-only SGD samples, drafted under the AN-20 prompt files (imported into the harness at a frozen hash, with the golden exemplar at a frozen hash) against MVP3's contract and renderer, run against MVP3's frozen candidate's dev preview while MVP3 releases. The preview's own server prompts are not what Gate 1 measures: the harness builds the author request itself through the admitted dev transport. Samples run in parallel across up to five dev test sessions. Every Gate 1 table records three identities: the MVP3 candidate SHA, the prompt-files hash and the golden artifact hash. Pass when at least 16 validate with every assertion met and the owner accepts at least 16 of the rendered captures. Below that, change the archetype text or the exemplar and run 20 more; never a full job. Each batch is a `spend.md` row with the candidate SHA and the three identities.
+- [x] Trim the universal author prompt to the general sizing and geometry rules.
+- [x] Add the `loss_surface` archetype and use the pinned golden as an authoring exemplar.
+- [x] Validate the plan's clamp, comparison range and path-length assertions before review.
+- [x] Update the reviewer prompt to separate visual polish and renderer behavior from author errors.
+- [x] Measure fit and raise the draft cap from 14,500 to 15,700 bytes. The original target was 20 KB.
+- [x] Add `author-sample.mjs`, its report tool, and the pinned regression plans. Record the C13 and C14 author batches.
+- [ ] **Regression acceptance (parked).** C14 validated 8/9, below the required 9/9.
+- [ ] **Full Gate 1 acceptance (parked).** C14 validated 20/20 SGD drafts. Full acceptance also requires the regression pass and at least 16 owner-approved captures. [C13/C14 evidence](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/evidence/README.md#L125)
 
-**Push and release:** after Gate 1 passes, as one candidate. MVP4's candidate is MVP3's release SHA plus the AN-20 branch with exactly the hashes Gate 1 recorded, verified before Gate 2 starts; any difference means Gate 1 reruns on the real candidate, no exceptions (decision 22). If Gate 2 passes the same day as Gate 1, MVP4 and MVP5 release as one release (decision 21). Prompt-only change: the fast path applies once `feat/mvp-fast-path` has landed and `MVP_ALLOWED_SHA` is set by the owner; otherwise the ordinary gate. Receipt: SHA, the before-and-after prompt and draft-budget numbers, the Gate 1 table, the regression table.
-
-**Owner action:** about 20 minutes looking at the Gate 1 captures; approve the second test session or raised dev allowance that Gate 2 needs (see Gates and budget).
-
-**Accept:** the universal prompt is shorter than at `caf7ee9bc`, the draft budget is higher, the three known-good plans still author correctly, and 16 of 20 SGD drafts pass validation, assertions and the owner's eyes.
+**Release evidence.** The authoring changes shipped in the scoped C14b release under Decision 38. [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
 
 ### AN-21 — Full-pipeline qualification, release and canary (V + P) — MVP5
 
-**Status:** not started. Depends on AN-17 to AN-20 released or on the candidate. Gate 2 runs on the dev preview of MVP4's frozen candidate, never after a release (decision 21), once that candidate is verified against Gate 1's three identities (decision 22); its jobs run in parallel across up to five dev test sessions.
+**Status:** The harness and scoped release are complete. Gate 2, the SGD capability claim and the canary are parked under Decision 38.
 
 **Files:** new `scripts/animation/sgd-qualify.mjs`, the product copy touched in AN-17, `docs/features/animation/` ledgers and receipts, a scheduled task for the canary, `checklist.md`.
 
-- [ ] `sgd-qualify.mjs`: ten requests, one job each on the candidate's dev preview, no retry beyond AN-17's automatic one, a `spend.md` row per job, a result table (phrasing, job id, outcome, repairs, settled credits, artifact hash). Every job export kept under `C:/s/spec/animation/sgd-mvp1-acceptance/release-2/`.
-- [ ] **Gate 2 phrasings:** 1 stochastic gradient descent · 2 SGD on a bowl-shaped loss · 3 gradient descent with two learning rates · 4 show me why a high learning rate diverges · 5 a ball rolling down a loss surface, step by step · 6 minimize a quadratic loss with gradient steps · 7 compare learning rate 0.1 and 1.5 on the same surface · 8 gradient descent that overshoots the minimum · 9 SGD with a kept path to compare runs · 10 the 2 sigma problem of optimizers (a wrong-subject control: the planner plans something sensible or reports a gap, never an SGD scene). Pass when 8 of the first 9 are accepted and the tenth does not silently become SGD.
-- [ ] Release: the candidate through `verify`, `fast-e2e`, the ordinary gate and `deploy-dev`; the owner's `!` command to `main`; `post-release-verify.mjs` plus one real SGD request as the signed-in user. Under decision 23 this is the single combined release (MVP2b to MVP5 together), run after both gates pass on the preview of the frozen final tree and after the `--mvp` branch has landed; `main` is merged once.
-- [ ] Product: remove the "not yet supported" copy; add the loss-surface line to the claimed capabilities. (Explore Top is not part of AN-21: the owner approved it on 3 November 2026 to go once Animation is live, and it rides in MVP2a, decision 20.) The copy-and-claim commit (product copy only: the "not supported yet" line removed, the loss-surface line added) is part of the final tree (C4 = C5), not a later commit.
-- [ ] Canary: a weekly scheduled task runs one full SGD job on production and posts the result; two failures in a row reopen the ladder UUID.
-- [ ] Closeout: `fix.md` entries with fixing SHAs; `spend.md` totals; `checklist.md` rows for AN-17 to AN-21 in their final states; the receipt separates implemented, locally verified, release-verified and production-activated; worktree closeout per `CLAUDE.md`.
+- [x] Add `sgd-qualify.mjs` and record the C13 full-pipeline batch and C14 targeted reruns.
+- [ ] **Gate 2 (failed and parked).** C13 accepted 7/9 against the required 8/9. Both C14 targeted reruns were rejected. The harness stopped the wrong-subject control before generation when its plan carried SGD markers. [C13/C14 evidence](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/evidence/README.md#L125)
+- [x] Ship C14b (`18d92571`) under the MVP fast path and record read-only production verification. Release CI and fast-e2e passed. Gate 2 was waived for this release. [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
+- [x] Remove the temporary loss-surface limitation sentence from the request box. The final copy describes the broader 3D feature.
+- [ ] **SGD capability claim and signed-in production acceptance (parked).** The scoped release has no SGD qualification claim.
+- [ ] **Weekly production SGD canary (parked).** It was never created.
+- [x] Reconcile the plan, tracker and release checklist with the pinned receipt and evidence. [Closeout and remaining issues](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/fix.md#L465)
 
-**Owner action:** the `!` command; one SGD request in production; record continuation approval for AN-08 onward or not.
-
-**Accept:** 8 of 10 accepted on the dev preview, the release live with one accepted SGD card in production, SGD on the claimed list, the canary scheduled.
-
-### Gates and budget
+### Gates and budget (original qualification criteria and estimates)
 
 | Gate | What runs | Passes when | Settled cost (estimate, from today's measurements) | Allowance it needs |
 |---|---|---|---|---|
@@ -489,16 +465,9 @@ Each feature is a new entry in `ANIMATION_CLIENT_FEATURES`; `clientProblems` ref
 
 Worst-case bounds (what admission checks, not what settles): about US$1 per author call and US$1.35 per full job, so about US$45 for both gates. Decision 14 covers it; the dev preview's platform day cap is US$40 per day, which paces the batches (decision 21): gate samples run in parallel across up to five dev test sessions, which also covers the per-user allowance, so neither gate needs the owner to raise the cap. Parallel records each batch in `spend.md` before and after with the candidate SHA. No production spend until the one post-release SGD request in AN-21.
 
-### Order and the critical path
+### Release order (recorded)
 
-1. Today: AN-17 (G + P) and AN-18 (R) start in parallel; the AN-20 prompt cut and harness scripts (G + V) start in parallel too.
-2. AN-17 releases first, in two candidates: MVP2a (escrow, copy line, Explore Top) now, then MVP2b (decision 20).
-3. AN-19 starts when AN-18 lands; AN-18 + AN-19 release together (MVP3). The owner looks at the fixture.
-4. AN-20's archetype and exemplar follow the golden artifact; Gate 1 runs on MVP3's frozen candidate's dev preview while MVP3 releases, under the AN-20 prompt files at a frozen hash (decisions 21 and 22).
-5. MVP4's candidate (MVP3's release SHA plus the AN-20 branch, the three Gate 1 identities verified) is the one Gate 2 runs on; if Gate 2 passes the same day as Gate 1, MVP4 and MVP5 release as one, with the owner's `!` command.
-6. Owner order of 3 November 2026 (evening, decision 23): MVP2a releases first (ordinary gate), then the `--mvp` branch (ordinary gate, owner `!` command), then ONE fast-path release carrying MVP2b, MVP3, MVP4 and MVP5 together. The final tree is one (C4 = C5). Its preview is deployed right after the push, before CI is green, and both gates start on it; they stand only if CI is green on that SHA. If Gate 1 fails, the whole candidate is held; nothing partial ships.
-
-Critical path: AN-18 → AN-19 (golden artifact) → AN-20 (Gate 1) → AN-21 (Gate 2) → gate → `!`. Working estimate, engineering judgment on top of the measured gate and call durations: AN-17 and AN-18 by end of 4 November; AN-19 by midday 5 November; Gate 1 the evening of 5 November or the morning of 6 November; Gate 2 and the MVP5 release on 6 November if Gate 1 passes on its first batch, 9 November if it needs a second. A failed Gate 1 batch costs a day; each intermittent-check failure costs a gate attempt of about an hour. Report with the `CLAUDE.md` ETA table when the owner asks.
+MVP2a shipped first. C14b then shipped the combined implementation under Decision 38. The earlier release sequence required both qualification gates. Decision 38 closed the ladder after the recorded results and scoped the release to the implemented machinery. [Decision 38](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/superpowers/plans/2026-10-30-animation.md#L1122) · [C14b release receipt](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/200a4c6d453901d030cf1add53f69ffa7b4fede6/docs/features/animation/ladder-release-receipt.md)
 
 ## 9. Post-MVP tasks AN-08 to AN-16 and AN-22 — blocked on continuation approval
 
