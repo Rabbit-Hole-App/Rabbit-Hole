@@ -46,7 +46,7 @@ const hop = async url => { const r = await fetch(url, { redirect: 'manual', head
 const signIn = async () => {
   const start = await hop(`${BASE}/auth/google/start`), authorize = start.headers.get('location');
   if (start.status !== 302 || !authorize?.includes('/test/oauth/authorize')) throw new Error(`/auth/google/start did not redirect to the mock authorize page (HTTP ${start.status}); the stack needs OAUTH_MOCK=true`);
-  const u = new URL(authorize, BASE); u.searchParams.set('sub', 'owner-interact-ml'); u.searchParams.set('email', EMAIL);
+  const u = new URL(authorize, BASE); u.searchParams.set('sub', opt('sub', 'owner-interact-ml')); u.searchParams.set('email', EMAIL);
   const granted = await hop(u), callback = granted.headers.get('location');
   if (!callback?.includes('/auth/google/callback')) throw new Error(`the mock authorize step did not redirect to the callback (HTTP ${granted.status})`);
   await hop(new URL(callback, BASE));
