@@ -20,6 +20,7 @@ export async function checkBuilt({ blueprint, buildSchema }) {
     const needsRange = !!blueprint.pictures.panel && buildSchema.pictures.panel?.ranges?.y === undefined;
     const sampled = await sample(blueprint); if (sampled.problems.length) { result.error = `the function does not run: ${sampled.problems[0].message}`; return result; }
     const yRange = needsRange ? (await sampleGraph(blueprint, sampled)).yRange : null;
+    result.yRange = yRange;
     program = programFromBuild({ blueprint, buildSchema, yRange });
     result.sampled = sampled;
   } catch (error) { result.error = `the Program could not be written: ${error.message}`; return result; }

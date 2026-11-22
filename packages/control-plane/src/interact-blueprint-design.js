@@ -43,7 +43,7 @@ export function tokensOf(raw) {
 const costOf = tokens => { const priced = tokens && priceUsage({ provider: 'google', model: MODEL, tier: 'standard', quantities: { input: tokens.input, output: tokens.billed, cache_read: 0 } }); return priced ? priced.micros / 1e6 : null; };
 
 // One model call through the job's admitted adapter (ctx.interact). -> { output, raw (the message text exactly as returned, when the provider answered), error, call (the row of the record) }.
-async function callOnce(ctx, role, kind, args) {
+export async function callOnce(ctx, role, kind, args) {
   const began = Date.now(); let done = null, error = null;
   try { done = await ctx.interact(role, args); } catch (e) { if (!(e instanceof InteractModelError) || e.code === 'spend_refused') throw e; error = e; }
   const answer = done ?? error, tokens = tokensOf(answer?.usage?.raw ?? null);

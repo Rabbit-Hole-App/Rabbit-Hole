@@ -1,6 +1,6 @@
 // Build, the pure half (Brief 38 spec section 6): what code works out from a checked blueprint and what the Program is made of. No model, no renderer, no layout here: interact-templates/blueprint.js places
 // the card with the layout module, interact-blueprint-check.js measures. Nothing in this file names a subject or branches on an id, a label or a title of a blueprint.
-import { ARROW_DOT_GAP_PX, DEFAULT_DECIMALS, LABEL_GAPS_PX, DOT_MAX_PX, DOT_MIN_PX, DOT_NAMED_PX, GRAPH_SAMPLES, KEPT_SAMPLES, SAMPLE_POSITIONS, SAMPLE_TIMES, THING_ROLES, TRACE_POINTS, Y_MARGIN } from './interact-blueprint-constants.js';
+import { ARROW_DOT_GAP_PX, DEFAULT_DECIMALS, LABEL_GAPS_PX, DOT_MAX_PX, DOT_MIN_PX, DOT_NAMED_PX, GRAPH_SAMPLES, PROGRAM_GRAPH_SAMPLES, PROGRAM_TRACE_POINTS, KEPT_SAMPLES, SAMPLE_POSITIONS, SAMPLE_TIMES, THING_ROLES, TRACE_POINTS, Y_MARGIN } from './interact-blueprint-constants.js';
 
 export const defaultsOf = blueprint => Object.fromEntries(blueprint.inputs.map(input => [input.id, input.default]));
 const evenly = (min, max, count) => Array.from({ length: count }, (_, k) => (count === 1 ? min : min + (max - min) * k / (count - 1)));
@@ -282,7 +282,7 @@ export function evaluate({ inputs, time }) {
     }
     else if (part.type === 'dot') { const x = X(num(part.at[0])), y = Y(num(part.at[1])), d = diameterOf(part.size, out, NAMED, ${DOT_MIN_PX}, ${DOT_MAX_PX}); objects.push(sdk.circle(id, x, y, d, opts)); extents[part.id] = [x - d / 2, y - d / 2, x + d / 2, y + d / 2]; obstacles.push({ b: extents[part.id] }); }
     else if (part.type === 'trace' && t > 0) {
-      const n = Math.min(${TRACE_POINTS - 1}, Math.max(1, Math.round(t / P.duration * ${TRACE_POINTS - 1}))), points = [];
+      const n = Math.min(${PROGRAM_TRACE_POINTS - 1}, Math.max(1, Math.round(t / P.duration * ${PROGRAM_TRACE_POINTS - 1}))), points = [];
       for (let k = 0; k <= n; k++) { const o = compute(set, t * k / n); points.push([X(o[part.at[0]]), Y(o[part.at[1]])]); }
       objects.push(sdk.polyline(id, points, opts)); extents[part.id] = [Math.min(...points.map(p => p[0])), Math.min(...points.map(p => p[1])), Math.max(...points.map(p => p[0])), Math.max(...points.map(p => p[1]))];
     }
@@ -295,7 +295,7 @@ export function evaluate({ inputs, time }) {
     obstacles.push({ b: [spot.x - label.width / 2, spot.y - 5.9, spot.x + label.width / 2, spot.y + 10.8] });
   }
   if (P.plot) {
-    const plot = P.plot, over = plot.over, xs = over === 'time' ? grid(0, P.duration, ${GRAPH_SAMPLES}) : grid(plot.xRange[0], plot.xRange[1], ${GRAPH_SAMPLES}), nowX = over === 'time' ? t : set[over];
+    const plot = P.plot, over = plot.over, xs = over === 'time' ? grid(0, P.duration, ${PROGRAM_GRAPH_SAMPLES}) : grid(plot.xRange[0], plot.xRange[1], ${PROGRAM_GRAPH_SAMPLES}), nowX = over === 'time' ? t : set[over];
     const rows = xs.map(x => (over === 'time' ? compute(set, x) : compute({ ...set, [over]: x }, t))), curves = plot.series.map(entry => curveOf(xs, rows.map(row => row[entry.value]), plot.yRange, ${KEPT_SAMPLES}));
     objects.push(sdk.diagram(specOf(plot, curves), { x: L.figure.at[0], y: L.figure.at[1], w: L.figure.w }));
     const G = L.plotGeometry, A = G.plotArea, F = { left: L.figure.at[0] + A.left, right: L.figure.at[0] + A.right, top: L.figure.at[1] + A.top, bottom: L.figure.at[1] + A.bottom };

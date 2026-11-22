@@ -1,0 +1,30 @@
+run ej_4b96e71da8c342cd976717d51934e2be: did NOT pass the checks
+prompt: what changes a pendulum swing
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 243498973   seconds: 4.264   cost: $0.0000
+
+== dice
+not reached
+
+== calls
+quantities: FAILED http_error: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402)., 4.263 s, no usage, cost unknown
+
+== problems
+1. the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402).
+
+== blueprint
+none (no blueprint call answered)
+
+== quantities answer (exactly as returned)
+none
+
+== first blueprint answer (exactly as returned)
+none
+
+== corrected blueprint answer (exactly as returned)
+none
+
+== checker output, first answer
+none
+
+== checker output, corrected answer
+none

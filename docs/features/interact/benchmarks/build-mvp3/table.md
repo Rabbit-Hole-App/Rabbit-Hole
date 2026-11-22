@@ -1,0 +1,18 @@
+# Build MVP 3: the whole path live (brief 48)
+
+"/interactive what changes a pendulum swing" at Deep on the local interactive stack (8879), no hand in between: Design (Gemini 4 Hydrogen at high: the quantities call, the dice, the blueprint call, checks 1 to 9, one correction), then the Build call (Hydrogen at high: build-mvp1's prompts and measurements), the Program writer, validate, the headless run and the frame rules (inside the design stage, one repair call to the Build model on a failure that is not motion decoration), then the job's own validate, headless run, frame rules, seal and canvas. Made by `scripts/interact/build-live-collect.mjs`. Seconds: design and build are the phases' own (build includes the measurements and the frame check); total is from the prompt sent to the card ready. Each run's blueprint, build-schema, Program (as the writer writes it from them), checks and the whole-viewport shot at t = 0.3 s are in `run-N/`.
+
+| Run | Seed | Dice pick (of the control quantities) | Design s / $ | Build s / $ | Repair | Total s | Result | Canvas | Shot | Program |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 1398107529 | length, gravity, release_angle (of length, mass, gravity, release_angle) | 139.549 s / $0.152 | 197.919 s / $0.163 | none | - | failed: The card could not be built from its template: [program_error] the program failed at "endpoint" (runtime_limit): time limit | http://127.0.0.1:8879/apps/canvas-86a9fdce | - | 15432 B |
+| 2 | 243498973 | - (of -) | 4.264 s / $0.000 | - s / $0.000 | - | - | failed: the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402). | http://127.0.0.1:8879/apps/canvas-725ff721 | - | - |
+| 3 | 816441486 | - (of -) | 0.541 s / $0.000 | - s / $0.000 | - | - | failed: the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402). | http://127.0.0.1:8879/apps/canvas-cfd98519 | - | - |
+| 4 | 86411594 | - (of -) | 4.181 s / $0.000 | - s / $0.000 | - | - | failed: the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402). | http://127.0.0.1:8879/apps/canvas-8ecf2a41 | - | - |
+
+Total model cost: $0.315.
+
+## What these four rows are
+
+- **Run 1** is the first live run (job `ej_d0159c620422439787dd84214f4a983d`, before the provider's credits ended): Design passed checks 1 to 9 with no correction, the Build call answered, the build-schema passed the schema and the writer's frame check (9 of 9 frames, no repair), and the job went on to its own stages (plan, validate, authoring, validating). It then **failed in the job's own headless run**: `the program failed at "endpoint" (runtime_limit): time limit` and the same at "Length at min", plus `control_no_effect`. The Program takes about 26 to 47 ms of the engine's 50 ms a frame in Node on this machine, so a busy moment fails a checkpoint. Its blueprint, build-schema and Program are in `run-1/`. The shot is `run-1/viewport-t0.3s.png` only when a card was drawn (none was).
+- **Runs 2 to 4** were the three runs of this brief, started after run 1: each failed at the first call (the quantities call) with the provider's HTTP 402: "Your prepayment credits are depleted. Please go to AI Studio ... to manage your project and billing." (confirmed with one direct call, 0.48 s, $0). No blueprint, no Build call. The dice seeds are the ones the jobs minted.
+- `run-1/program.js` is the Program as the writer writes it now from run 1's blueprint and build-schema (it samples a graph at 48 positions and a trace at 24 points, brief 48's cut from 96 and 32 after run 1's failure); the job ran the earlier version.

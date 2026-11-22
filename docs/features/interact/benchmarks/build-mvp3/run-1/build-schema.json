@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 48,
+        "originPx": [
+          164,
+          48
+        ]
+      },
+      "fixedParts": [
+        {
+          "id": "support_bar",
+          "from": [
+            -1.2,
+            0
+          ],
+          "to": [
+            1.2,
+            0
+          ]
+        },
+        {
+          "id": "plumb_line",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            "plumb_y"
+          ]
+        },
+        {
+          "id": "release_guide",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "release_x",
+            "release_y"
+          ]
+        },
+        {
+          "id": "bob_trace",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ]
+        },
+        {
+          "id": "rod",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "bob_x",
+            "bob_y"
+          ]
+        },
+        {
+          "id": "pivot_dot",
+          "at": [
+            0,
+            0
+          ],
+          "size": "small"
+        },
+        {
+          "id": "bob",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ],
+          "size": "large"
+        }
+      ],
+      "labels": [
+        {
+          "id": "pivot_label",
+          "near": "pivot_dot",
+          "side": "above",
+          "text": "Pivot (1 kg, no drag)"
+        },
+        {
+          "id": "bob_label",
+          "near": "bob",
+          "side": "below",
+          "text": "Bob"
+        }
+      ],
+      "arrows": [
+        {
+          "id": "vel_arrow",
+          "lengthFactor": 1,
+          "startAtEdge": true
+        }
+      ],
+      "dropped": []
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": true,
+        "legend": "none"
+      },
+      "texts": {
+        "title": "Swing angle over time",
+        "labels": [
+          "Angle"
+        ]
+      },
+      "ranges": {
+        "x": [
+          0,
+          6
+        ],
+        "y": [
+          -60,
+          60
+        ]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "columns",
+    "values": [
+      {
+        "id": "period",
+        "label": "Period",
+        "decimals": 2
+      },
+      {
+        "id": "peak_speed",
+        "label": "Peak v",
+        "decimals": 2
+      },
+      {
+        "id": "frequency",
+        "label": "Freq",
+        "decimals": 2
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "explanation": {
+      "always": [
+        "No drag; 1 kg bob mass cancels out."
+      ],
+      "cases": [
+        {
+          "when": "is_large_angle",
+          "text": "Wide swing: large-angle period rise"
+        },
+        {
+          "when": "is_long_or_weak",
+          "text": "Slow swing from long rod or low g"
+        },
+        {
+          "when": "is_fast",
+          "text": "Quick swing from short rod or high g"
+        }
+      ],
+      "otherwise": "Moderate swing near small-angle law"
+    }
+  },
+  "time": {
+    "duration": 6
+  },
+  "changes": [
+    "Used side-by-side layout with 3-row columns text arrangement so the stage, plot, 3 values, formula, and 2-line explanation all fit without truncation.",
+    "Set stage mapping to pxPerUnit 48 and originPx [164, 48] so the full swing, velocity arrow, and labels stay inside [12, 12, 304, 260.8].",
+    "Placed pivot_label above pivot_dot and bob_label below bob to keep clear of support_bar, rod, plumb_line, and vel_arrow.",
+    "Enabled startAtEdge on vel_arrow so its shaft and arrowhead clear the 36 px bob circle.",
+    "Hid the single-series panel legend (legend: none) so the coordinate plot fits the 260.8 px slot height with its title enabled.",
+    "Shortened Peak speed to Peak v and Frequency to Freq to fit the 200 px values column, and dropped Angle since the plot and stage already show it."
+  ]
+}

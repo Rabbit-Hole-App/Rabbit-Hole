@@ -1,0 +1,443 @@
+{
+  "version": 1,
+  "relationship": {
+    "statement": "For small swings without friction, a pendulum's period grows with the square root of its length and shrinks when gravity is stronger, while bob mass has no effect. Larger release angles widen the swing and increase peak speed, with only a slight rise in period.",
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "assumptions": [
+      "Pivot friction and air drag are neglected so no energy is lost.",
+      "The rod or string is massless, rigid, and inextensible.",
+      "The compact formula assumes small swing angles; large swings take slightly longer."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "length",
+      "label": "Length",
+      "unit": "m",
+      "role": "control",
+      "meaning": "Distance from the pivot to the center of the pendulum bob."
+    },
+    {
+      "id": "mass",
+      "label": "Bob mass",
+      "unit": "kg",
+      "role": "fixed",
+      "meaning": "Mass of the hanging bob, which cancels out of gravitational acceleration."
+    },
+    {
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "role": "control",
+      "meaning": "Gravitational field strength pulling the bob back toward vertical."
+    },
+    {
+      "id": "release_angle",
+      "label": "Release angle",
+      "unit": "deg",
+      "role": "control",
+      "meaning": "Initial angle from vertical; sets swing width and slightly affects period."
+    },
+    {
+      "id": "drag",
+      "label": "Air drag",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Held at zero so total mechanical energy stays conserved."
+    },
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "role": "result",
+      "meaning": "Time for one full back-and-forth oscillation."
+    },
+    {
+      "id": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "role": "result",
+      "meaning": "Number of complete oscillations per second."
+    },
+    {
+      "id": "peak_speed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "role": "result",
+      "meaning": "Maximum speed of the bob at the bottom of the swing."
+    },
+    {
+      "id": "angle",
+      "label": "Angle",
+      "unit": "deg",
+      "role": "result",
+      "meaning": "Instantaneous angle of the pendulum measured from vertical."
+    }
+  ],
+  "things": [
+    {
+      "id": "pendulum",
+      "label": "Pendulum"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Length",
+      "unit": "m",
+      "min": 1,
+      "max": 3,
+      "default": 1.8,
+      "step": 0.1
+    },
+    {
+      "type": "number",
+      "id": "gravity",
+      "label": "Gravity",
+      "unit": "m/s^2",
+      "min": 4,
+      "max": 16,
+      "default": 9.8,
+      "step": 0.2
+    },
+    {
+      "type": "number",
+      "id": "release_angle",
+      "label": "Release angle",
+      "unit": "deg",
+      "min": 10,
+      "max": 60,
+      "default": 30,
+      "step": 5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 6,
+    "label": "Time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const L = inputs.length; const g = inputs.gravity; const deg = inputs.release_angle; const mass = 1; const drag = 0; const theta0 = deg * Math.PI / 180; const T0 = 2 * Math.PI * Math.sqrt(L / g); let a = 1; let b = Math.cos(theta0 / 2); for (let i = 0; i < 4; i++) { const na = 0.5 * (a + b); b = Math.sqrt(a * b); a = na; } const period = T0 / a; const frequency = 1 / period; const peak_speed = 2 * Math.sqrt(g * L) * Math.sin(theta0 / 2); const phase = 2 * Math.PI * t / period; const theta = theta0 * Math.cos(phase); const angle = theta * 180 / Math.PI; const v_signed = -peak_speed * Math.sin(phase); const vx = v_signed * Math.cos(theta); const vy = v_signed * Math.sin(theta); const bob_x = L * Math.sin(theta); const bob_y = -L * Math.cos(theta); const scale = 0.2; return { period: period, frequency: frequency, peak_speed: peak_speed, angle: angle, plumb_y: -L, release_x: L * Math.sin(theta0), release_y: -L * Math.cos(theta0), bob_x: bob_x, bob_y: bob_y, vel_tip_x: bob_x + scale * vx, vel_tip_y: bob_y + scale * vy, is_large_angle: deg >= 40, is_long_or_weak: period >= 3.5, is_fast: period <= 2.0 }; }",
+    "outputs": [
+      {
+        "id": "period",
+        "unit": "s",
+        "meaning": "Time for one complete oscillation including large-angle correction.",
+        "kind": "number"
+      },
+      {
+        "id": "frequency",
+        "unit": "Hz",
+        "meaning": "Oscillations completed per second.",
+        "kind": "number"
+      },
+      {
+        "id": "peak_speed",
+        "unit": "m/s",
+        "meaning": "Maximum speed of the bob at the lowest point.",
+        "kind": "number"
+      },
+      {
+        "id": "angle",
+        "unit": "deg",
+        "meaning": "Instantaneous angular displacement from vertical.",
+        "kind": "number"
+      },
+      {
+        "id": "plumb_y",
+        "unit": "m",
+        "meaning": "Bottom y coordinate of the vertical reference line.",
+        "kind": "number"
+      },
+      {
+        "id": "release_x",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the initial release point.",
+        "kind": "number"
+      },
+      {
+        "id": "release_y",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the initial release point.",
+        "kind": "number"
+      },
+      {
+        "id": "bob_x",
+        "unit": "m",
+        "meaning": "Horizontal position of the pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "bob_y",
+        "unit": "m",
+        "meaning": "Vertical position of the pendulum bob.",
+        "kind": "number"
+      },
+      {
+        "id": "vel_tip_x",
+        "unit": "m",
+        "meaning": "Horizontal coordinate of the velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "vel_tip_y",
+        "unit": "m",
+        "meaning": "Vertical coordinate of the velocity arrow tip.",
+        "kind": "number"
+      },
+      {
+        "id": "is_large_angle",
+        "unit": "",
+        "meaning": "True when the release angle is at least 40 degrees.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_long_or_weak",
+        "unit": "",
+        "meaning": "True when the oscillation period is 3.5 seconds or longer.",
+        "kind": "flag"
+      },
+      {
+        "id": "is_fast",
+        "unit": "",
+        "meaning": "True when the oscillation period is 2.0 seconds or shorter.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "m",
+      "parts": [
+        {
+          "type": "line",
+          "id": "support_bar",
+          "from": [
+            -1.2,
+            0
+          ],
+          "to": [
+            1.2,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "plumb_line",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            "plumb_y"
+          ]
+        },
+        {
+          "type": "line",
+          "id": "release_guide",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "release_x",
+            "release_y"
+          ]
+        },
+        {
+          "type": "trace",
+          "id": "bob_trace",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ],
+          "of": "pendulum"
+        },
+        {
+          "type": "line",
+          "id": "rod",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "bob_x",
+            "bob_y"
+          ],
+          "of": "pendulum"
+        },
+        {
+          "type": "dot",
+          "id": "pivot_dot",
+          "at": [
+            0,
+            0
+          ],
+          "size": "small"
+        },
+        {
+          "type": "dot",
+          "id": "bob",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ],
+          "size": "large",
+          "of": "pendulum"
+        },
+        {
+          "type": "arrow",
+          "id": "vel_arrow",
+          "from": [
+            "bob_x",
+            "bob_y"
+          ],
+          "to": [
+            "vel_tip_x",
+            "vel_tip_y"
+          ],
+          "label": "v",
+          "of": "pendulum"
+        },
+        {
+          "type": "label",
+          "id": "pivot_label",
+          "near": "pivot_dot",
+          "text": "Pivot (1 kg, no drag)"
+        },
+        {
+          "type": "label",
+          "id": "bob_label",
+          "near": "bob",
+          "text": "Bob",
+          "of": "pendulum"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Swing angle over time",
+      "x": {
+        "over": "time",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": {
+        "label": "Angle",
+        "unit": "deg"
+      },
+      "series": [
+        {
+          "value": "angle",
+          "label": "Angle",
+          "of": "pendulum",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "peak_speed",
+      "label": "Peak speed",
+      "unit": "m/s",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "frequency",
+      "label": "Frequency",
+      "unit": "Hz",
+      "decimals": 2,
+      "of": "pendulum"
+    },
+    {
+      "value": "angle",
+      "label": "Angle",
+      "unit": "deg",
+      "decimals": 1,
+      "of": "pendulum"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "No drag; 1 kg bob mass cancels out."
+    ],
+    "cases": [
+      {
+        "when": "is_large_angle",
+        "text": "Wide swing: large-angle period rise"
+      },
+      {
+        "when": "is_long_or_weak",
+        "text": "Slow swing from long rod or low g"
+      },
+      {
+        "when": "is_fast",
+        "text": "Quick swing from short rod or high g"
+      }
+    ],
+    "otherwise": "Moderate swing near small-angle law"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "records-main"
+  },
+  "claims": [
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "length"
+    },
+    {
+      "type": "decreases",
+      "value": "period",
+      "with": "gravity"
+    },
+    {
+      "type": "increases",
+      "value": "period",
+      "with": "release_angle"
+    },
+    {
+      "type": "increases",
+      "value": "peak_speed",
+      "with": "release_angle"
+    },
+    {
+      "type": "decreases",
+      "value": "frequency",
+      "with": "length"
+    },
+    {
+      "type": "increases",
+      "value": "peak_speed",
+      "with": "gravity",
+      "at": [
+        {
+          "input": "release_angle",
+          "value": 45
+        }
+      ]
+    }
+  ],
+  "lesson": {
+    "title": "What Changes a Pendulum Swing?",
+    "description": "Adjust rod length, gravity, and release angle to see how a frictionless pendulum swings. Watch the motion, velocity vector, and angle-time plot update together.",
+    "instructions": "Drag the sliders for length, gravity, and release angle, then play or scrub time to compare swing period, frequency, peak speed, and wave shape.",
+    "goal": "Period grows with the square root of length and drops with gravity, while release angle widens the swing, raises peak speed, and only slightly lengthens the period."
+  }
+}

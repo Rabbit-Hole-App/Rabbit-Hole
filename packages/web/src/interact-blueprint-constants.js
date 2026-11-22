@@ -25,3 +25,7 @@ export const THING_ROLES = Object.freeze(['input', 'warning', 'output', 'observe
 export const SELECT_ROW_PX = 560; // the width a row of choice buttons may take: the card's 640 px less 24 px of padding each side and the reset button's share
 export const SELECT_BUTTON_PAD_PX = 28; // the horizontal padding and border of one choice button (an estimate, not measured in the browser)
 export const SELECT_GAP_PX = 8; // the gap between two choice buttons
+// brief 48: what one frame of the Program costs. A frame is limited to 50 ms of engine time and the Program calls the model's function once per graph sample and once per trace point, so a function of ordinary cost used 30 to 47 ms of it
+// (a live card failed the job's headless run on "time limit"). The Program samples a graph at 48 positions (about two per kept sample; the checker still counts turns at 96) and draws a trace through at most 24 points.
+export const PROGRAM_GRAPH_SAMPLES = 48;
+export const PROGRAM_TRACE_POINTS = 24;

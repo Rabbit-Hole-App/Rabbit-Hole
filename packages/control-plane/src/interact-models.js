@@ -42,6 +42,7 @@ export const INTERACT_ROLES = deepFreeze({
   // The interactive-blueprint design phase (brief 39, kind 'blueprint'): Gemini 4 Hydrogen at high. The quantities call, then the blueprint call and at most one correction. Nothing here reaches Build.
   blueprint_quantities: { task: 'interact_blueprint_quantities', phase: 'preparation', kind: 'generation', calls: 1, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
   blueprint_design: { task: 'interact_blueprint_design', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
+  blueprint_build: { task: 'interact_blueprint_build', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 }, // brief 48: the Build model's call and its one repair
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
   build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
   build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
@@ -79,7 +80,7 @@ const fastProfile = primary => ({ version: 1, extends: 'opus-baseline', roles: O
 // design_fill: Gemini Flash Lite at reasoning low, the fast profile's step for build_author with the fill's own output cap and no fallback chain (a failed fill goes to the Opus design, not to another cheap model).
 const fillRole = () => ({ ...fastStep('design_fill', 'google', false), maxOutputTokens: INTERACT_ROLES.design_fill.maxOutputTokens });
 // The blueprint roles: Gemini 4 Hydrogen at reasoning high, the repo's Google endpoint, strict json_schema (the schema is sent bounds-free with exclusive oneOf as anyOf, as MVP 1 sent it; the checker holds the bounds), no temperature, no fallback.
-export const BLUEPRINT_ROLES = Object.freeze(['blueprint_quantities', 'blueprint_design']);
+export const BLUEPRINT_ROLES = Object.freeze(['blueprint_quantities', 'blueprint_design', 'blueprint_build']);
 const HYDROGEN_MODEL = 'gemini-4-hydrogen';
 const blueprintRole = role => ({ role, task: INTERACT_ROLES[role].task, provider: 'google', model: HYDROGEN_MODEL, adapter: 'openai-compatible', endpoint: CHAIN_ENDPOINTS.google.url.replace(/\/chat\/completions$/, ''), credentialRef: CHAIN_STEPS.google.credentialRef,
   maxOutputTokens: INTERACT_ROLES[role].maxOutputTokens, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: 0, timeoutMs: 300000, settings: { reasoning_effort: 'high' }, pricingKey: { provider: 'google', model: HYDROGEN_MODEL, tier: 'standard' },
