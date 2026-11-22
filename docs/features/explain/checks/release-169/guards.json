@@ -1,0 +1,35 @@
+{
+ "references": 492,
+ "prompts": 742,
+ "requestsPerPrompt": 4,
+ "identical": 733,
+ "differInDeclared": 9,
+ "differInUndeclared": [],
+ "declared": [
+  "ml-version-lineage",
+  "ml-neural-network-weights",
+  "ml-stable-diffusion-unet-timestep-and-skips",
+  "d2l-softmax-affine-class-scores",
+  "d2l-dense-hidden-layer-activations",
+  "d2l-regularized-forward-graph",
+  "figure-gallery-multistream-residual",
+  "figure-gallery-encoder-global-kv",
+  "figure-gallery-shared-kv-and-index"
+ ],
+ "changedRequestIds": [
+  "ml-version-lineage",
+  "ml-neural-network-weights",
+  "ml-stable-diffusion-unet-timestep-and-skips",
+  "d2l-softmax-affine-class-scores",
+  "d2l-dense-hidden-layer-activations",
+  "d2l-regularized-forward-graph",
+  "figure-gallery-multistream-residual",
+  "figure-gallery-encoder-global-kv",
+  "figure-gallery-shared-kv-and-index"
+ ],
+ "addedRefs": [],
+ "removedRefs": [],
+ "specChangedButRequestSame": [],
+ "undeclaredPrompts": 733,
+ "undeclaredIdentical": 733
+}
