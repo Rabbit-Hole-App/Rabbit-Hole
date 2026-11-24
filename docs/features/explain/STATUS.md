@@ -15,13 +15,13 @@ Main on the remote: **d0addb74afb03cbc3cf82b01a5afc812e2bf5e6e** (release 168).
 
 | What | Branch / SHA | Notes |
 |---|---|---|
-| Release 169, content only: arrow labels of nine relationship reference families rewritten so none has more than three note lines (Codex b5b40d7dd, cherry-picked) | feat/release-169 0e6a1475b; recovery/rel-content-169 7f9bff651 (tree = main's) | Preview OK (clone rabbit-hole-web-dev-r169-int, build caa7e9fb6eed, record 8caed3c6850e26ea). Launcher `C:\s\spec\release-queue\release-169-rel-content.cmd`, not run; pins/launcher frozen. Report checks/release-169/REPORT.md (5916eedbc); hash and replay scripts and outputs added in the commit after it. Not measured: bundle size (the dry run is refused). Open, from the reviewer: two arrow crossings introduced by 169 (see "In preparation"). |
+| Release 169, content only: arrow labels of nine relationship reference families rewritten so none has more than three note lines (Codex b5b40d7dd, cherry-picked) | feat/release-169 0e6a1475b; recovery/rel-content-169 7f9bff651 (tree = main's) | Preview OK (clone rabbit-hole-web-dev-r169-int, build caa7e9fb6eed, record 8caed3c6850e26ea). Launcher `C:\s\spec\release-queue\release-169-rel-content.cmd`, not run; pins/launcher frozen. Report checks/release-169/REPORT.md (5916eedbc); hash and replay scripts and outputs added in the commit after it. Not measured: bundle size (the dry run is refused). Open, from the reviewer: two arrow crossings introduced by 169 are fixed by release 170 (below). |
 
-## In preparation (not pushed yet when this was written)
+## Also waiting for the owner's GO: release 170 (prepared, not run)
 
-| What | Branch | Notes |
+| What | Branch / SHA | Notes |
 |---|---|---|
-| Release 170, content only: restore main's edge order in two families so the U-Net skip wire and the shared key/value `early:late` wire no longer cross other arrows' heads (the reviewer's measure: main 2 hits, release 169 32 hits) | feat/release-170 off feat/release-169 0e6a1475b | Prepared by a lead-launched agent; launcher prepared and withheld. Known cost: at a 408 request the two cards draw wider (U-Net 564 px, shared key/value 540 px; 408 in 169). A release of 170 before 169 carries 169's commit too. |
+| Release 170, content only: restore main's edge order in the U-Net and shared key/value cards so the skip wires no longer cross other arrows' heads (reviewer's measure: main 2 hits, 169 32, 170 2) | feat/release-170 b29b6bdd7 (a child of feat/release-169: two commits ahead of main); recovery/rel-crossings-170 4863d875c (tree = main's) | Every number of the reviewer's table matches; preview OK (clone rabbit-hole-web-dev-r170-int, build caa7e9fb6eed, record ffe9faca08740ff5); web suite 7659, 0 fail. Launcher `C:sspecelease-queueelease-170-rel-crossings.cmd`, not run. Report checks/release-170/REPORT.md (7e98118e3). Known cost: at a 408 request the U-Net draws 564 px and shared key/value 540 px (408 in 169). **Release order is the owner's decision:** 170 before 169 fast-forwards main by both commits (169's launcher then stops); 169 first needs MAIN_PREV changed in the 170 pins and a re-cut recovery branch. The token budgets were remeasured with the repo's own counter (no generator exists; it reproduces all 713 committed entries on main, 169 and 170). |
 
 ## Stopped: the same-JSON change set (the owner decides)
 
