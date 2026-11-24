@@ -1,0 +1,1406 @@
+run ej_318bdf4291f94c7a8a9cb1109471e36f: did NOT pass the checks
+prompt: how does a decision tree works?
+depth: detailed   model: gemini-4-hydrogen (high)   seed: 3995092756   seconds: 200.818   cost: $0.3933
+
+== dice
+{
+  "controlQuantities": [
+    "split_x",
+    "split_y",
+    "separation"
+  ],
+  "n": 3,
+  "k": 1,
+  "ids": [
+    "separation"
+  ]
+}
+
+== calls
+quantities: answered, 15.292 s, 1231 in + 2396 thinking + 801 out, $0.0258
+blueprint: answered, 140.396 s, 10390 in + 28309 thinking + 4125 out, $0.2588
+blueprint: answered, 42.969 s, 14561 in + 7468 thinking + 4103 out, $0.1086
+
+== problems
+1. `pictures.panel.series[0]` (`gini_gain`) is a flat line at the default settings; draw a quantity that changes.
+2. `pictures.panel.series[1]` (`weighted_gini`) is a flat line at the default settings; draw a quantity that changes.
+
+== blueprint (corrected, not passed): "How a Decision Tree Splits Feature Space"; controls: separation
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A decision tree classifies samples by recursively splitting data along feature thresholds that maximize impurity reduction. Each branch routes points to child nodes until regions are pure enough to predict a majority class.",
+    "formula": "\\Delta G = G_0 - \\left(\\frac{N_L}{N}G_L + \\frac{N_R}{N}G_R\\right)",
+    "assumptions": [
+      "Binary classification (Class A vs. Class B) using axis-aligned threshold splits.",
+      "Node impurity is measured by Gini impurity, G = 1 - p_A^2 - p_B^2.",
+      "Dataset size is fixed at N = 20 samples across two features."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "split_x",
+      "label": "Root split x",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Threshold on feature x used at the root node to send samples left or right."
+    },
+    {
+      "id": "split_y",
+      "label": "Child split y",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Second-level threshold on feature y applied to refine a mixed child node."
+    },
+    {
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "role": "control",
+      "meaning": "Distance between the two class clusters in feature space."
+    },
+    {
+      "id": "total_samples",
+      "label": "Total samples N",
+      "unit": "pts",
+      "role": "fixed",
+      "meaning": "Total number of labeled training samples evaluated at the root node."
+    },
+    {
+      "id": "parent_gini",
+      "label": "Parent Gini G_0",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the unsplit root node before applying any threshold."
+    },
+    {
+      "id": "weighted_gini",
+      "label": "Weighted child Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Size-weighted average Gini impurity of the left and right root branches."
+    },
+    {
+      "id": "gini_gain",
+      "label": "Impurity reduction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in Gini impurity achieved by the root split (G_0 minus weighted child Gini)."
+    },
+    {
+      "id": "left_count",
+      "label": "Left branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x <= split_x routed to the left branch."
+    },
+    {
+      "id": "right_count",
+      "label": "Right branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x > split_x routed to the right branch."
+    },
+    {
+      "id": "accuracy",
+      "label": "Tree accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of samples correctly classified by majority vote at the leaves."
+    }
+  ],
+  "things": [
+    {
+      "id": "tree",
+      "label": "Root split"
+    },
+    {
+      "id": "leaves",
+      "label": "Child branch"
+    },
+    {
+      "id": "class_a",
+      "label": "Class A"
+    },
+    {
+      "id": "class_b",
+      "label": "Class B"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "min": 0,
+      "max": 3,
+      "default": 1.5,
+      "step": 0.5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 8,
+    "label": "Cycle time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const sep = inputs.separation; const split_x = 5; const split_y = 5; const total_samples = 20; const dxA = [-2.2, -1.6, -1.1, -0.6, -0.1, 0.35, 0.8, 1.25, 1.7, 2.15]; const dyA = [0.7, 0.3, -0.2, -0.6, 0.8, 0.4, -0.1, -0.5, 0.2, -0.7]; const dxB = [-0.525, -0.975, -1.875, -2.325, 0.1, 0.5, 0.9, 1.3, 1.7, 2.1]; const dyB = [-0.7, -0.35, 0.2, 0.6, -0.8, -0.4, 0.1, 0.5, -0.2, 0.7]; const ax = 5.3 - 0.9 * sep; const ay = 5.0 - 0.6 * sep; const bx = 5.3 + 0.9 * sep; const by = 5.0 + 0.6 * sep; let leftA = 0; let leftB = 0; let lrA = 0; let lrB = 0; let urA = 0; let urB = 0; for (let i = 0; i < 10; i++) { const pxA = ax + dxA[i]; const pyA = ay + dyA[i]; if (pxA <= split_x) { leftA++; } else if (pyA <= split_y) { lrA++; } else { urA++; } const pxB = bx + dxB[i]; const pyB = by + dyB[i]; if (pxB <= split_x) { leftB++; } else if (pyB <= split_y) { lrB++; } else { urB++; } } const left_count = leftA + leftB; const rightA = lrA + urA; const rightB = lrB + urB; const right_count = rightA + rightB; const parent_gini = 1 - Math.pow(10 / total_samples, 2) - Math.pow(10 / total_samples, 2); const giniLeft = left_count > 0 ? 1 - Math.pow(leftA / left_count, 2) - Math.pow(leftB / left_count, 2) : 0; const giniRight = right_count > 0 ? 1 - Math.pow(rightA / right_count, 2) - Math.pow(rightB / right_count, 2) : 0; const weighted_gini = (left_count / total_samples) * giniLeft + (right_count / total_samples) * giniRight; const gini_gain = parent_gini - weighted_gini; const correct = Math.max(leftA, leftB) + Math.max(lrA, lrB) + Math.max(urA, urB); const accuracy = (correct / total_samples) * 100; const frac = t / 8; const sample_x = 1.5 + 7.0 * frac; const sample_y = 1.8 + 6.4 * frac * frac; const in_left_leaf = sample_x <= split_x; const in_lower_right = sample_x > split_x && sample_y <= split_y; return { parent_gini, weighted_gini, gini_gain, left_count, right_count, accuracy, ax, ay, bx, by, sample_x, sample_y, in_left_leaf, in_lower_right }; }",
+    "outputs": [
+      {
+        "id": "parent_gini",
+        "unit": "",
+        "meaning": "Gini impurity of the unsplit root node before applying any threshold.",
+        "kind": "number"
+      },
+      {
+        "id": "weighted_gini",
+        "unit": "",
+        "meaning": "Size-weighted average Gini impurity of the left and right root branches.",
+        "kind": "number"
+      },
+      {
+        "id": "gini_gain",
+        "unit": "",
+        "meaning": "Drop in Gini impurity achieved by the root split.",
+        "kind": "number"
+      },
+      {
+        "id": "left_count",
+        "unit": "pts",
+        "meaning": "Number of samples routed to the left branch.",
+        "kind": "number"
+      },
+      {
+        "id": "right_count",
+        "unit": "pts",
+        "meaning": "Number of samples routed to the right branch.",
+        "kind": "number"
+      },
+      {
+        "id": "accuracy",
+        "unit": "%",
+        "meaning": "Percentage of samples correctly classified at the leaves.",
+        "kind": "number"
+      },
+      {
+        "id": "ax",
+        "unit": "",
+        "meaning": "Feature x coordinate of the Class A cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "ay",
+        "unit": "",
+        "meaning": "Feature y coordinate of the Class A cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "bx",
+        "unit": "",
+        "meaning": "Feature x coordinate of the Class B cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "by",
+        "unit": "",
+        "meaning": "Feature y coordinate of the Class B cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_x",
+        "unit": "",
+        "meaning": "Feature x coordinate of the moving query sample.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_y",
+        "unit": "",
+        "meaning": "Feature y coordinate of the moving query sample.",
+        "kind": "number"
+      },
+      {
+        "id": "in_left_leaf",
+        "unit": "",
+        "meaning": "True when the query sample satisfies x <= 5 and enters the left leaf.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_lower_right",
+        "unit": "",
+        "meaning": "True when the query sample satisfies x > 5 and y <= 5.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "",
+      "parts": [
+        {
+          "type": "line",
+          "id": "x_axis",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            10,
+            0
+          ]
+        },
+        {
+          "type": "line",
+          "id": "y_axis",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            10
+          ]
+        },
+        {
+          "type": "line",
+          "id": "root_split",
+          "from": [
+            5,
+            0
+          ],
+          "to": [
+            5,
+            10
+          ],
+          "of": "tree"
+        },
+        {
+          "type": "label",
+          "id": "root_label",
+          "near": "root_split",
+          "text": "Root split: x = 5",
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "child_split",
+          "from": [
+            5,
+            5
+          ],
+          "to": [
+            10,
+            5
+          ],
+          "of": "leaves"
+        },
+        {
+          "type": "label",
+          "id": "child_label",
+          "near": "child_split",
+          "text": "Child split: y = 5",
+          "of": "leaves"
+        },
+        {
+          "type": "dot",
+          "id": "cluster_a",
+          "at": [
+            "ax",
+            "ay"
+          ],
+          "size": "large",
+          "of": "class_a"
+        },
+        {
+          "type": "label",
+          "id": "label_a",
+          "near": "cluster_a",
+          "text": "Class A center",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "cluster_b",
+          "at": [
+            "bx",
+            "by"
+          ],
+          "size": "large",
+          "of": "class_b"
+        },
+        {
+          "type": "label",
+          "id": "label_b",
+          "near": "cluster_b",
+          "text": "Class B center",
+          "of": "class_b"
+        },
+        {
+          "type": "trace",
+          "id": "sample_trace",
+          "at": [
+            "sample_x",
+            "sample_y"
+          ]
+        },
+        {
+          "type": "dot",
+          "id": "sample_dot",
+          "at": [
+            "sample_x",
+            "sample_y"
+          ],
+          "size": "medium"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Impurity vs. Class Separation",
+      "x": {
+        "over": "separation",
+        "label": "Class separation",
+        "unit": ""
+      },
+      "y": {
+        "label": "Gini impurity",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "gini_gain",
+          "label": "Gini gain",
+          "of": "tree",
+          "style": "line"
+        },
+        {
+          "value": "weighted_gini",
+          "label": "Child Gini",
+          "of": "leaves",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "gini_gain",
+      "label": "Gini gain",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree"
+    },
+    {
+      "value": "weighted_gini",
+      "label": "Child Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "leaves"
+    },
+    {
+      "value": "accuracy",
+      "label": "Accuracy",
+      "unit": "%",
+      "decimals": 0,
+      "of": "tree"
+    },
+    {
+      "value": "left_count",
+      "label": "Left count",
+      "unit": "pts",
+      "decimals": 0,
+      "of": "leaves"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Root splits x<=5, child splits y<=5"
+    ],
+    "cases": [
+      {
+        "when": "in_left_leaf",
+        "text": "Query x<=5 goes to Left (Class A)"
+      },
+      {
+        "when": "in_lower_right",
+        "text": "x>5, y<=5 goes to Lower-R (Class A)"
+      }
+    ],
+    "otherwise": "x>5, y>5 goes to Upper-R (Class B)"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "parent_gini",
+      "when": "separation"
+    },
+    {
+      "type": "increases",
+      "value": "gini_gain",
+      "with": "separation"
+    },
+    {
+      "type": "decreases",
+      "value": "weighted_gini",
+      "with": "separation"
+    },
+    {
+      "type": "increases",
+      "value": "accuracy",
+      "with": "separation"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Splits Feature Space",
+    "description": "Watch a query point route through root and child splits into leaves. Adjust class separation to see how Gini gain and tree accuracy change.",
+    "instructions": "Drag the Class separation slider from 0 to 3 to move the two class clusters apart. Pause or scrub the timeline to follow the query point across the root and child decision boundaries.",
+    "goal": "A decision tree partitions feature space with threshold rules that reduce node Gini impurity until leaves classify samples accurately."
+  }
+}
+
+== quantities answer (exactly as returned)
+{
+  "relationship": {
+    "statement": "A decision tree classifies samples by recursively splitting data along feature thresholds that maximize impurity reduction. Each branch routes points to child nodes until regions are pure enough to predict a majority class.",
+    "formula": "\\Delta G = G_0 - \\left(\\frac{N_L}{N}G_L + \\frac{N_R}{N}G_R\\right)",
+    "assumptions": [
+      "Binary classification (Class A vs. Class B) using axis-aligned threshold splits.",
+      "Node impurity is measured by Gini impurity, G = 1 - p_A^2 - p_B^2.",
+      "Dataset size is fixed at N = 20 samples across two features."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "split_x",
+      "label": "Root split x",
+      "unit": "",
+      "role": "control",
+      "meaning": "Threshold on feature x used at the root node to send samples left or right."
+    },
+    {
+      "id": "split_y",
+      "label": "Child split y",
+      "unit": "",
+      "role": "control",
+      "meaning": "Second-level threshold on feature y applied to refine a mixed child node."
+    },
+    {
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "role": "control",
+      "meaning": "Distance between the two class clusters in feature space."
+    },
+    {
+      "id": "total_samples",
+      "label": "Total samples N",
+      "unit": "pts",
+      "role": "fixed",
+      "meaning": "Total number of labeled training samples evaluated at the root node."
+    },
+    {
+      "id": "parent_gini",
+      "label": "Parent Gini G_0",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the unsplit root node before applying any threshold."
+    },
+    {
+      "id": "weighted_gini",
+      "label": "Weighted child Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Size-weighted average Gini impurity of the left and right root branches."
+    },
+    {
+      "id": "gini_gain",
+      "label": "Impurity reduction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in Gini impurity achieved by the root split (G_0 minus weighted child Gini)."
+    },
+    {
+      "id": "left_count",
+      "label": "Left branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x <= split_x routed to the left branch."
+    },
+    {
+      "id": "right_count",
+      "label": "Right branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x > split_x routed to the right branch."
+    },
+    {
+      "id": "accuracy",
+      "label": "Tree accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of samples correctly classified by majority vote at the leaves."
+    }
+  ]
+}
+
+== Plan check, first answer (the form and the formula width)
+{
+  "ok": true,
+  "problems": []
+}
+
+== first blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A decision tree classifies samples by recursively splitting data along feature thresholds that maximize impurity reduction. Each branch routes points to child nodes until regions are pure enough to predict a majority class.",
+    "formula": "\\Delta G = G_0 - \\left(\\frac{N_L}{N}G_L + \\frac{N_R}{N}G_R\\right)",
+    "assumptions": [
+      "Binary classification (Class A vs. Class B) using axis-aligned threshold splits.",
+      "Node impurity is measured by Gini impurity, G = 1 - p_A^2 - p_B^2.",
+      "Dataset size is fixed at N = 20 samples across two features."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "split_x",
+      "label": "Root split x",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Threshold on feature x used at the root node to send samples left or right."
+    },
+    {
+      "id": "split_y",
+      "label": "Child split y",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Second-level threshold on feature y applied to refine a mixed child node."
+    },
+    {
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "role": "control",
+      "meaning": "Distance between the two class clusters in feature space."
+    },
+    {
+      "id": "total_samples",
+      "label": "Total samples N",
+      "unit": "pts",
+      "role": "fixed",
+      "meaning": "Total number of labeled training samples evaluated at the root node."
+    },
+    {
+      "id": "parent_gini",
+      "label": "Parent Gini G_0",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the unsplit root node before applying any threshold."
+    },
+    {
+      "id": "weighted_gini",
+      "label": "Weighted child Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Size-weighted average Gini impurity of the left and right root branches."
+    },
+    {
+      "id": "gini_gain",
+      "label": "Impurity reduction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in Gini impurity achieved by the root split (G_0 minus weighted child Gini)."
+    },
+    {
+      "id": "left_count",
+      "label": "Left branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x <= split_x routed to the left branch."
+    },
+    {
+      "id": "right_count",
+      "label": "Right branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x > split_x routed to the right branch."
+    },
+    {
+      "id": "accuracy",
+      "label": "Tree accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of samples correctly classified by majority vote at the leaves."
+    }
+  ],
+  "things": [
+    {
+      "id": "tree",
+      "label": "Root split"
+    },
+    {
+      "id": "leaves",
+      "label": "Child branch"
+    },
+    {
+      "id": "class_a",
+      "label": "Class A"
+    },
+    {
+      "id": "class_b",
+      "label": "Class B"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "min": 0,
+      "max": 3,
+      "default": 1.5,
+      "step": 0.5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 8,
+    "label": "Cycle time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const sep = inputs.separation; const split_x = 5; const split_y = 5; const total_samples = 20; const dxA = [-2.2, -1.6, -1.1, -0.6, -0.1, 0.35, 0.8, 1.25, 1.7, 2.15]; const dyA = [0.7, 0.3, -0.2, -0.6, 0.8, 0.4, -0.1, -0.5, 0.2, -0.7]; const dxB = [-0.525, -0.975, -1.875, -2.325, 0.1, 0.5, 0.9, 1.3, 1.7, 2.1]; const dyB = [-0.7, -0.35, 0.2, 0.6, -0.8, -0.4, 0.1, 0.5, -0.2, 0.7]; const ax = 5.3 - 0.9 * sep; const ay = 5.0 - 0.6 * sep; const bx = 5.3 + 0.9 * sep; const by = 5.0 + 0.6 * sep; let leftA = 0; let leftB = 0; let lrA = 0; let lrB = 0; let urA = 0; let urB = 0; for (let i = 0; i < 10; i++) { const pxA = ax + dxA[i]; const pyA = ay + dyA[i]; if (pxA <= split_x) { leftA++; } else if (pyA <= split_y) { lrA++; } else { urA++; } const pxB = bx + dxB[i]; const pyB = by + dyB[i]; if (pxB <= split_x) { leftB++; } else if (pyB <= split_y) { lrB++; } else { urB++; } } const left_count = leftA + leftB; const rightA = lrA + urA; const rightB = lrB + urB; const right_count = rightA + rightB; const parent_gini = 1 - Math.pow(10 / total_samples, 2) - Math.pow(10 / total_samples, 2); const giniLeft = left_count > 0 ? 1 - Math.pow(leftA / left_count, 2) - Math.pow(leftB / left_count, 2) : 0; const giniRight = right_count > 0 ? 1 - Math.pow(rightA / right_count, 2) - Math.pow(rightB / right_count, 2) : 0; const weighted_gini = (left_count / total_samples) * giniLeft + (right_count / total_samples) * giniRight; const gini_gain = parent_gini - weighted_gini; const correct = Math.max(leftA, leftB) + Math.max(lrA, lrB) + Math.max(urA, urB); const accuracy = (correct / total_samples) * 100; const angle = 2 * Math.PI * (t / 8) + 0.6; const sample_x = 5.5 + 3.2 * Math.cos(angle); const sample_y = 5.0 + 3.2 * Math.sin(angle); const in_left_leaf = sample_x <= split_x; const in_lower_right = sample_x > split_x && sample_y <= split_y; return { parent_gini, weighted_gini, gini_gain, left_count, right_count, accuracy, ax, ay, bx, by, sample_x, sample_y, in_left_leaf, in_lower_right }; }",
+    "outputs": [
+      {
+        "id": "parent_gini",
+        "unit": "",
+        "meaning": "Gini impurity of the unsplit root node before applying any threshold.",
+        "kind": "number"
+      },
+      {
+        "id": "weighted_gini",
+        "unit": "",
+        "meaning": "Size-weighted average Gini impurity of the left and right root branches.",
+        "kind": "number"
+      },
+      {
+        "id": "gini_gain",
+        "unit": "",
+        "meaning": "Drop in Gini impurity achieved by the root split.",
+        "kind": "number"
+      },
+      {
+        "id": "left_count",
+        "unit": "pts",
+        "meaning": "Number of samples routed to the left branch.",
+        "kind": "number"
+      },
+      {
+        "id": "right_count",
+        "unit": "pts",
+        "meaning": "Number of samples routed to the right branch.",
+        "kind": "number"
+      },
+      {
+        "id": "accuracy",
+        "unit": "%",
+        "meaning": "Percentage of samples correctly classified at the leaves.",
+        "kind": "number"
+      },
+      {
+        "id": "ax",
+        "unit": "",
+        "meaning": "Feature x coordinate of the Class A cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "ay",
+        "unit": "",
+        "meaning": "Feature y coordinate of the Class A cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "bx",
+        "unit": "",
+        "meaning": "Feature x coordinate of the Class B cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "by",
+        "unit": "",
+        "meaning": "Feature y coordinate of the Class B cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_x",
+        "unit": "",
+        "meaning": "Feature x coordinate of the moving query sample.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_y",
+        "unit": "",
+        "meaning": "Feature y coordinate of the moving query sample.",
+        "kind": "number"
+      },
+      {
+        "id": "in_left_leaf",
+        "unit": "",
+        "meaning": "True when the query sample satisfies x <= 5 and enters the left leaf.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_lower_right",
+        "unit": "",
+        "meaning": "True when the query sample satisfies x > 5 and y <= 5.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "",
+      "parts": [
+        {
+          "type": "line",
+          "id": "x_axis",
+          "from": [0, 0],
+          "to": [10, 0]
+        },
+        {
+          "type": "line",
+          "id": "y_axis",
+          "from": [0, 0],
+          "to": [0, 10]
+        },
+        {
+          "type": "line",
+          "id": "root_split",
+          "from": [5, 0],
+          "to": [5, 10],
+          "of": "tree"
+        },
+        {
+          "type": "label",
+          "id": "root_label",
+          "near": "root_split",
+          "text": "Root split: x = 5",
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "child_split",
+          "from": [5, 5],
+          "to": [10, 5],
+          "of": "leaves"
+        },
+        {
+          "type": "label",
+          "id": "child_label",
+          "near": "child_split",
+          "text": "Child split: y = 5",
+          "of": "leaves"
+        },
+        {
+          "type": "dot",
+          "id": "cluster_a",
+          "at": ["ax", "ay"],
+          "size": "large",
+          "of": "class_a"
+        },
+        {
+          "type": "label",
+          "id": "label_a",
+          "near": "cluster_a",
+          "text": "Class A center",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "cluster_b",
+          "at": ["bx", "by"],
+          "size": "large",
+          "of": "class_b"
+        },
+        {
+          "type": "label",
+          "id": "label_b",
+          "near": "cluster_b",
+          "text": "Class B center",
+          "of": "class_b"
+        },
+        {
+          "type": "trace",
+          "id": "sample_trace",
+          "at": ["sample_x", "sample_y"]
+        },
+        {
+          "type": "dot",
+          "id": "sample_dot",
+          "at": ["sample_x", "sample_y"],
+          "size": "medium"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Impurity vs. Class Separation",
+      "x": {
+        "over": "separation",
+        "label": "Class separation",
+        "unit": ""
+      },
+      "y": {
+        "label": "Gini impurity",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "gini_gain",
+          "label": "Gini gain",
+          "of": "tree",
+          "style": "line"
+        },
+        {
+          "value": "weighted_gini",
+          "label": "Child Gini",
+          "of": "leaves",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "gini_gain",
+      "label": "Gini gain",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree"
+    },
+    {
+      "value": "weighted_gini",
+      "label": "Child Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "leaves"
+    },
+    {
+      "value": "accuracy",
+      "label": "Accuracy",
+      "unit": "%",
+      "decimals": 0,
+      "of": "tree"
+    },
+    {
+      "value": "left_count",
+      "label": "Left count",
+      "unit": "pts",
+      "decimals": 0,
+      "of": "leaves"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Root splits x<=5, child splits y<=5"
+    ],
+    "cases": [
+      {
+        "when": "in_left_leaf",
+        "text": "Query x<=5 goes to Left (Class A)"
+      },
+      {
+        "when": "in_lower_right",
+        "text": "x>5, y<=5 goes to Lower-R (Class A)"
+      }
+    ],
+    "otherwise": "x>5, y>5 goes to Upper-R (Class B)"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "parent_gini",
+      "when": "separation"
+    },
+    {
+      "type": "increases",
+      "value": "gini_gain",
+      "with": "separation"
+    },
+    {
+      "type": "decreases",
+      "value": "weighted_gini",
+      "with": "separation"
+    },
+    {
+      "type": "increases",
+      "value": "accuracy",
+      "with": "separation"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Splits Feature Space",
+    "description": "Watch a query point route through root and child splits into leaves. Adjust class separation to see how Gini gain and tree accuracy change.",
+    "instructions": "Drag the Class separation slider from 0 to 3 to move the two class clusters apart. Pause or scrub the timeline to follow the query point across the root and child decision boundaries.",
+    "goal": "A decision tree partitions feature space with threshold rules that reduce node Gini impurity until leaves classify samples accurately."
+  }
+}
+
+== corrected blueprint answer (exactly as returned)
+{
+  "version": 1,
+  "relationship": {
+    "statement": "A decision tree classifies samples by recursively splitting data along feature thresholds that maximize impurity reduction. Each branch routes points to child nodes until regions are pure enough to predict a majority class.",
+    "formula": "\\Delta G = G_0 - \\left(\\frac{N_L}{N}G_L + \\frac{N_R}{N}G_R\\right)",
+    "assumptions": [
+      "Binary classification (Class A vs. Class B) using axis-aligned threshold splits.",
+      "Node impurity is measured by Gini impurity, G = 1 - p_A^2 - p_B^2.",
+      "Dataset size is fixed at N = 20 samples across two features."
+    ]
+  },
+  "quantities": [
+    {
+      "id": "split_x",
+      "label": "Root split x",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Threshold on feature x used at the root node to send samples left or right."
+    },
+    {
+      "id": "split_y",
+      "label": "Child split y",
+      "unit": "",
+      "role": "fixed",
+      "meaning": "Second-level threshold on feature y applied to refine a mixed child node."
+    },
+    {
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "role": "control",
+      "meaning": "Distance between the two class clusters in feature space."
+    },
+    {
+      "id": "total_samples",
+      "label": "Total samples N",
+      "unit": "pts",
+      "role": "fixed",
+      "meaning": "Total number of labeled training samples evaluated at the root node."
+    },
+    {
+      "id": "parent_gini",
+      "label": "Parent Gini G_0",
+      "unit": "",
+      "role": "result",
+      "meaning": "Gini impurity of the unsplit root node before applying any threshold."
+    },
+    {
+      "id": "weighted_gini",
+      "label": "Weighted child Gini",
+      "unit": "",
+      "role": "result",
+      "meaning": "Size-weighted average Gini impurity of the left and right root branches."
+    },
+    {
+      "id": "gini_gain",
+      "label": "Impurity reduction",
+      "unit": "",
+      "role": "result",
+      "meaning": "Drop in Gini impurity achieved by the root split (G_0 minus weighted child Gini)."
+    },
+    {
+      "id": "left_count",
+      "label": "Left branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x <= split_x routed to the left branch."
+    },
+    {
+      "id": "right_count",
+      "label": "Right branch count",
+      "unit": "pts",
+      "role": "result",
+      "meaning": "Number of samples satisfying x > split_x routed to the right branch."
+    },
+    {
+      "id": "accuracy",
+      "label": "Tree accuracy",
+      "unit": "%",
+      "role": "result",
+      "meaning": "Percentage of samples correctly classified by majority vote at the leaves."
+    }
+  ],
+  "things": [
+    {
+      "id": "tree",
+      "label": "Root split"
+    },
+    {
+      "id": "leaves",
+      "label": "Child branch"
+    },
+    {
+      "id": "class_a",
+      "label": "Class A"
+    },
+    {
+      "id": "class_b",
+      "label": "Class B"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "number",
+      "id": "separation",
+      "label": "Class separation",
+      "unit": "",
+      "min": 0,
+      "max": 3,
+      "default": 1.5,
+      "step": 0.5
+    }
+  ],
+  "time": {
+    "mode": "continuous",
+    "duration": 8,
+    "label": "Cycle time",
+    "unit": "s"
+  },
+  "math": {
+    "code": "function compute(inputs, t) { const sep = inputs.separation; const split_x = 5; const split_y = 5; const total_samples = 20; const dxA = [-2.2, -1.6, -1.1, -0.6, -0.1, 0.35, 0.8, 1.25, 1.7, 2.15]; const dyA = [0.7, 0.3, -0.2, -0.6, 0.8, 0.4, -0.1, -0.5, 0.2, -0.7]; const dxB = [-0.525, -0.975, -1.875, -2.325, 0.1, 0.5, 0.9, 1.3, 1.7, 2.1]; const dyB = [-0.7, -0.35, 0.2, 0.6, -0.8, -0.4, 0.1, 0.5, -0.2, 0.7]; const ax = 5.3 - 0.9 * sep; const ay = 5.0 - 0.6 * sep; const bx = 5.3 + 0.9 * sep; const by = 5.0 + 0.6 * sep; let leftA = 0; let leftB = 0; let lrA = 0; let lrB = 0; let urA = 0; let urB = 0; for (let i = 0; i < 10; i++) { const pxA = ax + dxA[i]; const pyA = ay + dyA[i]; if (pxA <= split_x) { leftA++; } else if (pyA <= split_y) { lrA++; } else { urA++; } const pxB = bx + dxB[i]; const pyB = by + dyB[i]; if (pxB <= split_x) { leftB++; } else if (pyB <= split_y) { lrB++; } else { urB++; } } const left_count = leftA + leftB; const rightA = lrA + urA; const rightB = lrB + urB; const right_count = rightA + rightB; const parent_gini = 1 - Math.pow(10 / total_samples, 2) - Math.pow(10 / total_samples, 2); const giniLeft = left_count > 0 ? 1 - Math.pow(leftA / left_count, 2) - Math.pow(leftB / left_count, 2) : 0; const giniRight = right_count > 0 ? 1 - Math.pow(rightA / right_count, 2) - Math.pow(rightB / right_count, 2) : 0; const weighted_gini = (left_count / total_samples) * giniLeft + (right_count / total_samples) * giniRight; const gini_gain = parent_gini - weighted_gini; const correct = Math.max(leftA, leftB) + Math.max(lrA, lrB) + Math.max(urA, urB); const accuracy = (correct / total_samples) * 100; const frac = t / 8; const sample_x = 1.5 + 7.0 * frac; const sample_y = 1.8 + 6.4 * frac * frac; const in_left_leaf = sample_x <= split_x; const in_lower_right = sample_x > split_x && sample_y <= split_y; return { parent_gini, weighted_gini, gini_gain, left_count, right_count, accuracy, ax, ay, bx, by, sample_x, sample_y, in_left_leaf, in_lower_right }; }",
+    "outputs": [
+      {
+        "id": "parent_gini",
+        "unit": "",
+        "meaning": "Gini impurity of the unsplit root node before applying any threshold.",
+        "kind": "number"
+      },
+      {
+        "id": "weighted_gini",
+        "unit": "",
+        "meaning": "Size-weighted average Gini impurity of the left and right root branches.",
+        "kind": "number"
+      },
+      {
+        "id": "gini_gain",
+        "unit": "",
+        "meaning": "Drop in Gini impurity achieved by the root split.",
+        "kind": "number"
+      },
+      {
+        "id": "left_count",
+        "unit": "pts",
+        "meaning": "Number of samples routed to the left branch.",
+        "kind": "number"
+      },
+      {
+        "id": "right_count",
+        "unit": "pts",
+        "meaning": "Number of samples routed to the right branch.",
+        "kind": "number"
+      },
+      {
+        "id": "accuracy",
+        "unit": "%",
+        "meaning": "Percentage of samples correctly classified at the leaves.",
+        "kind": "number"
+      },
+      {
+        "id": "ax",
+        "unit": "",
+        "meaning": "Feature x coordinate of the Class A cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "ay",
+        "unit": "",
+        "meaning": "Feature y coordinate of the Class A cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "bx",
+        "unit": "",
+        "meaning": "Feature x coordinate of the Class B cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "by",
+        "unit": "",
+        "meaning": "Feature y coordinate of the Class B cluster center.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_x",
+        "unit": "",
+        "meaning": "Feature x coordinate of the moving query sample.",
+        "kind": "number"
+      },
+      {
+        "id": "sample_y",
+        "unit": "",
+        "meaning": "Feature y coordinate of the moving query sample.",
+        "kind": "number"
+      },
+      {
+        "id": "in_left_leaf",
+        "unit": "",
+        "meaning": "True when the query sample satisfies x <= 5 and enters the left leaf.",
+        "kind": "flag"
+      },
+      {
+        "id": "in_lower_right",
+        "unit": "",
+        "meaning": "True when the query sample satisfies x > 5 and y <= 5.",
+        "kind": "flag"
+      }
+    ]
+  },
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "unit": "",
+      "parts": [
+        {
+          "type": "line",
+          "id": "x_axis",
+          "from": [0, 0],
+          "to": [10, 0]
+        },
+        {
+          "type": "line",
+          "id": "y_axis",
+          "from": [0, 0],
+          "to": [0, 10]
+        },
+        {
+          "type": "line",
+          "id": "root_split",
+          "from": [5, 0],
+          "to": [5, 10],
+          "of": "tree"
+        },
+        {
+          "type": "label",
+          "id": "root_label",
+          "near": "root_split",
+          "text": "Root split: x = 5",
+          "of": "tree"
+        },
+        {
+          "type": "line",
+          "id": "child_split",
+          "from": [5, 5],
+          "to": [10, 5],
+          "of": "leaves"
+        },
+        {
+          "type": "label",
+          "id": "child_label",
+          "near": "child_split",
+          "text": "Child split: y = 5",
+          "of": "leaves"
+        },
+        {
+          "type": "dot",
+          "id": "cluster_a",
+          "at": ["ax", "ay"],
+          "size": "large",
+          "of": "class_a"
+        },
+        {
+          "type": "label",
+          "id": "label_a",
+          "near": "cluster_a",
+          "text": "Class A center",
+          "of": "class_a"
+        },
+        {
+          "type": "dot",
+          "id": "cluster_b",
+          "at": ["bx", "by"],
+          "size": "large",
+          "of": "class_b"
+        },
+        {
+          "type": "label",
+          "id": "label_b",
+          "near": "cluster_b",
+          "text": "Class B center",
+          "of": "class_b"
+        },
+        {
+          "type": "trace",
+          "id": "sample_trace",
+          "at": ["sample_x", "sample_y"]
+        },
+        {
+          "type": "dot",
+          "id": "sample_dot",
+          "at": ["sample_x", "sample_y"],
+          "size": "medium"
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "title": "Impurity vs. Class Separation",
+      "x": {
+        "over": "separation",
+        "label": "Class separation",
+        "unit": ""
+      },
+      "y": {
+        "label": "Gini impurity",
+        "unit": ""
+      },
+      "series": [
+        {
+          "value": "gini_gain",
+          "label": "Gini gain",
+          "of": "tree",
+          "style": "line"
+        },
+        {
+          "value": "weighted_gini",
+          "label": "Child Gini",
+          "of": "leaves",
+          "style": "line"
+        }
+      ]
+    }
+  },
+  "values": [
+    {
+      "value": "gini_gain",
+      "label": "Gini gain",
+      "unit": "",
+      "decimals": 3,
+      "of": "tree"
+    },
+    {
+      "value": "weighted_gini",
+      "label": "Child Gini",
+      "unit": "",
+      "decimals": 3,
+      "of": "leaves"
+    },
+    {
+      "value": "accuracy",
+      "label": "Accuracy",
+      "unit": "%",
+      "decimals": 0,
+      "of": "tree"
+    },
+    {
+      "value": "left_count",
+      "label": "Left count",
+      "unit": "pts",
+      "decimals": 0,
+      "of": "leaves"
+    }
+  ],
+  "explanation": {
+    "always": [
+      "Root splits x<=5, child splits y<=5"
+    ],
+    "cases": [
+      {
+        "when": "in_left_leaf",
+        "text": "Query x<=5 goes to Left (Class A)"
+      },
+      {
+        "when": "in_lower_right",
+        "text": "x>5, y<=5 goes to Lower-R (Class A)"
+      }
+    ],
+    "otherwise": "x>5, y>5 goes to Upper-R (Class B)"
+  },
+  "layout": {
+    "pictureCount": "two",
+    "runs": "compact",
+    "panelRole": "equal"
+  },
+  "claims": [
+    {
+      "type": "unchanged",
+      "value": "parent_gini",
+      "when": "separation"
+    },
+    {
+      "type": "increases",
+      "value": "gini_gain",
+      "with": "separation"
+    },
+    {
+      "type": "decreases",
+      "value": "weighted_gini",
+      "with": "separation"
+    },
+    {
+      "type": "increases",
+      "value": "accuracy",
+      "with": "separation"
+    }
+  ],
+  "lesson": {
+    "title": "How a Decision Tree Splits Feature Space",
+    "description": "Watch a query point route through root and child splits into leaves. Adjust class separation to see how Gini gain and tree accuracy change.",
+    "instructions": "Drag the Class separation slider from 0 to 3 to move the two class clusters apart. Pause or scrub the timeline to follow the query point across the root and child decision boundaries.",
+    "goal": "A decision tree partitions feature space with threshold rules that reduce node Gini impurity until leaves classify samples accurately."
+  }
+}
+
+== checker output, first answer
+{
+  "ok": false,
+  "failed": 4,
+  "problems": [
+    {
+      "code": "moves",
+      "path": "pictures.main",
+      "message": "No part moves during the run at the default settings; make something move over time (a dot, a line end, an arrow).",
+      "check": 4
+    }
+  ],
+  "notes": [],
+  "measured": null
+}
+
+== checker output, corrected answer
+{
+  "ok": false,
+  "failed": 7,
+  "problems": [
+    {
+      "code": "graph",
+      "path": "pictures.panel.series[0]",
+      "message": "`pictures.panel.series[0]` (`gini_gain`) is a flat line at the default settings; draw a quantity that changes.",
+      "check": 7
+    },
+    {
+      "code": "graph",
+      "path": "pictures.panel.series[1]",
+      "message": "`pictures.panel.series[1]` (`weighted_gini`) is a flat line at the default settings; draw a quantity that changes.",
+      "check": 7
+    }
+  ],
+  "notes": [],
+  "measured": null
+}

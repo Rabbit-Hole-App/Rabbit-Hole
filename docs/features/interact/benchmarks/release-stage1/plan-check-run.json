@@ -1,0 +1,64 @@
+{
+  "what": "one run of the decision-tree prompt on 8879 after the Plan check (commit 7d12f9f2d)",
+  "prompt": "how does a decision tree works?",
+  "depth": "detailed",
+  "jobId": "ej_318bdf4291f94c7a8a9cb1109471e36f",
+  "canvas": "http://127.0.0.1:8879/apps/canvas-4a794560",
+  "stage": "failed",
+  "stopReason": "design_invalid",
+  "learnerMessage": "The scene design could not be completed. Try again or edit the request.",
+  "steps": [
+    {
+      "step": "plan",
+      "correcting": false,
+      "at": 0.6
+    },
+    {
+      "step": "design",
+      "correcting": false,
+      "at": 15.8
+    },
+    {
+      "step": "design",
+      "correcting": true,
+      "at": 157.2
+    },
+    {
+      "step": "failed",
+      "correcting": false,
+      "at": 201.2
+    }
+  ],
+  "planCalls": 1,
+  "planCheckFirst": {
+    "ok": true,
+    "problems": []
+  },
+  "seed": 3995092756,
+  "dice": [
+    "separation"
+  ],
+  "designPhaseSeconds": 200.818,
+  "modelUsd": 0.393288,
+  "callsSeconds": [
+    [
+      "blueprint_quantities",
+      15.292,
+      0.025824
+    ],
+    [
+      "blueprint_design",
+      140.396,
+      0.25884
+    ],
+    [
+      "blueprint_design",
+      42.969,
+      0.108624
+    ]
+  ],
+  "problems": [
+    "`pictures.panel.series[0]` (`gini_gain`) is a flat line at the default settings; draw a quantity that changes.",
+    "`pictures.panel.series[1]` (`weighted_gini`) is a flat line at the default settings; draw a quantity that changes."
+  ]
+}
