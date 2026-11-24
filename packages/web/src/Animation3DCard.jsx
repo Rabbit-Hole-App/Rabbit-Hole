@@ -3,6 +3,7 @@ import { Loader2, MessageCircle, Pencil, RefreshCw, Square } from 'lucide-react'
 import { api } from './api.js';
 import { Button, Pill } from './ui.jsx';
 import GoToPlanButton from './GoToPlanButton.jsx';
+import StageProgress from './StageProgress.jsx';
 import CardHeader from './CardHeader.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
@@ -179,7 +180,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
         {running && !progress && <Loader2 aria-hidden size={16} className="shrink-0 text-claude motion-safe:animate-spin" />}
         <p data-animation-stage aria-live="polite" className={`text-sm ${animationAsks(shown) ? 'text-ink' : failed ? 'text-fail' : running ? 'shimmer' : 'text-ink-2'}`}>{animationStage(shown)}</p>
       </div>
-      {progress && <StageProgress progress={progress} stage={animationStage(shown)} />}
+      {progress && <StageProgress progress={progress} stage={animationStage(shown)} prefix="animation" label="Scene progress" />}
       {request && failed && <p className="text-xs text-ink-2">Your request: {request}</p>}
       {problem && <p role="alert" className="text-xs text-fail">{problem}</p>}
       {!readOnly && (
@@ -190,29 +191,6 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
             <RefreshCw size={13} aria-hidden />{RETRY_LABELS[retry]}</button>}
         </div>
       )}
-    </div>
-  );
-}
-
-// Four segments after Generate: done are filled, the current one pulses (motion-safe), the rest are empty. A correction restarts at
-// Build and says "Correcting"; there are no percentages or time guesses.
-function StageProgress({ progress: { steps, current, correcting }, stage }) {
-  return (
-    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
-      <p data-animation-progress-label className="text-xs text-ink-3">{correcting ? 'Correcting' : `Step ${current + 1} of ${steps.length}`}</p>
-      <div data-animation-progress role="progressbar" aria-label="Scene progress" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={current + 1}
-        aria-valuetext={correcting ? `Correcting: ${stage}` : `Step ${current + 1} of ${steps.length}, ${steps[current]}: ${stage}`} className="flex gap-1">
-        {steps.map((name, index) => {
-          const state = index < current ? 'done' : index === current ? 'current' : 'todo';
-          return (
-            <div key={name} className="flex flex-1 flex-col gap-1">
-              <span data-animation-progress-step={state} data-step-name={name}
-                className={`h-1.5 rounded-full ${state === 'done' ? 'bg-ink' : state === 'current' ? 'bg-accent motion-safe:animate-pulse' : 'bg-line-strong'}`} />
-              <span aria-hidden className={`text-[11px] ${state === 'todo' ? 'text-ink-3' : 'text-ink-2'}`}>{name}</span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SPEC_DIR = 'C:/s/spec/interact-real', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
 const DEPTHS = ['brief', 'balanced', 'detailed'];
-const USAGE = 'usage: node scripts/interact/drive-local.mjs (--prompts <list.json> [--depth brief|balanced|detailed] | --check | --check-browser) [--base <url>] [--out <dir>] [--email <addr>] [--canvas-file <path>] [--stop-usd N]';
+const USAGE = 'usage: node scripts/interact/drive-local.mjs (--prompts <list.json> [--depth brief|balanced|detailed] | --check | --check-browser) [--base <url>] [--out <dir>] [--email <addr>] [--canvas-file <path>] [--stop-usd N] [--pending-shots]';
 
 const argv = process.argv.slice(2);
 const flag = name => argv.includes(`--${name}`), opt = (name, dflt) => { const i = argv.indexOf(`--${name}`); return i < 0 ? dflt : argv[i + 1]; };
@@ -26,6 +26,8 @@ const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b2
 // brief 32: --times 0.6,1.8,3 sets the card's time scrubber to each moment (a timed card), saving <id>-t<k>.png, the diagram's SVG and every flow node's box in <id>-times.json; --slider-test plays the card, then moves its x slider to 2 (--slider-name "B length" --slider-value 1.5 for another) and records what changed.
 // brief 34: with --times the card is re-found after a reload of the saved canvas and <id>-visible.json lists every probe point of the card that something else covers.
 // brief 33: --settings "B mass=2,B length=1;B mass=1,B length=2" sets the card's sliders (by their aria-label) before each run of --times; files get -s<k> in their names.
+// --pending-shots (release brief, step progress): while the job works, the job's own designStep is read every 0.4 s (the public view; the server sends the step key only) and every change is recorded in the result as steps [{ step, correcting, at (s from send) }];
+//   the first time each step shows, and the pending card's bar says so (it polls every 2 s), the page is shot as <id>-pending-<step>.png with what the bar reads (label, current step name) in pendingShots.
 // --scrub-first: the card's first range input is its time scrubber (its aria-label is the lesson's own time label, which differs per card)
 const SCRUB = flag('scrub-first') ? 'input[type="range"]' : `input[type="range"][aria-label="${opt('scrub-label', 'Time')}"]`;
 const GROUPS = opt('settings', '').split(';').filter(Boolean), TIMES = opt('times', '').split(',').filter(Boolean).map(Number), SLIDER_TEST = flag('slider-test'), STEPS = Number(opt('steps', 0)), WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
@@ -135,7 +137,22 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
   let job = null, shown = false;
   const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: WAIT_MS, polling: 'raf' }).then(() => { shown = true; }, () => {});
   // a fast pass builds straight through (ready with no proposal); a job that ends first (failed, cancelled) ends the wait too
-  const jobEnd = (async () => { while (!shown && Date.now() - tSent < WAIT_MS) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; if (s && ['failed', 'cancelled', 'ready'].includes(s.stage)) return s; await sleep(400); } return null; })();
+  const watching = flag('pending-shots'), shots = [], seenSteps = new Set(); let lastStep = null;
+  // --pending-shots: one step change of the job's public view -> the timeline, and once per step a shot of the page when the pending card's own bar shows that step (never awaited here: the loop keeps its 0.4 s beat)
+  const watchStep = view => {
+    const d = view?.designStep; if (!watching || !d || view.terminal) return;
+    const key = `${d.step}${d.correcting ? '-correcting' : ''}`, at = Math.round((Date.now() - tSent) / 100) / 10;
+    if (key !== lastStep) { (r.steps ??= []).push({ step: d.step, correcting: d.correcting, at }); lastStep = key; }
+    if (seenSteps.has(key)) return; seenSteps.add(key);
+    shots.push((async () => {
+      const bar = page.locator('[data-explain-pending] [data-explain-progress]').last(), name = d.step[0].toUpperCase() + d.step.slice(1);
+      const shown = await bar.locator(`[data-explain-progress-step="current"][data-step-name="${name}"]`).waitFor({ timeout: 8000 }).then(() => true, () => false);
+      const read = await bar.evaluate(el => ({ label: el.parentElement.querySelector('[data-explain-progress-label]')?.textContent ?? null, steps: [...el.querySelectorAll('[data-step-name]')].map(e => `${e.getAttribute('data-step-name')}:${e.getAttribute('data-explain-progress-step')}`), valuetext: el.getAttribute('aria-valuetext'), stage: document.querySelector('[data-explain-pending] [data-explain-stage]')?.textContent ?? null })).catch(() => null);
+      const file = `${tag}-pending-${key}.png`; await page.screenshot({ path: `${OUT}/${file}` }).catch(() => {});
+      (r.pendingShots ??= []).push({ key, at, barShowsStep: shown, read, file });
+    })());
+  };
+  const jobEnd = (async () => { while (!shown && Date.now() - tSent < WAIT_MS) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; watchStep(s); if (s && ['failed', 'cancelled', 'ready'].includes(s.stage)) return s; await sleep(400); } return null; })();
   const early = await Promise.race([planWait.then(() => null), jobEnd]);
   let end = early;
   if (early) { r.jobId = early.id ?? job?.id; if (early.stage === 'ready') r.promptToCardMs = Date.now() - tSent; }
@@ -144,10 +161,11 @@ for (const { id, prompt, expect, depth: promptDepth } of PROMPTS) {
     r.jobId = await proposal.getAttribute('data-proposal-job'); await proposal.screenshot({ path: `${OUT}/${tag}-plan.png` }).catch(() => {});
     await proposal.locator('[data-proposal-generate]').click(); log(tag, 'job', r.jobId, 'plan shown, Generate pressed');
     const tGen = Date.now();
-    while (Date.now() - tGen < 300000) { end = (await api('GET', `/api/learn/explain/jobs/${r.jobId}?board=${boardId}`)).data?.job; if (['ready', 'failed', 'cancelled'].includes(end?.stage) || end?.terminal || approveFailed) break; await sleep(400); }
+    while (Date.now() - tGen < 300000) { end = (await api('GET', `/api/learn/explain/jobs/${r.jobId}?board=${boardId}`)).data?.job; watchStep(end); if (['ready', 'failed', 'cancelled'].includes(end?.stage) || end?.terminal || approveFailed) break; await sleep(400); }
     if (end?.stage === 'ready') r.promptToCardMs = Date.now() - tSent;
   }
   if (!r.jobId) { r.jobId = job?.id ?? null; }
+  await Promise.all(shots); if (r.steps && end) r.steps.push({ step: end.stage, correcting: false, at: Math.round((Date.now() - tSent) / 100) / 10 }); // the last entry is the end of the last step
   Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s'), network: end ? undefined : net.splice(0) });
   if (end?.stage === 'ready') {
     const fresh = page.locator('[data-program-card]:not([data-seen])');

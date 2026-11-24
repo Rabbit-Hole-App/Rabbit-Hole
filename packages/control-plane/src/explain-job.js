@@ -210,6 +210,17 @@ const BUILD_STAGES = ['authoring', 'validating', 'rendering', 'reviewing', 'repa
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
+// The step a running blueprint job is on (owner, 2026-11-24: the pending card's bar), derived from what the job already stores: its stage and the calls of this attempt (each is saved with status running when it starts).
+// The step key only, never a role id or a model name. Plan: no blueprint call yet or the quantities call; design: the design call (its checks and correction included); build: the build call while it runs;
+// check: the build call has ended, or the stage is one that only follows it. correcting: the call in flight is the second of its role in this attempt (the design correction, the build repair).
+const BLUEPRINT_STEP = { blueprint_quantities: 'plan', blueprint_design: 'design', blueprint_build: 'build' };
+const CHECK_STAGES = new Set(['design_verifying', 'authoring', 'validating']);
+export function designStepOf(job) {
+  if (job.flow?.designKind !== 'blueprint') return null;
+  const mine = job.calls.filter(c => c.attempt === job.attempt && BLUEPRINT_STEP[c.role]), last = mine.at(-1);
+  const step = CHECK_STAGES.has(job.stage) || (last?.role === 'blueprint_build' && last.status !== 'running') ? 'check' : last ? BLUEPRINT_STEP[last.role] : 'plan';
+  return { step, correcting: last?.status === 'running' && mine.filter(c => c.role === last.role).length > 1 };
+}
 export function publicExplainJob(job) {
   const settled = job.calls.reduce((t, c) => t + (c.costMicros || 0), 0);
   return {
@@ -222,6 +233,7 @@ export function publicExplainJob(job) {
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
     // The new flow's public state in the learner's words (INT-03-C10); the real stage above stays in diagnostics.
     ...(job.flow ? { flow: { version: job.flow.version }, designState: DESIGN_PUBLIC_STATE[job.stage] ?? null, designRevision: job.design.rev } : {}),
+    ...(job.flow?.designKind === 'blueprint' ? { designStep: designStepOf(job) } : {}),
   };
 }
 // The validated final plan and its provenance, on the authenticated job route only (never in a list or a public view): what Chat reviews and

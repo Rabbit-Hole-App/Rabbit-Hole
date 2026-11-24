@@ -15,6 +15,9 @@ export const INTERACT_STAGES = Object.freeze({
   design_verifying: 'Checking scene plan',
   awaiting_approval: 'Ready to review',
 });
+// The bar under the stage line of a running blueprint job (owner, 2026-11-24): its four steps, and the key the server sends for each (explain-job.js designStepOf sends the key only).
+export const INTERACT_PROGRESS_STEPS = Object.freeze(['Plan', 'Design', 'Build', 'Check']);
+export const INTERACT_STEP_KEYS = Object.freeze(['plan', 'design', 'build', 'check']);
 const DESIGN_ONLY = new Set(['design_authoring', 'design_reviewing', 'design_revising', 'design_verifying']);
 
 // A job is a new-flow job when it carries the server's flow ({ version }), or sits in a design stage that only the new flow has.

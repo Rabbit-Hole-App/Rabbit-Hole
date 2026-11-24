@@ -1,7 +1,7 @@
 import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EXPLAIN_UNAVAILABLE, applyExplainEdit, discardExplainEdit, explainClient, explainRetry, explainUnavailable, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainProposedBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
+import { EXPLAIN_UNAVAILABLE, applyExplainEdit, discardExplainEdit, explainClient, explainProgress, explainRetry, explainUnavailable, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainProposedBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
 import { submitCadOnce } from './cad-client.js';
 import { runLearnCommand } from './learn-slash.js';
 
@@ -256,4 +256,24 @@ test('a ready program candidate (program, no scene) is previewed by its own resu
   assert.equal(applyExplainEdit({ ...editing, explain: identity({ revision: 'xr_3' }) }, done, candidate).stale, true);
   // Discard: the accepted artifact, inputs, time and program state exactly as they were.
   assert.deepEqual(discardExplainEdit(editing), accepted);
+});
+
+// Owner, 2026-11-24: the pending card of a running blueprint job shows the Animation card's step bar. The server sends the step key only (explain-job.js designStepOf); the four names are interact-stage.js's.
+test('a working blueprint job maps its step key to the four-step bar; every other job has none', () => {
+  const blueprint = (stage, designStep, extra = {}) => job({ stage, flow: { version: 1 }, designStep, ...extra });
+  const NAMES = ['Plan', 'Design', 'Build', 'Check'];
+  for (const [index, step] of ['plan', 'design', 'build', 'check'].entries()) assert.deepEqual(explainProgress(blueprint('design_authoring', { step, correcting: false })), { steps: NAMES, current: index, correcting: false }, step);
+  assert.equal(explainProgress(blueprint('design_authoring', { step: 'build', correcting: true })).correcting, true, 'a correction or repair call');
+  assert.equal(explainProgress(blueprint('design_authoring', { step: 'build' })).correcting, false, 'no flag, not correcting');
+  const step = { step: 'design', correcting: false };
+  assert.equal(explainProgress(blueprint('failed', step, { terminal: true, failure: { message: 'x' } })), null, 'failed');
+  assert.equal(explainProgress(blueprint('cancelled', step, { terminal: true })), null, 'stopped');
+  assert.equal(explainProgress(blueprint('ready', step, { terminal: true })), null, 'ready');
+  assert.equal(explainProgress(blueprint('awaiting_approval', step)), null, 'waiting on the learner');
+  assert.equal(explainProgress(blueprint('design_authoring', step, { failure: { category: 'provider_unavailable', message: 'x' } })), null, 'paused by the provider');
+  assert.equal(explainProgress(job({ stage: 'design_authoring', flow: { version: 1 } })), null, 'a job the server sent no step for (not a blueprint job)');
+  assert.equal(explainProgress(job({ stage: 'authoring' })), null, 'a plain explain job');
+  assert.equal(explainProgress(blueprint('design_authoring', { step: 'render', correcting: false })), null, 'an unknown key');
+  assert.equal(explainProgress(null), null);
+  for (const text of NAMES) assert.doesNotMatch(text, /\.\.\.|…/, 'no ellipsis in a label');
 });

@@ -3,8 +3,9 @@ import { track } from './usage-analytics.js';
 import { Loader2, Square } from 'lucide-react';
 import { Button } from './ui.jsx';
 import GoToPlanButton from './GoToPlanButton.jsx';
+import StageProgress from './StageProgress.jsx';
 import { api } from './api.js';
-import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainProgress, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
 
 // An Explanation card whose /explain v2 job is still working (EXP-T20 slice 1). It shows the server's stage and Stop; when
 // the job is ready it becomes the explanation, on this card only (explainResultBlock). Polling observes, it never advances
@@ -62,7 +63,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
   };
   const shown = job || { stage: waiting.stage, flow: waiting.flow, terminal: false };
   const running = explainRunning(shown);
-  const retry = explainRetry(shown), paused = explainUnavailable(shown), working = explainWorking(shown);
+  const retry = explainRetry(shown), paused = explainUnavailable(shown), working = explainWorking(shown), progress = explainProgress(shown);
   const request = String(block.promptUsed || block.title || '').trim();
   // Compact (LearningBlocks sizeFor, 440 wide): the status row, then Stop. pt-1/pb-1 with the body's mt-2/pb-3 make 12px above,
   // 16px below; min-h-[125px] under the header makes a one-line-title card about 220 tall (owner, 2026-10-28), a wrapped title more.
@@ -79,6 +80,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
           <p data-explain-stage aria-live="polite" className={`text-sm ${shown.stage === 'failed' ? 'text-red-700' : working ? 'shimmer' : 'text-ink-2'}`}>{explainStage(shown)}</p>
         </div>
       )}
+      {progress && <StageProgress progress={progress} stage={explainStage(shown)} prefix="explain" label="Scene progress" />}
       {problem && <p className="text-xs text-red-700">{problem}</p>}
       {!readOnly && (
         <div className="flex gap-1.5">

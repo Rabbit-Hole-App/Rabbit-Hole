@@ -1,7 +1,7 @@
 // /explain v2 jobs in the browser (EXP-T20 slice 1; server API C:/s/spec/explain/job-api-c.md, Lane C explain-job.js).
 // The card is placed before the job runs, under a card id chosen once per press; polling only observes the job, and the
 // result attaches to that card on that canvas, never another. The server never writes boards.
-import { interactStageText } from './interact-stage.js';
+import { INTERACT_PROGRESS_STEPS, INTERACT_STEP_KEYS, interactStageText } from './interact-stage.js';
 export const EXPLAIN_ROOT = '/api/learn/explain/jobs';
 
 // What the card says while the job works: the server's stage, never a guess. No ellipses (UI copy rule).
@@ -26,6 +26,13 @@ export const explainRunning = job => !!job && !job.terminal && job.stage !== 'aw
 // The pending card's spinner: only while the server works on it. A card's saved stage (shown before the first poll, and on a
 // card that does not poll) has no terminal flag, so a stopped, failed or ready stage counts as not working by name.
 export const explainWorking = job => explainRunning(job) && !explainUnavailable(job) && !['ready', 'failed', 'cancelled'].includes(job.stage);
+// The step bar of a running blueprint job (the Animation card's, animation3d/client.js animationProgress): { steps, current, correcting }, or null for every other job and for one that is not working
+// (failed, stopped, paused, ready) or that the server sent no step for. The server sends the step key only (explain-job.js designStepOf).
+export function explainProgress(job) {
+  if (!explainWorking(job) || !job.designStep) return null;
+  const current = INTERACT_STEP_KEYS.indexOf(job.designStep.step);
+  return current < 0 ? null : { steps: INTERACT_PROGRESS_STEPS, current, correcting: job.designStep.correcting === true };
+}
 
 export function explainClient(api, boardId) {
   const post = (path, body = {}) => api(path, { method: 'POST', body: JSON.stringify({ boardId, ...body }) });
