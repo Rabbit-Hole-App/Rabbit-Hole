@@ -19,7 +19,7 @@ import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
 import { fillTokens, leftoverToken } from './explanation-tokens.js';
-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, boxValuesFromQuestion, boxFieldsChanged, boxStatsApplied, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, boxValuesFromQuestion, boxFieldsChanged, boxStatsApplied, stripUnknownKeys, rescuedVisualTag, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -267,6 +267,9 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         for (const { kind, key } of clean.stripped) console.log(JSON.stringify({ event: 'explanation_unknown_key_stripped', kind, key }));
         keysStripped = clean.stripped.length;
         if (keysStripped) call = { ...call, input: { ...call.input, visuals: clean.visuals } };
+        // Same-JSON decision (a): a visual tagged with a kind name that carries a diagram spec is read as the diagram (composeVisuals); one trace entry per such visual, with its tag.
+        const rescued = clean.visuals.flatMap(visual => { const tag = rescuedVisualTag(visual); return tag === null ? [] : [{ tag }]; });
+        if (trace && rescued.length) trace.rescuedVisual = [...(trace.rescuedVisual ?? []), ...rescued];
       }
       let block, extraction, diagramsDropped = 0, diagramsSimplified = 0, questions, terms;
       if (input.imageSource) {
