@@ -23,7 +23,7 @@ import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE,
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
-import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, keptInteractions } from './explanation-interactions.js';
+import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, OUTPUT_FORMAT_HEADING, bindInteractions, interactionsEnabled, keptInteractions } from './explanation-interactions.js';
 import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, fallbackKind, repeats, requiredMix, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
@@ -32,7 +32,7 @@ import { archiveExplanation } from './learn-storage.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
-import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, explanationTarget, validDepth } from './chat-depth.js';
+import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, explanationDepthSection, validDepth } from './chat-depth.js';
 import { FIGURE_STYLE_ID, illustrateExplanation } from './explanation-figures.js';
 import { readDepth } from './learn-user-settings.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
@@ -119,7 +119,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // EXP-13 fix 6b: an implied picture is not sent (the author would read it as the whole mix); the guidance asks for it and the check below enforces it.
   const asked = askedItems(input), resolved = cardVisuals(input.plan, asked), explanationOnly = ready.length === 1 && ready[0] === 'explanation';
   // The sections that change per card come last in the tool description, after the cached static text: Depth, then this card's visuals (the plan stated as fact, or the rules when there is no plan), then the output format.
-  const explanationTail = `\n\n${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE}\n\nBased on the rules above, this card:\n\n# Depth\n${explanationTarget(input.depth)}\n\n${visualsStatement(input.plan, resolved) ?? EXPLANATION_VISUAL_RULES}${formulaSamplerEnabled(env) ? FORMULA_SERIES_GUIDANCE : ''}${interactionsEnabled(env) ? `\n\n# Output format\n${INTERACTION_GUIDANCE}` : ''}`;
+  const explanationTail = `\n\n${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE}\n\n${explanationDepthSection(input.depth)}\n\n${visualsStatement(input.plan, resolved) ?? EXPLANATION_VISUAL_RULES}${formulaSamplerEnabled(env) ? FORMULA_SERIES_GUIDANCE : ''}${interactionsEnabled(env) ? `\n\n${OUTPUT_FORMAT_HEADING}\n${INTERACTION_GUIDANCE}` : ''}`;
   const tools = [...ready.map(id => ({
     name: toolName(id),
     description: `${PRIMITIVES[id].about}${lengths(primitiveFor(id, input.madeBy).schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget

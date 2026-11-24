@@ -2,6 +2,7 @@
 // words reach ordinary Chat (chat-modes.js chatSystem), the /explain v2 job's brief and author calls (explain-brief.js,
 // explain-author.js) and the artifact path (learn-artifact.js). Balanced is today's behavior: it adds nothing to any prompt.
 // Depth sets how much to cover; a limit the caller states (a catalogue, a card size, the learner's own words) still wins.
+import { promptBlock, promptHeading } from './explanation-prompt.js';
 export const DEPTHS = Object.freeze(['brief', 'balanced', 'detailed']);
 export const DEFAULT_DEPTH = 'balanced';
 // Read-side aliases for the old names (renamed 2026-11-08): a stored card, a saved canvas setting or an old client may still say overview, standard or deep. Every place that reads a stored
@@ -47,13 +48,10 @@ export const EXPLANATION_OBJECTIVES = Object.freeze({
   balanced: 'Depth: Balanced. Explain how and why the mechanism works, with enough reasoning to apply it to another case.',
   detailed: 'Depth: Detailed. Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps.',
 });
-// Owner 2026-11-08 (clean-up): what the Explanation author reads under "# Depth" (the shared line, this Depth's paragraph, the one-line precision hint), replacing
+// Owner 2026-11-08 (clean-up): what the Explanation author reads under the Depth section (the shared line, this Depth's paragraph, the one-line precision hint), replacing
 // EXPLANATION_OBJECTIVES there; EXPLANATION_OBJECTIVES stays for the roadmap's table card (agents/roadmap-card.js). Only this card's Depth is sent.
-export const EXPLANATION_DEPTH_LINES = Object.freeze({
-  shared: "All three depths have the same length budget. Depth changes who the card is written for, not how much it says.",
-  brief: "**Brief** — Written for someone meeting the subject for the first time. Open with one concrete case or picture the reader already knows; explain the idea in everyday words; do not use a technical term unless the sentence explains it; no symbols, formulas, dates or named parts unless they are the subject itself. The visual shows the idea in plain labels — a simple comparison, a short flow, a picture — never a chart with symbols. If a sentence uses a term, that same sentence says what it is in plain words.",
-  balanced: "**Balanced** — Written for someone who knows the basics of the field. Open with one concrete case, then explain the mechanism — how it works and why — then give the proper terms, each explained in half a sentence the first time it appears. Use the subject's own precision where it exists: a formula if there is one, a named part, a date, a quantity. The visual shows the mechanism; if a quantity is central, a plot or chart.",
-  detailed: "**Detailed** — Written for someone comfortable with the subject who wants the exact account. State the precise form of the thing — the formula and its name if there is one, otherwise the exact terms, parts, dates or quantities — and show how it produces what the visual draws. Add the one or two properties, limits or failure modes that matter in practice. The visual is the quantitative or structural view: maths in labels, a plot or chart where a quantity is involved, a full structure where the subject is a structure. Assume the reader already knows the basic mechanism: do not re-explain it. Spend the words on the exact form - formula and its name, named parts and thresholds, dates and actors - and on one property or limit that matters in practice.",
-  hint: "What \"precise\" means depends on the subject: for a quantity it is the formula; for a mechanism the named parts and their order; for history the dates and actors; for a protocol the messages and their fields; for a living thing the structures and their functions.",
-});
-export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH, L = EXPLANATION_DEPTH_LINES; return `${L.shared}\n\n${L[d]}\n\n${L.hint}\nBudget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of prose (paragraph, heading and list text); the title, tables, diagrams and illustrations do not count. Layout: prose, a visual, prose, and optionally a second and a third visual, each followed by prose.`; };
+const DEPTH_FILE = 'explanation-depth.md';
+export const EXPLANATION_DEPTH_LINES = Object.freeze(Object.fromEntries(['shared', 'brief', 'balanced', 'detailed', 'hint'].map(key => [key, promptBlock(DEPTH_FILE, key)])));
+export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH, L = EXPLANATION_DEPTH_LINES; return `${L.shared}\n\n${L[d]}\n\n${L.hint}\n${promptBlock(DEPTH_FILE, 'budget', { cap: EXPLANATION_CAPS[d].toLocaleString('en-US') })}`; };
+// What the explanation tool description says from here on, per card: the line that ends the fixed text, the Depth heading, then this Depth's target (learn-artifact.js).
+export const explanationDepthSection = depth => `${promptBlock(DEPTH_FILE, 'lead-in')}\n\n${promptHeading(DEPTH_FILE)}\n${explanationTarget(depth)}`;

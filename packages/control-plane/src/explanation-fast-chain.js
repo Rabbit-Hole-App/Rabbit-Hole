@@ -19,6 +19,8 @@ import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
 import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm, narrowedKinds } from './explanation-references.js';
 import { parseModelJson } from './latex-escapes.js';
+import { promptBlock } from './explanation-prompt.js';
+import { OUTPUT_FORMAT_HEADING } from './explanation-interactions.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
 export const STREAM_SETTING = 'EXPLANATION_STREAM';
@@ -36,8 +38,7 @@ export const CHAIN_ENDPOINTS = Object.freeze({
   google: { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', deadlineMs: 12000, streamOptions: { include_usage: true } },
 });
 const TOOL = 'make_explanation';
-const ADDENDUM = `
-Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema. Use real line breaks between paragraphs, never the two characters backslash and n.`;
+const ADDENDUM = `\n${promptBlock('explanation-output-format.md', 'answer-format')}`;
 
 const failure = (name, code, message, extra = {}) => Object.assign(new Error(message), { name, code, ...extra });
 export const providerBusy = () => failure('ProviderBusyError', 'provider_busy', 'The explanation model is busy right now, so nothing was added and no credits were used. Try again in a few seconds.', { retryable: true });
@@ -134,9 +135,9 @@ const isRepair = body => body.messages.some(m => Array.isArray(m.content) && m.c
 export function assembledSystem(body, tool = body.tools?.find(t => t.name === TOOL)) {
   const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
   const at = system.indexOf(REFERENCE_MARK), head = at < 0 ? system : system.slice(0, at), refs = at < 0 ? '' : system.slice(at).trim();
-  // The tool description may end with its own "# Output format" part (the interaction guidance); the closing format line joins it under the same heading, after the references.
-  const [description, output] = String(tool?.description ?? '').split('\n\n# Output format\n');
-  return `${head}\n\n${description}${refs ? `\n\n${refs}` : ''}\n\n# Output format${output ? `\n${output}` : ''}${ADDENDUM}`;
+  // The tool description may end with its own Output format part (the interaction guidance); the closing format line joins it under the same heading, after the references.
+  const [description, output] = String(tool?.description ?? '').split(`\n\n${OUTPUT_FORMAT_HEADING}\n`);
+  return `${head}\n\n${description}${refs ? `\n\n${refs}` : ''}\n\n${OUTPUT_FORMAT_HEADING}${output ? `\n${output}` : ''}${ADDENDUM}`;
 }
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);

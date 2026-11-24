@@ -4,6 +4,7 @@ import { resolveTokens, varySpec } from '../../web/src/tutor-diagrams/vary.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { cardVisuals, visualKinds } from './explanation-planner.js';
+import { promptBlock, promptHeading } from './explanation-prompt.js';
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
@@ -170,13 +171,13 @@ export function selectForAuthor({ prompt, context = '', depth, plan = null, aske
 }
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).
-export const REFERENCE_MARK = '\n# Examples\n'; // GEN-1 G2: the block's first line only, so the seeded examples may carry another second line (the old mark 'Approved diagram references' stays a prefix of today's heading)
-// GEN-1 G2 (R2, wording for the Reviewer to approve): the heading of the seeded examples (GEN-1 G1), starting text from the spec; `# Examples` stays the first line. No number wording here (owner N1): the inputs sentence goes after the number rule (agents/learn-artifact.js INPUTS_RULE).
-export const SEEDED_EXAMPLES_HEADING = '\n# Examples\nDiagram examples on other subjects. They show what a good diagram of this kind looks like: several concrete items, real values, short labels. Do not reuse their subject, labels or values. Build this card\'s diagram from the concrete things in the learner\'s question and its context (the names, sizes and values given there); where none are given, choose a small concrete example of your own. Do not exceed this card\'s visual count.\n';
+export const REFERENCE_MARK = `\n${promptHeading('explanation-examples.md')}\n`; // GEN-1 G2: the block's first line only, so the seeded examples may carry another second line (the old mark 'Approved diagram references' stays a prefix of today's heading)
+// GEN-1 G2 (R2, wording for the Reviewer to approve): the heading of the seeded examples (GEN-1 G1), starting text from the spec; the Examples heading stays the first line. No number wording here (owner N1): the inputs sentence goes after the number rule (agents/learn-artifact.js INPUTS_RULE).
+export const SEEDED_EXAMPLES_HEADING = `\n${promptBlock('explanation-examples.md', 'seeded')}\n`;
 export function diagramReferenceContext(references) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+  const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : `\n${promptBlock('explanation-examples.md', 'stored')}\n`;
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
@@ -305,4 +306,4 @@ export function narrowedKinds(schema) {
   return kinds.length && CORE_KINDS.some(kind => !kinds.includes(kind)) ? kinds : null;
 }
 
-export const PHASE02_DIAGRAM_GUIDANCE = 'Additional teaching layouts: heatmap for numerical grids with an explicit scale; sample-set for identifiable samples, membership, replacement and weights; histogram for numeric bin distributions; box-plot for quartiles, whiskers, fences and outliers. Use coordinate-plot for regression, decision boundaries, distances, loss, uncertainty and distributions on axes; its supported annotations are data coordinates, never pixels. Use grouped or stacked bar-chart for votes, importance and category proportions. Use a scaled-lanes timeline for numeric time windows, cutoffs, availability and TTL, and a teaching matrix for highlighted data cells. Tree hierarchy, binary and dendrogram layouts are distinct: dendrogram heights are numerical merge distances; a family tree or folders are not automatically binary. An operation on a binary tree or BST must show the structure itself; an optional flow can explain additional steps but cannot replace it. Connected feedback and lineage use relationship layout graph. Concurrent preprocessing, ensembles and store branches use flow fork/merge roles, not decision diamonds. Name block-stack components, including role-tagged inset steps, with noun phrases. For token-links, show the value of the heaviest weight on its link and say in the caption that the weights sum to one. Start action labels in a flow with verbs. Use comparison visual panels for actual diagrams on coordinated axes, and transformation visual states when showing how the same records or points change. These compositions contain only bounded leaf diagrams; never nest comparisons or transformations. Follow the tool schema and the selected reference JSON for exact fields; no invented kind, SVG, CSS, colour or position fields.';
+export const PHASE02_DIAGRAM_GUIDANCE = promptBlock('explanation-diagram-kinds.md', 'closing');

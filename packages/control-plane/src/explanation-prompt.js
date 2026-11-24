@@ -6,22 +6,27 @@ import { EXPLANATION_PROMPT_FILES } from './explanation-prompts.generated.js';
 
 const BLOCK = /\{% block ([a-z0-9-]+) %\}\n?([\s\S]*?)\n?\{% endblock %\}/g;
 const SLOT = /\{% slot ([a-z0-9-]+) %\}/g;
-const parsed = new Map();
 
-function file(name) {
-  if (parsed.has(name)) return parsed.get(name);
-  const entry = EXPLANATION_PROMPT_FILES[name];
-  if (!entry) throw new Error(`explanation prompt file ${name} is missing (npm run prompts:build:explanation)`);
+// A file's text -> { blocks: name -> text, section: the text with its block markers removed }. A marker that is not a whole block or a slot is a bug in the file.
+export function parsePromptText(name, text) {
   const blocks = {};
-  const section = entry.text.replace(BLOCK, (_, key, body) => {
+  const section = text.replace(BLOCK, (_, key, body) => {
     if (Object.hasOwn(blocks, key)) throw new Error(`${name}: block ${key} is written twice`);
     blocks[key] = body;
     return body;
   });
   if (section.replace(SLOT, '').includes('{%')) throw new Error(`${name}: an unknown or unclosed marker`);
-  const result = { blocks, section };
-  parsed.set(name, result);
-  return result;
+  return { blocks, section };
+}
+
+const parsed = new Map();
+function file(name) {
+  if (!parsed.has(name)) {
+    const entry = EXPLANATION_PROMPT_FILES[name];
+    if (!entry) throw new Error(`explanation prompt file ${name} is missing (npm run prompts:build:explanation)`);
+    parsed.set(name, parsePromptText(name, entry.text));
+  }
+  return parsed.get(name);
 }
 
 // Replaces each slot by the value given for it; a slot with no value, or a value for no slot, is a bug in the caller.

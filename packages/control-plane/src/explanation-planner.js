@@ -5,6 +5,7 @@
 // Mapping (owner 2026-11-08): no plot override; the kind is FIXED when its top probability is >= 0.6, otherwise the top two kinds are offered and the author chooses.
 import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
 import { VISUAL_COMPLETE, VISUAL_COMPLETE_BASE } from './learn-primitives.js';
+import { promptBlock } from './explanation-prompt.js';
 import galleryDepths from '../../web/src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
@@ -102,11 +103,13 @@ export function cardVisuals(plan, asked = []) {
 // The diagram kinds the card is to hold: the first diagram's kind, or both offered kinds. [] when the rules decide.
 export const visualKinds = ({ visuals }) => { const d = visuals.find(v => v.type === 'diagram'); return d ? (d.kind ? [d.kind] : d.choose ?? []) : []; };
 
-// The "# Visuals for this card" section the author reads: the decisions made for this card, stated as fact (no plan, no required item: null, the rules block goes instead).
+// The Visuals for this card section the author reads: the decisions made for this card, stated as fact (no plan, no required item: null, the rules block goes instead).
 export function visualsStatement(plan, { source, visuals }) {
   if (source === 'rules') return null;
-  const parts = visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? 'a picture' : v.kind ? `a ${v.kind} diagram` : v.choose ? `a diagram of one of these kinds, the one that teaches the answer: ${v.choose.join(' or ')}` : 'a diagram'}`);
-  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.secondVisual && source === 'plan' ? ' The question names two things: draw each one on its own, one visual per thing.' : ''}${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''} ${visuals.some(v => v.type !== 'picture') ? VISUAL_COMPLETE : VISUAL_COMPLETE_BASE}`; // the token sentence only when the card has a diagram
+  const word = (key, slots) => promptBlock('explanation-visuals.md', key, slots), pictureOnly = visuals.every(v => v.type === 'picture');
+  const parts = visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? word('picture') : v.kind ? word('kind', { kind: v.kind }) : v.choose ? word('choose', { kinds: v.choose.join(' or ') }) : word('any')}`);
+  return word('plan', { parts: parts.join('; '), 'no-diagram': pictureOnly ? ` ${word('no-diagram')}` : '', 'second-visual': plan?.secondVisual && source === 'plan' ? ` ${word('second-visual')}` : '',
+    'depth-treatment': plan?.depthTreatment ? ` ${word('depth-treatment', { treatment: plan.depthTreatment })}` : '', complete: visuals.some(v => v.type !== 'picture') ? VISUAL_COMPLETE : VISUAL_COMPLETE_BASE }); // the token sentence only when the card has a diagram
 }
 
 // The gallery example for the planned diagram (owner 2026-11-08): the kind-gallery-depths.json spec of its kind at the card's depth (Standard when the depth is
