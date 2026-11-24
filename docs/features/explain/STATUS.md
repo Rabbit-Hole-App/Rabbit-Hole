@@ -42,7 +42,7 @@ Nothing. The `vars.MVP_ALLOWED_SHA` allowance is gone (`gh variable list` no lon
 - Optional: FRAC-1 double bracket on a single `\command(...)` argument; SAMP-2 pill nit.
 - Codex content (not mine): the four-column transfer-learning matrix (ml-transfer-learning-modality-feature-classifier; its headers are uniformly 9 px after MAT-F).
 - Five `rabbit-hole-prod-config` control-plane tests are red on main since commit f0ae33c53 (2026-11-17 09:35 PT; the merge that added REPOSITORY_REHEARSALS and the repository-rehearsals-1 tag while the tests pin a list ending at roadmap-jobs-1). They belong to the session that owns that config and are not fixed here.
-- 8878 (explain stack, worktree C:/s/explain-8878, local branch explain/stack): at release 167 (aee3dba82), app bundle rebuilt, not restarted; it lacks 168, 169 and 170 (the standing rule is to move it to the released SHA; not done in this clean-up, as it was not part of the order). The check of "A · d=2" in the real app font is still open.
+- 8878 (explain stack, worktree C:/s/explain-8878, local branch explain/stack): fast-forwarded on 2026-11-24 to release 170 (b29b6bdd7 = main; no commits of its own) and both bundles rebuilt (dist 11 s, dist-dev 10 s, exit 0, log C:/s/spec/owner-local/rebuild-170.log); the stack was not answering on port 8878 at the time and was not started. The check of "A · d=2" in the real app font is still open.
 
 ## Clean-up
 
