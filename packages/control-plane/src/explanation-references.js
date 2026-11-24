@@ -180,6 +180,7 @@ export function diagramReferenceContext(references) {
   const heading = references.every(ref => ref.seededExample) ? SEEDED_EXAMPLES_HEADING : `\n${promptBlock('explanation-examples.md', 'stored')}\n`;
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
+    // ponytail: this sentence belongs to the Examples part but stays in code: the spec's explanation-examples.md holds the two heading texts only. Move it when the spec says so.
     out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
   }
   for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones

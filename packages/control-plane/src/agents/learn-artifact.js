@@ -13,6 +13,7 @@ const INTRO = promptBlock('explanation-opening.md', 'intro');
 // N1, the one number rule (its worked-example clause is the computed-from-a-formula case).
 export const NUMBER_RULE = promptBlock('explanation-numbers-and-maths.md', 'number-rule');
 // GEN-1 G2 (R2, Reviewer to approve): with the seeded examples of GEN-1 the number rule gets this sentence right after it (learn-artifact.js adds it only to those requests, so every other request stays byte-identical).
+// ponytail: INPUTS_RULE is model-facing text that stays in code: the spec's table assigns it to no section file and task 3 keeps it unchanged.
 export const INPUTS_RULE = "You choose the inputs; a result that follows from them is computed for you.";
 const DATA_RULE = promptBlock('explanation-opening.md', 'data-rule');
 
