@@ -42,7 +42,7 @@ import { needsPreparation, prepareStage } from './explain-brief.js';
 import { BLUEPRINT_ROLES, INTERACT_DESIGN_KIND_SETTING, INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
 import { designPinOf, pinnedDesignCall, pinnedFixtureId } from './interact-design-pin.js';
 import { SCRIPTED_PROFILE, scriptedBuildAdapter, scriptedBuildAllowed } from './interact-scripted.js';
-import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
+import { BLUEPRINT_FAILED_MESSAGE, DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
 import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
 import { verifyComposition } from '../../web/src/interact-composition.js';
@@ -909,8 +909,8 @@ export class ExplainJobs {
     const b = job.build;
     const failWith = async (failure, over = out) => {
       b.failure = failure; job.findings.push({ round: job.round, stage, ...(failure.problems?.length ? { problems: failure.problems } : { accepted: false, findings: failure.findings }) });
-      // A generated (template) program has no repair loop: a problem in it is our bug. The job stops with the first problem's text (the ledger's repairCauses keeps all of them).
-      if (b.kind === 'template') return this.stopWith(job, 'template_error', 'spec', `The card could not be built from its template: ${String(failure.problems?.[0] ?? 'a check failed').slice(0, 300)}`);
+      // A generated (template) program has no repair loop: a problem in it is our bug. The job stops with fixed wording (owner, 2026-11-24: no check code, case name or engine text reaches the learner); the problems stay in job.findings and job.build.failure (owner diagnostics, detail=1) and the ledger's repairCauses.
+      if (b.kind === 'template') return this.stopWith(job, 'template_error', 'spec', BLUEPRINT_FAILED_MESSAGE);
       return this.repairOrStop(job, over);
     };
     if (out.incomplete) return this.stopWith(job, 'incomplete', 'spec', `This scene plan needs more checks than one review can cover (${String(out.incomplete).slice(0, 300)}). Edit the request to use fewer checkpoints.`);

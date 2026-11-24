@@ -12,6 +12,7 @@ import { fixtureContext } from '../src/interact-fixtures.js';
 import { ledgerRow } from '../src/interact-ledger.js';
 import { beginStage, endStage, newTiming } from '../src/explain-policy.js';
 import { buildTemplate, templateGate } from '../src/interact-template.js';
+import { BLUEPRINT_FAILED_MESSAGE } from '../src/interact-design.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
 
@@ -111,14 +112,19 @@ test('the setting unset: the same plans take the model build (build_author is ca
   assert.equal(job.build.counts.build_author, 1);
 });
 
-test('a template build that fails a check stops as template_error at once: no repair round, the problem text is the failure', { skip: !REAL && 'waits for the toss plans to name their templates (agent D)' }, async t => {
+test('a template build that fails a check stops as template_error at once: no repair round; the learner reads fixed wording and the problem text stays in the job record', { skip: !REAL && 'waits for the toss plans to name their templates (agent D)' }, async t => {
   const s = stack(t, ON), { generateProgram } = await import('../../web/src/interact-templates/generate.js');
   // A generated program with a frame object the contract refuses (a body listed twice under one id): the trusted validation names it and the job stops, it is not repaired.
   s.deps.generateProgram = plan => { const program = generateProgram(plan); program.source = `${program.source}\nconst __x = 1;`; program.manifest = { ...program.manifest, title: '' }; return program; };
   const { id, job } = await run(s, 'balanced');
   assert.equal(job.stage, 'failed');
   assert.equal(job.stopReason, 'template_error');
-  assert.match(job.failure.message, /^The card could not be built from its template: /);
+  // owner, 2026-11-24: the learner never reads a check code, a case name or engine text; the problems are kept in job.findings, job.build.failure and the ledger's repairCauses
+  assert.equal(job.failure.message, BLUEPRINT_FAILED_MESSAGE);
+  assert.doesNotMatch(job.failure.message, /\[[a-z_]+\]|runtime_limit|program_error|template|check/i);
+  const detail = job.build.failure?.problems?.[0];
+  assert.ok(detail && job.findings.some(f => f.problems?.includes(detail)), 'the first problem (what the message used to carry) is in job.build.failure and job.findings');
+  assert.ok(!job.failure.message.includes(detail));
   assert.equal(job.build.counts.build_repair, 0);
   assert.ok(job.findings.length >= 1, 'the problem is kept for the ledger');
   assert.deepEqual(s.sent, []);
@@ -127,12 +133,13 @@ test('a template build that fails a check stops as template_error at once: no re
   assert.notEqual(ledger.repairCauses, '');
 });
 
-test('a generator that throws is a template_error too, with its message', { skip: !REAL && 'waits for the toss plans to name their templates (agent D)' }, async t => {
+test('a generator that throws is a template_error too: fixed wording for the learner, its message in the job record', { skip: !REAL && 'waits for the toss plans to name their templates (agent D)' }, async t => {
   const s = stack(t, ON);
   s.deps.generateProgram = () => { throw new Error('no formula for slot height'); };
   const { job } = await run(s, 'brief');
   assert.deepEqual([job.stage, job.stopReason], ['failed', 'template_error']);
-  assert.match(job.failure.message, /template: no formula for slot height/);
+  assert.equal(job.failure.message, BLUEPRINT_FAILED_MESSAGE);
+  assert.match(JSON.stringify(job.findings), /template: no formula for slot height/, 'the generator message stays in the job record');
 });
 
 test('a template row carries the true stage times, buildKind and msHopWait (what is left of msTotal); a model-build row keeps its wall-clock slices and says buildKind model', () => {

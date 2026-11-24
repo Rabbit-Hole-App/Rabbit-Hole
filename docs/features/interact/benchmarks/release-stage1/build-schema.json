@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 75,
+        "originPx": [
+          164,
+          48
+        ]
+      },
+      "fixedParts": [
+        {
+          "id": "vertical_guide",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            -2.6
+          ]
+        },
+        {
+          "id": "pivot",
+          "at": [
+            0,
+            0
+          ],
+          "size": "small"
+        },
+        {
+          "id": "ref_rod",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "x_ref",
+            "y_ref"
+          ]
+        },
+        {
+          "id": "rod",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "x",
+            "y"
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "pivot_label",
+          "near": "pivot",
+          "side": "above",
+          "text": "Pivot (g = 9.81 m/s^2)"
+        }
+      ],
+      "arrows": [
+        {
+          "id": "vel_arrow",
+          "lengthFactor": 1,
+          "startAtEdge": true
+        }
+      ],
+      "dropped": [
+        {
+          "id": "bob_label",
+          "why": "Moving bob and velocity arrow cross vertical guide and swing path, causing label overlaps."
+        },
+        {
+          "id": "ref_label",
+          "why": "Reference bob swings near vertical guide and pendulum rod, causing label overlaps."
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": false,
+        "legend": "auto"
+      },
+      "texts": {
+        "labels": [
+          "Pendulum",
+          "Reference"
+        ]
+      },
+      "ranges": {
+        "x": [
+          0,
+          6
+        ],
+        "y": [
+          -25,
+          25
+        ]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "columns",
+    "values": [
+      {
+        "id": "T",
+        "label": "Period",
+        "decimals": 2
+      },
+      {
+        "id": "v_max",
+        "label": "Peak v",
+        "decimals": 2
+      },
+      {
+        "id": "f",
+        "label": "Freq",
+        "decimals": 2
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L / g} ",
+    "explanation": {
+      "always": [
+        "Mass 1 kg and g = 9.81 m/s^2 fixed",
+        "Period T depends only on L and g"
+      ],
+      "cases": [
+        {
+          "when": "is_longer",
+          "text": "Longer string slows the swing"
+        },
+        {
+          "when": "is_shorter",
+          "text": "Shorter string speeds up the swing"
+        },
+        {
+          "when": "is_wider",
+          "text": "Larger angle widens swing, same T"
+        }
+      ],
+      "otherwise": "Matches 1 m, 15 deg reference"
+    }
+  },
+  "time": {
+    "duration": 6
+  },
+  "changes": [
+    "Chose side-by-side layout with 3-row columns text area so formula, up to 4 explanation lines, and 3 values fit.",
+    "Set pxPerUnit to 75 and originPx to [164, 48] so the full swing, velocity arrow, and pivot label stay inside the stage.",
+    "Placed pivot_label above pivot, clear of the downward lines, and set vel_arrow startAtEdge to true to avoid overlapping bob.",
+    "Dropped bob_label and ref_label to prevent overlaps with lines, arrows, and circles during the swing.",
+    "Hid the coordinate-plot title so the legend fits within the 260.8 px panel height above the 3-row text area.",
+    "Shortened Peak speed to Peak v and Frequency to Freq to fit the 200 px value column, and dropped Angle since the plot shows it."
+  ]
+}
