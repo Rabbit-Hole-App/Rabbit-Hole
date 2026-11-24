@@ -38,6 +38,8 @@ export function boxFences(box) {
   return { lower: roundTo(box.q1 - spread, places), upper: roundTo(box.q3 + spread, places), places };
 }
 function boxFenceInstance(box, i) {
+  // A box that carries `values` gets the fences its values give, written over whatever the author typed (BOX-1); drawn when the box has outliers or the author wrote fences.
+  if (box.values) { const s = boxStats(box.values); return { at: ['boxes', i, 'fences'], written: box.fences, computed: { lower: roundTo(s.lower, 3), upper: roundTo(s.upper, 3) }, replace: true, silent: !box.fences && !s.outliers.length, problems: [] }; }
   const at = ['boxes', i, 'fences'], spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, problems = [];
   const written = box.fences, computed = boxFences(box);
   const { lower, upper } = written ?? computed;
@@ -53,6 +55,53 @@ function boxFenceInstance(box, i) {
   }
   // Silent (Reviewer 2026-11-18): fences the author did not write are computed for a token to read, but not drawn unless the box has outliers (a fence only matters there).
   return { at, written, computed: { lower: computed.lower, upper: computed.upper }, silent: !written && !box.outliers?.length, problems };
+}
+
+// BOX-1: a box may carry `values`, the data it summarises. Then the code computes its statistics and writes them OVER whatever the author typed (never a rejection): quartiles are the medians of the
+// lower and upper halves, the middle value left out when n is odd (3, 5, 6, 7, 8, 9, 11, 12, 40 gives Q1 5.5, median 8, Q3 11.5); fences Q1 - 1.5 IQR and Q3 + 1.5 IQR; whiskers the most extreme values
+// inside the fences; outliers the values outside them. shortcut: one quartile method, no inclusive or linear variants; upgrade on the Reviewer's word.
+export function boxStats(values) {
+  const s = [...values].sort((a, b) => a - b), n = s.length, m = n >> 1;
+  const q1 = medianOf(s.slice(0, m)), q3 = medianOf(s.slice(n % 2 ? m + 1 : m)), spread = 1.5 * (q3 - q1), lower = q1 - spread, upper = q3 + spread;
+  const inside = s.filter(value => value >= lower - 1e-9 && value <= upper + 1e-9);
+  return { median: medianOf(s), q1, q3, lower, upper, whiskerLow: inside[0], whiskerHigh: inside.at(-1), outliers: s.filter(value => !inside.includes(value)) };
+}
+// The outliers a valued box draws: the values outside the fences, each with the label the author gave that value, else "Outlier" (a filled outlier is never labelled with its own number, and an author label that is only a number, "40" or "40: 40", is not a label).
+const hasWords = label => /\p{L}/u.test(String(label ?? ''));
+const valueOutliers = (box, s) => s.outliers.map(value => { const written = (box.outliers ?? []).find(point => Math.abs(point.value - value) < 1e-9)?.label; return { label: hasWords(written) ? written : 'Outlier', value }; });
+// The box with the statistics its values give (rounded as they are filled), or the box itself: what the shape checks read, so a typed statistic that the code overwrites is never validated.
+export function withValueStats(box) {
+  if (!box.values) return box;
+  const s = boxStats(box.values), places = statPlaces(box.values), data = maxPlaces(box.values), { fences, outliers, ...rest } = box;
+  return { ...rest, q1: roundTo(s.q1, places), median: roundTo(s.median, places), q3: roundTo(s.q3, places), whiskerLow: roundTo(s.whiskerLow, data), whiskerHigh: roundTo(s.whiskerHigh, data),
+    fences: { lower: roundTo(s.lower, 3), upper: roundTo(s.upper, 3) }, ...(s.outliers.length ? { outliers: valueOutliers(box, s) } : {}) };
+}
+const BOX_FIELDS = ['q1', 'median', 'q3', 'whiskerLow', 'whiskerHigh'];
+// The fields of a valued box whose typed value the code replaces: [] when it has no values or every typed number already equals the computed one (a field the author left out is not a change but a fill).
+export function boxFieldChanges(box) {
+  if (!box?.values) return [];
+  const s = boxStats(box.values), c = withValueStats(box), out = BOX_FIELDS.filter(k => box[k] !== undefined && Math.abs(box[k] - c[k]) > 1e-9);
+  if (box.fences && (Math.abs(box.fences.lower - c.fences.lower) > 1e-9 || Math.abs(box.fences.upper - c.fences.upper) > 1e-9)) out.push('fences');
+  const typed = (box.outliers ?? []).map(point => point.value).sort((a, b) => a - b);
+  if (typed.length !== s.outliers.length || typed.some((value, j) => Math.abs(value - s.outliers[j]) > 1e-9)) out.push('outliers');
+  return out;
+}
+function boxValueInstances(box, i) {
+  if (!box.values) return [];
+  const c = withValueStats(box), s = boxStats(box.values), at = ['boxes', i];
+  const out = BOX_FIELDS.map(k => ({ at: [...at, k], written: box[k], computed: c[k], replace: true, problems: [] }));
+  // Outliers: the computed ones replace the typed ones; none computed removes the typed ones (the schema allows no empty list).
+  return [...out, { at: [...at, 'outliers'], written: box.outliers, computed: c.outliers, replace: true, remove: !c.outliers && Boolean(box.outliers), problems: [] }];
+}
+// What a card may say about a box: its drawn statistics, exact. Fences are the written ones, else Q1 - 1.5 IQR and Q3 + 1.5 IQR.
+export function boxDrawn(box) {
+  const spread = 1.5 * (box.q3 - box.q1);
+  return { q1: box.q1, median: box.median, q3: box.q3, iqr: box.q3 - box.q1, 'lower fence': box.fences?.lower ?? box.q1 - spread, 'upper fence': box.fences?.upper ?? box.q3 + spread };
+}
+// IQR is a derived path of every box (silent: never drawn; a prose token or the text check reads it).
+function boxIqrInstance(box, i) {
+  const eff = withValueStats(box);
+  return { at: ['boxes', i, 'iqr'], written: undefined, computed: roundTo(eff.q3 - eff.q1, maxPlaces([eff.q1, eff.q3])), silent: true, problems: [] };
 }
 
 // ---- transformation (list): softmax of the before items ----
@@ -252,7 +301,7 @@ function softmaxBarInstances(d) {
 }
 
 export const DERIVED_ROWS = [
-  { kind: 'box-plot', path: 'boxes[].fences', inputs: ['q1', 'q3'], tolerance: 'half a unit of the decimals written', compute: d => d.boxes.map(boxFenceInstance) },
+  { kind: 'box-plot', path: 'boxes[].fences, boxes[].iqr, boxes[].{q1, median, q3, whiskerLow, whiskerHigh, outliers} (when the box carries values)', inputs: ['q1', 'q3', 'values'], tolerance: 'half a unit of the decimals written', compute: d => d.boxes.flatMap((box, i) => [...boxValueInstances(box, i), boxFenceInstance(box, i), boxIqrInstance(box, i)]) },
   { kind: 'transformation', path: 'after.items', inputs: ['before.items', 'op', 't'], tolerance: 'half a unit of the decimals written on each item', compute: d => (d.variant === 'visual' || !d.before?.items ? [] : [softmaxInstance(d)].filter(Boolean)) },
   { kind: 'token-links', path: 'queries[].weights', inputs: ['weights (raw)'], tolerance: 'sum within 0.98 to 1.02, else normalised', compute: tokenLinkInstances },
   { kind: 'histogram', path: 'series[].values', inputs: ['counts'], tolerance: 'proportions sum to 1', compute: histogramInstances },
@@ -272,7 +321,10 @@ const setAt = (root, path, value) => { const last = path.at(-1); path.slice(0, -
 // A SILENT instance (an absent value nothing on the card depends on: a box plot's fences when it has no outliers) is computed for the validator and for prose tokens, never put on the
 // diagram, so the figure draws only what the author put on the card; `all: true` fills those too (tokens, the reference lint).
 export function fillDerived(d, { all = false } = {}) {
-  for (const inst of instancesOf(d)) if (inst.computed !== undefined && (inst.written === undefined || inst.replace) && (all || !inst.silent)) setAt(d, inst.at, inst.computed);
+  for (const inst of instancesOf(d)) {
+    if (inst.remove) delete inst.at.slice(0, -1).reduce((node, key) => node[key], d)[inst.at.at(-1)]; // a typed value the computation says is not there (a valued box's typed outliers when none lie outside the fences)
+    else if (inst.computed !== undefined && (inst.written === undefined || inst.replace) && (all || !inst.silent)) setAt(d, inst.at, inst.computed);
+  }
   return d;
 }
 // Varied inputs (vary.js): every derived field of this diagram is set to the value its inputs give NOW, written or not, so a reference whose inputs were just resampled carries no stale derived literal.

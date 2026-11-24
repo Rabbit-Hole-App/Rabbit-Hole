@@ -20,6 +20,7 @@ import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'jso
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS, PARAGRAPH_MAX, validDepth } from './chat-depth.js';
 import { parseTutorDiagram, authorJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 import { flowPaths } from '../../web/src/tutor-diagrams/flow-paths.js';
+import { boxDrawn, boxFieldChanges } from '../../web/src/tutor-diagrams/derived.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -523,11 +524,95 @@ export function distributionBarIssues(diagram) {
   return out;
 }
 const proseOfMarkdown = md => split(md).prose.filter(line => typeof line === 'string').join('\n');
+// BOX-1 (b, revised): the learner's data is read by code. A run of five or more numbers in the question (comma or semicolon separated, "and" allowed) is a list. shortcut: numbers separated by
+// spaces only, or a list inside a table or sentence of words, are not read; a box plot inside a comparison panel is not filled; upgrade on the Reviewer's word.
+const DATA_NUMBER = '[-−]?\\d+(?:\\.\\d+)?';
+const DATA_LIST = new RegExp(`(?<![\\w.])${DATA_NUMBER}(?:\\s*[,;]\\s*(?:(?:and|or)\\s+)?${DATA_NUMBER}|\\s+(?:and|or)\\s+${DATA_NUMBER})+(?!\\w|\\.\\d)`, 'g');
+export function learnerDatasets(question) {
+  return [...String(question ?? '').matchAll(DATA_LIST)].filter(m => !/,\d{3}(?!\d)/.test(m[0])) // "1,000" is a thousand, not two numbers
+    .map(m => m[0].match(new RegExp(DATA_NUMBER, 'g')).map(s => Number(s.replace('−', '-')))).filter(list => list.length >= 5);
+}
+const sortedNumbers = list => [...list].sort((a, b) => a - b);
+const sameData = (a, b) => a.length === b.length && sortedNumbers(a).every((value, i) => Math.abs(value - sortedNumbers(b)[i]) < 1e-9);
+// Rewrites a card body's box-plot fences BEFORE any derived field or token is filled: one list in the question and a box plot with one box set that box's `values` to the list (and replace values the
+// author wrote that differ); the statistics then come from derived.js. Several lists or several boxes: nothing is filled and nothing rejected, only counted. -> { md, count, unmatched }
+// count = boxes whose values were set or replaced; unmatched = [{ lists, boxes, withoutValues, listsMatched }] for each box plot not filled. shortcut: a list over 60 numbers (the schema's limit) is not filled.
+export function boxValuesFromQuestion(md, question) {
+  const sets = learnerDatasets(question), unmatched = []; let count = 0;
+  const out = !sets.length ? md : mapDiagrams(md, doc => {
+    const d = doc?.diagram;
+    if (d?.kind !== 'box-plot' || !Array.isArray(d.boxes)) return null;
+    if (sets.length === 1 && d.boxes.length === 1 && sets[0].length <= 60) {
+      const box = d.boxes[0];
+      if (Array.isArray(box.values) && box.values.length === sets[0].length && box.values.every((value, i) => value === sets[0][i])) return null;
+      count++;
+      return { ...doc, diagram: { ...d, boxes: [{ ...box, values: sets[0] }] } };
+    }
+    const held = d.boxes.filter(box => Array.isArray(box.values));
+    unmatched.push({ lists: sets.length, boxes: d.boxes.length, withoutValues: d.boxes.length - held.length, listsMatched: sets.filter(set => held.some(box => sameData(box.values, set))).length });
+    return null;
+  }, JSON.parse);
+  return { md: out, count, unmatched };
+}
+// A box plot with a valued box is rewritten as parsed: the computed statistics, fences and outliers are written into the text (derived.js overwrote the typed ones), so the saved card carries the drawn numbers.
+export const boxStatsApplied = md => mapDiagrams(md, doc => (doc?.diagram?.kind === 'box-plot' && doc.diagram.boxes?.some(box => box?.values) ? parseTutorDiagram(doc) : null), JSON.parse);
+// -> [{ box, fields }] for every valued box of the card's box plots whose typed statistics the code replaces (derived.js boxFieldChanges); read from the raw JSON, before the fill.
+export function boxFieldsChanged(md) {
+  const out = [];
+  mapDiagrams(md, doc => { for (const box of doc?.diagram?.kind === 'box-plot' ? doc.diagram.boxes ?? [] : []) { const fields = boxFieldChanges(box); if (fields.length) out.push({ box: String(box.label ?? ''), fields }); } return null; }, JSON.parse);
+  return out;
+}
+// BOX-1 (c): in a card that draws a box plot, a number written right after "upper fence", "lower fence", "IQR", "interquartile range", "median", "Q1" or "Q3" in a diagram caption or the prose is
+// the drawn statistic of one of the card's boxes, within half a unit of the decimals written (derived.js boxDrawn). Read conservatively: the word, a connector (is, are, was, of, at, equals, =, :) or
+// none, then the number; skipped when it is an operand ("Q3 - Q1", "1.5 x IQR = 9", "= 11.5 + 9") or is followed by a word of its own ("median of 9 values", "IQR 6 points"). shortcut: "Q1 and Q3 are
+// 5.5 and 11.5" (a number two words away) is not read; upgrade on the Reviewer's word.
+const STAT_TEXT = /(?<![\w.]|[-+×*/]\s*|\bx\s*)(upper fence|lower fence|interquartile range|IQR|median|first quartile|lower quartile|third quartile|upper quartile|Q1|Q3)(?!\w|[-+]\d)(?:\s*\([^()]*[A-Za-z][^()]*\))?\s*(?:(?:is|are|was|of|at|equals|sits at|stands at|lands at|comes to|works out to)\b|[=:≈~])?\s*\(?\s*(-?\d+(?:\.\d+)?)/gi;
+const plainStats = text => String(text ?? '').replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1').replace(/\\(?:times|cdot)/g, '×').replace(/\\[,;!]|\\left|\\right|\$|\*\*/g, ' ').replace(/Q_\{?([13])\}?/g, 'Q$1').replace(/[−–‐‑‒—]/g, '-').replace(/[·⋅∙]/g, '×').replace(WORD_NUMBER, wordsToNumber);
+// Number words read as numbers before the scan (whole numbers to ninety-nine, "point" decimals; hyphenated or spaced): "twenty-four" 24, "thirty-three point five" 33.5. A lone "one" stays a word (it is
+// a pronoun: "one of the values"), and a number word before or after hundred, thousand or million is left alone. shortcut: "thirty one thousand" reads as 30; hundreds are not read; upgrade on the Reviewer's word.
+const WORD_VALUES = Object.fromEntries(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'].map((w, i) => [w, i]).concat(['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'].map((w, i) => [w, 20 + 10 * i])));
+const DIGIT_WORDS = 'zero|one|two|three|four|five|six|seven|eight|nine';
+const WORD_NUMBER = new RegExp(String.raw`(?<![\w-])(?<!(?:hundred|thousand|million)\s+(?:and\s+)?)(?:(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[-\s](one|two|three|four|five|six|seven|eight|nine))?|(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))(?:\s+point((?:\s+(?:${DIGIT_WORDS}))+))?(?![\w-])(?!\s+(?:hundred|thousand|million|billion))`, 'gi');
+function wordsToNumber(whole, tens, unit, single, decimals) {
+  if (!decimals && single?.toLowerCase() === 'one') return whole;
+  const value = (tens ? WORD_VALUES[tens.toLowerCase()] + (unit ? WORD_VALUES[unit.toLowerCase()] : 0) : WORD_VALUES[single.toLowerCase()]);
+  return decimals ? `${value}.${decimals.trim().split(/\s+/).map(w => WORD_VALUES[w.toLowerCase()]).join('')}` : String(value);
+}
+const NOT_OPERAND = /^\s*(?:[+×*/^÷]|-\s*\d|x\s*\d|(?:minus|plus|times|divided|over)\b)|^\w|^\s+(?:values?|numbers?|data|points?|observations?|samples?|items?|elements?|entries|readings?|students?|people|rows|times|more|less|higher|lower|above|below|greater|smaller|larger|bigger|apart|wide|long|away|spread)\b/i;
+const BOX_SPAN = /\b(?:the box(?![\s-]*(?:plot|and[\s-]*whisker))|the middle half)\b[^.;:!?\n]{0,60}?\b(?:from|between)\s+(-?\d+(?:\.\d+)?)\s*(?:[a-z%]+\s+)?(?:to|and)\s+(-?\d+(?:\.\d+)?)/gi;
+const EXPR_RESULT =/^(?:\s*(?:[+×*/÷]|-|x(?=\s*\d))\s*\(?-?\d+(?:\.\d+)?\)?)+\s*=\s*(-?\d+(?:\.\d+)?)/i; // "- 90 = 14", "+ 1.5 × 14 = 125": an expression after the term's first number, and its result
+const STAT_KEY = { 'interquartile range': 'iqr', 'first quartile': 'q1', 'lower quartile': 'q1', 'third quartile': 'q3', 'upper quartile': 'q3' };
+const STAT_SAY = [['q1', 'Q1'], ['median', 'median'], ['q3', 'Q3'], ['iqr', 'IQR'], ['lower fence', 'lower fence'], ['upper fence', 'upper fence']];
+// -> [] or ONE message: every wrong statement of the card (at most four named, then "and N more"), then the full drawn set once (per box when the card has several), so the single repair has every
+// number. It is a `whole` message (numbersIssue never cuts it: the cut that applies to other messages is 480 characters, and this one is not bound by it).
+export function boxTextIssues(boxDiagrams, texts) {
+  const wrong = [], seen = new Set(), shown = value => Number(value.toFixed(3));
+  const boxes = boxDiagrams.flatMap(d => d.boxes.map(box => ({ box, drawn: boxDrawn(box) })));
+  for (const text of texts.map(plainStats)) {
+    for (const m of text.matchAll(STAT_TEXT)) {
+      const tail = text.slice(m.index + m[0].length), eq = EXPR_RESULT.exec(tail); // "IQR is 104 - 90 = 14": the result is what the term is said to be
+      if (!eq && NOT_OPERAND.test(tail)) continue;
+      const said = eq ? eq[1] : m[2], word = m[1].toLowerCase(), key = STAT_KEY[word] ?? word, wrote = Number(said), places = (said.split('.')[1] ?? '').length;
+      if (boxes.some(x => Math.abs(x.drawn[key] - wrote) <= 0.5 * 10 ** -places + 1e-9) || seen.has(`${key} ${said}`)) continue;
+      seen.add(`${key} ${said}`); wrong.push(`"${m[1]} ${said}"`);
+    }
+    // "the box (spans / covers the middle half of the times,) from A to B" or "between A and B": A and B are Q1 and Q3 of one drawn box, each within half a unit of its own decimals.
+    for (const m of text.matchAll(BOX_SPAN)) {
+      const [a, b] = [m[1], m[2]], half = s => 0.5 * 10 ** -(s.split('.')[1] ?? '').length + 1e-9;
+      if (boxes.some(x => Math.abs(x.drawn.q1 - Number(a)) <= half(a) && Math.abs(x.drawn.q3 - Number(b)) <= half(b)) || seen.has(`box ${a} ${b}`)) continue;
+      seen.add(`box ${a} ${b}`); wrong.push(`"box from ${a} to ${b}"`);
+    }
+  }
+  if (!wrong.length) return [];
+  const set = ({ drawn }) => STAT_SAY.map(([key, name]) => `${name} ${shown(drawn[key])}`).join(', ');
+  const named = wrong.length > 4 ? `${wrong.slice(0, 4).join(', ')} and ${wrong.length - 4} more` : wrong.join(', ');
+  return [`the text states ${named} but the box-plot "${String(boxDiagrams[0].title).slice(0, 40)}" draws ${boxes.length === 1 ? set(boxes[0]) : boxes.map(x => `${String(x.box.label).slice(0, 20)}: ${set(x)}`).join('; ')}: write these drawn numbers, or change the box and every sentence that states it`];
+}
 // -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
 // such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
 // "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
 export function numbersIssue(block) {
-  const hits = [], extra = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }
+  const hits = [], extra = [], boxes = []; // extra: NUM-2 prose equations and distribution bars, each { message, kind }; boxes: the card's parsed box plots
   let n = 0;
   const texts = [block?.body, ...(block?.more || []).map(s => s?.text)];
   for (const md of texts) for (const f of split(md).fences) {
@@ -536,16 +621,19 @@ export function numbersIssue(block) {
     try {
       const { diagram } = parseTutorDiagram(f.lines.join('\n'));
       for (const bad of distributionBarIssues(diagram)) extra.push({ kind: 'bar-chart', message: `the bar-chart "${String(diagram.title).slice(0, 60)}" is called a ${bad.word} but its ${bad.label ? `"${bad.label}" ` : ''}values (${bad.values.join(', ')}) sum to ${bad.sum}: values that form a distribution sum to 1, so change the values to sum to 1 and every sentence that states them` });
+      if (diagram.kind === 'box-plot') boxes.push(diagram);
     } catch (error) {
       const [first] = arithmeticOf(error);
       if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
     }
   }
   for (const md of texts) for (const bad of proseArithmetic(proseOfMarkdown(md))) extra.push({ kind: null, message: `the text states "${bad.text}" but the left side computes to ${Number(bad.computed.toFixed(Math.min(8, bad.decimals + 2)))}: state the computed result, or fix the numbers it uses, everywhere the card states them` });
+  if (boxes.length) for (const message of boxTextIssues(boxes, [...boxes.map(d => d.caption), ...texts.map(proseOfMarkdown)])) extra.unshift({ kind: 'box-plot', message, whole: true });
   if (!hits.length && !extra.length) return null;
   const fence = !hits.length ? '' : hits.length === 1 ? fenceProblem(hits[0].error)
     : `explanation_bad_numbers: the rh-diagram specs state wrong numbers. ${hits.map(h => `Diagram ${h.n}: ${issuesText(h.error).slice(0, 280)}`).join(' | ')}`;
-  const more = extra.length ? `explanation_bad_numbers: the card states wrong numbers (${extra.slice(0, 3).map(e => e.message).join('; ').slice(0, 480)})` : '';
+  const whole = extra.filter(e => e.whole).map(e => e.message), rest = extra.filter(e => !e.whole).slice(0, Math.max(0, 3 - whole.length)).map(e => e.message).join('; ').slice(0, 480); // a `whole` message is never cut
+  const more = extra.length ? `explanation_bad_numbers: the card states wrong numbers (${[...whole, rest].filter(Boolean).join('; ')})` : '';
   return { problem: [fence, more].filter(Boolean).join(' '), issue: hits[0]?.issue ?? extra[0].message, kind: hits[0]?.kind ?? extra[0].kind, kinds: [...hits.map(h => h.kind), ...extra.map(e => e.kind).filter(Boolean)] };
 }
 
@@ -988,12 +1076,12 @@ function chainAsCycle(spec) {
   try { return parseTutorDiagram({ version: 1, diagram: { title: d.title, ...(d.caption ? { caption: d.caption } : {}), kind: 'cycle', steps } }); } catch { return null; }
 }
 // Rewrites each valid rh-diagram fence through fn(parsed spec) -> a new spec or null (unchanged); an invalid diagram is left to the drop or repair path.
-function mapDiagrams(md, fn) {
+function mapDiagrams(md, fn, parse = parseTutorDiagram) {
   const out = []; let open = null, changed = false;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       if (/^\s*```/.test(line)) {
-        let spec = null; try { spec = fn(parseTutorDiagram(open.lines.join('\n'))); } catch { /* an invalid diagram is the drop or repair path's */ }
+        let spec = null; try { spec = fn(parse(open.lines.join('\n'))); } catch { /* an invalid diagram is the drop or repair path's */ }
         out.push(open.raw, ...(spec ? [JSON.stringify(spec)] : open.lines), line); changed ||= !!spec; open = null;
       } else open.lines.push(line);
       continue;

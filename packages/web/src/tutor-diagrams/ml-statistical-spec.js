@@ -1,6 +1,7 @@
 // Four bounded teaching schemas. Positions, colors and derived density heights
 // remain renderer-owned; all values here are the author's literal data.
-import { checkDerived, absentFrom, histogramCounts, heatmapRange } from './derived.js';
+import { checkDerived, absentFrom, histogramCounts, heatmapRange, withValueStats } from './derived.js';
+import { titleWithUnit } from './axis-title.js';
 
 export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const cell = z.strictObject({ row: z.int().min(0).max(5), column: z.int().min(0).max(5) });
@@ -33,7 +34,8 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     z.strictObject({
       ...titled, kind: z.literal('box-plot'), x: axes,
       boxes: z.array(z.strictObject({
-        label: text(42), whiskerLow: numeric, q1: numeric, median: numeric, q3: numeric, whiskerHigh: numeric,
+        // values (BOX-1, optional): the data this box summarises; with it the code computes median, quartiles, whiskers, fences and outliers and rejects written ones that differ (derived.js).
+        label: text(42), values: z.array(numeric).min(4).max(60).optional(), whiskerLow: numeric, q1: numeric, median: numeric, q3: numeric, whiskerHigh: numeric,
         fences: z.strictObject({ lower: numeric, upper: numeric }).optional(),
         outliers: z.array(z.strictObject({ label: text(36), value: numeric })).min(1).max(8).optional(),
       })).min(1).max(4),
@@ -181,7 +183,8 @@ function checkHistogram(d, issue) {
 function checkBoxes(d, issue) {
   if (!(d.x.min < d.x.max)) issue(['x', 'max'], 'The axis maximum must exceed its minimum');
   unique(d.boxes.map(box => box.label), ['boxes'], issue, 'Box labels');
-  d.boxes.forEach((box, i) => {
+  d.boxes.forEach((typed, i) => {
+    const box = withValueStats(typed); // a box with values is checked as the code will draw it (derived.js overwrites what the author typed)
     const fields = ['whiskerLow', 'q1', 'median', 'q3', 'whiskerHigh'];
     fields.forEach((field, j) => {
       if (!within(box[field], d.x.min, d.x.max)) issue(['boxes', i, field], 'Summary is outside the shared axis domain');
@@ -205,14 +208,15 @@ export function validate(diagram, issue) {
   }
 }
 
-// An out-of-bag group (outOfBagFor) lists the samples that were never drawn: each one is named, with no "× n".
+export const itemCount = group => `${group.members.length} ${group.members.length === 1 ? 'item' : 'items'}`;
+// Only a replacement draw has multiplicities. Any other group (a class, a split, an out-of-bag set) is a plain list: each member is named, with no "× n".
 export function sampleMemberships(group) {
-  if (group.outOfBagFor) return group.members.map(id => ({ id, count: 1, text: id }));
+  if (!group.replacement) return group.members.map(id => ({ id, count: 1, text: id }));
   const counts = new Map();
   for (const id of group.members) counts.set(id, (counts.get(id) || 0) + 1);
   return [...counts].map(([id, count]) => ({ id, count, text: `${id} × ${count}` }));
 }
-const axisName = axis => axis.unit ? `${axis.label} (${axis.unit})` : axis.label;
+const axisName = axis => titleWithUnit(axis.label, axis.unit);
 export function boxSummary(box) {
   return `Whiskers: ${box.whiskerLow}, ${box.whiskerHigh}; Q1: ${box.q1}; Median: ${box.median}; Q3: ${box.q3}`;
 }
@@ -227,7 +231,7 @@ export function describe(d) {
     case 'sample-set': return [
       ...d.samples.map(sample => `${sample.id}${sample.label ? `: ${sample.label}` : ''}${sample.class ? `; class ${sample.class}` : ''}${sample.weight !== undefined ? `; weight ${sample.weight}` : ''}`),
       ...d.groups.flatMap(group => [
-        `${group.label} (${group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws, ${new Set(group.members).size} unique`}): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
+        `${group.label} (${group.outOfBagFor ? `${group.members.length} not drawn` : group.replacement ? `${group.members.length} draws, ${new Set(group.members).size} unique` : itemCount(group)}): ${sampleMemberships(group).map(member => member.text).join(', ') || 'empty set'}`,
         ...(group.omitted ? [`Omitted: ${group.omitted.join(', ') || 'none'}`] : []),
         ...(group.outOfBagFor ? [`Out of bag for ${d.groups.find(other => other.id === group.outOfBagFor).label}`] : []),
       ]),

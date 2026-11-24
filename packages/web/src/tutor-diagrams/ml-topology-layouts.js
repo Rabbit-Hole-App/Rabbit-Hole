@@ -1,8 +1,10 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wire, wrap } from './primitives.js';
+import { titleWithUnit } from './axis-title.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
 import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topology-spec.js';
 import { dotTree } from './dot-tree-layout.js';
+import { legendTextWidth } from './ml-plot-layouts.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12, TEXT = 15, SMALL = 13, GAP = 18;
@@ -42,14 +44,14 @@ function nodeWidth(node, maximum = 150) {
   return node.tensor ? Math.max(textMinimum, tensorMinimumWidth(node.tensor) + 20) : textMinimum;
 }
 
-function card(node, pos, { active = false, pruned = false, align = 'middle' } = {}) {
+function card(node, pos, { active = false, pruned = false, align = 'middle', role } = {}) {
   const { x, y, width, content } = pos;
   const center = align === 'start' ? x + 10 : x + width / 2;
   const { strip, bodyHeight } = content;
   const top = y + (content.height - bodyHeight) / 2;
   return h('g', { 'data-tutor-node': node.id, ...(active ? { 'data-tutor-path': '' } : {}), ...(pruned ? { 'data-tutor-pruned': '' } : {}),
     ...(strip ? { 'aria-label': nodeName(node) } : {}) },
-    cloneElement(teachingBox(x, y, width, content.height, { active }), { strokeDasharray: pruned ? '4 4' : undefined }),
+    cloneElement(teachingBox(x, y, width, content.height, { active, ...(role ? { role } : {}) }), { strokeDasharray: pruned ? '4 4' : undefined }),
     ...(content.lines.length ? [label(content.lines, center, top + content.mainHeight / 2, { weight: 700, size: T.body, anchor: align })] : []),
     ...(content.details.length ? [label(content.details, center, top + content.mainHeight + 5 + content.detailHeight / 2,
       { size: T.small, tone: 'muted', anchor: align })] : []),
@@ -175,7 +177,7 @@ function dendrogram(d, preferredWidth) {
   const cellWidth = Math.max(92, ...leaves.map(n => nodeWidth(n, 130)));
   const axisX = PAD + Math.max(32, textWidth(String(d.heightAxis.max), SMALL)) + 9;
   const width = Math.max(preferredWidth, axisX + 14 + leaves.length * (cellWidth + GAP) - GAP + PAD);
-  const titleLines = wrap(`${d.heightAxis.label}${d.heightAxis.unit ? ` (${d.heightAxis.unit})` : ''}`, width - 2 * PAD, TEXT);
+  const titleLines = wrap(titleWithUnit(d.heightAxis.label, d.heightAxis.unit), width - 2 * PAD, TEXT);
   const top = PAD + titleLines.length * lineHeight(TEXT) + 20;
   const bottom = top + 280;
   const valueY = height => bottom - height / d.heightAxis.max * (bottom - top);
@@ -264,6 +266,13 @@ function dendrogram(d, preferredWidth) {
 // Dedicated outside lanes make cycles and reciprocal links unambiguous while
 // each entity is drawn once. Numbered route labels use the existing flow
 // renderer's directed-label ledger convention when inline labels would cross.
+// REL-1: a box takes its fill from its place in the graph (no arrow leaves it, an outcome; no arrow enters it, an input, the scene theme's operator lavender; the rest, a process). A label that fits
+// beside its arrow is drawn there; arrows that carry the same sentence share one numbered note; the numbered list holds only the notes that do not fit (never the node names: the badge is on the arrow).
+const GRAPH_LABEL_MAX_WIDTH = 720;
+// A label stands on an arrow only when that arrow's own wire is the nearest wire to it: within LABEL_NEAR px of the label box, and every other edge's wire at least LABEL_CLEAR px farther away.
+// LABEL_NEAR 6: labels stand flush, 5 px from the wire (old placements were 7 to 8 px, and the named failures sat 7.1 and 8.0). LABEL_CLEAR 24 = one lane spacing: the old
+// failures cleared a foreign wire by -3.1, -0.6 and +12.2 px; a neighbour lane is 24 px from a wire, and above 24 the labels start to leave their arrows (28: 110 of 188 remain at 408).
+const LABEL_NEAR = 6, LABEL_CLEAR = 24;
 function graph(d, preferredWidth, hasTensor) {
   const order = new Map(d.nodes.map((n, i) => [n.id, i]));
   const routes = d.edges.map((e, i) => ({ ...e, index: i, side: order.get(e.from) < order.get(e.to) ? 'right' : 'left' }));
@@ -272,17 +281,26 @@ function graph(d, preferredWidth, hasTensor) {
   const nodeW = Math.max(180, ...d.nodes.map(n => nodeWidth(n, 186))); // node boxes are 180 x 56 like flow nodes
   const firstLane = 16, laneSpacing = 24, portGap = 2;
   const gutters = Object.fromEntries(Object.entries(laneCounts).map(([side, count]) => [side, count ? firstLane + (count - 1) * laneSpacing + 18 : 0]));
-  const names = new Map(d.nodes.map(node => [node.id, nodeName(node)]));
-  const legend = routes.map(r => `${r.index + 1}. ${names.get(r.from)} → ${names.get(r.to)}: ${r.label}`);
-  const legendWidth = hasTensor ? 2 * PAD + Math.ceil(Math.max(...legend.map(text => widestFormula(text, SMALL)))) : 0;
-  const width = Math.max(preferredWidth, 2 * PAD + gutters.left + nodeW + gutters.right, legendWidth);
-  const nodeX = PAD + gutters.left + (width - 2 * PAD - gutters.left - gutters.right - nodeW) / 2;
+  // One note per distinct sentence; the arrows that carry it share it.
+  const notes = [];
+  for (const r of routes) {
+    const text = r.label.trim();
+    let note = notes.find(item => item.text === text);
+    if (!note) notes.push(note = { text, routes: [] });
+    note.routes.push(r);
+    r.note = note;
+  }
+  const textHeight = lineHeight(SMALL), textWidthOf = text => Math.ceil(legendTextWidth(text, SMALL));
+  const legendWidth = hasTensor ? 2 * PAD + Math.max(...notes.map(note => Math.ceil(widestFormula(`9. ${note.text}`, SMALL)))) : 0;
+  const baseWidth = Math.max(preferredWidth, 2 * PAD + gutters.left + nodeW + gutters.right, legendWidth);
+  const nodeX = PAD + gutters.left + (baseWidth - 2 * PAD - gutters.left - gutters.right - nodeW) / 2;
   const positions = new Map();
   let y = PAD;
+  const rowGap = 48;
   for (const n of d.nodes) {
     const measured = measure(n, nodeW), content = { ...measured, height: Math.max(56, measured.height) };
     positions.set(n.id, { x: nodeX, y, width: nodeW, content });
-    y += content.height + 48;
+    y += content.height + rowGap;
   }
   const port = (id, route) => {
     const pos = positions.get(id);
@@ -292,22 +310,100 @@ function graph(d, preferredWidth, hasTensor) {
     const x = route.side === 'right' ? nodeX + nodeW + gap : nodeX - gap;
     return [x, pos.y + inset + (pos.content.height - 2 * inset) * (peers.indexOf(route) + 1) / (peers.length + 1)];
   };
+  for (const r of routes) {
+    r.fromAt = port(r.from, r); r.toAt = port(r.to, r);
+    r.laneX = r.side === 'right' ? nodeX + nodeW + firstLane + r.lane * laneSpacing : nodeX - (firstLane + r.lane * laneSpacing);
+    const upper = positions.get(order.get(r.from) < order.get(r.to) ? r.from : r.to);
+    r.badgeY = upper.y + upper.content.height + 24;
+  }
+  // Where a label may stand: flush beside its own lane (either side) or above and below its own two short runs, clear of every node, wire, badge and other label (3 px).
+  // And it must read as its own arrow's (ownsBox): LABEL_NEAR and LABEL_CLEAR above.
+  const solid = (x1, y1, x2, y2) => ({ x1: Math.min(x1, x2), y1: Math.min(y1, y2), x2: Math.max(x1, x2), y2: Math.max(y1, y2) });
+  const apart = (a, b, margin = 3) => a.x2 + margin <= b.x1 || b.x2 + margin <= a.x1 || a.y2 + margin <= b.y1 || b.y2 + margin <= a.y1;
+  const gapBetween = (a, b) => Math.hypot(Math.max(0, a.x1 - b.x2, b.x1 - a.x2), Math.max(0, a.y1 - b.y2, b.y1 - a.y2));
+  const nodeBoxes = d.nodes.map(n => { const p = positions.get(n.id); return solid(p.x, p.y, p.x + p.width, p.y + p.content.height); });
+  const wireBoxes = r => [solid(r.fromAt[0], r.fromAt[1] - 1, r.laneX, r.fromAt[1] + 1), solid(r.laneX - 1, r.fromAt[1], r.laneX + 1, r.toAt[1]), solid(r.laneX, r.toAt[1] - 1, r.toAt[0], r.toAt[1] + 1)];
+  const wireLines = r => [solid(r.fromAt[0], r.fromAt[1], r.laneX, r.fromAt[1]), solid(r.laneX, r.fromAt[1], r.laneX, r.toAt[1]), solid(r.laneX, r.toAt[1], r.toAt[0], r.toAt[1])];
+  const nearest = (box, lines) => Math.min(...lines.map(line => gapBetween(box, line)));
+  const ownsBox = (box, r) => {
+    const own = nearest(box, wireLines(r));
+    return own <= LABEL_NEAR && nearest(box, routes.filter(other => other !== r).flatMap(wireLines)) - own >= LABEL_CLEAR;
+  };
+  // REL-1b: a label whose top is in the row gap directly under a box (a label that reaches into the next row still counts) reads as that box's, so it stands there only when the box is its arrow's source; directly over a box, only when the box is its arrow's target.
+  // "Directly under" covers the box's own span and the corridor between the box and the label's own wire (a label there sits against the box's corner).
+  const standsFrom = (box, r) => d.nodes.every((n, i) => {
+    const b = nodeBoxes[i];
+    if (box.x2 <= Math.min(b.x1, r.laneX) || Math.max(b.x2, r.laneX) <= box.x1) return true;
+    return !(box.y1 >= b.y2 && box.y1 < b.y2 + rowGap && n.id !== r.from) && !(box.y2 <= b.y1 && box.y2 > b.y1 - rowGap + 0.5 && n.id !== r.to);
+  });
+  const badgeBox = r => solid(r.laneX - 10, r.badgeY - 10, r.laneX + 10, r.badgeY + 10);
+  const labelHeight = textHeight;
+  const candidates = (r, text, width) => {
+    const w = textWidthOf(text), out = [];
+    const y1 = Math.min(r.fromAt[1], r.toAt[1]), y2 = Math.max(r.fromAt[1], r.toAt[1]), mid = (y1 + y2) / 2;
+    const sweep = [];
+    for (let at = y1 + labelHeight / 2 + 4; at <= y2 - labelHeight / 2 - 4; at += 4) sweep.push(at);
+    sweep.sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid));
+    const sides = r.side === 'right' ? ['after', 'before'] : ['before', 'after'];
+    for (const side of sides) for (const at of sweep) {
+      const x = side === 'after' ? r.laneX + 5 : r.laneX - 5, anchor = side === 'after' ? 'start' : 'end'; // flush against the lane: 5 px from the wire
+      out.push({ ...solid(side === 'after' ? x : x - w, at - labelHeight / 2, side === 'after' ? x + w : x, at + labelHeight / 2), text, anchor, x, y: at });
+    }
+    for (const [from, to, at] of [[r.fromAt[0], r.laneX, r.fromAt[1]], [r.toAt[0], r.laneX, r.toAt[1]]]) {
+      const left = Math.min(from, to), room = Math.abs(to - from);
+      if (room < w + 10) continue;
+      for (const above of [true, false]) {
+        const top = above ? at - 3 - labelHeight : at + 3;
+        out.push({ ...solid(left + 5, top, left + 5 + w, top + labelHeight), text, anchor: 'start', x: left + 5, y: top + labelHeight / 2 });
+      }
+    }
+    // The canvas edge is checked with the generous text measure (a label never clips), the neighbours with the Arial advances.
+    const generous = Math.ceil(textWidth(text, SMALL));
+    return out.filter(box => box.x1 >= PAD && box.x2 <= width - PAD && (box.anchor === 'end' ? box.x - generous >= PAD : box.x + generous <= width - PAD));
+  };
+  const placeLabels = (width, byBox = false) => {
+    const placed = new Map();
+    const taken = [];
+    for (const note of notes) {
+      if (note.routes.length > 1) continue; // arrows that share a sentence share one numbered note
+      const [r] = note.routes;
+      const obstacles = [...nodeBoxes, ...routes.flatMap(other => other === r ? [] : [...wireBoxes(other), badgeBox(other)]), ...wireBoxes(r), ...taken];
+      const all = candidates(r, note.text, width), fits = box => obstacles.every(other => apart(box, other)) && ownsBox(box, r);
+      const first = all.find(fits);
+      // First place fails REL-1b: the other side of its own wire at that height, then the other places along its lane; none passes, a numbered note.
+      const spot = first && (!byBox || standsFrom(first, r) ? first : [...all.filter(box => box.y === first.y), ...all].find(box => fits(box) && standsFrom(box, r)));
+      if (!spot) continue;
+      placed.set(note, spot); taken.push(spot);
+    }
+    return placed;
+  };
+  const single = notes.filter(note => note.routes.length === 1).length;
+  let width = baseWidth, placed = placeLabels(width);
+  if (placed.size < single) {
+    // The card may grow, up to 720 px, when that lets every label stand on its arrow (no list at all); else it keeps today's width.
+    for (let wider = baseWidth + 12; wider <= GRAPH_LABEL_MAX_WIDTH && placed.size < single; wider += 12) {
+      const attempt = placeLabels(wider);
+      if (attempt.size === single) { width = wider; placed = attempt; }
+    }
+    if (placed.size < single && width === baseWidth) placed = placeLabels(baseWidth);
+  }
+  placed = placeLabels(width, true); // the card's width is REL-1's; only the places change
+  const listed = notes.filter(note => !placed.has(note));
+  listed.forEach((note, i) => { note.number = i + 1; });
+  const roleOf = id => !d.edges.some(e => e.from === id) ? 'outcome' : !d.edges.some(e => e.to === id) ? 'input' : 'process'; // no arrow out: outcome (also a box with no arrow at all); else no arrow in: input; else process
   const elements = [];
   for (const r of routes) {
-    const from = port(r.from, r), to = port(r.to, r);
-    const offset = firstLane + r.lane * laneSpacing;
-    const laneX = r.side === 'right' ? nodeX + nodeW + offset : nodeX - offset;
-    const upper = positions.get(order.get(r.from) < order.get(r.to) ? r.from : r.to);
-    const badgeY = upper.y + upper.content.height + 24;
+    const from = r.fromAt, to = r.toAt, laneX = r.laneX, spot = placed.get(r.note);
     elements.push(h('g', { 'data-tutor-edge': `${r.from}:${r.to}`, 'data-tutor-edge-index': r.index },
       wire([from, [laneX, from[1]], [laneX, to[1]], to]),
-      h('circle', { cx: laneX, cy: badgeY, r: 10, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
-      label(String(r.index + 1), laneX, badgeY, { size: 13, weight: 600 })));
+      ...(spot ? [label(spot.text, spot.x, spot.y, { size: SMALL, anchor: spot.anchor, weight: 500 })]
+        : [h('circle', { cx: laneX, cy: r.badgeY, r: 10, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
+          label(String(r.note.number), laneX, r.badgeY, { size: 13, weight: 600 })])));
   }
-  for (const node of d.nodes) elements.push(card(node, positions.get(node.id)));
+  for (const node of d.nodes) elements.push(card(node, positions.get(node.id), { role: roleOf(node.id) }));
   y -= 30;
-  for (const text of legend) {
-    const lines = wrap(text, width - 2 * PAD, SMALL), height = lines.length * lineHeight(SMALL);
+  for (const note of listed) {
+    const lines = wrap(`${note.number}. ${note.text}`, width - 2 * PAD, SMALL), height = lines.length * lineHeight(SMALL);
     elements.push(label(lines, PAD, y + height / 2, { size: SMALL, anchor: 'start', fill: TEACHING.muted }));
     y += height + 8;
   }
