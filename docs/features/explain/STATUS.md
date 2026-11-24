@@ -1,6 +1,6 @@
 # /explain sprint status
 
-Written by the lead session at 2026-11-24 11:40 PT from what the session did and verified; updated 13:17 PT after the reviewer's ruling on release 170, and again 13:29 PT after the owner ran release 170 (receipt and clean-up). The last release event it knows is release 170 live (2026-11-24, 01:23 PM PT); anything after that is not here. Every line gives its branch and SHA so it can be checked on the remote. Nothing below is merged or released unless it says so.
+Written by the lead session at 2026-11-24 11:40 PT (same-JSON section rewritten 14:40 PT) from what the session did and verified; updated 13:17 PT after the reviewer's ruling on release 170, and again 13:29 PT after the owner ran release 170 (receipt and clean-up). The last release event it knows is release 170 live (2026-11-24, 01:23 PM PT); anything after that is not here. Every line gives its branch and SHA so it can be checked on the remote. Nothing below is merged or released unless it says so.
 
 Main on the remote: **b29b6bdd7f17c8b700aca15875f99fe7b6a377ae** (release 170; parent 0e6a1475b = release 169's commit, grandparent d0addb74a = release 168; a fast-forward).
 
@@ -22,13 +22,21 @@ Nothing. The `vars.MVP_ALLOWED_SHA` allowance is gone (`gh variable list` no lon
 |---|---|---|
 | Release 169, content only: arrow labels of nine relationship reference families rewritten so none has more than three note lines (Codex b5b40d7dd, cherry-picked) | feat/release-169 0e6a1475b (parent of main's tip b29b6bdd7); recovery/rel-content-169 7f9bff651e26ac12375034f17cc184c707b3be06 **deleted on the remote** on 2026-11-24 (never released on its own; the commit object is still in the local clones: restore with `git push rabbit-hole 7f9bff651e26ac12375034f17cc184c707b3be06:refs/heads/recovery/rel-content-169`) | Its launcher `C:\s\spec\release-queue\release-169-rel-content.cmd` was never run and must not be (main is no longer an ancestor of its SHA, so it would stop at the first check anyway); the launcher files and pins are kept. Report checks/release-169/REPORT.md (5916eedbc); hash and replay scripts and outputs in the commit after it (5eec71bc0). Not measured: bundle size (the dry run is refused). feat/release-169 stays on the remote. |
 
-## Stopped: the same-JSON change set (the owner decides)
+## Same-JSON: in progress (the owner's order of 2026-11-24; the reviewer's list Task 0, M1 to M5)
 
-| What | Branch / SHA | Notes |
-|---|---|---|
-| Full build, step 1 | feat/same-json 953a9ea55 (off main aee3dba82) | Report checks/same-json/full/REPORT.md (b7c58f247). Pass line **not met**: the fixed build delivered 71 of 75 asks against main's 75 (build 1: 65). Money US$0.921 of a US$1.50 stop line. Guard: 737 of 737 undeclared prompts identical to main's. |
-| The four proving branches | feat/same-json-ab 174ad7a00; -mvp2 2651cfdb1; -mvp3 7f36cae2b; -mvp4 26675b9e1 | Results under checks/same-json/mvp1 to mvp4. Untouched. |
-| Open decisions | | (a) rescue a visual that Gemini tags with a kind name instead of "diagram" (7 asks on build 2); (b) the stricter or looser printed-number rule (computed results currently count as printed); (c) whether to go on. Tasks 1, 2, 4, 5 of the spec (one file per section, send only the chosen kind's text, the shared template, the reference function and server step for other references) are NOT STARTED, as ordered. |
+Owner decisions: (a) a visual tagged with a kind name is rescued, for every request; (b) 953a9ea55's rule stays (computed results count as printed numbers; the prose-number check runs only on a card where a function ran); (c) go on: top-k is parked after its two builds, and softmax-probabilities, regression-mean-baseline, confusion-matrix-counts and ml-self-attention-token-links land. Paid stop lines: M1 US$1.00, M3 US$5.00, M5 batch 1 US$3.00 (US$9 in all). Every MVP: own branch, own measurement, own REPORT.md here, release prepared and withheld for the owner's GO; no launcher run by this session.
+
+| Item | State (2026-11-24) | Branch / SHA | Evidence |
+|---|---|---|---|
+| Task 0: the spec | Done | film/evidence 1f5f76d16 (v0.28, unchanged, sha256 51770c80b85d7e925c90e289e350350794d5ffb8e6f7747f337539f7285debb9) | same-json/SPEC.md |
+| M1: the four references | Phase 1 (code, tests, offline guard) running; then the paid measurement (stop line US$1.00); release withheld | feat/same-json-four, base 201865bdf = feat/same-json 953a9ea55 + main b29b6bdd7 (clean merge) | not yet |
+| M2: the system text, one file per section | **Stopped: conflicts with the spec.** The order says one .js module per section in packages/control-plane/src/explanation-text/; spec task 1 says Markdown files named explanation-*.md in one folder, read when the app is built, 8 parts. Both texts reported to the owner; not chosen | none | none |
+| M3: only the chosen kind's text | **Stopped** (depends on M2; also differs from spec task 2: exact concatenation and one closing block, against regrouping by kind, rules 5 and 6 and three new entries) | none | none |
+| M4: the shared template | Design note written, stopped for the reviewer | none (no code) | checks/same-json/task-4/DESIGN.md |
+| M5 step 0: classify the 308 undeclared ids | Three classifiers; group C (57) done, A (117) and B (134) running | none (read-only) | not yet |
+| M5 step 1, batch 1 | Waits for M1's release | none | none |
+
+Earlier, before this order (the full build of 20 Nov): feat/same-json 953a9ea55, report checks/same-json/full/REPORT.md (b7c58f247); the fixed build delivered 71 of 75 asks against main's 75 (pass line not met), US$0.921 of a US$1.50 stop line; 737 of 737 undeclared prompts identical to main's. The four proving branches feat/same-json-ab 174ad7a00, -mvp2 2651cfdb1, -mvp3 7f36cae2b, -mvp4 26675b9e1 are untouched (results under checks/same-json/mvp1 to mvp4).
 
 ## On hold
 
