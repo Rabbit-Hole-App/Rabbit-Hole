@@ -19,10 +19,12 @@ return compute;
 const DECLARED = ${JSON.stringify(outputs.map(({ id, kind }) => ({ id, kind })))};
 export function evaluate({ inputs, state }) {
   const rows = [], problems = [];
-  for (let k = 0; k < state.times.length; k++) {
-    const time = state.times[k];
+  const sweep = typeof state.over === 'string' && Array.isArray(state.values), count = sweep ? state.values.length : state.times.length;
+  for (let k = 0; k < count; k++) {
+    const time = sweep ? state.times[0] : state.times[k], given = JSON.parse(JSON.stringify(inputs));
+    if (sweep) given[state.over] = state.values[k];
     let out;
-    try { out = compute(JSON.parse(JSON.stringify(inputs)), time); } catch (error) { return { rows, problems, thrown: String(error && error.message), at: time }; }
+    try { out = compute(given, time); } catch (error) { return { rows, problems, thrown: String(error && error.message), at: time }; }
     if (!out || typeof out !== 'object') return { rows, problems, thrown: 'compute returned ' + (out === null ? 'null' : typeof out) + ', not an object', at: time };
     const row = {};
     for (const entry of DECLARED) {
@@ -61,11 +63,26 @@ export async function runBatch(source, inputs, times, now = () => performance.no
   return { ok: !thrown, rows, problems, ...(thrown ? { thrown, at } : {}), ms: now() - started };
 }
 
-// One call that moves one control across `values` at one time (a graph drawn against a control): { ok, rows, problems, ... } like runBatch, one row per value.
+// A graph drawn against a control: the function is called once per value of `over`, at `time`, with the other inputs as given. -> { ok, rows, problems, ... } like runBatch, one row per value (the guest's `evaluate` reads
+// state.over and state.values; before 2026-11-24 it read state.times only, so every sweep returned one row and a graph over a control read flat). A call that runs out of time is split in halves, as runBatch splits one (96 values run inside one 50 ms call).
 export async function runSweep(source, inputs, over, values, time, now = () => performance.now()) {
-  const eng = await engineOnce(), started = now(), out = runProgram(eng, { source, request: { requestId: '1', inputs, time: 0, seed: 0, state: { times: [time], over, values } }, sdkVersion: 'sdk-8' });
-  if (!out.ok) return { ok: false, rows: [], problems: [], error: { code: out.code, detail: out.detail }, ms: now() - started };
-  return { ok: !out.value.thrown, rows: out.value.rows, problems: out.value.problems, ...(out.value.thrown ? { thrown: out.value.thrown, at: time } : {}), ms: now() - started };
+  const eng = await engineOnce(), started = now();
+  const call = chunk => runProgram(eng, { source, request: { requestId: '1', inputs, time: 0, seed: 0, state: { times: [time], over, values: chunk } }, sdkVersion: 'sdk-8' });
+  const rows = [], problems = [];
+  let thrown = null;
+  const take = chunk => {
+    const out = call(chunk);
+    if (!out.ok) {
+      if (out.code === 'runtime_limit' && chunk.length > 1) { const half = Math.ceil(chunk.length / 2); return take(chunk.slice(0, half)) ?? take(chunk.slice(half)); }
+      return { error: { code: out.code, detail: out.detail } };
+    }
+    rows.push(...out.value.rows); problems.push(...out.value.problems);
+    if (out.value.thrown) { thrown = out.value.thrown; return 'thrown'; }
+    return null; // null: this chunk is done, go on
+  };
+  const result = take(values);
+  if (result?.error) return { ok: false, rows, problems, error: result.error, ms: now() - started };
+  return { ok: !thrown, rows, problems, ...(thrown ? { thrown, at: time } : {}), ms: now() - started };
 }
 
 // A runner for one blueprint: run(inputs, times) -> the same as runBatch, with the source made once.

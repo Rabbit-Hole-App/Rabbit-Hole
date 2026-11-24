@@ -1,0 +1,251 @@
+{
+ "what": "the ten build-mvp2 cards (blueprint-mvp3/design-brief41 and design-brief43 pendulum-1..5) and the three build-mvp3 cards (run-1..3) through checkBlueprint and measureBlueprint, the checker before (HEAD 7d12f9f2d) and after the two fixes",
+ "changedCards": 0,
+ "rows": [
+  {
+   "card": "b41-pendulum-1",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "new": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b41-pendulum-2",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "new": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b41-pendulum-3",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "new": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b41-pendulum-4",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "new": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b41-pendulum-5",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "new": {
+    "ok": false,
+    "failed": 1,
+    "problems": [
+     "1 form pictures.main.kind: `pictures.main.kind` is undefined."
+    ]
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b43-pendulum-1",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": false,
+    "failed": 9,
+    "problems": [
+     "9 layout pictures.panel: The layout refuses the scene (figure_too_big): the graph needs at least 218 x 277 px; its box is 304 x 222.4 px."
+    ]
+   },
+   "new": {
+    "ok": false,
+    "failed": 9,
+    "problems": [
+     "9 layout pictures.panel: The layout refuses the scene (figure_too_big): the graph needs at least 218 x 277 px; its box is 304 x 222.4 px."
+    ]
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b43-pendulum-2",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b43-pendulum-3",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b43-pendulum-4",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "b43-pendulum-5",
+   "set": "build-mvp2",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "build-mvp3/run-1",
+   "set": "build-mvp3",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "build-mvp3/run-2",
+   "set": "build-mvp3",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  },
+  {
+   "card": "build-mvp3/run-3",
+   "set": "build-mvp3",
+   "panelOver": "time",
+   "old": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "new": {
+    "ok": true,
+    "failed": 0,
+    "problems": []
+   },
+   "checkResultChanged": false,
+   "buildMeasurementsChanged": false
+  }
+ ]
+}

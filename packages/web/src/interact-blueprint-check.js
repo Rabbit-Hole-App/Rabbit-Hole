@@ -124,8 +124,9 @@ export async function sample(blueprint) {
 
 // ---- checks 4 to 6: the parts -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 function checkParts(blueprint, sampled) {
-  const out = [], bad = (check, path, message) => out.push({ code: check, path, message }), parts = blueprint.pictures.main.parts, base = sampled.points[0], first = base.check[0], last = base.check.at(-1);
-  const moved = parts.some(part => pointsOf(part).some(point => { const a = resolve(point, first), b = resolve(point, last); return !near(a[0], b[0]) || !near(a[1], b[1]); }));
+  const out = [], bad = (check, path, message) => out.push({ code: check, path, message }), parts = blueprint.pictures.main.parts, base = sampled.points[0], first = base.check[0];
+  // a part moves when its position at ANY checked time differs from its position at the first (the first and last alone read a motion that comes back to its start, one full loop, as no motion; job ej_318bdf4291f94c7a8a9cb1109471e36f)
+  const moved = parts.some(part => pointsOf(part).some(point => { const a = resolve(point, first); return base.check.some(row => { const b = resolve(point, row); return !near(a[0], b[0]) || !near(a[1], b[1]); }); }));
   if (!moved) return [{ code: 'moves', path: 'pictures.main', message: 'No part moves during the run at the default settings; make something move over time (a dot, a line end, an arrow).' }];
   // every control matters: it changes a part, a graph line or a shown value
   const used = new Set([...parts.flatMap(outputsOfPart), ...(blueprint.pictures.panel?.series.map(series => series.value) ?? []), ...blueprint.values.map(entry => entry.value)]);
