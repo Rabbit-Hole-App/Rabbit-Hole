@@ -1,5 +1,5 @@
 {
-  "note": "Frozen at the same-json change set (branch feat/same-json). A reference whose stored diagram holds a number must declare its calculation (a function) or declare that it needs none (calculation: { none: true }); a reference not on this list that has numbers and does not declare fails calculation-declarations.test.mjs. The list only gets shorter: when a reference declares, remove its id here (the test fails while a declared reference is still listed). Never add an id.",
+  "note": "Frozen at the same-json change set (branch feat/same-json). A reference whose stored diagram holds a number must declare its calculation (a function) or declare that it needs none (calculation: { none: true }); a reference not on this list that has numbers and does not declare fails calculation-declarations.test.mjs. The list only gets shorter: when a reference declares, remove its id here (the test fails while a declared reference is still listed). Never add an id. One id was added once, on 2026-11-24: ml-sampling-top-k, which the owner parked (docs/features/explain/parked.md); it comes off this list when it is un-parked and declares its calculation.",
   "ids": [
     "acf-pacf-stems",
     "aligned-distribution-drift",
@@ -199,6 +199,7 @@
     "ml-regularization-regularized-objective",
     "ml-repeated-sample-fits",
     "ml-rolling-mean-feature",
+    "ml-sampling-top-k",
     "ml-soft-vote-probabilities",
     "ml-stable-diffusion-clip-two-encoders",
     "ml-stable-diffusion-encoder-evaluation",

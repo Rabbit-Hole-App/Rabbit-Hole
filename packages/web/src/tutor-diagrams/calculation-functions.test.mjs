@@ -1,17 +1,14 @@
-// The shares helper and the three functions (top-k, softmax probabilities, regression mean baseline). Every expected value below is worked out by hand in its comment, not read from the output.
+// The shares helper and the two functions (softmax probabilities, regression mean baseline; top-k is parked, docs/features/explain/parked.md). Every expected value below is worked out by hand in its comment, not read from the output.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CalculationRefused, runCalculation } from './calculation.js';
 import { evenPercents, evenShares } from './shares.js';
-import { samplingTopK, topK, topKCalculation, topKInputs } from './ml-sampling-top-k-data.js';
 import { softmaxCalculation, softmaxInputs, softmaxProbabilities } from './ml-softmax-probabilities-data.js';
 import { meanBaseline, meanBaselineCalculation } from './ml-regression-mean-baseline-data.js';
-import { samplingTopKReference } from './ml-sampling-top-k-reference.js';
 import { references as plotReferences } from './ml-plot-references.js';
 
 const sum = values => values.reduce((total, value) => total + value, 0);
 const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-9, `${message ?? ''} ${actual} != ${expected}`);
-const nearList = (actual, expected) => { assert.equal(actual.length, expected.length); actual.forEach((value, i) => near(value, expected[i], `item ${i}`)); };
 
 test('evenShares: equal weights show as equal shares, with one more decimal when two cannot', () => {
   // [18, 23, 18]: total 59, 18/59 = .30508, 23/59 = .38983. Two decimals give 31/39/30 (a unit left over goes to one of the 18s); three give 305/390/305 (999 + the unit to the 23's .83 remainder).
@@ -32,80 +29,6 @@ test('evenShares: always adds to one; evenPercents is the same in percent', () =
   assert.deepEqual(evenPercents([18, 23, 18]), [30.5, 39, 30.5]);
   assert.deepEqual(evenPercents([13, 13, 14]), [32.5, 32.5, 35]);
   assert.deepEqual(evenPercents([39, 44, 30]), [34, 39, 27]);
-});
-
-test('topK: the worked example is the stored numbers 42/28/16/8/6, 60/40 and 70', () => {
-  // Weights 21, 14, 8, 4, 3 add to 50: 21/50 = 42%, 14/50 = 28%, 8/50 = 16%, 4/50 = 8%, 3/50 = 6%. k = 2 keeps 21 and 14 (35): 60% and 40%; the kept hold 42 + 28 = 70.
-  assert.deepEqual(topKInputs, { weights: [21, 14, 8, 4, 3], k: 2 });
-  assert.deepEqual(topK(topKInputs), { full: [42, 28, 16, 8, 6], renormalized: [60, 40, 0, 0, 0], keptShare: 70 });
-  const stored = samplingTopKReference.spec.diagram.series;
-  assert.deepEqual(stored[0].values, [42, 28, 16, 8, 6]);
-  assert.deepEqual(stored[1].values, [60, 40, 0, 0, 0]);
-  assert.deepEqual([samplingTopK.fullPercent, samplingTopK.filteredPercent, samplingTopK.keptMassPercent], [[42, 28, 16, 8, 6], [60, 40, 0, 0, 0], 70]);
-  assert.match(samplingTopKReference.depths.standard.spec.diagram.caption, /hold 70% of the probability/);
-});
-
-test('topK takes any number of items: six items and three items', () => {
-  // Six: 30, 20, 20, 10, 10, 10 add to 100, so the first row is those numbers. k = 3 keeps 30, 20, 20 (70): 30/70 = 42.857, 20/70 = 28.571. Two decimals of a share would show the equal 20s as 29 and 28,
-  // so three are used: 428/285/285 plus the two units to the larger remainders (.571 .714 .714 -> the two 20s) = 42.8, 28.6, 28.6 percent. The kept hold 70.
-  const six = topK({ weights: [30, 20, 20, 10, 10, 10], k: 3 });
-  nearList(six.full, [30, 20, 20, 10, 10, 10]);
-  nearList(six.renormalized, [42.8, 28.6, 28.6, 0, 0, 0]);
-  near(six.keptShare, 70);
-  near(sum(six.renormalized), 100);
-  // Three: 5, 3, 2 add to 10: 50/30/20. k = 1 keeps the 5: all of the kept (100). The kept hold 50.
-  assert.deepEqual(topK({ weights: [5, 3, 2], k: 1 }), { full: [50, 30, 20], renormalized: [100, 0, 0], keptShare: 50 });
-});
-
-test('topK: weights are free: a first row that does not add to 100 is not refused', () => {
-  // 30, 30, 30, 5 add to 95, not 100; shares are of the total: 31.58, 31.58, 31.58, 5.26 -> every row still adds to exactly 100.
-  const result = topK({ weights: [30, 30, 30, 5], k: 2 });
-  near(sum(result.full), 100);
-  near(sum(result.renormalized), 100);
-  assert.equal(result.renormalized.filter(share => share > 0).length, 2);
-  // 10, 20, 30 add to 60: 16.67, 33.33, 50 -> 17, 33, 50 (the unit goes to the .67). k = 2 keeps 30 and 20 (50): 60 and 40; the kept hold 33 + 50 = 83.
-  assert.deepEqual(topK({ weights: [10, 20, 30], k: 2 }), { full: [17, 33, 50], renormalized: [0, 40, 60], keptShare: 83 });
-});
-
-test('topK: equal weights are kept in order and show as equal shares', () => {
-  const result = topK({ weights: [13, 13, 14], k: 2 });
-  assert.deepEqual(result.full, [32.5, 32.5, 35], 'equal weights, equal shares');
-  // k = 2 keeps the 14 and the first 13: 13/27 = 48.15, 14/27 = 51.85 -> 48.15 needs two decimals of a share: 48 and 52.
-  assert.deepEqual(result.renormalized, [48, 0, 52]);
-  assert.deepEqual(topK({ weights: [10, 10, 10], k: 1 }).renormalized, [100, 0, 0], 'a tie keeps the earlier item');
-});
-
-test('topK refuses a k that cannot keep some and drop some, a weight at or below 0, and fewer than two weights', () => {
-  const refused = input => assert.throws(() => topK(input), CalculationRefused, JSON.stringify(input));
-  refused({ weights: [5, 3, 2], k: 0 });
-  refused({ weights: [5, 3, 2], k: 3 });
-  refused({ weights: [5, 3, 2], k: 4 });
-  refused({ weights: [5, 3, 2], k: 1.5 });
-  refused({ weights: [5, 3, 2], k: '1' });
-  refused({ weights: [5, 0, 2], k: 1 });
-  refused({ weights: [5, -3, 2], k: 1 });
-  refused({ weights: [5, NaN, 2], k: 1 });
-  refused({ weights: [5], k: 1 });
-  refused({ weights: [], k: 1 });
-  refused({ weights: 'x', k: 1 });
-  assert.throws(() => topK({ weights: [5, 3, 2], k: 3 }), /k must be a whole number from 1 to 2, below the 3 weights/);
-});
-
-test('topK through runCalculation: weights and k read from the variables list; the kept share lands in the list; limits hold', () => {
-  const diagram = structuredClone(samplingTopKReference.spec.diagram);
-  const set = (name, value) => { diagram.variables.find(v => v.name === name).value = value; };
-  set('weights', [30, 25, 25, 10, 10]); set('k', 2);
-  const run = runCalculation(diagram, topKCalculation);
-  assert.equal(run.problem, undefined);
-  assert.deepEqual(run.diagram.series[0].values, [30, 25, 25, 10, 10]);
-  assert.deepEqual(run.diagram.series[1].values, [55, 45, 0, 0, 0], '30/55 = 54.5, 25/55 = 45.5 -> 55 and 45 at two decimals of a share');
-  assert.equal(run.values.keptShare, 55);
-  set('k', 8);
-  assert.match(runCalculation(diagram, topKCalculation).problem, /input k must be from 1 to 7 \(got 8\)/);
-  set('k', 5);
-  assert.match(runCalculation(diagram, topKCalculation).problem, /the inputs are refused: k must be a whole number from 1 to 4/);
-  set('k', 2); set('weights', [30, 0, 25, 10, 10]);
-  assert.match(runCalculation(diagram, topKCalculation).problem, /input weights must be from 1 to 1000 \(got 0\)/);
 });
 
 test('softmaxProbabilities: each row adds to one and equal weights give equal probabilities', () => {

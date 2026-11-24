@@ -26,10 +26,12 @@ const storedSpecs = reference => [
 const hasNumbers = reference => storedSpecs(reference).some(([path, spec]) => !path.endsWith('template') && hasNumber(spec.diagram));
 const byId = new Map(diagramReferences.map(reference => [reference.id, reference]));
 
-test('the five references of the change set declare: three with a function, two that need none', () => {
+test('the four references of the change set declare: two with a function, two that need none (top-k is parked, docs/features/explain/parked.md)', () => {
   const declared = new Set(diagramReferences.filter(isDeclared).map(ref => ref.id)), withFunction = new Set(diagramReferences.filter(hasFunction).map(ref => ref.id));
-  for (const id of ['ml-sampling-top-k', 'regression-mean-baseline', 'softmax-probabilities']) assert.ok(withFunction.has(id), `${id} has a function`);
+  for (const id of ['regression-mean-baseline', 'softmax-probabilities']) assert.ok(withFunction.has(id), `${id} has a function`);
   for (const id of ['confusion-matrix-counts', 'ml-self-attention-token-links']) assert.ok(declared.has(id) && !withFunction.has(id), `${id} declares none needed`);
+  assert.deepEqual([...declared].sort(), ['confusion-matrix-counts', 'ml-self-attention-token-links', 'regression-mean-baseline', 'softmax-probabilities'], 'four declared references in all');
+  assert.equal(declared.has('ml-sampling-top-k'), false, 'top-k declares nothing while it is parked');
 });
 
 test('a reference whose stored diagram holds a number declares its calculation, or its id is on the frozen list', () => {

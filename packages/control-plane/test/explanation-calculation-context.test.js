@@ -12,8 +12,7 @@ import { hasFunction, isDeclared } from '../../web/src/tutor-diagrams/calculatio
 import { authorJsonSchema, tutorDiagramJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
 
 const reference = id => diagramReferences.find(ref => ref.id === id);
-const atStandard = ref => ({ ...ref, ...ref.depths?.standard }); // what selection hands the author at the default depth
-const topK = atStandard(reference('ml-sampling-top-k')), softmax = reference('softmax-probabilities'), meanBaseline = reference('regression-mean-baseline');
+const softmax = reference('softmax-probabilities'), meanBaseline = reference('regression-mean-baseline');
 const confusion = reference('confusion-matrix-counts'), tokenLinks = reference('ml-self-attention-token-links');
 const plain = diagramReferences.find(ref => !ref.calculation && !ref.detailSpec && ref.spec.diagram.kind === 'flow');
 // The literal wording of main (aee3dba82) for a request that shows no declared reference.
@@ -41,17 +40,18 @@ test('a placeholder stays, the variables limits stay, a stored value is masked',
   const [mean] = lines(diagramReferenceContext([meanBaseline]));
   assert.equal(mean.spec.diagram.annotations[0].label, 'Mean prediction of {{v:mean}}');
   assert.equal(mean.spec.diagram.annotations[0].value, '?');
-  const [line] = lines(diagramReferenceContext([topK]));
+  const withText = { ...softmax, template: { ...softmax.template, diagram: { ...softmax.template.diagram, title: 'Input A puts {{v:probabilitiesA.0}} on Cat', caption: 'It holds {{v:weightsA.0}}% of the weights.' } } };
+  withText.template.diagram.series = [softmax.template.diagram.series[0], { ...softmax.template.diagram.series[1], label: 'Input B ({{v:probabilitiesB.2}} on Bird)' }];
+  const [line] = lines(diagramReferenceContext([withText]));
   const { diagram } = line.spec;
-  assert.equal(diagram.title, 'Full softmax and top-{{v:k}} sampling');
-  assert.match(diagram.caption, /^The kept tokens originally hold \{\{v:keptShare\}\}% of the probability/);
-  assert.equal(diagram.series[1].label, 'Top-{{v:k}} renormalized');
-  assert.deepEqual(diagram.categories, ['on', 'near', 'under', 'by', 'in'], 'names keep their text');
+  assert.equal(diagram.title, 'Input A puts {{v:probabilitiesA.0}} on Cat');
+  assert.equal(diagram.caption, 'It holds {{v:weightsA.0}}% of the weights.');
+  assert.equal(diagram.series[1].label, 'Input B ({{v:probabilitiesB.2}} on Bird)');
+  assert.deepEqual(diagram.categories, ['Cat', 'Dog', 'Bird'], 'names keep their text');
   const variable = name => diagram.variables.find(entry => entry.name === name);
-  assert.deepEqual(variable('k'), { name: 'k', role: 'input', type: 'int', min: 1, max: 7, value: '?' }, 'the limits stay, the stored value is masked');
-  assert.deepEqual(variable('weights').value, ['?', '?', '?', '?', '?']);
-  assert.deepEqual([variable('weights').min, variable('weights').max], [1, 1000]);
-  assert.deepEqual(variable('full'), { name: 'full', role: 'result', type: 'float', min: 0, max: 100, at: 'series.0.values' }, 'a drawn result has no stored value: it is shown as it is');
+  assert.deepEqual(variable('weightsA'), { name: 'weightsA', role: 'input', type: 'float', min: 1, max: 1000, value: ['?', '?', '?'] }, 'the limits stay, the stored value is masked');
+  assert.deepEqual([variable('weightsB').min, variable('weightsB').max], [1, 1000]);
+  assert.deepEqual(variable('probabilitiesA'), { name: 'probabilitiesA', role: 'result', type: 'float', min: 0, max: 1, at: 'series.0.values' }, 'a drawn result has no stored value: it is shown as it is');
   const numbers = [];
   const walk = (node, inVariables, key) => {
     if (typeof node === 'number') { if (!(inVariables && (key === 'min' || key === 'max'))) numbers.push(node); } else if (Array.isArray(node)) node.forEach(item => walk(item, inVariables, key));
@@ -62,9 +62,9 @@ test('a placeholder stays, the variables limits stay, a stored value is masked',
 });
 
 test('masking writes a line only: the reference object itself is not changed', () => {
-  const before = JSON.stringify(topK);
-  diagramReferenceContext([topK, softmax], 'seed-a');
-  assert.equal(JSON.stringify(topK), before);
+  const before = JSON.stringify([meanBaseline, softmax]);
+  diagramReferenceContext([meanBaseline, softmax], 'seed-a');
+  assert.equal(JSON.stringify([meanBaseline, softmax]), before);
 });
 
 test('the shape example and the seeded examples are not masked, nor is a reference that does not declare', () => {
@@ -99,7 +99,7 @@ test('the heading: main\'s for no declared reference, the declared wording when 
 });
 
 test('the starting-numbers sentence: only for a declared reference and a seed, ending "Do not mention these starting numbers in the card."', () => {
-  for (const ref of [softmax, confusion, tokenLinks, topK]) {
+  for (const ref of [softmax, confusion, tokenLinks]) {
     const seeded = diagramReferenceContext([ref], 'seed-a');
     assert.match(seeded, / For this card, build your input values from these starting numbers, in this order, scaling or rounding them where the diagram needs shares or weights: [0-9, ]+\. Do not mention these starting numbers in the card\./, ref.id);
     assert.equal(diagramReferenceContext([ref]).includes('starting numbers'), false, `${ref.id}: no seed, no sentence`);
@@ -127,7 +127,7 @@ test('the starting numbers: eight distinct whole numbers from 5 to 60; the same 
 
 test('the "You choose the inputs of the variables list..." sentence: only for a reference with a function', () => {
   const sentence = 'You choose the inputs of the variables list; the results are computed for you from them, and a number from the variables written in a title, a caption, a label or a sentence is written as {{v:name}}, never typed.';
-  for (const ref of [softmax, meanBaseline, topK]) {
+  for (const ref of [softmax, meanBaseline]) {
     assert.ok(diagramReferenceContext([ref]).includes(sentence), `${ref.id}`);
     assert.ok(diagramReferenceContext([ref], 'seed-a').includes(sentence), `${ref.id} seeded`);
   }
@@ -156,8 +156,8 @@ const diagramBranches = schema => {
 };
 const FUNCTION_REFERENCES = diagramReferences.filter(hasFunction);
 
-test('the references with a function are the three of the change set (the tests below are written for each)', () => {
-  assert.deepEqual(FUNCTION_REFERENCES.map(ref => ref.id).sort(), ['ml-sampling-top-k', 'regression-mean-baseline', 'softmax-probabilities']);
+test('the references with a function are the two of the change set (the tests below are written for each; top-k is parked)', () => {
+  assert.deepEqual(FUNCTION_REFERENCES.map(ref => ref.id).sort(), ['regression-mean-baseline', 'softmax-probabilities']);
 });
 
 for (const ref of FUNCTION_REFERENCES) {
