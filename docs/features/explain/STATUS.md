@@ -29,12 +29,12 @@ Owner decisions: (a) a visual tagged with a kind name is rescued, for every requ
 | Item | State (2026-11-24) | Branch / SHA | Evidence |
 |---|---|---|---|
 | Task 0: the spec | Done | film/evidence 1f5f76d16 (v0.28, unchanged, sha256 51770c80b85d7e925c90e289e350350794d5ffb8e6f7747f337539f7285debb9) | same-json/SPEC.md |
-| M1: the four references | Phase 1 (code, tests, offline guard) running; then the paid measurement (stop line US$1.00); release withheld | feat/same-json-four, base 201865bdf = feat/same-json 953a9ea55 + main b29b6bdd7 (clean merge) | not yet |
-| M2: the system text, one file per section | **Stopped: conflicts with the spec.** The order says one .js module per section in packages/control-plane/src/explanation-text/; spec task 1 says Markdown files named explanation-*.md in one folder, read when the app is built, 8 parts. Both texts reported to the owner; not chosen | none | none |
-| M3: only the chosen kind's text | **Stopped** (depends on M2; also differs from spec task 2: exact concatenation and one closing block, against regrouping by kind, rules 5 and 6 and three new entries) | none | none |
-| M4: the shared template | Design note written, stopped for the reviewer | none (no code) | checks/same-json/task-4/DESIGN.md |
-| M5 step 0: classify the 308 undeclared ids | Three classifiers; group C (57) done, A (117) and B (134) running | none (read-only) | not yet |
-| M5 step 1, batch 1 | Waits for M1's release | none | none |
+| M1: the four references | Phase 1 built and offline-proven (738 of 738 undeclared prompts identical, 4 declared differ; web suite 0 fail); under verification; the paid measurement (stop line US$1.00) follows; release withheld | feat/same-json-four 08eab4313 (base 201865bdf = feat/same-json 953a9ea55 + main b29b6bdd7) | not yet |
+| M2: the system text, one file per section | Restarted on the spec's terms (reviewer's ruling A: eight Markdown files in packages/control-plane/src/prompts/explanation/, compiled at build to src/explanation-prompts.generated.js, like the tutor prompts); lane running | branch feat/same-json-task1 off main b29b6bdd7 | none yet |
+| M3: only the chosen kind's text | Restarted as M3a (rules 1 to 5, no new text, on M2's tip), M3b (rule 6, picture-only card, after a report on the refusing check) and M3c (wording of the three new entries, no code); waits for M2's tip | none | none |
+| M4: the shared template | The design note (5e76453cb) is replaced by the reviewer's order for a conformance note: checks/same-json/task-4/CONFORMANCE.md, the spec's task 4 beside what is built, proof on M1's tip; waits for M1's tip | none (no code) | checks/same-json/task-4/DESIGN.md (superseded) |
+| M5 step 0: classify the 308 undeclared ids | **Done: the list is written and reconciled; stopped for the owner** (spec part 4 item 2: the owner decides which references to do). 229 function, 55 none, 15 kind-derived, 9 unsure; the spec's 192 is reproduced exactly, its 125 / 175 is not (see the reconciliation section) | none (read-only) | same-json/other-references.json and .md |
+| M5 step 1, batch 1 | **Withdrawn by the reviewer** (the owner decides which references to do, after reading the list) | none | none |
 
 Earlier, before this order (the full build of 20 Nov): feat/same-json 953a9ea55, report checks/same-json/full/REPORT.md (b7c58f247); the fixed build delivered 71 of 75 asks against main's 75 (pass line not met), US$0.921 of a US$1.50 stop line; 737 of 737 undeclared prompts identical to main's. The four proving branches feat/same-json-ab 174ad7a00, -mvp2 2651cfdb1, -mvp3 7f36cae2b, -mvp4 26675b9e1 are untouched (results under checks/same-json/mvp1 to mvp4).
 
