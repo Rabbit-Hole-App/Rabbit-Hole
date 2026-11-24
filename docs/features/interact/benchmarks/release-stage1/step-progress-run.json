@@ -1,0 +1,110 @@
+{
+  "what": "step progress on the pending /interactive card: one run of the pendulum prompt on 8879 after commit 27ac58880 (drive-local --pending-shots)",
+  "prompt": "what changes a pendulum swing",
+  "depth": "detailed",
+  "jobId": "ej_6d6fddd86da14a2fbc37b63f1aba5115",
+  "canvas": "http://127.0.0.1:8879/apps/canvas-032fbea8",
+  "stage": "ready",
+  "promptToCardSeconds": 137.025,
+  "modelUsdReported": 0.320607,
+  "stepsObserved": [
+    {
+      "step": "plan",
+      "correcting": false,
+      "at": 0.5
+    },
+    {
+      "step": "design",
+      "correcting": false,
+      "at": 13.7
+    },
+    {
+      "step": "build",
+      "correcting": false,
+      "at": 63.3
+    },
+    {
+      "step": "ready",
+      "correcting": false,
+      "at": 137
+    }
+  ],
+  "secondsPerStep": {
+    "plan": 13.2,
+    "design": 49.6,
+    "build": "about 73.7 (63.3 to the card at 137.0; includes check)",
+    "check": "not seen by the 0.4 s read: the job answers no read during its synchronous frame check"
+  },
+  "serverRecord": {
+    "quantitiesCallS": 13.397,
+    "designCallS": 45.587,
+    "designPhaseS": 60.61,
+    "buildPhaseS": 76.029,
+    "buildCallS": 72.246,
+    "buildOutsideCallS": 3.783,
+    "repair": "none",
+    "frames": "9 of 9"
+  },
+  "offlineTiming": {
+    "note": "same blueprint and build-schema, run again on this machine with no load",
+    "checkBuiltMs": [
+      1536,
+      1629,
+      1622
+    ],
+    "buildInputsMs": 3330
+  },
+  "pendingShots": [
+    {
+      "key": "plan",
+      "at": 0.5,
+      "barShowsStep": true,
+      "read": {
+        "label": "Step 1 of 4",
+        "steps": [
+          "Plan:current",
+          "Design:todo",
+          "Build:todo",
+          "Check:todo"
+        ],
+        "valuetext": "Step 1 of 4, Plan: Queued",
+        "stage": "Queued"
+      },
+      "file": "step-1-pending-plan.png"
+    },
+    {
+      "key": "design",
+      "at": 13.7,
+      "barShowsStep": true,
+      "read": {
+        "label": "Step 2 of 4",
+        "steps": [
+          "Plan:done",
+          "Design:current",
+          "Build:todo",
+          "Check:todo"
+        ],
+        "valuetext": "Step 2 of 4, Design: Designing scene",
+        "stage": "Designing scene"
+      },
+      "file": "step-1-pending-design.png"
+    },
+    {
+      "key": "build",
+      "at": 63.3,
+      "barShowsStep": true,
+      "read": {
+        "label": "Step 3 of 4",
+        "steps": [
+          "Plan:done",
+          "Design:done",
+          "Build:current",
+          "Check:todo"
+        ],
+        "valuetext": "Step 3 of 4, Build: Designing scene",
+        "stage": "Designing scene"
+      },
+      "file": "step-1-pending-build.png"
+    }
+  ]
+}
