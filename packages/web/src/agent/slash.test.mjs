@@ -331,13 +331,15 @@ test('/whiteboard: the public path is the video (whiteboard-video), the internal
 // Owner 2026-11-13: every public command has an on/off flag (SLASH_FLAGS). Off means it is in no list a person reaches (the
 // composer's /, the small window, Ctrl+K and the Slash Commands window all read commandsFor) and a typed /name is said to be
 // unavailable; the Tutor's own internal path still has it. These are the shipped values, not the all-on test helper's.
-test('slash flags: every command has one, and goal, animation, whiteboard, motion, interactive, image and cad ship off', () => {
+// Owner decision 2026-11-24: /interactive (id `explain`) is released, so it is no longer in the shipped-off list.
+test('slash flags: every command has one, and goal, animation, whiteboard, motion, image and cad ship off', () => {
   assert.deepEqual(Object.keys(SHIPPED_FLAGS).sort(), names(SLASH).sort(), 'one flag per command, none extra');
-  const off = ['goal', 'animation', 'whiteboard-video', 'motion', 'explain', 'generate-image', 'cad'];
+  const off = ['goal', 'animation', 'whiteboard-video', 'motion', 'generate-image', 'cad'];
+  assert.equal(SHIPPED_FLAGS.explain, true, '/interactive ships on');
   assert.deepEqual(Object.keys(SHIPPED_FLAGS).filter((name) => !SHIPPED_FLAGS[name]).sort(), off.sort());
   const on = names(commandsFor('learn', { motionDev: true, imageGeneration: true, whiteboard: true, flags: SHIPPED_FLAGS }));
   const ctrlk = names(commandsFor('ctrlk', { motionDev: true, imageGeneration: true, whiteboard: true, flags: SHIPPED_FLAGS }));
   for (const name of off) assert.ok(!on.includes(name) && !ctrlk.includes(name), `/${name} is hidden in Chat and Ctrl+K`);
-  assert.equal(on.length, 14, 'the other fourteen stay');
+  assert.equal(on.length, 15, 'the other fifteen stay (/interactive among them)');
   for (const name of off) assert.ok(names(commandsFor('learn', { internal: true, motionDev: true, imageGeneration: true, whiteboard: true, flags: SHIPPED_FLAGS })).includes(name), `/${name} stays for the Tutor's own path`);
 });

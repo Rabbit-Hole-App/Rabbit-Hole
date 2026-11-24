@@ -209,6 +209,7 @@ const pickOf = async (job, ctx) => ctx.env.TYPESAFE_API_KEY
   ? pickFamily(ctx.env, { request: job.prompt, depth: job.depth }, { families: INTERACT_FAMILIES, threshold: pickThreshold(ctx.env, INTERACT_FAMILIES) })
   : { family: null, confidence: null, probabilities: null, ms: 0, reason: 'no_key' };
 export const GAP_MESSAGE = "This kind of scene isn't supported yet.";
+export const BLUEPRINT_FAILED_MESSAGE = 'The scene design could not be completed. Try again or edit the request.';
 export async function fastDesign(job, ctx) {
   const depth = job.depth, fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
   const pick = await pickOf(job, ctx); fast.pick = pick;
@@ -268,9 +269,10 @@ export async function authorDesign(job, ctx) {
   // INTERACT_DESIGN_KIND=blueprint (brief 39): the interactive-blueprint design phase; brief 48: when it passes, the Build model places the card (interact-blueprint-build-call.js) and the plan is the card's, so the job goes on to the normal path (no review, no approval pause, as the fast path).
   if (ctx.designKind === 'blueprint') {
     const { blueprint, final } = await blueprintDesign(job, ctx);
-    if (!blueprint.passed) return { blueprint, final, ...stop('design_invalid', 'spec', `The scene design could not be completed: ${blueprint.problems[0] ?? 'the blueprint could not be made'}. Try again or edit the request.`) };
+    // The learner's message is fixed wording with no detail (a model name, a role, a status or a provider's text never reaches them); the detail is in the design record (design:<job>:<rev>:blueprint) and the interact_blueprint log line.
+    if (!blueprint.passed) return { blueprint, final, ...stop('design_invalid', 'spec', BLUEPRINT_FAILED_MESSAGE) };
     const built = await buildCard(job, ctx, final, blueprint);
-    if (built.stop) return { blueprint, final, ...stop('design_invalid', 'spec', `The scene design could not be completed: ${built.stop}. Try again or edit the request.`) };
+    if (built.stop) return { blueprint, final, ...stop('design_invalid', 'spec', BLUEPRINT_FAILED_MESSAGE) };
     return { blueprint, final, plan: built.plan, planHash: await planHash(built.plan), bindingProblems: [], fast: { kind: 'fast', model: 'gemini-4-hydrogen', calls: blueprint.calls.length + built.record.calls.length, fallback: 'none', firstProblem: null, costUsd: blueprint.costUsd + built.record.costUsd, blueprint: true } };
   }
   // The fast path runs once per design (design.fast is stored by the first result); an Edit or a retried Opus author never re-enters it.
