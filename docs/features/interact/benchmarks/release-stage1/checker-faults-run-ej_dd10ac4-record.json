@@ -1,0 +1,282 @@
+{
+  "event": "interact_blueprint",
+  "jobId": "ej_dd10ac4216bf47c289a7326c3d8a0f88",
+  "record": {
+    "kind": "blueprint",
+    "version": 1,
+    "jobId": "ej_dd10ac4216bf47c289a7326c3d8a0f88",
+    "prompt": "how does a decision tree works?",
+    "depth": "detailed",
+    "seed": 2499943651,
+    "model": "gemini-4-hydrogen",
+    "effort": "high",
+    "quantities": {
+      "raw": "{\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples at feature thresholds that maximize purity gain (reduction in Gini impurity), then routing new inputs down matching branches to a leaf's majority class.\",\n    \"formula\": \"G = 1 - \\\\sum_{k} p_k^2,\\\\quad \\\\Delta G = G_{\\\\text{parent}} - \\\\left(\\\\frac{n_L}{n}G_L + \\\\frac{n_R}{n}G_R\\\\right)\",\n    \"assumptions\": [\n      \"Binary classification with two equally sized classes (N = 20 samples total) along one primary feature X.\",\n      \"Gini impurity measures node mixedness from 0 (pure single class) to 0.5 (50/50 split).\",\n      \"A single decision stump splits at threshold t; deeper trees repeat this rule on each child node.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Cutoff value on feature X sending samples left (X <= t) or right (X > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between Class A and Class B feature centers; lower values increase overlap.\"\n    },\n    {\n      \"id\": \"query_x\",\n      \"label\": \"Test sample X\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Feature value of a new point routed through the decision node to a leaf prediction.\"\n    },\n    {\n      \"id\": \"total_samples\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed number of labeled training points split across the root node.\"\n    },\n    {\n      \"id\": \"gini_parent\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the unsplit root node (0 is pure, 0.5 is maximally mixed).\"\n    },\n    {\n      \"id\": \"gini_left\",\n      \"label\": \"Left leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X <= t routed to the left child node.\"\n    },\n    {\n      \"id\": \"gini_right\",\n      \"label\": \"Right leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X > t routed to the right child node.\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted child Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average impurity of the left and right child nodes after splitting.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity gain\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Reduction in Gini impurity achieved by splitting at threshold t; higher is better.\"\n    },\n    {\n      \"id\": \"leaf_confidence\",\n      \"label\": \"Leaf confidence\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Majority-class percentage in the leaf reached by the test sample X.\"\n    }\n  ]\n}",
+      "first": {
+        "raw": "{\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples at feature thresholds that maximize purity gain (reduction in Gini impurity), then routing new inputs down matching branches to a leaf's majority class.\",\n    \"formula\": \"G = 1 - \\\\sum_{k} p_k^2,\\\\quad \\\\Delta G = G_{\\\\text{parent}} - \\\\left(\\\\frac{n_L}{n}G_L + \\\\frac{n_R}{n}G_R\\\\right)\",\n    \"assumptions\": [\n      \"Binary classification with two equally sized classes (N = 20 samples total) along one primary feature X.\",\n      \"Gini impurity measures node mixedness from 0 (pure single class) to 0.5 (50/50 split).\",\n      \"A single decision stump splits at threshold t; deeper trees repeat this rule on each child node.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Cutoff value on feature X sending samples left (X <= t) or right (X > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between Class A and Class B feature centers; lower values increase overlap.\"\n    },\n    {\n      \"id\": \"query_x\",\n      \"label\": \"Test sample X\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Feature value of a new point routed through the decision node to a leaf prediction.\"\n    },\n    {\n      \"id\": \"total_samples\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed number of labeled training points split across the root node.\"\n    },\n    {\n      \"id\": \"gini_parent\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the unsplit root node (0 is pure, 0.5 is maximally mixed).\"\n    },\n    {\n      \"id\": \"gini_left\",\n      \"label\": \"Left leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X <= t routed to the left child node.\"\n    },\n    {\n      \"id\": \"gini_right\",\n      \"label\": \"Right leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X > t routed to the right child node.\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted child Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average impurity of the left and right child nodes after splitting.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity gain\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Reduction in Gini impurity achieved by splitting at threshold t; higher is better.\"\n    },\n    {\n      \"id\": \"leaf_confidence\",\n      \"label\": \"Leaf confidence\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Majority-class percentage in the leaf reached by the test sample X.\"\n    }\n  ]\n}"
+      },
+      "corrected": null,
+      "final": "first"
+    },
+    "dice": {
+      "controlQuantities": [
+        "threshold",
+        "separation",
+        "query_x"
+      ],
+      "n": 3,
+      "k": 3,
+      "ids": [
+        "threshold",
+        "separation",
+        "query_x"
+      ]
+    },
+    "settled": {
+      "relationship": {
+        "statement": "A decision tree classifies data by recursively splitting samples at feature thresholds that maximize purity gain (reduction in Gini impurity), then routing new inputs down matching branches to a leaf's majority class.",
+        "formula": "G = 1 - \\sum_{k} p_k^2,\\quad \\Delta G = G_{\\text{parent}} - \\left(\\frac{n_L}{n}G_L + \\frac{n_R}{n}G_R\\right)",
+        "assumptions": [
+          "Binary classification with two equally sized classes (N = 20 samples total) along one primary feature X.",
+          "Gini impurity measures node mixedness from 0 (pure single class) to 0.5 (50/50 split).",
+          "A single decision stump splits at threshold t; deeper trees repeat this rule on each child node."
+        ]
+      },
+      "quantities": [
+        {
+          "id": "threshold",
+          "label": "Split threshold t",
+          "unit": "",
+          "role": "control",
+          "meaning": "Cutoff value on feature X sending samples left (X <= t) or right (X > t)."
+        },
+        {
+          "id": "separation",
+          "label": "Class separation",
+          "unit": "",
+          "role": "control",
+          "meaning": "Distance between Class A and Class B feature centers; lower values increase overlap."
+        },
+        {
+          "id": "query_x",
+          "label": "Test sample X",
+          "unit": "",
+          "role": "control",
+          "meaning": "Feature value of a new point routed through the decision node to a leaf prediction."
+        },
+        {
+          "id": "total_samples",
+          "label": "Total samples N",
+          "unit": "pts",
+          "role": "fixed",
+          "meaning": "Fixed number of labeled training points split across the root node."
+        },
+        {
+          "id": "gini_parent",
+          "label": "Parent Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Gini impurity of the unsplit root node (0 is pure, 0.5 is maximally mixed)."
+        },
+        {
+          "id": "gini_left",
+          "label": "Left leaf Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Gini impurity of samples with X <= t routed to the left child node."
+        },
+        {
+          "id": "gini_right",
+          "label": "Right leaf Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Gini impurity of samples with X > t routed to the right child node."
+        },
+        {
+          "id": "weighted_gini",
+          "label": "Weighted child Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Sample-weighted average impurity of the left and right child nodes after splitting."
+        },
+        {
+          "id": "gini_gain",
+          "label": "Impurity gain",
+          "unit": "",
+          "role": "result",
+          "meaning": "Reduction in Gini impurity achieved by splitting at threshold t; higher is better."
+        },
+        {
+          "id": "leaf_confidence",
+          "label": "Leaf confidence",
+          "unit": "%",
+          "role": "result",
+          "meaning": "Majority-class percentage in the leaf reached by the test sample X."
+        }
+      ]
+    },
+    "planChecks": {
+      "first": {
+        "ok": true,
+        "problems": []
+      },
+      "corrected": null
+    },
+    "blueprint": {
+      "first": {
+        "raw": "{\n  \"version\": 1,\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples at feature thresholds that maximize purity gain (reduction in Gini impurity), then routing new inputs down matching branches to a leaf's majority class.\",\n    \"formula\": \"G = 1 - \\\\sum_{k} p_k^2,\\\\quad \\\\Delta G = G_{\\\\text{parent}} - \\\\left(\\\\frac{n_L}{n}G_L + \\\\frac{n_R}{n}G_R\\\\right)\",\n    \"assumptions\": [\n      \"Binary classification with two equally sized classes (N = 20 samples total) along one primary feature X.\",\n      \"Gini impurity measures node mixedness from 0 (pure single class) to 0.5 (50/50 split).\",\n      \"A single decision stump splits at threshold t; deeper trees repeat this rule on each child node.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Cutoff value on feature X sending samples left (X <= t) or right (X > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between Class A and Class B feature centers; lower values increase overlap.\"\n    },\n    {\n      \"id\": \"query_x\",\n      \"label\": \"Test sample X\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Feature value of a new point routed through the decision node to a leaf prediction.\"\n    },\n    {\n      \"id\": \"total_samples\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed number of labeled training points split across the root node.\"\n    },\n    {\n      \"id\": \"gini_parent\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the unsplit root node (0 is pure, 0.5 is maximally mixed).\"\n    },\n    {\n      \"id\": \"gini_left\",\n      \"label\": \"Left leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X <= t routed to the left child node.\"\n    },\n    {\n      \"id\": \"gini_right\",\n      \"label\": \"Right leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X > t routed to the right child node.\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted child Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average impurity of the left and right child nodes after splitting.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity gain\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Reduction in Gini impurity achieved by splitting at threshold t; higher is better.\"\n    },\n    {\n      \"id\": \"leaf_confidence\",\n      \"label\": \"Leaf confidence\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Majority-class percentage in the leaf reached by the test sample X.\"\n    }\n  ],\n  \"things\": [\n    {\n      \"id\": \"split_rule\",\n      \"label\": \"Split threshold\"\n    },\n    {\n      \"id\": \"class_a\",\n      \"label\": \"Class A (Left)\"\n    },\n    {\n      \"id\": \"class_b\",\n      \"label\": \"Class B (Right)\"\n    },\n    {\n      \"id\": \"test_sample\",\n      \"label\": \"Test sample\"\n    }\n  ],\n  \"inputs\": [\n    {\n      \"type\": \"number\",\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"min\": 0,\n      \"max\": 10,\n      \"default\": 5,\n      \"step\": 0.25\n    },\n    {\n      \"type\": \"number\",\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"min\": 0.5,\n      \"max\": 3,\n      \"default\": 1.5,\n      \"step\": 0.5\n    },\n    {\n      \"type\": \"number\",\n      \"id\": \"query_x\",\n      \"label\": \"Test sample X\",\n      \"unit\": \"\",\n      \"min\": 0,\n      \"max\": 10,\n      \"default\": 3.5,\n      \"step\": 0.25\n    }\n  ],\n  \"time\": {\n    \"mode\": \"continuous\",\n    \"duration\": 4,\n    \"label\": \"Routing time\",\n    \"unit\": \"s\"\n  },\n  \"math\": {\n    \"code\": \"function compute(inputs, t) { var threshold = inputs.threshold; var separation = inputs.separation; var query_x = inputs.query_x; var offsets = [-1.0, -1.0, -0.5, -0.5, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0]; var cA = 5.0 - 0.5 * separation; var cB = 5.0 + 0.5 * separation; var a_min = cA - 1.0; var a_max = cA + 1.0; var b_min = cB - 1.0; var b_max = cB + 1.0; var nAL = 0; var nBL = 0; for (var i = 0; i < 10; i++) { if (cA + offsets[i] <= threshold) nAL++; if (cB + offsets[i] <= threshold) nBL++; } var nAR = 10 - nAL; var nBR = 10 - nBL; var nL = nAL + nBL; var nR = nAR + nBR; var gini_parent = 0.5; var gini_left = nL > 0 ? 1 - Math.pow(nAL / nL, 2) - Math.pow(nBL / nL, 2) : 0; var gini_right = nR > 0 ? 1 - Math.pow(nAR / nR, 2) - Math.pow(nBR / nR, 2) : 0; var weighted_gini = (nL / 20) * gini_left + (nR / 20) * gini_right; var gini_gain = gini_parent - weighted_gini; var goLeft = query_x <= threshold; var leaf_confidence = goLeft ? (nL > 0 ? (100 * Math.max(nAL, nBL)) / nL : 0) : (nR > 0 ? (100 * Math.max(nAR, nBR)) / nR : 0); var left_purity_size = nL > 0 ? 0.15 + 0.85 * (1 - gini_left / 0.5) : 0.15; var right_purity_size = nR > 0 ? 0.15 + 0.85 * (1 - gini_right / 0.5) : 0.15; var targetX = goLeft ? 2.2 : 7.8; var route_x = query_x; var route_y = 8.5; if (t <= 1.6) { var u1 = t / 1.6; route_x = query_x + (5.0 - query_x) * u1; route_y = 8.5 + (5.8 - 8.5) * u1; } else if (t <= 3.4) { var u2 = (t - 1.6) / 1.8; route_x = 5.0 + (targetX - 5.0) * u2; route_y = 5.8 + (2.0 - 5.8) * u2; } else { route_x = targetX; route_y = 2.0; } return { gini_parent: gini_parent, gini_left: gini_left, gini_right: gini_right, weighted_gini: weighted_gini, gini_gain: gini_gain, leaf_confidence: leaf_confidence, threshold_x: threshold, query_x_pos: query_x, a_min: a_min, a_max: a_max, b_min: b_min, b_max: b_max, left_purity_size: left_purity_size, right_purity_size: right_purity_size, route_x: route_x, route_y: route_y, is_empty_leaf: nL === 0 || nR === 0, is_pure_left_route: goLeft && nL > 0 && gini_left === 0, is_pure_right_route: !goLeft && nR > 0 && gini_right === 0, is_left_route: goLeft }; }\",\n    \"outputs\": [\n      {\n        \"id\": \"gini_parent\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the root node before splitting.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_left\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the left child node.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_right\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the right child node.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"weighted_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Sample-weighted average impurity of both leaves.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_gain\",\n        \"unit\": \"\",\n        \"meaning\": \"Reduction in Gini impurity from the split.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"leaf_confidence\",\n        \"unit\": \"%\",\n        \"meaning\": \"Majority class percentage in the predicted leaf.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"threshold_x\",\n        \"unit\": \"units\",\n        \"meaning\": \"X coordinate of the split threshold line.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"query_x_pos\",\n        \"unit\": \"units\",\n        \"meaning\": \"X coordinate of the test sample on the feature axis.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a_min\",\n        \"unit\": \"units\",\n        \"meaning\": \"Minimum X value of Class A samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a_max\",\n        \"unit\": \"units\",\n        \"meaning\": \"Maximum X value of Class A samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b_min\",\n        \"unit\": \"units\",\n        \"meaning\": \"Minimum X value of Class B samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b_max\",\n        \"unit\": \"units\",\n        \"meaning\": \"Maximum X value of Class B samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"left_purity_size\",\n        \"unit\": \"\",\n        \"meaning\": \"Normalized dot size reflecting left leaf purity.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"right_purity_size\",\n        \"unit\": \"\",\n        \"meaning\": \"Normalized dot size reflecting right leaf purity.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"route_x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Current X position of the routed test sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"route_y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Current Y position of the routed test sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"is_empty_leaf\",\n        \"unit\": \"\",\n        \"meaning\": \"True when all samples fall into a single leaf.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_pure_left_route\",\n        \"unit\": \"\",\n        \"meaning\": \"True when test sample routes to a pure left leaf.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_pure_right_route\",\n        \"unit\": \"\",\n        \"meaning\": \"True when test sample routes to a pure right leaf.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_left_route\",\n        \"unit\": \"\",\n        \"meaning\": \"True when test sample satisfies X <= t.\",\n        \"kind\": \"flag\"\n      }\n    ]\n  },\n  \"pictures\": {\n    \"main\": {\n      \"type\": \"parts\",\n      \"unit\": \"units\",\n      \"parts\": [\n        {\n          \"type\": \"line\",\n          \"id\": \"feature_axis\",\n          \"from\": [0, 8.5],\n          \"to\": [10, 8.5]\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"class_a_span\",\n          \"from\": [\"a_min\", 9.2],\n          \"to\": [\"a_max\", 9.2],\n          \"of\": \"class_a\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"class_b_span\",\n          \"from\": [\"b_min\", 7.8],\n          \"to\": [\"b_max\", 7.8],\n          \"of\": \"class_b\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"threshold_cut\",\n          \"from\": [\"threshold_x\", 7.1],\n          \"to\": [\"threshold_x\", 9.9],\n          \"of\": \"split_rule\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"query_marker\",\n          \"at\": [\"query_x_pos\", 8.5],\n          \"size\": \"small\",\n          \"of\": \"test_sample\"\n        },\n        {\n          \"type\": \"arrow\",\n          \"id\": \"left_branch\",\n          \"from\": [5, 5.8],\n          \"to\": [2.2, 2],\n          \"label\": \"X<=t\"\n        },\n        {\n          \"type\": \"arrow\",\n          \"id\": \"right_branch\",\n          \"from\": [5, 5.8],\n          \"to\": [7.8, 2],\n          \"label\": \"X>t\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"left_leaf\",\n          \"at\": [2.2, 2],\n          \"size\": \"left_purity_size\",\n          \"of\": \"class_a\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"right_leaf\",\n          \"at\": [7.8, 2],\n          \"size\": \"right_purity_size\",\n          \"of\": \"class_b\"\n        },\n        {\n          \"type\": \"trace\",\n          \"id\": \"route_trace\",\n          \"at\": [\"route_x\", \"route_y\"],\n          \"of\": \"test_sample\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"routed_sample\",\n          \"at\": [\"route_x\", \"route_y\"],\n          \"size\": \"large\",\n          \"of\": \"test_sample\"\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"threshold_label\",\n          \"near\": \"threshold_cut\",\n          \"text\": \"Split threshold t\",\n          \"of\": \"split_rule\"\n        }\n      ]\n    },\n    \"panel\": {\n      \"type\": \"kind\",\n      \"kind\": \"coordinate-plot\",\n      \"title\": \"Gini metrics vs threshold\",\n      \"x\": {\n        \"over\": \"threshold\",\n        \"label\": \"Split threshold t\",\n        \"unit\": \"\"\n      },\n      \"y\": {\n        \"label\": \"Gini value\",\n        \"unit\": \"\"\n      },\n      \"series\": [\n        {\n          \"value\": \"gini_gain\",\n          \"label\": \"Purity gain\",\n          \"of\": \"split_rule\",\n          \"style\": \"line\"\n        },\n        {\n          \"value\": \"gini_left\",\n          \"label\": \"Left Gini\",\n          \"of\": \"class_a\",\n          \"style\": \"line\"\n        },\n        {\n          \"value\": \"gini_right\",\n          \"label\": \"Right Gini\",\n          \"of\": \"class_b\",\n          \"style\": \"line\"\n        }\n      ]\n    }\n  },\n  \"values\": [\n    {\n      \"value\": \"gini_gain\",\n      \"label\": \"Purity gain\",\n      \"unit\": \"\",\n      \"decimals\": 3,\n      \"of\": \"split_rule\"\n    },\n    {\n      \"value\": \"weighted_gini\",\n      \"label\": \"Child Gini\",\n      \"unit\": \"\",\n      \"decimals\": 3,\n      \"of\": \"split_rule\"\n    },\n    {\n      \"value\": \"leaf_confidence\",\n      \"label\": \"Leaf conf.\",\n      \"unit\": \"%\",\n      \"decimals\": 0,\n      \"of\": \"test_sample\"\n    },\n    {\n      \"value\": \"gini_parent\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"split_rule\"\n    }\n  ],\n  \"explanation\": {\n    \"always\": [\n      \"Best split maximizes purity gain.\"\n    ],\n    \"cases\": [\n      {\n        \"when\": \"is_empty_leaf\",\n        \"text\": \"One leaf is empty at this cutoff.\"\n      },\n      {\n        \"when\": \"is_pure_left_route\",\n        \"text\": \"X <= t routes to pure Class A.\"\n      },\n      {\n        \"when\": \"is_pure_right_route\",\n        \"text\": \"X > t routes to pure Class B.\"\n      },\n      {\n        \"when\": \"is_left_route\",\n        \"text\": \"X <= t: mixed leaf, Class A wins.\"\n      }\n    ],\n    \"otherwise\": \"X > t: mixed leaf, Class B wins.\"\n  },\n  \"layout\": {\n    \"pictureCount\": \"two\",\n    \"runs\": \"top-to-bottom\",\n    \"panelRole\": \"equal\"\n  },\n  \"claims\": [\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"gini_parent\",\n      \"when\": \"threshold\"\n    },\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"gini_parent\",\n      \"when\": \"separation\"\n    },\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"gini_gain\",\n      \"when\": \"query_x\"\n    },\n    {\n      \"type\": \"increases\",\n      \"value\": \"gini_gain\",\n      \"with\": \"separation\",\n      \"at\": [\n        {\n          \"input\": \"threshold\",\n          \"value\": 5\n        }\n      ]\n    },\n    {\n      \"type\": \"decreases\",\n      \"value\": \"weighted_gini\",\n      \"with\": \"separation\",\n      \"at\": [\n        {\n          \"input\": \"threshold\",\n          \"value\": 5\n        }\n      ]\n    }\n  ],\n  \"lesson\": {\n    \"title\": \"How a Decision Tree Splits and Routes Data\",\n    \"description\": \"Move the split threshold and class separation to see how Gini impurity measures node purity. Watch a test sample travel down the matching branch to its predicted leaf.\",\n    \"instructions\": \"Drag Split threshold t to find where Purity gain peaks on the plot. Adjust Class separation to test overlapping versus pure clusters, and move Test sample X to watch it route left (X <= t) or right (X > t).\",\n    \"goal\": \"A decision tree chooses thresholds that maximize Gini impurity reduction, creating purer child leaves that classify new inputs by majority vote.\"\n  }\n}"
+      },
+      "corrected": {
+        "raw": "{\n  \"version\": 1,\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples at feature thresholds that maximize purity gain (reduction in Gini impurity), then routing new inputs down matching branches to a leaf's majority class.\",\n    \"formula\": \"G = 1 - \\\\sum_{k} p_k^2,\\\\quad \\\\Delta G = G_{\\\\text{parent}} - \\\\left(\\\\frac{n_L}{n}G_L + \\\\frac{n_R}{n}G_R\\\\right)\",\n    \"assumptions\": [\n      \"Binary classification with two equally sized classes (N = 20 samples total) along one primary feature X.\",\n      \"Gini impurity measures node mixedness from 0 (pure single class) to 0.5 (50/50 split).\",\n      \"A single decision stump splits at threshold t; deeper trees repeat this rule on each child node.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Cutoff value on feature X sending samples left (X <= t) or right (X > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between Class A and Class B feature centers; lower values increase overlap.\"\n    },\n    {\n      \"id\": \"query_x\",\n      \"label\": \"Test sample X\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Feature value of a new point routed through the decision node to a leaf prediction.\"\n    },\n    {\n      \"id\": \"total_samples\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed number of labeled training points split across the root node.\"\n    },\n    {\n      \"id\": \"gini_parent\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the unsplit root node (0 is pure, 0.5 is maximally mixed).\"\n    },\n    {\n      \"id\": \"gini_left\",\n      \"label\": \"Left leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X <= t routed to the left child node.\"\n    },\n    {\n      \"id\": \"gini_right\",\n      \"label\": \"Right leaf Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples with X > t routed to the right child node.\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted child Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average impurity of the left and right child nodes after splitting.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity gain\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Reduction in Gini impurity achieved by splitting at threshold t; higher is better.\"\n    },\n    {\n      \"id\": \"leaf_confidence\",\n      \"label\": \"Leaf confidence\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Majority-class percentage in the leaf reached by the test sample X.\"\n    }\n  ],\n  \"things\": [\n    {\n      \"id\": \"split_rule\",\n      \"label\": \"Split threshold\"\n    },\n    {\n      \"id\": \"class_a\",\n      \"label\": \"Class A (Left)\"\n    },\n    {\n      \"id\": \"class_b\",\n      \"label\": \"Class B (Right)\"\n    },\n    {\n      \"id\": \"test_sample\",\n      \"label\": \"Test sample\"\n    }\n  ],\n  \"inputs\": [\n    {\n      \"type\": \"number\",\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"min\": 0,\n      \"max\": 10,\n      \"default\": 5,\n      \"step\": 0.25\n    },\n    {\n      \"type\": \"number\",\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"min\": 0.5,\n      \"max\": 3,\n      \"default\": 1.5,\n      \"step\": 0.5\n    },\n    {\n      \"type\": \"number\",\n      \"id\": \"query_x\",\n      \"label\": \"Test sample X\",\n      \"unit\": \"\",\n      \"min\": 0,\n      \"max\": 10,\n      \"default\": 3.5,\n      \"step\": 0.25\n    }\n  ],\n  \"time\": {\n    \"mode\": \"continuous\",\n    \"duration\": 4,\n    \"label\": \"Routing time\",\n    \"unit\": \"s\"\n  },\n  \"math\": {\n    \"code\": \"function compute(inputs, t) { var threshold = inputs.threshold; var separation = inputs.separation; var query_x = inputs.query_x; var w = 1.5; var cA = 5.0 - 0.5 * separation; var cB = 5.0 + 0.5 * separation; var a_min = cA - w; var a_max = cA + w; var b_min = cB - w; var b_max = cB + w; function cdf(x, center) { var z = (x - (center - w)) / (2 * w); if (z <= 0) return 0; if (z >= 1) return 1; return 3 * z * z - 2 * z * z * z; } var nAL = 10 * cdf(threshold, cA); var nBL = 10 * cdf(threshold, cB); var nAR = 10 - nAL; var nBR = 10 - nBL; var nL = nAL + nBL; var nR = nAR + nBR; var gini_parent = 0.5; var gini_left = nL > 0 ? Math.max(0, 1 - Math.pow(nAL / nL, 2) - Math.pow(nBL / nL, 2)) : 0; var gini_right = nR > 0 ? Math.max(0, 1 - Math.pow(nAR / nR, 2) - Math.pow(nBR / nR, 2)) : 0; var weighted_gini = (nL / 20) * gini_left + (nR / 20) * gini_right; var gini_gain = gini_parent - weighted_gini; var goLeft = query_x <= threshold; var leaf_confidence = goLeft ? (nL > 0 ? (100 * Math.max(nAL, nBL)) / nL : 0) : (nR > 0 ? (100 * Math.max(nAR, nBR)) / nR : 0); var left_purity_size = nL > 0 ? 0.15 + 0.85 * (1 - gini_left / 0.5) : 0.15; var right_purity_size = nR > 0 ? 0.15 + 0.85 * (1 - gini_right / 0.5) : 0.15; var targetX = goLeft ? 2.2 : 7.8; var route_x = query_x; var route_y = 8.5; if (t <= 1.6) { var u1 = t / 1.6; route_x = query_x + (5.0 - query_x) * u1; route_y = 8.5 + (5.8 - 8.5) * u1; } else if (t <= 3.4) { var u2 = (t - 1.6) / 1.8; route_x = 5.0 + (targetX - 5.0) * u2; route_y = 5.8 + (2.0 - 5.8) * u2; } else { route_x = targetX; route_y = 2.0; } return { gini_parent: gini_parent, gini_left: gini_left, gini_right: gini_right, weighted_gini: weighted_gini, gini_gain: gini_gain, leaf_confidence: leaf_confidence, threshold_x: threshold, query_x_pos: query_x, a_min: a_min, a_max: a_max, b_min: b_min, b_max: b_max, left_purity_size: left_purity_size, right_purity_size: right_purity_size, route_x: route_x, route_y: route_y, is_empty_leaf: nL === 0 || nR === 0, is_pure_left_route: goLeft && nL > 0 && gini_left === 0, is_pure_right_route: !goLeft && nR > 0 && gini_right === 0, is_left_route: goLeft }; }\",\n    \"outputs\": [\n      {\n        \"id\": \"gini_parent\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the root node before splitting.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_left\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the left child node.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_right\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the right child node.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"weighted_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Sample-weighted average impurity of both leaves.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_gain\",\n        \"unit\": \"\",\n        \"meaning\": \"Reduction in Gini impurity from the split.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"leaf_confidence\",\n        \"unit\": \"%\",\n        \"meaning\": \"Majority class percentage in the predicted leaf.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"threshold_x\",\n        \"unit\": \"units\",\n        \"meaning\": \"X coordinate of the split threshold line.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"query_x_pos\",\n        \"unit\": \"units\",\n        \"meaning\": \"X coordinate of the test sample on the feature axis.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a_min\",\n        \"unit\": \"units\",\n        \"meaning\": \"Minimum X value of Class A samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a_max\",\n        \"unit\": \"units\",\n        \"meaning\": \"Maximum X value of Class A samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b_min\",\n        \"unit\": \"units\",\n        \"meaning\": \"Minimum X value of Class B samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b_max\",\n        \"unit\": \"units\",\n        \"meaning\": \"Maximum X value of Class B samples.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"left_purity_size\",\n        \"unit\": \"\",\n        \"meaning\": \"Normalized dot size reflecting left leaf purity.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"right_purity_size\",\n        \"unit\": \"\",\n        \"meaning\": \"Normalized dot size reflecting right leaf purity.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"route_x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Current X position of the routed test sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"route_y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Current Y position of the routed test sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"is_empty_leaf\",\n        \"unit\": \"\",\n        \"meaning\": \"True when all samples fall into a single leaf.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_pure_left_route\",\n        \"unit\": \"\",\n        \"meaning\": \"True when test sample routes to a pure left leaf.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_pure_right_route\",\n        \"unit\": \"\",\n        \"meaning\": \"True when test sample routes to a pure right leaf.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_left_route\",\n        \"unit\": \"\",\n        \"meaning\": \"True when test sample satisfies X <= t.\",\n        \"kind\": \"flag\"\n      }\n    ]\n  },\n  \"pictures\": {\n    \"main\": {\n      \"type\": \"parts\",\n      \"unit\": \"units\",\n      \"parts\": [\n        {\n          \"type\": \"line\",\n          \"id\": \"feature_axis\",\n          \"from\": [0, 8.5],\n          \"to\": [10, 8.5]\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"class_a_span\",\n          \"from\": [\"a_min\", 9.2],\n          \"to\": [\"a_max\", 9.2],\n          \"of\": \"class_a\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"class_b_span\",\n          \"from\": [\"b_min\", 7.8],\n          \"to\": [\"b_max\", 7.8],\n          \"of\": \"class_b\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"threshold_cut\",\n          \"from\": [\"threshold_x\", 7.1],\n          \"to\": [\"threshold_x\", 9.9],\n          \"of\": \"split_rule\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"query_marker\",\n          \"at\": [\"query_x_pos\", 8.5],\n          \"size\": \"small\",\n          \"of\": \"test_sample\"\n        },\n        {\n          \"type\": \"arrow\",\n          \"id\": \"left_branch\",\n          \"from\": [5, 5.8],\n          \"to\": [2.2, 2],\n          \"label\": \"X<=t\"\n        },\n        {\n          \"type\": \"arrow\",\n          \"id\": \"right_branch\",\n          \"from\": [5, 5.8],\n          \"to\": [7.8, 2],\n          \"label\": \"X>t\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"left_leaf\",\n          \"at\": [2.2, 2],\n          \"size\": \"left_purity_size\",\n          \"of\": \"class_a\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"right_leaf\",\n          \"at\": [7.8, 2],\n          \"size\": \"right_purity_size\",\n          \"of\": \"class_b\"\n        },\n        {\n          \"type\": \"trace\",\n          \"id\": \"route_trace\",\n          \"at\": [\"route_x\", \"route_y\"],\n          \"of\": \"test_sample\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"routed_sample\",\n          \"at\": [\"route_x\", \"route_y\"],\n          \"size\": \"large\",\n          \"of\": \"test_sample\"\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"threshold_label\",\n          \"near\": \"threshold_cut\",\n          \"text\": \"Split threshold t\",\n          \"of\": \"split_rule\"\n        }\n      ]\n    },\n    \"panel\": {\n      \"type\": \"kind\",\n      \"kind\": \"coordinate-plot\",\n      \"title\": \"Gini metrics vs threshold\",\n      \"x\": {\n        \"over\": \"threshold\",\n        \"label\": \"Split threshold t\",\n        \"unit\": \"\"\n      },\n      \"y\": {\n        \"label\": \"Gini value\",\n        \"unit\": \"\"\n      },\n      \"series\": [\n        {\n          \"value\": \"gini_gain\",\n          \"label\": \"Purity gain\",\n          \"of\": \"split_rule\",\n          \"style\": \"line\"\n        },\n        {\n          \"value\": \"gini_left\",\n          \"label\": \"Left Gini\",\n          \"of\": \"class_a\",\n          \"style\": \"line\"\n        },\n        {\n          \"value\": \"gini_right\",\n          \"label\": \"Right Gini\",\n          \"of\": \"class_b\",\n          \"style\": \"line\"\n        }\n      ]\n    }\n  },\n  \"values\": [\n    {\n      \"value\": \"gini_gain\",\n      \"label\": \"Purity gain\",\n      \"unit\": \"\",\n      \"decimals\": 3,\n      \"of\": \"split_rule\"\n    },\n    {\n      \"value\": \"weighted_gini\",\n      \"label\": \"Child Gini\",\n      \"unit\": \"\",\n      \"decimals\": 3,\n      \"of\": \"split_rule\"\n    },\n    {\n      \"value\": \"leaf_confidence\",\n      \"label\": \"Leaf conf.\",\n      \"unit\": \"%\",\n      \"decimals\": 0,\n      \"of\": \"test_sample\"\n    },\n    {\n      \"value\": \"gini_parent\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"split_rule\"\n    }\n  ],\n  \"explanation\": {\n    \"always\": [\n      \"Best split maximizes purity gain.\"\n    ],\n    \"cases\": [\n      {\n        \"when\": \"is_empty_leaf\",\n        \"text\": \"One leaf is empty at this cutoff.\"\n      },\n      {\n        \"when\": \"is_pure_left_route\",\n        \"text\": \"X <= t routes to pure Class A.\"\n      },\n      {\n        \"when\": \"is_pure_right_route\",\n        \"text\": \"X > t routes to pure Class B.\"\n      },\n      {\n        \"when\": \"is_left_route\",\n        \"text\": \"X <= t: mixed leaf, Class A wins.\"\n      }\n    ],\n    \"otherwise\": \"X > t: mixed leaf, Class B wins.\"\n  },\n  \"layout\": {\n    \"pictureCount\": \"two\",\n    \"runs\": \"top-to-bottom\",\n    \"panelRole\": \"equal\"\n  },\n  \"claims\": [\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"gini_parent\",\n      \"when\": \"threshold\"\n    },\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"gini_parent\",\n      \"when\": \"separation\"\n    },\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"gini_gain\",\n      \"when\": \"query_x\"\n    },\n    {\n      \"type\": \"increases\",\n      \"value\": \"gini_gain\",\n      \"with\": \"separation\",\n      \"at\": [\n        {\n          \"input\": \"threshold\",\n          \"value\": 5\n        }\n      ]\n    },\n    {\n      \"type\": \"decreases\",\n      \"value\": \"weighted_gini\",\n      \"with\": \"separation\",\n      \"at\": [\n        {\n          \"input\": \"threshold\",\n          \"value\": 5\n        }\n      ]\n    }\n  ],\n  \"lesson\": {\n    \"title\": \"How a Decision Tree Splits and Routes Data\",\n    \"description\": \"Move the split threshold and class separation to see how Gini impurity measures node purity. Watch a test sample travel down the matching branch to its predicted leaf.\",\n    \"instructions\": \"Drag Split threshold t to find where Purity gain peaks on the plot. Adjust Class separation to test overlapping versus pure clusters, and move Test sample X to watch it route left (X <= t) or right (X > t).\",\n    \"goal\": \"A decision tree chooses thresholds that maximize Gini impurity reduction, creating purer child leaves that classify new inputs by majority vote.\"\n  }\n}"
+      },
+      "final": null
+    },
+    "checks": {
+      "first": {
+        "ok": false,
+        "failed": 8,
+        "problems": [
+          {
+            "code": "claims",
+            "path": "claims[3]",
+            "message": "Claim 4 fails: `gini_gain` does not rise as `separation` rises from 0.5 to 0.813 (0.02 to 0.02).",
+            "check": 8
+          },
+          {
+            "code": "claims",
+            "path": "claims[4]",
+            "message": "Claim 5 fails: `weighted_gini` does not fall as `separation` rises from 0.5 to 0.813 (0.48 to 0.48).",
+            "check": 8
+          }
+        ],
+        "notes": [],
+        "measured": null
+      },
+      "corrected": {
+        "ok": false,
+        "failed": 9,
+        "problems": [
+          {
+            "code": "layout",
+            "path": "formula",
+            "message": "The layout refuses the scene (text_too_wide): the formula needs 379 px; its box allows 340 px.",
+            "check": 9
+          }
+        ],
+        "notes": [],
+        "measured": {
+          "reach": {
+            "minX": 0,
+            "maxX": 10,
+            "minY": 2,
+            "maxY": 9.9
+          },
+          "yRange": [
+            -0.05,
+            0.55
+          ],
+          "valueTexts": [
+            "Purity gain: 0.236",
+            "Child Gini: 0.264",
+            "Leaf conf.: 100%",
+            "Parent Gini: 0.50"
+          ],
+          "variants": [
+            [
+              "Best split maximizes purity gain.",
+              "X <= t: mixed leaf, Class A wins."
+            ],
+            [
+              "Best split maximizes purity gain.",
+              "One leaf is empty at this cutoff."
+            ],
+            [
+              "Best split maximizes purity gain.",
+              "X <= t routes to pure Class A."
+            ],
+            [
+              "Best split maximizes purity gain.",
+              "X > t: mixed leaf, Class B wins."
+            ]
+          ],
+          "plot": {
+            "geometry": {
+              "min": {
+                "width": 233,
+                "height": 274
+              },
+              "plotArea": {
+                "left": 89,
+                "right": 280,
+                "top": 21,
+                "bottom": 166
+              },
+              "x": {
+                "min": 0,
+                "max": 10
+              },
+              "y": {
+                "min": -0.05,
+                "max": 0.55
+              }
+            }
+          }
+        }
+      }
+    },
+    "passed": false,
+    "problems": [
+      "The layout refuses the scene (text_too_wide): the formula needs 379 px; its box allows 340 px."
+    ],
+    "calls": [
+      {
+        "kind": "quantities",
+        "role": "blueprint_quantities",
+        "ok": true,
+        "seconds": 14.218,
+        "finish": "complete",
+        "served": "gemini-4-hydrogen",
+        "tokens": {
+          "input": 1231,
+          "thinking": 2069,
+          "output": 850,
+          "billed": 2919
+        },
+        "costUsd": 0.023739
+      },
+      {
+        "kind": "blueprint",
+        "role": "blueprint_design",
+        "ok": true,
+        "seconds": 136.943,
+        "finish": "complete",
+        "served": "gemini-4-hydrogen",
+        "tokens": {
+          "input": 10439,
+          "thinking": 28894,
+          "output": 4993,
+          "billed": 33887
+        },
+        "costUsd": 0.269811
+      },
+      {
+        "kind": "blueprint",
+        "role": "blueprint_design",
+        "ok": true,
+        "seconds": 46.264,
+        "finish": "complete",
+        "served": "gemini-4-hydrogen",
+        "tokens": {
+          "input": 15540,
+          "thinking": 8493,
+          "output": 4981,
+          "billed": 13474
+        },
+        "costUsd": 0.124365
+      }
+    ],
+    "seconds": 209.321,
+    "costUsd": 0.41791500000000004
+  },
+  "final": null
+}

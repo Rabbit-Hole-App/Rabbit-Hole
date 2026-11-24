@@ -1,0 +1,93 @@
+{
+  "what": "one run of the decision-tree prompt on 8879 after the two checker fixes (commit ff00796a4)",
+  "prompt": "how does a decision tree works?",
+  "depth": "detailed",
+  "jobId": "ej_dd10ac4216bf47c289a7326c3d8a0f88",
+  "canvas": "http://127.0.0.1:8879/apps/canvas-8da7feb3",
+  "stage": "failed",
+  "stopReason": "design_invalid",
+  "learnerMessage": "The scene design could not be completed. Try again or edit the request.",
+  "steps": [
+    {
+      "step": "plan",
+      "correcting": false,
+      "at": 0.6
+    },
+    {
+      "step": "design",
+      "correcting": false,
+      "at": 14.8
+    },
+    {
+      "step": "design",
+      "correcting": true,
+      "at": 158.1
+    },
+    {
+      "step": "failed",
+      "correcting": false,
+      "at": 209.7
+    }
+  ],
+  "seed": 2499943651,
+  "dice": [
+    "threshold",
+    "separation",
+    "query_x"
+  ],
+  "planCalls": 1,
+  "designPhaseSeconds": 209.321,
+  "modelUsd": 0.41791500000000004,
+  "callsSeconds": [
+    [
+      "blueprint_quantities",
+      14.218,
+      0.023739
+    ],
+    [
+      "blueprint_design",
+      136.943,
+      0.269811
+    ],
+    [
+      "blueprint_design",
+      46.264,
+      0.124365
+    ]
+  ],
+  "firstAnswer": {
+    "ok": false,
+    "problems": [
+      {
+        "check": 8,
+        "code": "claims",
+        "path": "claims[3]",
+        "message": "Claim 4 fails: `gini_gain` does not rise as `separation` rises from 0.5 to 0.813 (0.02 to 0.02)."
+      },
+      {
+        "check": 8,
+        "code": "claims",
+        "path": "claims[4]",
+        "message": "Claim 5 fails: `weighted_gini` does not fall as `separation` rises from 0.5 to 0.813 (0.48 to 0.48)."
+      }
+    ]
+  },
+  "correctedAnswer": {
+    "ok": false,
+    "problems": [
+      {
+        "check": 9,
+        "code": "layout",
+        "path": "formula",
+        "message": "The layout refuses the scene (text_too_wide): the formula needs 379 px; its box allows 340 px."
+      }
+    ]
+  },
+  "correctedFormula": "G = 1 - \\sum_{k} p_k^2,\\quad \\Delta G = G_{\\text{parent}} - \\left(\\frac{n_L}{n}G_L + \\frac{n_R}{n}G_R\\right)",
+  "correctedLayout": {
+    "pictureCount": "two",
+    "runs": "top-to-bottom",
+    "panelRole": "equal"
+  },
+  "firstFormula": "G = 1 - \\sum_{k} p_k^2,\\quad \\Delta G = G_{\\text{parent}} - \\left(\\frac{n_L}{n}G_L + \\frac{n_R}{n}G_R\\right)"
+}
