@@ -2,7 +2,7 @@
   "live": {
     "first": {
       "written": true,
-      "bytes": 15891,
+      "bytes": 15426,
       "validate": {
         "ok": true,
         "problems": []
@@ -14,8 +14,8 @@
         "total": 9
       },
       "dropped": {
-        "labels": 0,
-        "arrows": 9
+        "labels": 3,
+        "arrows": 8
       },
       "error": null
     },
@@ -23,7 +23,7 @@
     "repairAttempt": null,
     "final": {
       "written": true,
-      "bytes": 15891,
+      "bytes": 15426,
       "validate": {
         "ok": true,
         "problems": []
@@ -35,8 +35,8 @@
         "total": 9
       },
       "dropped": {
-        "labels": 0,
-        "arrows": 9
+        "labels": 3,
+        "arrows": 8
       },
       "error": null
     }
@@ -55,8 +55,8 @@
           "setting": "the defaults",
           "time": 0,
           "ok": true,
-          "objects": 20,
-          "ms": 31.9,
+          "objects": 19,
+          "ms": 6.2,
           "dropped": {
             "labels": [],
             "arrows": [
@@ -69,8 +69,8 @@
           "setting": "the defaults",
           "time": 3,
           "ok": true,
-          "objects": 21,
-          "ms": 30.7,
+          "objects": 20,
+          "ms": 5.2,
           "dropped": {
             "labels": [],
             "arrows": [
@@ -83,8 +83,8 @@
           "setting": "the defaults",
           "time": 6,
           "ok": true,
-          "objects": 21,
-          "ms": 24.6,
+          "objects": 20,
+          "ms": 6.8,
           "dropped": {
             "labels": [],
             "arrows": [
@@ -97,8 +97,8 @@
           "setting": "every number control at its maximum",
           "time": 0,
           "ok": true,
-          "objects": 20,
-          "ms": 23.7,
+          "objects": 19,
+          "ms": 5.2,
           "dropped": {
             "labels": [],
             "arrows": [
@@ -111,8 +111,8 @@
           "setting": "every number control at its maximum",
           "time": 3,
           "ok": true,
-          "objects": 21,
-          "ms": 25.2,
+          "objects": 20,
+          "ms": 5.3,
           "dropped": {
             "labels": [],
             "arrows": [
@@ -125,13 +125,11 @@
           "setting": "every number control at its maximum",
           "time": 6,
           "ok": true,
-          "objects": 21,
-          "ms": 25,
+          "objects": 22,
+          "ms": 7.5,
           "dropped": {
             "labels": [],
-            "arrows": [
-              "vel_arrow"
-            ]
+            "arrows": []
           },
           "attempts": 1
         },
@@ -139,10 +137,12 @@
           "setting": "every number control at its minimum",
           "time": 0,
           "ok": true,
-          "objects": 20,
-          "ms": 24.4,
+          "objects": 18,
+          "ms": 5.4,
           "dropped": {
-            "labels": [],
+            "labels": [
+              "bob_label"
+            ],
             "arrows": [
               "vel_arrow"
             ]
@@ -153,10 +153,12 @@
           "setting": "every number control at its minimum",
           "time": 3,
           "ok": true,
-          "objects": 21,
-          "ms": 25.5,
+          "objects": 19,
+          "ms": 6.4,
           "dropped": {
-            "labels": [],
+            "labels": [
+              "bob_label"
+            ],
             "arrows": [
               "vel_arrow"
             ]
@@ -167,10 +169,12 @@
           "setting": "every number control at its minimum",
           "time": 6,
           "ok": true,
-          "objects": 21,
-          "ms": 25.2,
+          "objects": 19,
+          "ms": 9.3,
           "dropped": {
-            "labels": [],
+            "labels": [
+              "bob_label"
+            ],
             "arrows": [
               "vel_arrow"
             ]
@@ -180,10 +184,13 @@
       ]
     },
     "dropped": {
-      "labels": 0,
-      "arrows": 9
+      "labels": 3,
+      "arrows": 8
     },
-    "yRange": null,
+    "yRange": [
+      -48,
+      48
+    ],
     "placed": {
       "layout": "side-by-side",
       "arrangement": "columns",
@@ -250,14 +257,15 @@
         "x": 280,
         "ys": [
           317.55,
-          335.05
+          335.05,
+          352.55
         ]
       },
       "plotGeometry": {
         "plotArea": {
-          "left": 74,
+          "left": 49,
           "right": 280,
-          "top": 56,
+          "top": 79,
           "bottom": 200
         },
         "x": {
@@ -266,13 +274,13 @@
           "scale": "linear"
         },
         "y": {
-          "min": -60,
-          "max": 60,
+          "min": -48,
+          "max": 48,
           "scale": "linear"
         },
         "min": {
-          "width": 218,
-          "height": 237,
+          "width": 193,
+          "height": 260,
           "parts": [
             {
               "axis": "height",
@@ -282,7 +290,7 @@
             {
               "axis": "height",
               "part": "top margin and y axis title",
-              "px": 21
+              "px": 44
             },
             {
               "axis": "height",
@@ -302,7 +310,7 @@
             {
               "axis": "width",
               "part": "y axis title band and tick numbers",
-              "px": 74
+              "px": 49
             },
             {
               "axis": "width",
@@ -317,8 +325,10 @@
           ]
         }
       },
-      "dropped": []
+      "dropped": [
+        "guide_label"
+      ]
     },
-    "bytes": 15432
+    "bytes": 14967
   }
 }

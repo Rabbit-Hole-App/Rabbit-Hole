@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 75,
+        "originPx": [
+          164,
+          136
+        ]
+      },
+      "fixedParts": [
+        {
+          "id": "support",
+          "from": [
+            -0.5,
+            1.5
+          ],
+          "to": [
+            0.5,
+            1.5
+          ]
+        },
+        {
+          "id": "vertical_ref",
+          "from": [
+            0,
+            1.5
+          ],
+          "to": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "pivot",
+          "at": [
+            0,
+            1.5
+          ],
+          "size": "small"
+        },
+        {
+          "id": "arc_trace",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ]
+        },
+        {
+          "id": "rod",
+          "from": [
+            0,
+            1.5
+          ],
+          "to": [
+            "bob_x",
+            "bob_y"
+          ]
+        },
+        {
+          "id": "weight_arrow",
+          "from": [
+            "bob_x",
+            "bob_y"
+          ],
+          "to": [
+            "bob_x",
+            "weight_tip_y"
+          ]
+        },
+        {
+          "id": "bob",
+          "at": [
+            "bob_x",
+            "bob_y"
+          ],
+          "size": "bob_size"
+        }
+      ],
+      "labels": [],
+      "arrows": [
+        {
+          "id": "weight_arrow",
+          "lengthFactor": 2.9,
+          "startAtEdge": true
+        }
+      ],
+      "dropped": [
+        {
+          "id": "bob_label",
+          "why": "Swinging bob meets rod, weight arrow, arc trace, or vertical ref on every side; bob is clear visually."
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": true,
+        "legend": "none"
+      },
+      "texts": {
+        "title": "Swing Angle Over Time",
+        "labels": [
+          "Angle"
+        ]
+      },
+      "ranges": {
+        "x": [
+          0,
+          6
+        ],
+        "y": [
+          -25,
+          25
+        ]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "columns",
+    "values": [
+      {
+        "id": "period",
+        "label": "Period",
+        "decimals": 2
+      },
+      {
+        "id": "frequency",
+        "label": "Freq",
+        "decimals": 2
+      },
+      {
+        "id": "max_speed",
+        "label": "Peak v",
+        "decimals": 2
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "explanation": {
+      "always": [
+        "L = 1.5 m, release = 25 deg",
+        "Mass alters weight, not the period"
+      ],
+      "cases": [
+        {
+          "when": "is_low_gravity",
+          "text": "Weak g: slower swing, longer period"
+        },
+        {
+          "when": "is_high_gravity",
+          "text": "Strong g: faster, shorter period"
+        }
+      ],
+      "otherwise": "Earth g: 9.8 m/s^2 reference swing"
+    }
+  },
+  "time": {
+    "duration": 6
+  },
+  "changes": [
+    "Used side-by-side layout with 3-row columns text arrangement so the formula and all three active explanation lines fit without truncation.",
+    "Mapped stage at 75 px/m with origin (164, 136) so the pendulum and scaled weight arrow fit inside the 304 x 260.8 px stage.",
+    "Set weight_arrow lengthFactor to 2.9 and startAtEdge to true so the arrowhead stays clear of the bob even at high mass and low gravity.",
+    "Dropped bob_label because the swinging bob intersects or comes within 8 px of rod, arc_trace, vertical_ref, or weight_arrow on all sides.",
+    "Hid the coordinate-plot legend so the plot fits the 260.8 px tall panel with its title on (single series is clear from y-axis).",
+    "Shortened value labels Frequency to Freq and Peak speed to Peak v to fit the 200 px values column, and dropped angle (shown on the plot).",
+    "Shortened duration from 8 s to 6 s to reduce turns in the narrow plot while still showing a full swing at minimum gravity."
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "layout": "side-by-side",
+  "pictures": {
+    "main": {
+      "type": "parts",
+      "mapping": {
+        "pxPerUnit": 100,
+        "originPx": [
+          164,
+          40
+        ]
+      },
+      "fixedParts": [
+        {
+          "id": "support",
+          "from": [
+            -0.45,
+            0
+          ],
+          "to": [
+            0.45,
+            0
+          ]
+        },
+        {
+          "id": "refLine",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            0,
+            -1.05
+          ]
+        },
+        {
+          "id": "pivotDot",
+          "at": [
+            0,
+            0
+          ],
+          "size": "small"
+        },
+        {
+          "id": "stringLine",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            "bobX",
+            "bobY"
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "pivotLabel",
+          "near": "pivotDot",
+          "side": "above",
+          "text": "Pivot (L = 1.0 m)"
+        }
+      ],
+      "arrows": [
+        {
+          "id": "weightArrow",
+          "lengthFactor": 3.8,
+          "startAtEdge": true
+        }
+      ],
+      "dropped": [
+        {
+          "id": "zeroLabel",
+          "why": "Overlaps the swinging string, bob, or weight arrow on all sides of refLine."
+        }
+      ]
+    },
+    "panel": {
+      "type": "kind",
+      "kind": "coordinate-plot",
+      "parts": {
+        "title": true,
+        "legend": "none"
+      },
+      "texts": {
+        "title": "Swing angle over time",
+        "labels": [
+          "Angle"
+        ]
+      },
+      "ranges": {
+        "x": [
+          0,
+          6
+        ],
+        "y": [
+          -15,
+          15
+        ]
+      }
+    }
+  },
+  "texts": {
+    "arrangement": "columns",
+    "values": [
+      {
+        "id": "period",
+        "label": "Period",
+        "decimals": 2
+      },
+      {
+        "id": "frequency",
+        "label": "Freq",
+        "decimals": 2
+      },
+      {
+        "id": "maxSpeed",
+        "label": "Max v",
+        "decimals": 2
+      }
+    ],
+    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "explanation": {
+      "always": [
+        "Length fixed at L = 1.0 m."
+      ],
+      "cases": [
+        {
+          "when": "highGravity",
+          "text": "Strong gravity makes swing faster."
+        },
+        {
+          "when": "lowGravity",
+          "text": "Weak gravity makes swing slower."
+        },
+        {
+          "when": "heavyBob",
+          "text": "Heavy bob: period stays the same."
+        },
+        {
+          "when": "wideRelease",
+          "text": "Wider angle: faster, same period."
+        }
+      ],
+      "otherwise": "Period depends only on L and g."
+    }
+  },
+  "time": {
+    "duration": 6
+  },
+  "changes": [
+    "Chose side-by-side layout with columns text arrangement so full explanation bullets and three live values fit cleanly.",
+    "Mapped main picture with pxPerUnit 100 and originPx [164, 40] to fit inside the 304 x 260.8 px stage with margins.",
+    "Placed pivotLabel above pivotDot so it clears the support line, stringLine, and top stage edge.",
+    "Scaled weightArrow by 3.8 and set startAtEdge true so it clears bobDot at min mass and stays inside the stage at max mass.",
+    "Dropped zeroLabel because it overlaps the swinging string, bob, or weight arrow on every side of refLine.",
+    "Disabled the panel legend since there is only one series, letting the coordinate plot fit within 260.8 px height.",
+    "Shortened value labels Frequency to Freq and Max speed to Max v to fit the 200 px values column.",
+    "Dropped the fourth value Angle from the values list because columns fit at most three values and angle is plotted."
+  ]
+}

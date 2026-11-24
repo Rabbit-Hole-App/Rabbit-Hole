@@ -4,15 +4,14 @@
 
 | Run | Seed | Dice pick (of the control quantities) | Design s / $ | Build s / $ | Repair | Total s | Result | Canvas | Shot | Program |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 1398107529 | length, gravity, release_angle (of length, mass, gravity, release_angle) | 139.549 s / $0.152 | 197.919 s / $0.163 | none | - | failed: The card could not be built from its template: [program_error] the program failed at "endpoint" (runtime_limit): time limit | http://127.0.0.1:8879/apps/canvas-86a9fdce | - | 15432 B |
-| 2 | 243498973 | - (of -) | 4.264 s / $0.000 | - s / $0.000 | - | - | failed: the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402). | http://127.0.0.1:8879/apps/canvas-725ff721 | - | - |
-| 3 | 816441486 | - (of -) | 0.541 s / $0.000 | - s / $0.000 | - | - | failed: the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402). | http://127.0.0.1:8879/apps/canvas-cfd98519 | - | - |
-| 4 | 86411594 | - (of -) | 4.181 s / $0.000 | - s / $0.000 | - | - | failed: the quantities answer was not usable: gemini-4-hydrogen for blueprint_quantities failed (HTTP 402). | http://127.0.0.1:8879/apps/canvas-8ecf2a41 | - | - |
+| 1 | 2811361551 | length, amplitude, gravity (of length, mass, amplitude, gravity) | 74.261 s / $0.119 | 96.67 s / $0.157 | none | 171.4 | card ready | http://127.0.0.1:8879/apps/canvas-99b2b08a | run-1/viewport-t0.3s.png | 14967 B |
+| 2 | 1171958770 | gravity, mass (of length, gravity, mass, amplitude) | 53.852 s / $0.109 | 100.988 s / $0.191 | none | 155.3 | card ready | http://127.0.0.1:8879/apps/canvas-3df95177 | run-2/viewport-t0.3s.png | 14675 B |
+| 3 | 1097283186 | gravity, mass, angle0 (of length, gravity, mass, angle0) | 60.079 s / $0.116 | 111.31 s / $0.198 | none | 171.8 | card ready | http://127.0.0.1:8879/apps/canvas-718e0c70 | run-3/viewport-t0.3s.png | 14799 B |
 
-Total model cost: $0.315.
+Total model cost: $0.890.
 
-## What these four rows are
+## Earlier attempts that are not in this table
 
-- **Run 1** is the first live run (job `ej_d0159c620422439787dd84214f4a983d`, before the provider's credits ended): Design passed checks 1 to 9 with no correction, the Build call answered, the build-schema passed the schema and the writer's frame check (9 of 9 frames, no repair), and the job went on to its own stages (plan, validate, authoring, validating). It then **failed in the job's own headless run**: `the program failed at "endpoint" (runtime_limit): time limit` and the same at "Length at min", plus `control_no_effect`. The Program takes about 26 to 47 ms of the engine's 50 ms a frame in Node on this machine, so a busy moment fails a checkpoint. Its blueprint, build-schema and Program are in `run-1/`. The shot is `run-1/viewport-t0.3s.png` only when a card was drawn (none was).
-- **Runs 2 to 4** were the three runs of this brief, started after run 1: each failed at the first call (the quantities call) with the provider's HTTP 402: "Your prepayment credits are depleted. Please go to AI Studio ... to manage your project and billing." (confirmed with one direct call, 0.48 s, $0). No blueprint, no Build call. The dice seeds are the ones the jobs minted.
-- `run-1/program.js` is the Program as the writer writes it now from run 1's blueprint and build-schema (it samples a graph at 48 positions and a trace at 24 points, brief 48's cut from 96 and 32 after run 1's failure); the job ran the earlier version.
+- A first live run (job `ej_d0159c620422439787dd84214f4a983d`, 11-21) passed Design and Build (no repair) and then failed in the job's own headless run on the engine's 50 ms time limit; the Program then sampled a graph at 96 positions and a trace at 32 points, which `e908a844f` cut to 48 and 24. Its records are in git history (`e908a844f`, `build-mvp3/run-1`). The three runs here use the cut.
+- The three runs of 11-21 17:09 failed at the first call with the provider's HTTP 402 (prepayment credits depleted) before the top-up, and a retry of the three in parallel was stopped by the harness for low memory. These three were run one at a time on 11-24 after the stack was restarted.
+- The repair path (one call to the Build model on a frame failure) did not run in any of these three: every first Build answer passed the schema and all 9 frames.

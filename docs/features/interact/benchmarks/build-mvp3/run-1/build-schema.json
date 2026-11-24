@@ -5,62 +5,33 @@
     "main": {
       "type": "parts",
       "mapping": {
-        "pxPerUnit": 48,
+        "pxPerUnit": 52,
         "originPx": [
           164,
-          48
+          38
         ]
       },
       "fixedParts": [
         {
-          "id": "support_bar",
+          "id": "support",
           "from": [
-            -1.2,
+            -0.8,
             0
           ],
           "to": [
-            1.2,
+            0.8,
             0
           ]
         },
         {
-          "id": "plumb_line",
-          "from": [
-            0,
-            0
-          ],
-          "to": [
-            0,
-            "plumb_y"
-          ]
-        },
-        {
-          "id": "release_guide",
+          "id": "vertical_guide",
           "from": [
             0,
             0
           ],
           "to": [
-            "release_x",
-            "release_y"
-          ]
-        },
-        {
-          "id": "bob_trace",
-          "at": [
-            "bob_x",
-            "bob_y"
-          ]
-        },
-        {
-          "id": "rod",
-          "from": [
             0,
-            0
-          ],
-          "to": [
-            "bob_x",
-            "bob_y"
+            -3.2
           ]
         },
         {
@@ -72,21 +43,18 @@
           "size": "small"
         },
         {
-          "id": "bob",
-          "at": [
+          "id": "rod",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
             "bob_x",
             "bob_y"
-          ],
-          "size": "large"
+          ]
         }
       ],
       "labels": [
-        {
-          "id": "pivot_label",
-          "near": "pivot_dot",
-          "side": "above",
-          "text": "Pivot (1 kg, no drag)"
-        },
         {
           "id": "bob_label",
           "near": "bob",
@@ -101,7 +69,12 @@
           "startAtEdge": true
         }
       ],
-      "dropped": []
+      "dropped": [
+        {
+          "id": "guide_label",
+          "why": "Sits along the vertical centerline where the swinging rod, bob, and velocity arrow cross every swing."
+        }
+      ]
     },
     "panel": {
       "type": "kind",
@@ -115,16 +88,6 @@
         "labels": [
           "Angle"
         ]
-      },
-      "ranges": {
-        "x": [
-          0,
-          6
-        ],
-        "y": [
-          -60,
-          60
-        ]
       }
     }
   },
@@ -137,47 +100,45 @@
         "decimals": 2
       },
       {
-        "id": "peak_speed",
-        "label": "Peak v",
-        "decimals": 2
-      },
-      {
         "id": "frequency",
         "label": "Freq",
         "decimals": 2
+      },
+      {
+        "id": "max_speed",
+        "label": "Max v",
+        "decimals": 2
       }
     ],
-    "formula": "T = 2\\pi\\sqrt{L / g}",
+    "formula": "T = 2\\pi \\sqrt{L / g}",
     "explanation": {
       "always": [
-        "No drag; 1 kg bob mass cancels out."
+        "Mass (1 kg) cancels out of timing.",
+        "Wider angle boosts peak speed only."
       ],
       "cases": [
         {
-          "when": "is_large_angle",
-          "text": "Wide swing: large-angle period rise"
+          "when": "is_fast_swing",
+          "text": "Short or high-g: swings fast."
         },
         {
-          "when": "is_long_or_weak",
-          "text": "Slow swing from long rod or low g"
-        },
-        {
-          "when": "is_fast",
-          "text": "Quick swing from short rod or high g"
+          "when": "is_slow_swing",
+          "text": "Long or low-g: swings slowly."
         }
       ],
-      "otherwise": "Moderate swing near small-angle law"
+      "otherwise": "Moderate period from L and g."
     }
   },
   "time": {
     "duration": 6
   },
   "changes": [
-    "Used side-by-side layout with 3-row columns text arrangement so the stage, plot, 3 values, formula, and 2-line explanation all fit without truncation.",
-    "Set stage mapping to pxPerUnit 48 and originPx [164, 48] so the full swing, velocity arrow, and labels stay inside [12, 12, 304, 260.8].",
-    "Placed pivot_label above pivot_dot and bob_label below bob to keep clear of support_bar, rod, plumb_line, and vel_arrow.",
-    "Enabled startAtEdge on vel_arrow so its shaft and arrowhead clear the 36 px bob circle.",
-    "Hid the single-series panel legend (legend: none) so the coordinate plot fits the 260.8 px slot height with its title enabled.",
-    "Shortened Peak speed to Peak v and Frequency to Freq to fit the 200 px values column, and dropped Angle since the plot and stage already show it."
+    "Selected side-by-side layout with 3-row columns text arrangement so both pictures and 3 values, formula, and 3 explanation lines fit.",
+    "Set coordinate-plot legend to none so the plot fits its 304 x 260.8 px panel above the 3-row text columns.",
+    "Mapped main stage at 52 px/m with origin at (164, 38) so the full swing, trace, bob, and velocity arrow stay inside the box.",
+    "Started vel_arrow at the bob edge (startAtEdge: true) so its arrowhead never overlaps the 36 px bob circle.",
+    "Placed bob_label below bob and shortened it to 'Bob' so it stays clear of the rod and velocity arrow.",
+    "Dropped guide_label because it crosses the swinging rod, bob, and velocity arrow along the center.",
+    "Shortened value labels 'Frequency' to 'Freq' and 'Max speed' to 'Max v' to fit the 200 px column, and dropped 'Angle' (shown on plot)."
   ]
 }
