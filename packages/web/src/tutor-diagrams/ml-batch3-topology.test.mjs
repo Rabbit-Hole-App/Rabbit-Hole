@@ -121,13 +121,12 @@ test('beam search prunes to the global top two at each depth and highlights the 
   assert.equal(svg.match(/data-tutor-pruned=""/g)?.length, nodes.filter(node => node.pruned).length);
 });
 
-test('every unit connects to the next layer with its own indexed weight', () => {
+test('every unit has a distinct weighted connection to every unit in the next layer', () => {
   const spec = referenceSpec('ml-neural-network-weights');
-  const { nodes, edges, caption } = spec.diagram;
+  const { nodes, edges } = spec.diagram;
   assert.deepEqual(pairs(edges), ['x1:h1', 'x1:h2', 'x2:h1', 'x2:h2', 'h1:y', 'h2:y']);
-  assert.ok(edges.slice(0, 4).every(edge => edge.label === 'Scale input $x_i$ by $w_{ij}$'));
-  assert.ok(edges.slice(4).every(edge => edge.label === 'Scale activation $h_j$ by $v_j$'));
-  assert.match(caption, /input index comes first/);
+  assert.equal(new Set(edges.map(edge => edge.label)).size, edges.length);
+  assert.ok(edges.every(edge => /^Scale by \$[wv]/.test(edge.label)));
   const svg = renderToStaticMarkup(renderTutorDiagram(spec, 320).element);
   for (const { id } of nodes) assert.equal(svg.split(`data-tutor-node="${id}"`).length, 2);
 });

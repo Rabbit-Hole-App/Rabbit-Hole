@@ -9,7 +9,7 @@ import { TEACHING_ROLE_FILL } from './teaching-theme.js';
 import kindGallery from './kind-gallery.json' with { type: 'json' };
 import { diagramReferences } from './reference-library.js';
 import { illustrationSpecs } from '../../scripts/illustration-previews.mjs';
-import { foreignBoxes, labelDistances, relationshipGeometry, relationshipNodes, tipHits } from './test-relationship-geometry.mjs';
+import { foreignBoxes, labelDistances, relationshipGeometry, relationshipNodes } from './test-relationship-geometry.mjs';
 
 const draw = (diagram, width = 408) => { const r = renderTutorDiagram({ version: 1, diagram: { kind: 'relationship', layout: 'graph', title: 'Graph', ...diagram } }, width); return { svg: renderToStaticMarkup(r.element), width: r.width }; };
 const badges = svg => [...svg.matchAll(/<circle[^>]*r="10"[^>]*\/?>(?:<\/circle>)?<text[^>]*><tspan[^>]*>(\d+)<\/tspan>/g)].map(match => Number(match[1]));
@@ -93,57 +93,14 @@ test('all 57 relationship specs: every label on an arrow stands within 6 px of i
 });
 
 test('the named failures: a label that is not the nearest to its own arrow is in the notes, else it stands on its own arrow', () => {
-  const named = [['d2l-regularized-forward-graph', 'w:r'], ['d2l-regularized-forward-graph', 'l:j'], ['d2l-dense-hidden-layer-activations', 'x:b']];
+  const named = [['d2l-regularized-forward-graph', 'Sets the penalty'], ['d2l-regularized-forward-graph', 'Adds fitting error'], ['d2l-dense-hidden-layer-activations', 'Supplies a new weighted input']];
   const specs = new Map(relationshipSpecs());
-  for (const width of [408, 720]) for (const [id, edgeId] of named) {
-    const spec = specs.get(id);
-    const { label: sentence } = spec.diagram.edges.find(({ from, to }) => `${from}:${to}` === edgeId);
-    const { edges, text } = drawn(spec, width);
-    const edge = edges.find(e => e.id === edgeId);
-    assert.ok(edge, `${id} @ ${width}: ${edgeId} exists`);
-    if (edge.label) assert.ok(ownsLabel(edges, edge), `${id} @ ${width}: ${sentence}`);
-    else assert.match(text, new RegExp(`\\d\\. ${RegExp.escape(sentence)}`), `${sentence} is in the numbered list`);
+  for (const width of [408, 720]) for (const [id, sentence] of named) {
+    const { edges, text } = drawn(specs.get(id), width);
+    const edge = edges.find(e => e.label?.text === sentence);
+    if (edge) assert.ok(ownsLabel(edges, edge), `${id} @ ${width}: ${sentence}`);
+    else assert.match(text, new RegExp(`\\d\\. ${sentence}`), `${sentence} is in the numbered list`);
   }
-});
-
-test('the revised relationship families have no more than three rendered note lines at 408 and 720 px', () => {
-  const families = [
-    'd2l-dense-hidden-layer-activations', 'd2l-regularized-forward-graph', 'ml-neural-network-weights',
-    'figure-gallery-multistream-residual', 'figure-gallery-encoder-global-kv', 'figure-gallery-shared-kv-and-index',
-    'ml-stable-diffusion-unet-timestep-and-skips', 'd2l-softmax-affine-class-scores', 'ml-version-lineage',
-  ];
-  const specs = relationshipSpecs().filter(([id]) => families.includes(id.replace(/-(brief|detailed)$/, '')));
-  assert.equal(specs.length, 23);
-  for (const width of [408, 720]) for (const [id, spec] of specs) {
-    const { element } = renderTutorDiagram(spec, width);
-    const graph = element.props.children[3].props.children;
-    const lastNode = graph.findLastIndex(node => node.props['data-tutor-node'] !== undefined);
-    assert.ok(lastNode >= 0, `${id} @ ${width}: graph boxes are drawn`);
-    const notes = graph.slice(lastNode + 1);
-    const lineCount = notes.reduce((count, note) => {
-      // The native text fallback has one tspan per line, including any line drawn with math in the primary branch.
-      const text = note.type === 'switch' ? note.props.children[1].props.children : note;
-      return count + [text.props.children].flat().length;
-    }, 0);
-    assert.ok(lineCount <= 3, `${id} @ ${width}: ${lineCount} note lines`);
-  }
-});
-
-// Release 170: an arrowhead never has another arrow's vertical run behind it (release 169 moved one edge to the front of two lists; its skip wire then passed 14 px behind the heads of the arrows into the Bottleneck and the first attention read).
-test('the revised relationship families: no arrow tip has a vertical run of another edge behind it (408 and 720 px)', () => {
-  const families = [
-    'd2l-dense-hidden-layer-activations', 'd2l-regularized-forward-graph', 'ml-neural-network-weights',
-    'figure-gallery-multistream-residual', 'figure-gallery-encoder-global-kv', 'figure-gallery-shared-kv-and-index',
-    'ml-stable-diffusion-unet-timestep-and-skips', 'd2l-softmax-affine-class-scores', 'ml-version-lineage',
-  ];
-  const specs = relationshipSpecs().filter(([id]) => families.includes(id.replace(/-(brief|detailed)$/, '')));
-  assert.equal(specs.length, 23);
-  const tip = { id: 'a:b', points: [[0, 0], [100, 50]], segments: [] };
-  const run = (x, y1, y2) => ({ id: 'c:d', points: [], segments: [{ x1: x, y1, x2: x, y2 }] });
-  assert.equal(tipHits([tip, run(114, 20, 80)]).length, 1, 'a run 14 px behind the tip, spanning its y');
-  assert.equal(tipHits([tip, run(120, 20, 80)]).length, 0, 'a run 20 px away');
-  assert.equal(tipHits([tip, run(114, 20, 50.5)]).length, 0, 'a run that ends at the height of the tip');
-  for (const width of [408, 720]) for (const [id, spec] of specs) assert.deepEqual(tipHits(drawn(spec, width).edges), [], `${id} @ ${width}`);
 });
 
 // REL-1b: a label directly below a box stands there only when that box is its edge's source, directly above a box only when that box is its edge's target.

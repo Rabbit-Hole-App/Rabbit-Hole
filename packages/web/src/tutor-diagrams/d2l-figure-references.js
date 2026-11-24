@@ -86,10 +86,10 @@ const classScores = ref('softmax-affine-class-scores', ['03'],
   'Draw each class using its own learned weights on the same feature vector. Distinguish the scores from the later softmax normalization.',
   depth => relation(brief(depth) ? 'The same clues feed different scores' : 'Each class has its own affine score',
     detailed(depth) ? 'Each score $z_j=w_j^T x+b_j$ has a different weight vector. Softmax normalizes all scores together.' :
-      'Each class has its own weights. Softmax turns all the scores into probabilities.',
+      'Every class reads the same inputs through different weights. The scores become probabilities together.',
     [['a', 'First input'], ['b', 'Second input'], ['x', 'Class A score'], ['y', 'Class B score']],
-    [['a', 'x', 'Applies a class-specific weight'], ['b', 'x', 'Applies a class-specific weight'],
-      ['a', 'y', 'Applies a class-specific weight'], ['b', 'y', 'Applies a class-specific weight']]));
+    [['a', 'x', 'Uses first class weight'], ['b', 'x', 'Uses second class weight'],
+      ['a', 'y', 'Uses a separate weight'], ['b', 'y', 'Uses another weight']]));
 
 const stableSoftmax = ref('softmax-shift-for-stability', ['03'],
   'Why subtract the maximum before calculating softmax?',
@@ -109,11 +109,11 @@ const hiddenLayer = ref('dense-hidden-layer-activations', ['01', '03', '10'],
   'Trace a dense hidden layer with separate weights on the same features. Identify the hidden nonlinearity and the later output combination.',
   depth => relation(brief(depth) ? 'Hidden units make new clues' : 'A hidden layer learns features',
     detailed(depth) ? String.raw`Each hidden unit computes $h_j=\phi(w_j^T x+b_j)$. The output combines the hidden activations.` :
-      'Each hidden unit uses its own weights, then applies an activation. The output combines both activations.',
+      'Each hidden unit combines the same inputs in its own way, then changes the result before passing it on.',
     [['x', 'First input'], ['y', 'Second input'], ['a', 'First hidden unit'], ['b', 'Second hidden unit'], ['out', 'Output score']],
-    [['x', 'a', 'Supplies weighted input'], ['y', 'a', 'Supplies weighted input'],
-      ['x', 'b', 'Supplies weighted input'], ['y', 'b', 'Supplies weighted input'],
-      ['a', 'out', 'Passes activation'], ['b', 'out', 'Passes activation']]));
+    [['x', 'a', 'Supplies weighted input'], ['y', 'a', 'Supplies another weighted input'],
+      ['x', 'b', 'Supplies a new weighted input'], ['y', 'b', 'Supplies its other weighted input'],
+      ['a', 'out', 'Passes first activation'], ['b', 'out', 'Passes second activation']]));
 
 const relu = ref('rectifier-activation-shape', ['02', '03'],
   'What happens to positive and negative inputs in a ReLU activation?',
@@ -165,11 +165,11 @@ const objective = ref('regularized-forward-graph', ['02', '10'],
   ['forward computation graph for a regularized neural network loss', 'labels and weight penalties enter the training objective'],
   'Show data and weights producing a prediction, prediction and target producing data loss, and the weights producing a separate penalty that joins only at the final objective.',
   depth => relation(brief(depth) ? 'The objective adds two costs' : 'Forward graph with a weight penalty',
-    detailed(depth) ? String.raw`The weights feed prediction and regularization. The objective is $J=L(\hat y,y)+\lambda R(w)$.` :
-      'Data loss compares prediction with target. A separate penalty charges for large weights. Add the two costs.',
-    [['x', 'Training inputs'], ['w', 'Model weights'], ['p', 'Prediction'], ['y', 'Target'], ['l', 'Data loss'], ['r', 'Weight penalty'], ['j', 'Objective']],
-    [['x', 'p', 'Used to predict'], ['w', 'p', 'Used to predict'], ['p', 'l', 'Input to a cost'],
-      ['y', 'l', 'Input to a cost'], ['w', 'r', 'Input to a cost'], ['l', 'j', 'Adds to objective'], ['r', 'j', 'Adds to objective']]));
+    detailed(depth) ? String.raw`The objective is $J=L(\hat y,y)+\lambda R(w)$. The penalty is a separate path from the learned weights.` :
+      'Compare the prediction with the target. Separately, charge a cost for large weights. Add the two costs.',
+    [['x', 'Training inputs'], ['w', 'Model weights'], ['p', 'Prediction'], ['y', 'Target'], ['l', 'Data loss'], ['r', 'Weight cost'], ['j', 'Objective']],
+    [['x', 'p', 'Provides model inputs'], ['w', 'p', 'Determines the prediction'], ['p', 'l', 'Provides the estimate'],
+      ['y', 'l', 'Supplies the target'], ['w', 'r', 'Sets the penalty'], ['l', 'j', 'Adds fitting error'], ['r', 'j', 'Adds weight cost']]));
 
 const dropoutMask = ref('inverted-dropout-mask', ['10', '12'],
   'What happens to each hidden unit under an inverted dropout mask?',

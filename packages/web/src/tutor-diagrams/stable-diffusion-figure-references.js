@@ -248,20 +248,19 @@ const residuals = reference('unet-timestep-and-skips', [],
   depth => ({
     kind: 'relationship', layout: 'graph',
     title: isBrief(depth) ? 'The noise predictor reuses features' : 'Timestep inputs and skip paths inside a U-Net',
-    caption: isDetailed(depth) ? 'The embedding of $t$ conditions both residual blocks. The skip reuses early features at the matching scale.' :
-      'Both blocks get the same noise level. The skip reuses early features at the matching scale.',
+    caption: isDetailed(depth) ? 'A timestep embedding of $t$ conditions residual stages. The skip reuses earlier features at the matching scale.' :
+      'Both stages get the noise level. The shortcut carries earlier details.',
     nodes: [
       { id: 'x', label: isBrief(depth) ? 'Noisy features' : 'Noisy latent' }, { id: 't', label: isBrief(depth) ? 'Noise level' : 'Timestep embedding' },
       { id: 'down', label: isBrief(depth) ? 'Early features' : 'Down residual block' },
-      { id: 'middle', label: isBrief(depth) ? 'Refined smaller map' : 'Bottleneck (refined smaller map)' },
+      { id: 'middle', label: isBrief(depth) ? 'Smaller map' : 'Bottleneck' },
       { id: 'up', label: isBrief(depth) ? 'Later features' : 'Up residual block' },
       { id: 'output', label: 'Noise estimate' },
     ],
     edges: [
-      ['x', 'down', 'Passes features'],
-      ['t', 'down', 'Conditions on noise level'], ['t', 'up', 'Conditions on noise level'],
-      ['down', 'middle', 'Passes features'], ['middle', 'up', 'Passes features'],
-      ['down', 'up', 'Skips with early features'], ['up', 'output', 'Predicts noise'],
+      ['x', 'down', 'Supplies features'], ['t', 'down', 'Sets noise level'], ['t', 'up', 'Sets the same level'],
+      ['down', 'middle', 'Compresses features'], ['middle', 'up', 'Sends refined features'],
+      ['down', 'up', 'Reuses early details'], ['up', 'output', 'Predicts noise'],
     ].map(([from, to, label]) => ({ from, to, label })),
   }));
 
