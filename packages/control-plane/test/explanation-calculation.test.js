@@ -63,15 +63,29 @@ test('the mean baseline: a * input path, and the placeholder in a label of an an
   assert.equal(spec.diagram.annotations[0].label, 'Mean prediction of 4');
 });
 
-test('a "none" reference: the diagram is untouched and only the checks run', () => {
+test('a "none" reference: the diagram is untouched and only the "?" and {{v:}} checks run', () => {
   const body = `Eighty of a hundred positives are found.\n\n${fence(confusion.spec)}\n\nThe 20 missed are the highlighted cell.`;
   const result = apply(body, [confusion]);
   assert.equal(result.problem, null);
   assert.deepEqual(result.steps, []);
   assert.equal(result.block.body, body);
-  const bad = apply(`The model is right 0.70 of the time.\n\n${fence(confusion.spec)}`, [confusion]);
-  assert.match(bad.problem, /^explanation_bad_prose_number: /);
-  assert.equal(bad.block.body.includes('0.70'), true, 'a problem hands the block back as it was');
+});
+
+// Owner decision (b), 2026-11-24: the prose number check runs only when a function ran on the card (steps.length > 0). A reference that declares none prints counts nobody computed, so the rate a sentence derives from them is not checked.
+test('the prose number check runs only on a card a function ran on: a rate beside a confusion matrix is accepted, a number neither printed nor computed beside a softmax card is refused', () => {
+  const rate = 'The model is right 0.70 of the time and finds 80% of the positives.';
+  const none = apply(`${rate}\n\n${fence(confusion.spec)}`, [confusion]);
+  assert.equal(none.problem, null, 'no function ran on a confusion-matrix card: the prose is not checked for numbers');
+  assert.deepEqual(none.steps, []);
+  assert.equal(none.block.body.includes('0.70'), true, 'the prose is as written');
+  const caption = apply(fence({ ...confusion.spec, diagram: { ...confusion.spec.diagram, caption: 'Right 0.70 of the time.' } }), [confusion]);
+  assert.equal(caption.problem, null, 'nor is the caption');
+  const refused = apply(`Input A puts 0.70 on Cat.\n\n${fence(softmaxCard())}`, [softmax]);
+  assert.equal(refused.steps.length, 1, 'a function ran on the card');
+  assert.match(refused.problem, /^explanation_bad_prose_number: the text writes 0\.70, which the picture does not print/);
+  const ran = apply(`Input A puts 0.39 on Cat.\n\n${fence(softmaxCard())}`, [softmax]);
+  assert.equal(ran.problem, null);
+  assert.equal(ran.steps.length, 1, 'a function ran on the card, and the prose it wrote is printed');
 });
 
 test('a block with no declared reference comes back untouched (the same object), with no steps and no problem', () => {

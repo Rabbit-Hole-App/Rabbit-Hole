@@ -4,7 +4,7 @@
 //   2. gets its results overwritten with the function's results (each checked against its limits),
 //   3. has every {{v:name}} placeholder of every text field filled with the number of the variable.
 // For every declared reference (a function or none) the card is then checked:
-//   4. the prose of the body, and the caption of every diagram, may write a number with a decimal point or a percent sign only if the picture prints it (explanation_bad_prose_number),
+//   4. only on a card a function ran on (a reference that declares none is not checked for this): the prose of the body, and the caption of every diagram, may write a number with a decimal point or a percent sign only if the picture prints it (explanation_bad_prose_number),
 //   5. no text field of a diagram may still hold a "?" that stands for a number (explanation_bad_placeholder),
 //   and {{v:name}} in the prose is filled from the calculated diagram's numbers.
 // A problem is a card problem: it is thrown by the caller and goes to the one repair there is. The archive records what the step did on each card.
@@ -113,14 +113,16 @@ export function applyCalculations(block, references) {
     const left = unfilledNumbers(diagram);
     if (left.length) return { block, steps, problem: `explanation_bad_placeholder: the diagram still has a "?" where a number belongs (${left.slice(0, 3).join(', ')}); write the number, or {{v:name}} for one of the variables` };
   }
-  // A number of the prose or of a caption that the picture does not print.
-  // The numbers the card prints: its pictures' own, and the results the function computed (they reach the card as drawn numbers or through {{v:name}} in a title, a caption, a label or a sentence). An input is not one.
-  const printed = new Set(diagrams.flatMap(diagram => [...printedNumbers(diagram)]));
-  for (const step of steps) for (const value of Object.values(step.results)) for (const item of (Array.isArray(value) ? value : [value])) if (typeof item === 'number') printed.add(item);
-  const unprinted = [];
-  for (const md of bodies) if (typeof md === 'string') walkFences(md, () => null, line => { unprinted.push(...unprintedNumbers(line, printed)); return line; });
-  for (const diagram of diagrams) if (typeof diagram.caption === 'string') unprinted.push(...unprintedNumbers(diagram.caption, printed));
-  if (unprinted.length) return { block, steps, problem: `explanation_bad_prose_number: the text writes ${[...new Set(unprinted)].slice(0, 4).join(', ')}, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number` };
+  // A number of the prose or of a caption that the picture does not print: only on a card a function ran on (owner decision (b), 2026-11-24); a reference that declares none is not checked for this.
+  if (steps.length) {
+    // The numbers the card prints: its pictures' own, and the results the function computed (they reach the card as drawn numbers or through {{v:name}} in a title, a caption, a label or a sentence). An input is not one.
+    const printed = new Set(diagrams.flatMap(diagram => [...printedNumbers(diagram)]));
+    for (const step of steps) for (const value of Object.values(step.results)) for (const item of (Array.isArray(value) ? value : [value])) if (typeof item === 'number') printed.add(item);
+    const unprinted = [];
+    for (const md of bodies) if (typeof md === 'string') walkFences(md, () => null, line => { unprinted.push(...unprintedNumbers(line, printed)); return line; });
+    for (const diagram of diagrams) if (typeof diagram.caption === 'string') unprinted.push(...unprintedNumbers(diagram.caption, printed));
+    if (unprinted.length) return { block, steps, problem: `explanation_bad_prose_number: the text writes ${[...new Set(unprinted)].slice(0, 4).join(', ')}, which the picture does not print; write only numbers the picture prints (or {{v:name}} for a number of the variables), and never a starting number` };
+  }
 
   const more = (block.more || []).map((section, index) => (typeof section?.text === 'string' ? { ...section, text: bodies[index + 1] } : section));
   return { block: { ...block, body: typeof block.body === 'string' ? bodies[0] : block.body, ...(block.more ? { more } : {}) }, steps, problem: null };
