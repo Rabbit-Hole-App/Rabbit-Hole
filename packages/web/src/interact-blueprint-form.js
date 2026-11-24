@@ -10,8 +10,8 @@ const kindOf = value => (value === null ? 'null' : Array.isArray(value) ? 'a lis
 
 // The options a discriminator may take, by where it stands (a part's type, a control's type, a claim's type, an output's kind).
 const choicesAt = full => { const last = full.at(-1), list = full.at(-3) === undefined ? null : full[full.length - 3]; if (last === 'type' && full.includes('parts')) return BUILT.parts; if (last === 'type' && full[0] === 'inputs') return BUILT.inputs; if (last === 'type' && full[0] === 'claims') return BUILT.claims; if (last === 'kind' && full.includes('outputs')) return BUILT.outputs; return null; };
-// zod issues -> problems. A union that fails reports the branch with the fewest problems (the one the value was closest to).
-function issuesToProblems(root, issues, prefix = []) {
+// zod issues -> problems. A union that fails reports the branch with the fewest problems (the one the value was closest to). Exported for the live job's Plan check (control-plane interact-blueprint-design.js): the same sentences as check 1.
+export function issuesToProblems(root, issues, prefix = []) {
   const out = [];
   for (const issue of issues) {
     const full = [...prefix, ...issue.path], path = pathText(full), value = valueAt(root, full);

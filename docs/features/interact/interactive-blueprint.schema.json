@@ -629,7 +629,7 @@
       "additionalProperties": false,
       "properties": {
         "statement": {"type": "string", "minLength": 1, "maxLength": 300},
-        "formula": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 40}, {"type": "null"}]},
+        "formula": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 200}, {"type": "null"}]},
         "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 120}, "minItems": 1, "maxItems": 3}
       },
       "required": ["statement", "formula", "assumptions"]

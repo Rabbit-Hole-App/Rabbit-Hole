@@ -300,7 +300,7 @@
           "minItems": 0,
           "maxItems": 4
         },
-        "formula": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 40}, {"type": "null"}]},
+        "formula": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 200}, {"type": "null"}]},
         "explanation": {
           "type": "object",
           "additionalProperties": false,

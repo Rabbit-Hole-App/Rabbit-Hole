@@ -5,10 +5,10 @@
 // No subject appears anywhere in this file.
 import { z } from 'zod';
 
-// Every limit of section 4 in one table (the prompt file schema.js is tested against it). A text limit is only ever lowered, never raised, without the owner (section 4.12).
+// Every limit of section 4 in one table (the prompt file schema.js is tested against it). A text limit is only ever lowered, never raised, without the owner (section 4.12). Owner, 2026-11-24: formula 40 to 200, the engine's own limit for a formula run (explain-program/contract.js CONTRACT_LIMITS.text); a formula is not limited by the card's boxes, the card makes room for it. The two reference schemas follow.
 export const LIMITS = Object.freeze({
   id: 32,
-  statement: 300, formula: 40, assumptions: [1, 3], assumption: 120,
+  statement: 300, formula: 200, assumptions: [1, 3], assumption: 120,
   quantities: [2, 10], quantityLabel: 24, quantityUnit: 16, meaning: 120,
   things: [1, 4], thingLabel: 16,
   inputs: [1, 3], inputLabel: 24, inputUnit: 16, options: [2, 8], optionLabel: 24, optionValue: 32, items: [2, 12], itemLabel: 24,

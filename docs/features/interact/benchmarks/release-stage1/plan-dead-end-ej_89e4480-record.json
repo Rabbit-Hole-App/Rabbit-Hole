@@ -1,0 +1,207 @@
+{
+  "event": "interact_blueprint",
+  "jobId": "ej_89e4480162a445d4b52446f4c55e2eea",
+  "record": {
+    "kind": "blueprint",
+    "version": 1,
+    "jobId": "ej_89e4480162a445d4b52446f4c55e2eea",
+    "prompt": "how does a decision tree works?",
+    "depth": "detailed",
+    "seed": 3128540856,
+    "model": "gemini-4-hydrogen",
+    "effort": "high",
+    "quantities": {
+      "raw": "{\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples on feature thresholds (x <= t) that separate classes. At each node, it chooses the threshold minimizing weighted Gini impurity so child branches become as pure as possible.\",\n    \"formula\": \"G_w = \\\\frac{n_L}{N}G_L + \\\\frac{n_R}{N}G_R\",\n    \"assumptions\": [\n      \"Each decision node evaluates a single axis-aligned threshold x <= t.\",\n      \"The dataset contains a fixed number of samples across two classes.\",\n      \"Impurity is measured with binary Gini impurity G = 1 - pA^2 - pB^2.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Cutoff value on feature x sending samples left (x <= t) or right (x > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between the two class centers along feature x.\"\n    },\n    {\n      \"id\": \"spread\",\n      \"label\": \"Feature spread\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Within-class scatter of samples around each class center.\"\n    },\n    {\n      \"id\": \"sample_count\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed total number of labeled samples evaluated at the root node.\"\n    },\n    {\n      \"id\": \"parent_gini\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the combined dataset before splitting.\"\n    },\n    {\n      \"id\": \"left_gini\",\n      \"label\": \"Left branch Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples routed to the left child (x <= t).\"\n    },\n    {\n      \"id\": \"right_gini\",\n      \"label\": \"Right branch Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples routed to the right child (x > t).\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted split Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average Gini impurity across both child branches.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity reduction\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Decrease in Gini impurity achieved by splitting at threshold t.\"\n    },\n    {\n      \"id\": \"accuracy\",\n      \"label\": \"Split accuracy\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Percentage of samples correctly classified by leaf majority votes.\"\n    }\n  ]\n}"
+    },
+    "dice": {
+      "controlQuantities": [
+        "threshold",
+        "separation",
+        "spread"
+      ],
+      "n": 3,
+      "k": 1,
+      "ids": [
+        "separation"
+      ]
+    },
+    "settled": {
+      "relationship": {
+        "statement": "A decision tree classifies data by recursively splitting samples on feature thresholds (x <= t) that separate classes. At each node, it chooses the threshold minimizing weighted Gini impurity so child branches become as pure as possible.",
+        "formula": "G_w = \\frac{n_L}{N}G_L + \\frac{n_R}{N}G_R",
+        "assumptions": [
+          "Each decision node evaluates a single axis-aligned threshold x <= t.",
+          "The dataset contains a fixed number of samples across two classes.",
+          "Impurity is measured with binary Gini impurity G = 1 - pA^2 - pB^2."
+        ]
+      },
+      "quantities": [
+        {
+          "id": "threshold",
+          "label": "Split threshold t",
+          "unit": "",
+          "role": "fixed",
+          "meaning": "Cutoff value on feature x sending samples left (x <= t) or right (x > t)."
+        },
+        {
+          "id": "separation",
+          "label": "Class separation",
+          "unit": "",
+          "role": "control",
+          "meaning": "Distance between the two class centers along feature x."
+        },
+        {
+          "id": "spread",
+          "label": "Feature spread",
+          "unit": "",
+          "role": "fixed",
+          "meaning": "Within-class scatter of samples around each class center."
+        },
+        {
+          "id": "sample_count",
+          "label": "Total samples N",
+          "unit": "pts",
+          "role": "fixed",
+          "meaning": "Fixed total number of labeled samples evaluated at the root node."
+        },
+        {
+          "id": "parent_gini",
+          "label": "Parent Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Gini impurity of the combined dataset before splitting."
+        },
+        {
+          "id": "left_gini",
+          "label": "Left branch Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Gini impurity of samples routed to the left child (x <= t)."
+        },
+        {
+          "id": "right_gini",
+          "label": "Right branch Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Gini impurity of samples routed to the right child (x > t)."
+        },
+        {
+          "id": "weighted_gini",
+          "label": "Weighted split Gini",
+          "unit": "",
+          "role": "result",
+          "meaning": "Sample-weighted average Gini impurity across both child branches."
+        },
+        {
+          "id": "gini_gain",
+          "label": "Impurity reduction",
+          "unit": "",
+          "role": "result",
+          "meaning": "Decrease in Gini impurity achieved by splitting at threshold t."
+        },
+        {
+          "id": "accuracy",
+          "label": "Split accuracy",
+          "unit": "%",
+          "role": "result",
+          "meaning": "Percentage of samples correctly classified by leaf majority votes."
+        }
+      ]
+    },
+    "blueprint": {
+      "first": {
+        "raw": "{\n  \"version\": 1,\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples on feature thresholds (x <= t) that separate classes. At each node, it chooses the threshold minimizing weighted Gini impurity so child branches become as pure as possible.\",\n    \"formula\": \"G_w = \\\\frac{n_L}{N}G_L + \\\\frac{n_R}{N}G_R\",\n    \"assumptions\": [\n      \"Each decision node evaluates a single axis-aligned threshold x <= t.\",\n      \"The dataset contains a fixed number of samples across two classes.\",\n      \"Impurity is measured with binary Gini impurity G = 1 - pA^2 - pB^2.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Cutoff value on feature x sending samples left (x <= t) or right (x > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between the two class centers along feature x.\"\n    },\n    {\n      \"id\": \"spread\",\n      \"label\": \"Feature spread\",\n      \"unit\": \"\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Within-class scatter of samples around each class center.\"\n    },\n    {\n      \"id\": \"sample_count\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed total number of labeled samples evaluated at the root node.\"\n    },\n    {\n      \"id\": \"parent_gini\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the combined dataset before splitting.\"\n    },\n    {\n      \"id\": \"left_gini\",\n      \"label\": \"Left branch Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples routed to the left child (x <= t).\"\n    },\n    {\n      \"id\": \"right_gini\",\n      \"label\": \"Right branch Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples routed to the right child (x > t).\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted split Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average Gini impurity across both child branches.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity reduction\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Decrease in Gini impurity achieved by splitting at threshold t.\"\n    },\n    {\n      \"id\": \"accuracy\",\n      \"label\": \"Split accuracy\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Percentage of samples correctly classified by leaf majority votes.\"\n    }\n  ],\n  \"things\": [\n    {\n      \"id\": \"tree\",\n      \"label\": \"Decision Split\"\n    },\n    {\n      \"id\": \"left\",\n      \"label\": \"Left Leaf\"\n    },\n    {\n      \"id\": \"classA\",\n      \"label\": \"Class A\"\n    },\n    {\n      \"id\": \"classB\",\n      \"label\": \"Class B\"\n    }\n  ],\n  \"inputs\": [\n    {\n      \"type\": \"number\",\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"min\": 0,\n      \"max\": 3.6,\n      \"default\": 1,\n      \"step\": 0.1\n    }\n  ],\n  \"time\": {\n    \"mode\": \"continuous\",\n    \"duration\": 6,\n    \"label\": \"Routing time\",\n    \"unit\": \"s\"\n  },\n  \"math\": {\n    \"code\": \"function compute(inputs, t) { var s = inputs.separation; var thresh = 0.3; var spread = 1.5; var nEach = 50; var N = 100; function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); } var fA = clamp((thresh - (-s / 2 - spread)) / (2 * spread), 0, 1); var fB = clamp((thresh - (s / 2 - spread)) / (2 * spread), 0, 1); var nAL = nEach * fA; var nBL = nEach * fB; var nAR = nEach - nAL; var nBR = nEach - nBL; var nL = nAL + nBL; var nR = nAR + nBR; var parent_gini = 1 - Math.pow(nEach / N, 2) - Math.pow(nEach / N, 2); var left_gini = nL > 0 ? 1 - Math.pow(nAL / nL, 2) - Math.pow(nBL / nL, 2) : 0; var right_gini = nR > 0 ? 1 - Math.pow(nAR / nR, 2) - Math.pow(nBR / nR, 2) : 0; var weighted_gini = (nL / N) * left_gini + (nR / N) * right_gini; var gini_gain = parent_gini - weighted_gini; var correctL = nAL > nBL ? nAL : nBL; var correctR = nAR > nBR ? nAR : nBR; var accuracy = 100 * (correctL + correctR) / N; function route(x0, y0, dx, dy) { var leafX = x0 <= thresh ? -1.8 + dx : 1.8 + dx; var leafY = 1.0 + dy; if (t <= 1.0) { return [x0, y0]; } else if (t <= 2.5) { var u1 = (t - 1.0) / 1.5; var e1 = u1 * u1 * (3 - 2 * u1); return [x0 + (0 - x0) * e1, y0 + (3.8 - y0) * e1]; } else if (t <= 4.5) { var u2 = (t - 2.5) / 2.0; var e2 = u2 * u2 * (3 - 2 * u2); return [0 + (leafX - 0) * e2, 3.8 + (leafY - 3.8) * e2]; } else { return [leafX, leafY]; } } var pA1 = route(-s / 2 - 0.9, 5.45, -0.3, 0.15); var pA2 = route(-s / 2 + 0.9, 5.45, -0.1, -0.15); var pB1 = route(s / 2 - 0.9, 4.95, 0.1, 0.15); var pB2 = route(s / 2 + 0.9, 4.95, 0.3, -0.15); return { parent_gini: parent_gini, left_gini: left_gini, right_gini: right_gini, weighted_gini: weighted_gini, gini_gain: gini_gain, accuracy: accuracy, a1x: pA1[0], a1y: pA1[1], a2x: pA2[0], a2y: pA2[1], b1x: pB1[0], b1y: pB1[1], b2x: pB2[0], b2y: pB2[1], is_pure: weighted_gini <= 0.01, is_mixed: weighted_gini >= 0.45 }; }\",\n    \"outputs\": [\n      {\n        \"id\": \"parent_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the combined dataset before splitting.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"left_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of samples routed to the left child (x <= t).\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"right_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of samples routed to the right child (x > t).\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"weighted_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Sample-weighted average Gini impurity across both child branches.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_gain\",\n        \"unit\": \"\",\n        \"meaning\": \"Decrease in Gini impurity achieved by splitting at threshold t.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"accuracy\",\n        \"unit\": \"%\",\n        \"meaning\": \"Percentage of samples correctly classified by leaf majority votes.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a1x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the outer Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a1y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the outer Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a2x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the inner Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a2y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the inner Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b1x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the inner Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b1y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the inner Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b2x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the outer Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b2y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the outer Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"is_pure\",\n        \"unit\": \"\",\n        \"meaning\": \"True when weighted Gini impurity drops near zero.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_mixed\",\n        \"unit\": \"\",\n        \"meaning\": \"True when classes overlap heavily and leaves remain mixed.\",\n        \"kind\": \"flag\"\n      }\n    ]\n  },\n  \"pictures\": {\n    \"main\": {\n      \"type\": \"parts\",\n      \"unit\": \"units\",\n      \"parts\": [\n        {\n          \"type\": \"line\",\n          \"id\": \"axis\",\n          \"from\": [-3, 5.2],\n          \"to\": [3, 5.2]\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"thresh_line\",\n          \"from\": [0.3, 4.5],\n          \"to\": [0.3, 5.8],\n          \"of\": \"tree\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"root_node\",\n          \"at\": [0, 3.8],\n          \"size\": \"medium\",\n          \"of\": \"tree\"\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"thresh_label\",\n          \"near\": \"thresh_line\",\n          \"text\": \"Threshold: x <= 0.3\",\n          \"of\": \"tree\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"left_branch\",\n          \"from\": [0, 3.8],\n          \"to\": [-1.8, 1],\n          \"of\": \"left\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"right_branch\",\n          \"from\": [0, 3.8],\n          \"to\": [1.8, 1]\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"left_label\",\n          \"near\": \"left_branch\",\n          \"text\": \"Left leaf (x <= 0.3)\",\n          \"of\": \"left\"\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"right_label\",\n          \"near\": \"right_branch\",\n          \"text\": \"Right leaf (x > 0.3)\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_A1\",\n          \"at\": [\"a1x\", \"a1y\"],\n          \"size\": \"medium\",\n          \"of\": \"classA\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_A2\",\n          \"at\": [\"a2x\", \"a2y\"],\n          \"size\": \"medium\",\n          \"of\": \"classA\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_B1\",\n          \"at\": [\"b1x\", \"b1y\"],\n          \"size\": \"medium\",\n          \"of\": \"classB\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_B2\",\n          \"at\": [\"b2x\", \"b2y\"],\n          \"size\": \"medium\",\n          \"of\": \"classB\"\n        }\n      ]\n    },\n    \"panel\": {\n      \"type\": \"kind\",\n      \"kind\": \"coordinate-plot\",\n      \"title\": \"Gini Impurity vs Separation\",\n      \"x\": {\n        \"over\": \"separation\",\n        \"label\": \"Class separation\",\n        \"unit\": \"\"\n      },\n      \"y\": {\n        \"label\": \"Gini impurity\",\n        \"unit\": \"\"\n      },\n      \"series\": [\n        {\n          \"value\": \"weighted_gini\",\n          \"label\": \"Weighted G\",\n          \"of\": \"tree\",\n          \"style\": \"line\"\n        },\n        {\n          \"value\": \"left_gini\",\n          \"label\": \"Left Gini\",\n          \"of\": \"left\",\n          \"style\": \"line\"\n        }\n      ]\n    }\n  },\n  \"values\": [\n    {\n      \"value\": \"weighted_gini\",\n      \"label\": \"Weighted G\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"tree\"\n    },\n    {\n      \"value\": \"gini_gain\",\n      \"label\": \"Gini Gain\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"tree\"\n    },\n    {\n      \"value\": \"left_gini\",\n      \"label\": \"Left Gini\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"left\"\n    },\n    {\n      \"value\": \"accuracy\",\n      \"label\": \"Accuracy\",\n      \"unit\": \"%\",\n      \"decimals\": 0,\n      \"of\": \"tree\"\n    }\n  ],\n  \"explanation\": {\n    \"always\": [\n      \"Rule splits samples at x <= 0.3.\",\n      \"G_w weights leaves by sample share.\"\n    ],\n    \"cases\": [\n      {\n        \"when\": \"is_pure\",\n        \"text\": \"Pure leaves: zero Gini impurity.\"\n      },\n      {\n        \"when\": \"is_mixed\",\n        \"text\": \"Heavy overlap: leaves stay mixed.\"\n      }\n    ],\n    \"otherwise\": \"Partial split: Gini drops with gap.\"\n  },\n  \"layout\": {\n    \"pictureCount\": \"two\",\n    \"runs\": \"top-to-bottom\",\n    \"panelRole\": \"equal\"\n  },\n  \"claims\": [\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"parent_gini\",\n      \"when\": \"separation\"\n    },\n    {\n      \"type\": \"decreases\",\n      \"value\": \"weighted_gini\",\n      \"with\": \"separation\"\n    },\n    {\n      \"type\": \"increases\",\n      \"value\": \"gini_gain\",\n      \"with\": \"separation\"\n    },\n    {\n      \"type\": \"increases\",\n      \"value\": \"accuracy\",\n      \"with\": \"separation\"\n    }\n  ],\n  \"lesson\": {\n    \"title\": \"How Does a Decision Tree Split Data?\",\n    \"description\": \"Samples from two classes enter a root node that tests whether x is at most 0.3. Adjust class separation to watch leaf purity and Gini impurity change.\",\n    \"instructions\": \"Drag Class separation to move the two classes apart along feature x. Scrub or play Routing time to follow samples from the feature axis through the split threshold into the left and right leaves, and compare Weighted G and Left Gini on the plot.\",\n    \"goal\": \"A decision tree routes samples down branches using feature thresholds so that the sample-weighted Gini impurity of the resulting child leaves is minimized.\"\n  }\n}"
+      },
+      "corrected": {
+        "raw": "{\n  \"version\": 1,\n  \"relationship\": {\n    \"statement\": \"A decision tree classifies data by recursively splitting samples on feature thresholds (x <= t) that separate classes. At each node, it chooses the threshold minimizing weighted Gini impurity so child branches become as pure as possible.\",\n    \"formula\": \"G_w=\\\\frac{n_L}{N}G_L+\\\\frac{n_R}{N}G_R\",\n    \"assumptions\": [\n      \"Each decision node evaluates a single axis-aligned threshold x <= t.\",\n      \"The dataset contains a fixed number of samples across two classes.\",\n      \"Impurity is measured with binary Gini impurity G = 1 - pA^2 - pB^2.\"\n    ]\n  },\n  \"quantities\": [\n    {\n      \"id\": \"threshold\",\n      \"label\": \"Split threshold t\",\n      \"unit\": \"\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Cutoff value on feature x sending samples left (x <= t) or right (x > t).\"\n    },\n    {\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"role\": \"control\",\n      \"meaning\": \"Distance between the two class centers along feature x.\"\n    },\n    {\n      \"id\": \"spread\",\n      \"label\": \"Feature spread\",\n      \"unit\": \"\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Within-class scatter of samples around each class center.\"\n    },\n    {\n      \"id\": \"sample_count\",\n      \"label\": \"Total samples N\",\n      \"unit\": \"pts\",\n      \"role\": \"fixed\",\n      \"meaning\": \"Fixed total number of labeled samples evaluated at the root node.\"\n    },\n    {\n      \"id\": \"parent_gini\",\n      \"label\": \"Parent Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of the combined dataset before splitting.\"\n    },\n    {\n      \"id\": \"left_gini\",\n      \"label\": \"Left branch Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples routed to the left child (x <= t).\"\n    },\n    {\n      \"id\": \"right_gini\",\n      \"label\": \"Right branch Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Gini impurity of samples routed to the right child (x > t).\"\n    },\n    {\n      \"id\": \"weighted_gini\",\n      \"label\": \"Weighted split Gini\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Sample-weighted average Gini impurity across both child branches.\"\n    },\n    {\n      \"id\": \"gini_gain\",\n      \"label\": \"Impurity reduction\",\n      \"unit\": \"\",\n      \"role\": \"result\",\n      \"meaning\": \"Decrease in Gini impurity achieved by splitting at threshold t.\"\n    },\n    {\n      \"id\": \"accuracy\",\n      \"label\": \"Split accuracy\",\n      \"unit\": \"%\",\n      \"role\": \"result\",\n      \"meaning\": \"Percentage of samples correctly classified by leaf majority votes.\"\n    }\n  ],\n  \"things\": [\n    {\n      \"id\": \"tree\",\n      \"label\": \"Decision Split\"\n    },\n    {\n      \"id\": \"left\",\n      \"label\": \"Left Leaf\"\n    },\n    {\n      \"id\": \"classA\",\n      \"label\": \"Class A\"\n    },\n    {\n      \"id\": \"classB\",\n      \"label\": \"Class B\"\n    }\n  ],\n  \"inputs\": [\n    {\n      \"type\": \"number\",\n      \"id\": \"separation\",\n      \"label\": \"Class separation\",\n      \"unit\": \"\",\n      \"min\": 0,\n      \"max\": 3.6,\n      \"default\": 1,\n      \"step\": 0.1\n    }\n  ],\n  \"time\": {\n    \"mode\": \"continuous\",\n    \"duration\": 6,\n    \"label\": \"Routing time\",\n    \"unit\": \"s\"\n  },\n  \"math\": {\n    \"code\": \"function compute(inputs, t) { var s = inputs.separation; var thresh = 0.3; var spread = 1.5; var nEach = 50; var N = 100; function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); } var fA = clamp((thresh - (-s / 2 - spread)) / (2 * spread), 0, 1); var fB = clamp((thresh - (s / 2 - spread)) / (2 * spread), 0, 1); var nAL = nEach * fA; var nBL = nEach * fB; var nAR = nEach - nAL; var nBR = nEach - nBL; var nL = nAL + nBL; var nR = nAR + nBR; var parent_gini = 1 - Math.pow(nEach / N, 2) - Math.pow(nEach / N, 2); var left_gini = nL > 0 ? 1 - Math.pow(nAL / nL, 2) - Math.pow(nBL / nL, 2) : 0; var right_gini = nR > 0 ? 1 - Math.pow(nAR / nR, 2) - Math.pow(nBR / nR, 2) : 0; var weighted_gini = (nL / N) * left_gini + (nR / N) * right_gini; var gini_gain = parent_gini - weighted_gini; var correctL = nAL > nBL ? nAL : nBL; var correctR = nAR > nBR ? nAR : nBR; var accuracy = 100 * (correctL + correctR) / N; function route(x0, y0, dx, dy) { var leafX = x0 <= thresh ? -1.8 + dx : 1.8 + dx; var leafY = 1.0 + dy; if (t <= 1.0) { return [x0, y0]; } else if (t <= 2.5) { var u1 = (t - 1.0) / 1.5; var e1 = u1 * u1 * (3 - 2 * u1); return [x0 + (0 - x0) * e1, y0 + (3.8 - y0) * e1]; } else if (t <= 4.5) { var u2 = (t - 2.5) / 2.0; var e2 = u2 * u2 * (3 - 2 * u2); return [0 + (leafX - 0) * e2, 3.8 + (leafY - 3.8) * e2]; } else { return [leafX, leafY]; } } var pA1 = route(-s / 2 - 0.9, 5.45, -0.3, 0.15); var pA2 = route(-s / 2 + 0.9, 5.45, -0.1, -0.15); var pB1 = route(s / 2 - 0.9, 4.95, 0.1, 0.15); var pB2 = route(s / 2 + 0.9, 4.95, 0.3, -0.15); return { parent_gini: parent_gini, left_gini: left_gini, right_gini: right_gini, weighted_gini: weighted_gini, gini_gain: gini_gain, accuracy: accuracy, a1x: pA1[0], a1y: pA1[1], a2x: pA2[0], a2y: pA2[1], b1x: pB1[0], b1y: pB1[1], b2x: pB2[0], b2y: pB2[1], is_pure: weighted_gini <= 0.01, is_mixed: weighted_gini >= 0.45 }; }\",\n    \"outputs\": [\n      {\n        \"id\": \"parent_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of the combined dataset before splitting.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"left_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of samples routed to the left child (x <= t).\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"right_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Gini impurity of samples routed to the right child (x > t).\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"weighted_gini\",\n        \"unit\": \"\",\n        \"meaning\": \"Sample-weighted average Gini impurity across both child branches.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"gini_gain\",\n        \"unit\": \"\",\n        \"meaning\": \"Decrease in Gini impurity achieved by splitting at threshold t.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"accuracy\",\n        \"unit\": \"%\",\n        \"meaning\": \"Percentage of samples correctly classified by leaf majority votes.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a1x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the outer Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a1y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the outer Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a2x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the inner Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"a2y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the inner Class A sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b1x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the inner Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b1y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the inner Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b2x\",\n        \"unit\": \"units\",\n        \"meaning\": \"Horizontal position of the outer Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"b2y\",\n        \"unit\": \"units\",\n        \"meaning\": \"Vertical position of the outer Class B sample.\",\n        \"kind\": \"number\"\n      },\n      {\n        \"id\": \"is_pure\",\n        \"unit\": \"\",\n        \"meaning\": \"True when weighted Gini impurity drops near zero.\",\n        \"kind\": \"flag\"\n      },\n      {\n        \"id\": \"is_mixed\",\n        \"unit\": \"\",\n        \"meaning\": \"True when classes overlap heavily and leaves remain mixed.\",\n        \"kind\": \"flag\"\n      }\n    ]\n  },\n  \"pictures\": {\n    \"main\": {\n      \"type\": \"parts\",\n      \"unit\": \"units\",\n      \"parts\": [\n        {\n          \"type\": \"line\",\n          \"id\": \"axis\",\n          \"from\": [-3, 5.2],\n          \"to\": [3, 5.2]\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"thresh_line\",\n          \"from\": [0.3, 4.5],\n          \"to\": [0.3, 5.8],\n          \"of\": \"tree\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"root_node\",\n          \"at\": [0, 3.8],\n          \"size\": \"medium\",\n          \"of\": \"tree\"\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"thresh_label\",\n          \"near\": \"thresh_line\",\n          \"text\": \"Threshold: x <= 0.3\",\n          \"of\": \"tree\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"left_branch\",\n          \"from\": [0, 3.8],\n          \"to\": [-1.8, 1],\n          \"of\": \"left\"\n        },\n        {\n          \"type\": \"line\",\n          \"id\": \"right_branch\",\n          \"from\": [0, 3.8],\n          \"to\": [1.8, 1]\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"left_label\",\n          \"near\": \"left_branch\",\n          \"text\": \"Left leaf (x <= 0.3)\",\n          \"of\": \"left\"\n        },\n        {\n          \"type\": \"label\",\n          \"id\": \"right_label\",\n          \"near\": \"right_branch\",\n          \"text\": \"Right leaf (x > 0.3)\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_A1\",\n          \"at\": [\"a1x\", \"a1y\"],\n          \"size\": \"medium\",\n          \"of\": \"classA\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_A2\",\n          \"at\": [\"a2x\", \"a2y\"],\n          \"size\": \"medium\",\n          \"of\": \"classA\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_B1\",\n          \"at\": [\"b1x\", \"b1y\"],\n          \"size\": \"medium\",\n          \"of\": \"classB\"\n        },\n        {\n          \"type\": \"dot\",\n          \"id\": \"dot_B2\",\n          \"at\": [\"b2x\", \"b2y\"],\n          \"size\": \"medium\",\n          \"of\": \"classB\"\n        }\n      ]\n    },\n    \"panel\": {\n      \"type\": \"kind\",\n      \"kind\": \"coordinate-plot\",\n      \"title\": \"Gini Impurity vs Separation\",\n      \"x\": {\n        \"over\": \"separation\",\n        \"label\": \"Class separation\",\n        \"unit\": \"\"\n      },\n      \"y\": {\n        \"label\": \"Gini impurity\",\n        \"unit\": \"\"\n      },\n      \"series\": [\n        {\n          \"value\": \"weighted_gini\",\n          \"label\": \"Weighted G\",\n          \"of\": \"tree\",\n          \"style\": \"line\"\n        },\n        {\n          \"value\": \"left_gini\",\n          \"label\": \"Left Gini\",\n          \"of\": \"left\",\n          \"style\": \"line\"\n        }\n      ]\n    }\n  },\n  \"values\": [\n    {\n      \"value\": \"weighted_gini\",\n      \"label\": \"Weighted G\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"tree\"\n    },\n    {\n      \"value\": \"gini_gain\",\n      \"label\": \"Gini Gain\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"tree\"\n    },\n    {\n      \"value\": \"left_gini\",\n      \"label\": \"Left Gini\",\n      \"unit\": \"\",\n      \"decimals\": 2,\n      \"of\": \"left\"\n    },\n    {\n      \"value\": \"accuracy\",\n      \"label\": \"Accuracy\",\n      \"unit\": \"%\",\n      \"decimals\": 0,\n      \"of\": \"tree\"\n    }\n  ],\n  \"explanation\": {\n    \"always\": [\n      \"Rule splits samples at x <= 0.3.\",\n      \"G_w weights leaves by sample share.\"\n    ],\n    \"cases\": [\n      {\n        \"when\": \"is_pure\",\n        \"text\": \"Pure leaves: zero Gini impurity.\"\n      },\n      {\n        \"when\": \"is_mixed\",\n        \"text\": \"Heavy overlap: leaves stay mixed.\"\n      }\n    ],\n    \"otherwise\": \"Partial split: Gini drops with gap.\"\n  },\n  \"layout\": {\n    \"pictureCount\": \"two\",\n    \"runs\": \"top-to-bottom\",\n    \"panelRole\": \"equal\"\n  },\n  \"claims\": [\n    {\n      \"type\": \"unchanged\",\n      \"value\": \"parent_gini\",\n      \"when\": \"separation\"\n    },\n    {\n      \"type\": \"decreases\",\n      \"value\": \"weighted_gini\",\n      \"with\": \"separation\"\n    },\n    {\n      \"type\": \"increases\",\n      \"value\": \"gini_gain\",\n      \"with\": \"separation\"\n    },\n    {\n      \"type\": \"increases\",\n      \"value\": \"accuracy\",\n      \"with\": \"separation\"\n    }\n  ],\n  \"lesson\": {\n    \"title\": \"How Does a Decision Tree Split Data?\",\n    \"description\": \"Samples from two classes enter a root node that tests whether x is at most 0.3. Adjust class separation to watch leaf purity and Gini impurity change.\",\n    \"instructions\": \"Drag Class separation to move the two classes apart along feature x. Scrub or play Routing time to follow samples from the feature axis through the split threshold into the left and right leaves, and compare Weighted G and Left Gini on the plot.\",\n    \"goal\": \"A decision tree routes samples down branches using feature thresholds so that the sample-weighted Gini impurity of the resulting child leaves is minimized.\"\n  }\n}"
+      },
+      "final": null
+    },
+    "checks": {
+      "first": {
+        "ok": false,
+        "failed": 1,
+        "problems": [
+          {
+            "code": "form",
+            "path": "relationship.formula",
+            "message": "`relationship.formula` is 41 characters; at most 40.",
+            "check": 1
+          }
+        ],
+        "notes": [],
+        "measured": null
+      },
+      "corrected": {
+        "ok": false,
+        "failed": 2,
+        "problems": [
+          {
+            "code": "names",
+            "path": "relationship",
+            "message": "`relationship` is not the one you were given; use it exactly as given.",
+            "check": 2
+          }
+        ],
+        "notes": [],
+        "measured": null
+      }
+    },
+    "passed": false,
+    "problems": [
+      "`relationship` is not the one you were given; use it exactly as given."
+    ],
+    "calls": [
+      {
+        "kind": "quantities",
+        "role": "blueprint_quantities",
+        "ok": true,
+        "adapterRefusal": "schema_mismatch: The structured result does not match its schema: $.relationship.formula: matches none of the alternatives; closest alternative: $.relationship.formula: longer than 40",
+        "seconds": 17.024,
+        "finish": "stop",
+        "served": "gemini-4-hydrogen",
+        "tokens": {
+          "input": 1229,
+          "thinking": 2808,
+          "output": 765,
+          "billed": 3573
+        },
+        "costUsd": 0.028641
+      },
+      {
+        "kind": "blueprint",
+        "role": "blueprint_design",
+        "ok": true,
+        "adapterRefusal": "schema_mismatch: The structured result does not match its schema: $.relationship.formula: matches none of the alternatives; closest alternative: $.relationship.formula: longer than 40",
+        "seconds": 136.902,
+        "finish": "stop",
+        "served": "gemini-4-hydrogen",
+        "tokens": {
+          "input": 10352,
+          "thinking": 27964,
+          "output": 4249,
+          "billed": 32213
+        },
+        "costUsd": 0.257126
+      },
+      {
+        "kind": "blueprint",
+        "role": "blueprint_design",
+        "ok": true,
+        "seconds": 18.385,
+        "finish": "complete",
+        "served": "gemini-4-hydrogen",
+        "tokens": {
+          "input": 14639,
+          "thinking": 582,
+          "output": 4249,
+          "billed": 4831
+        },
+        "costUsd": 0.058191
+      }
+    ],
+    "seconds": 172.326,
+    "costUsd": 0.343958
+  },
+  "final": null
+}

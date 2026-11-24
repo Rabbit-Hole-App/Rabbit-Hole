@@ -39,8 +39,8 @@ export const INTERACT_ROLES = deepFreeze({
   design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
   // The fast design path (INTERACT_DESIGN_KIND=fast, brief 12): ONE call that fills a plan brief (interact-design-fill.js), plus one correction. Gemini Flash Lite, never Opus; the profile's design_fill config is below.
   design_fill: { task: 'interact_design_fill', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 0, maxOutputTokens: 8000 },
-  // The interactive-blueprint design phase (brief 39, kind 'blueprint'): Gemini 4 Hydrogen at high. The quantities call, then the blueprint call and at most one correction. Nothing here reaches Build.
-  blueprint_quantities: { task: 'interact_blueprint_quantities', phase: 'preparation', kind: 'generation', calls: 1, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
+  // The interactive-blueprint design phase (brief 39, kind 'blueprint'): Gemini 4 Hydrogen at high. The quantities call and its one correction (an answer that breaks a limit of the form, 2026-11-24), then the blueprint call and at most one correction. Nothing here reaches Build.
+  blueprint_quantities: { task: 'interact_blueprint_quantities', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
   blueprint_design: { task: 'interact_blueprint_design', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 },
   blueprint_build: { task: 'interact_blueprint_build', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 48000 }, // brief 48: the Build model's call and its one repair
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },

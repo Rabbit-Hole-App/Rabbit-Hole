@@ -3,13 +3,14 @@
 //   all ten checks of interact-blueprint-check.js (brief 43, for the owner's measurement: this reverses brief 42's split, which ran 1 to 9 and left check 10 to Build), and at most one correction call with the problems of whichever check failed. The prompt files and the schema are MVP 1's, unchanged; nothing here knows the prompt.
 // The job stops after this phase and never enters Build. -> { blueprint: record, final }; `final` is the parsed blueprint that passed all ten checks (null when none did), saved by the job as its own JSON beside the record; the record is the run record: every answer exactly as returned (the message text, not parsed), the dice, the checker outputs, per call seconds, tokens and cost.
 // A call that fails before it can be answered is recorded with its reason and its problems; one that spent nothing (a refused admission) is the job's, as in the fast path.
-import { providerSchema, quantitiesProviderSchema } from '../../web/src/interact-blueprint.js';
+import { providerSchema, quantitiesProviderSchema, quantitiesSchema as quantitiesForm } from '../../web/src/interact-blueprint.js';
+import { issuesToProblems } from '../../web/src/interact-blueprint-form.js';
 import { checkBlueprint } from '../../web/src/interact-blueprint-check.js';
 import { seededRandom } from '../../web/src/tutor-diagrams/random.js';
 import { withoutBounds } from './explanation-fast-chain.js';
 import { InteractModelError } from './interact-model-adapters.js';
 import { priceUsage } from './pricing-registry.js';
-import { blueprintPrompt, correctionMessage, quantitiesMessage, quantitiesPrompt, seededMessage } from './agents/interactive-blueprint/index.js';
+import { blueprintPrompt, correctionMessage, quantitiesCorrectionMessage, quantitiesMessage, quantitiesPrompt, seededMessage } from './agents/interactive-blueprint/index.js';
 
 export const BLUEPRINT_RECORD_VERSION = 1;
 const MODEL = 'gemini-4-hydrogen', EFFORT = 'high';
@@ -62,14 +63,38 @@ async function checked(answer, settled) {
   try { return await checkBlueprint(answer, { seeded: settled }); } catch (e) { return { ok: false, failed: 0, problems: [{ check: 0, path: '', message: `the checker could not run: ${String(e?.message ?? e).slice(0, 300)}` }], measured: null, checkerError: true }; }
 }
 
+// The first call's answer is the part of the blueprint the Design call must copy exactly (check 2), so a limit it breaks can never be fixed later: check 1 would want it shorter and check 2 unchanged (job ej_89e4480162a445d4b52446f4c55e2eea: a 41 character formula,
+// limit 40; 137 s and $0.26 of Design for nothing). It is tested here against the same form and in the same sentences as check 1 (the adapter's own refusal is not relied on). -> { ok, problems }
+// No rule on what a formula draws (owner, 2026-11-24: a formula is not limited by the card's boxes, the card makes room for it): its limit is the form's, 200 characters, the engine's own.
+export function planCheck(output) {
+  const parsed = quantitiesForm.safeParse(output);
+  return parsed.success ? { ok: true, problems: [] } : { ok: false, problems: issuesToProblems(output, parsed.error.issues).map(problem => problem.message) };
+}
+// Every given string is trimmed before the check and before settle, so Design is given (and copies) the trimmed text. A formula with a trailing space is measured as plain text by textWidth (T = 2\pi\sqrt{L/g} is 99 px, with a trailing space 183 px), so Build would be told a wrong width.
+// The record keeps the answer exactly as returned (quantities.raw); the settled relationship and quantities are the trimmed ones.
+export const trimGiven = value => (typeof value === 'string' ? value.trim() : Array.isArray(value) ? value.map(trimGiven) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, trimGiven(entry)])) : value);
+
 export async function blueprintDesign(job, ctx) {
   const depth = job.depth, seed = job.flow.seed, began = Date.now(), calls = [];
-  const record = { kind: 'blueprint', version: BLUEPRINT_RECORD_VERSION, jobId: job.id, prompt: job.prompt, depth, seed, model: MODEL, effort: EFFORT, quantities: null, dice: null, settled: null, blueprint: { first: null, corrected: null, final: null }, checks: { first: null, corrected: null }, passed: false, problems: [], calls, seconds: 0, costUsd: 0 };
+  const record = { kind: 'blueprint', version: BLUEPRINT_RECORD_VERSION, jobId: job.id, prompt: job.prompt, depth, seed, model: MODEL, effort: EFFORT, quantities: null, dice: null, settled: null, planChecks: null, blueprint: { first: null, corrected: null, final: null }, checks: { first: null, corrected: null }, passed: false, problems: [], calls, seconds: 0, costUsd: 0 };
   const end = (problems, final = null) => { record.problems = problems; record.seconds = Math.round(Date.now() - began) / 1000; record.costUsd = calls.reduce((t, c) => t + (c.costUsd ?? 0), 0); return { blueprint: record, final }; };
 
-  const q = await callOnce(ctx, 'blueprint_quantities', 'quantities', { system: quantitiesPrompt(depth), schema: quantitiesSchema(), input: quantitiesMessage(job.prompt, depth) });
-  calls.push(q.call); record.quantities = { raw: q.raw };
-  if (!q.output || !Array.isArray(q.output.quantities) || !q.output.relationship) return end([`the quantities answer was not usable: ${q.error?.message ?? 'it has no relationship or no quantities'}`]);
+  // The first call, and its one correction when the answer breaks a limit of the form (only when the provider answered). quantities.raw is the answer that was used; first and corrected are kept as blueprint.first and blueprint.corrected are; planChecks as checks are.
+  const firstPlan = quantitiesMessage(job.prompt, depth), askPlan = async input => { const answer = await callOnce(ctx, 'blueprint_quantities', 'quantities', { system: quantitiesPrompt(depth), schema: quantitiesSchema(), input }); if (answer.output) answer.output = trimGiven(answer.output); return answer; };
+  const usable = answer => answer.output && Array.isArray(answer.output.quantities) && answer.output.relationship, unusable = (answer, which) => [`the ${which}quantities answer was not usable: ${answer.error?.message ?? 'it has no relationship or no quantities'}`];
+  let q = await askPlan(firstPlan);
+  calls.push(q.call); record.quantities = { raw: q.raw, first: { raw: q.raw }, corrected: null, final: 'first' }; record.planChecks = { first: null, corrected: null };
+  if (!usable(q)) return end(unusable(q, ''));
+  record.planChecks.first = planCheck(q.output);
+  if (!record.planChecks.first.ok) {
+    if (q.raw === null) return end(record.planChecks.first.problems);
+    const fixed = await askPlan(quantitiesCorrectionMessage(firstPlan, q.raw, record.planChecks.first.problems)); calls.push(fixed.call);
+    record.quantities.corrected = { raw: fixed.raw }; record.quantities.raw = fixed.raw;
+    if (!usable(fixed)) return end(unusable(fixed, 'corrected '));
+    record.planChecks.corrected = planCheck(fixed.output);
+    if (!record.planChecks.corrected.ok) return end(record.planChecks.corrected.problems); // no Design call on an answer it cannot copy
+    q = fixed; record.quantities.final = 'corrected';
+  }
   const ids = q.output.quantities.filter(entry => entry.role === 'control').map(entry => entry.id);
   if (!ids.length) { record.dice = { controlQuantities: ids, n: 0, skipped: 'the model marked no quantity as a control' }; return end(['the model marked no quantity as a control, so there is nothing to roll']); }
   record.dice = rollDice(ids, seed); record.settled = settle(q.output, record.dice.ids);

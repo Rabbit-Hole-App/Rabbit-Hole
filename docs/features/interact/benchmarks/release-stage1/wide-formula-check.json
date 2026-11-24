@@ -1,0 +1,133 @@
+{
+  "card": "docs/features/interact/benchmarks/build-mvp3/run-2 (pendulum, layout side-by-side)",
+  "formulas": {
+    "paper": "\\mathrm{Attention}(Q,K,V)=\\mathrm{softmax}\\left(\\frac{QK^{T}}{\\sqrt{d_k}}\\right)V",
+    "short": "\\mathrm{softmax}\\left(\\frac{QK^{T}}{\\sqrt{d_k}}\\right)V"
+  },
+  "rows": [
+    {
+      "formula": "own",
+      "chars": 20,
+      "drawnPx": 99,
+      "arrangement": "rows",
+      "layout": "side-by-side",
+      "written": true,
+      "validate": "ok",
+      "frames": "9 of 9",
+      "firstSentence": null,
+      "error": null,
+      "bytes": 14671,
+      "dropped": {
+        "labels": 0,
+        "arrows": 0
+      },
+      "failing": []
+    },
+    {
+      "formula": "own",
+      "chars": 20,
+      "drawnPx": 99,
+      "arrangement": "columns",
+      "layout": "side-by-side",
+      "written": true,
+      "validate": "ok",
+      "frames": "9 of 9",
+      "firstSentence": null,
+      "error": null,
+      "bytes": 14675,
+      "dropped": {
+        "labels": 0,
+        "arrows": 0
+      },
+      "failing": []
+    },
+    {
+      "formula": "paper",
+      "chars": 81,
+      "drawnPx": 209.3,
+      "arrangement": "rows",
+      "layout": "side-by-side",
+      "written": true,
+      "validate": "ok",
+      "frames": "0 of 9",
+      "firstSentence": "Things overlap in the frame at the defaults, t = 0: {\"a\":\"formula\",\"b\":\"note\",\"kind\":\"text-box\",\"width\":71.8,\"height\":16.8}.",
+      "error": null,
+      "bytes": 14736,
+      "dropped": {
+        "labels": 0,
+        "arrows": 0
+      },
+      "failing": [
+        {
+          "setting": "the defaults",
+          "time": 0,
+          "sentence": "Things overlap in the frame at the defaults, t = 0: {\"a\":\"formula\",\"b\":\"note\",\"kind\":\"text-box\",\"width\":71.8,\"height\":16.8}."
+        },
+        {
+          "setting": "the defaults",
+          "time": 4,
+          "sentence": "Things overlap in the frame at the defaults, t = 4: {\"a\":\"formula\",\"b\":\"note\",\"kind\":\"text-box\",\"width\":71.8,\"height\":16.8}."
+        },
+        {
+          "setting": "the defaults",
+          "time": 8,
+          "sentence": "Things overlap in the frame at the defaults, t = 8: {\"a\":\"formula\",\"b\":\"note\",\"kind\":\"text-box\",\"width\":71.8,\"height\":16.8}."
+        }
+      ]
+    },
+    {
+      "formula": "paper",
+      "chars": 81,
+      "drawnPx": 209.3,
+      "arrangement": "columns",
+      "layout": "side-by-side",
+      "written": true,
+      "validate": "ok",
+      "frames": "9 of 9",
+      "firstSentence": null,
+      "error": null,
+      "bytes": 14740,
+      "dropped": {
+        "labels": 0,
+        "arrows": 0
+      },
+      "failing": []
+    },
+    {
+      "formula": "short",
+      "chars": 55,
+      "drawnPx": 87.2,
+      "arrangement": "rows",
+      "layout": "side-by-side",
+      "written": true,
+      "validate": "ok",
+      "frames": "9 of 9",
+      "firstSentence": null,
+      "error": null,
+      "bytes": 14709,
+      "dropped": {
+        "labels": 0,
+        "arrows": 0
+      },
+      "failing": []
+    },
+    {
+      "formula": "short",
+      "chars": 55,
+      "drawnPx": 87.2,
+      "arrangement": "columns",
+      "layout": "side-by-side",
+      "written": true,
+      "validate": "ok",
+      "frames": "9 of 9",
+      "firstSentence": null,
+      "error": null,
+      "bytes": 14713,
+      "dropped": {
+        "labels": 0,
+        "arrows": 0
+      },
+      "failing": []
+    }
+  ]
+}

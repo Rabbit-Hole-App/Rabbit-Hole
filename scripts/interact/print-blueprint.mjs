@@ -38,7 +38,9 @@ if (blueprint) {
   console.log(JSON.stringify(blueprint, null, 2));
 } else out('blueprint', finalRaw ? `not valid JSON; the answer as returned:\n${finalRaw}` : 'none (no blueprint call answered)');
 if (flag('full')) {
-  out('quantities answer (exactly as returned)', record.quantities?.raw ?? 'none');
+  out('quantities answer (exactly as returned)', record.quantities?.first?.raw ?? record.quantities?.raw ?? 'none');
+  if (record.quantities?.corrected) out('corrected quantities answer (exactly as returned; the one used: ' + record.quantities.final + ')', record.quantities.corrected.raw ?? 'none');
+  if (record.planChecks) { out('Plan check, first answer (the form and the formula width)', record.planChecks.first ?? 'none'); if (record.planChecks.corrected) out('Plan check, corrected answer', record.planChecks.corrected); }
   out('first blueprint answer (exactly as returned)', record.blueprint.first?.raw ?? 'none');
   out('corrected blueprint answer (exactly as returned)', record.blueprint.corrected?.raw ?? 'none');
   out('checker output, first answer', record.checks.first ?? 'none'); out('checker output, corrected answer', record.checks.corrected ?? 'none');
