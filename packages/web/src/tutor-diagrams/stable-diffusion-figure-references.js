@@ -258,9 +258,10 @@ const residuals = reference('unet-timestep-and-skips', [],
       { id: 'output', label: 'Noise estimate' },
     ],
     edges: [
-      ['down', 'up', 'Skips with early features'], ['x', 'down', 'Passes features'],
+      ['x', 'down', 'Passes features'],
       ['t', 'down', 'Conditions on noise level'], ['t', 'up', 'Conditions on noise level'],
-      ['down', 'middle', 'Passes features'], ['middle', 'up', 'Passes features'], ['up', 'output', 'Predicts noise'],
+      ['down', 'middle', 'Passes features'], ['middle', 'up', 'Passes features'],
+      ['down', 'up', 'Skips with early features'], ['up', 'output', 'Predicts noise'],
     ].map(([from, to, label]) => ({ from, to, label })),
   }));
 

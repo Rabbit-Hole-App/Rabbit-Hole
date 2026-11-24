@@ -7,7 +7,7 @@ const kids = element => [element?.props?.children].flat(Infinity).filter(child =
 const find = (element, test) => test(element) ? element : kids(element).map(child => find(child, test)).find(Boolean);
 const gaps = (a, b) => Math.hypot(Math.max(0, a.x1 - b.x2, b.x1 - a.x2), Math.max(0, a.y1 - b.y2, b.y1 - a.y2));
 
-// -> [{ id, index, segments: [{x1, y1, x2, y2}], label: { text, box } | null (a badge, or no label) }]
+// -> [{ id, index, points: [[x, y], ...] (the wire's vertices, the last one its arrow tip), segments: [{x1, y1, x2, y2}], label: { text, box } | null (a badge, or no label) }]
 export function relationshipGeometry(root, size = 13) {
   const out = [];
   const visit = element => {
@@ -24,9 +24,25 @@ export function relationshipGeometry(root, size = 13) {
       const left = text.props.textAnchor === 'end' ? x - w : x;
       label = { text: words, box: { x1: left, y1: y - h / 2, x2: left + w, y2: y + h / 2 } };
     }
-    out.push({ id, index: element.props['data-tutor-edge-index'], segments, label });
+    out.push({ id, index: element.props['data-tutor-edge-index'], points, segments, label });
   };
   visit(root);
+  return out;
+}
+
+// Arrow tips that another edge's vertical run passes behind (a skip wire that seems to enter the box an arrow points at). The tip is the last point of the wire; a vertical segment of ANOTHER edge hits it when the
+// segment spans the tip's y by more than 1 px on both sides and stands within 16 px of the tip's x. -> [{ tipEdge, edge, tip: [x, y], x, y1, y2 }]
+export function tipHits(edges, reach = 16) {
+  const out = [];
+  for (const tipEdge of edges) {
+    const tip = tipEdge.points.at(-1);
+    for (const edge of edges) {
+      if (edge === tipEdge) continue;
+      for (const { x1, y1, x2, y2 } of edge.segments) {
+        if (x1 === x2 && y1 < tip[1] - 1 && y2 > tip[1] + 1 && Math.abs(x1 - tip[0]) <= reach) out.push({ tipEdge: tipEdge.id, edge: edge.id, tip, x: x1, y1, y2 });
+      }
+    }
+  }
   return out;
 }
 

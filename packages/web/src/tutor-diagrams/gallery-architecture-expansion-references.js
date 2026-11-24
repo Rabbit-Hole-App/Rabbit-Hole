@@ -359,9 +359,9 @@ export const references = [
       ['early', 'First attention read'], ['late', 'Later attention read'],
     ],
     [
-      edge('early', 'late', 'Passes updated state'),
       edge('index', 'early', 'Limits the positions read'), edge('index', 'late', 'Limits the positions read'),
       edge('cache', 'early', 'Supplies key and value rows'), edge('cache', 'late', 'Supplies key and value rows'),
+      edge('early', 'late', 'Passes updated state'),
     ],
     detailed(depth) ? 'The two reads reuse the same records. Different queries give ' +
       math(vector(share.weights[0].map(value => Number(value.toFixed(2))))) + ' and ' +
