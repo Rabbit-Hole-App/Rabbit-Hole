@@ -1,6 +1,6 @@
 # /explain sprint status
 
-Written by the lead session at 2026-11-24 11:40 PT from what the session did and verified. The last release event it knows is release 168 live (2026-11-21); anything after that is not here. Every line gives its branch and SHA so it can be checked on the remote. Nothing below is merged or released unless it says so.
+Written by the lead session at 2026-11-24 11:40 PT from what the session did and verified; updated 13:17 PT after the reviewer's ruling on release 170 (release 169 retired, see below). The last release event it knows is release 168 live (2026-11-21); anything after that is not here. Every line gives its branch and SHA so it can be checked on the remote. Nothing below is merged or released unless it says so.
 
 Main on the remote: **d0addb74afb03cbc3cf82b01a5afc812e2bf5e6e** (release 168).
 
@@ -11,17 +11,19 @@ Main on the remote: **d0addb74afb03cbc3cf82b01a5afc812e2bf5e6e** (release 168).
 | 167 | BOX-1 (box plot numbers from code) and CRED-1 | feat/release-167 aee3dba82 (live 2026-11-19, 04:05 PM PT) | checks/release-167/REPORT.md |
 | 168 | Renderer: REL-1, REL-1b, STACK-C, LBL-2, SAMP-3, MAT-F, STK-1, UNIT-2, STACK-T | feat/release-168 d0addb74a (= main); production run 44937330719 (as told by the reviewer); recovery/renderer-168 165cb4f49 | checks/release-168/REPORT.md |
 
-## Waiting for the owner's GO
+## Waiting for the owner's GO: release 170 (prepared, not run)
 
 | What | Branch / SHA | Notes |
 |---|---|---|
-| Release 169, content only: arrow labels of nine relationship reference families rewritten so none has more than three note lines (Codex b5b40d7dd, cherry-picked) | feat/release-169 0e6a1475b; recovery/rel-content-169 7f9bff651 (tree = main's) | Preview OK (clone rabbit-hole-web-dev-r169-int, build caa7e9fb6eed, record 8caed3c6850e26ea). Launcher `C:\s\spec\release-queue\release-169-rel-content.cmd`, not run; pins/launcher frozen. Report checks/release-169/REPORT.md (5916eedbc); hash and replay scripts and outputs added in the commit after it. Not measured: bundle size (the dry run is refused). Open, from the reviewer: two arrow crossings introduced by 169 are fixed by release 170 (below). |
+| Release 170, content only: restore main's edge order in the U-Net and shared key/value cards so the skip wires no longer cross other arrows' heads (reviewer's measure: main 2 hits, 169 32, 170 2) | feat/release-170 b29b6bdd7 (a child of feat/release-169: two commits ahead of main); recovery/rel-crossings-170 4863d875c (tree = main's) | Every number of the reviewer's table matches; preview OK (clone rabbit-hole-web-dev-r170-int, build caa7e9fb6eed, record ffe9faca08740ff5); web suite 7659, 0 fail. Launcher `C:\s\spec\release-queue\release-170-rel-crossings.cmd`, not run. Report checks/release-170/REPORT.md (7e98118e3). Known cost: at a 408 request the U-Net draws 564 px and shared key/value 540 px (408 in 169). **Release order (reviewer's ruling): release 170 alone; the 169-first order is not prepared and the 170 pins, launcher and recovery branch stay as they are.** The token budgets were remeasured with the repo's own counter (no generator exists; it reproduces all 713 committed entries on main, 169 and 170). |
 
-## Also waiting for the owner's GO: release 170 (prepared, not run)
+The owner runs the launcher himself; this session does not. After he says it has run, the next step is a read-only receipt (checks/release-170/RECEIPT.md).
+
+## Superseded by 170: release 169 (do not run its launcher)
 
 | What | Branch / SHA | Notes |
 |---|---|---|
-| Release 170, content only: restore main's edge order in the U-Net and shared key/value cards so the skip wires no longer cross other arrows' heads (reviewer's measure: main 2 hits, 169 32, 170 2) | feat/release-170 b29b6bdd7 (a child of feat/release-169: two commits ahead of main); recovery/rel-crossings-170 4863d875c (tree = main's) | Every number of the reviewer's table matches; preview OK (clone rabbit-hole-web-dev-r170-int, build caa7e9fb6eed, record ffe9faca08740ff5); web suite 7659, 0 fail. Launcher `C:\s\spec\release-queue\release-170-rel-crossings.cmd`, not run. Report checks/release-170/REPORT.md (7e98118e3). Known cost: at a 408 request the U-Net draws 564 px and shared key/value 540 px (408 in 169). **Release order is the owner's decision:** 170 before 169 fast-forwards main by both commits (169's launcher then stops); 169 first needs MAIN_PREV changed in the 170 pins and a re-cut recovery branch. The token budgets were remeasured with the repo's own counter (no generator exists; it reproduces all 713 committed entries on main, 169 and 170). |
+| Release 169, content only: arrow labels of nine relationship reference families rewritten so none has more than three note lines (Codex b5b40d7dd, cherry-picked) | feat/release-169 0e6a1475b; recovery/rel-content-169 7f9bff651 (tree = main's) | Preview OK (clone rabbit-hole-web-dev-r169-int, build caa7e9fb6eed, record 8caed3c6850e26ea). Launcher `C:\s\spec\release-queue\release-169-rel-content.cmd` **must not be run** (not run; pins and launcher untouched). Report checks/release-169/REPORT.md (5916eedbc); hash and replay scripts and outputs added in the commit after it. Not measured: bundle size (the dry run is refused). Superseded by release 170: 0e6a1475b ships inside release 170 (feat/release-170 b29b6bdd7 is its child), together with the fix for the arrow crossings 169 introduced. If 170 is released first, main is no longer an ancestor of 169's SHA and its launcher would stop at the first check anyway. feat/release-169 and recovery/rel-content-169 are kept for now (not deleted); the recovery branch is to be removed after 170 is released. |
 
 ## Stopped: the same-JSON change set (the owner decides)
 
@@ -50,7 +52,7 @@ Main on the remote: **d0addb74afb03cbc3cf82b01a5afc812e2bf5e6e** (release 168).
 - Done: 17 merged or throwaway worktrees removed (rel1-base, kinds-fit-base, box1-166, box1-before, box1-e7d, box1-r2, r165-split-a, r157-int to r166-int); preview clones r167 and r168 deleted (rabbit-hole-web-dev-r167-int, -r168-int).
 - Kept on purpose: kinds-fit-pool (uncommitted change), box1-r2after and r165-split-b (commits on no remote branch).
 - Still present and removable when nothing in them is unpushed: r167-int, r168-int (both released), r169-int and r170-int (until their releases), stk-lane, rel1-fix, rel1, samp3, matf (renderer pieces, all in 168), same-json-ab, -mvp2, -mvp3, -mvp4, same-json-full, fe-push (the evidence pushes go through it). Worktree node_modules entries are junctions to C:/s/teaching-palette/node_modules: remove only with `cmd //c "rmdir <path>"`, never recursively.
-- Preview clone rabbit-hole-web-dev-r169-int stays until 169 is released.
+- Preview clones rabbit-hole-web-dev-r169-int and -r170-int stay until release 170 is released and its receipt is pushed; then they are deleted (with r168-int if still there). The 169 release is not made on its own, so nothing waits on it.
 
 ## Standing rules this status rests on
 
