@@ -1,0 +1,21 @@
+{
+ "references": 492,
+ "prompts": 742,
+ "requestsPerPrompt": 4,
+ "identical": 740,
+ "differInDeclared": 2,
+ "differInUndeclared": [],
+ "declared": [
+  "ml-stable-diffusion-unet-timestep-and-skips",
+  "figure-gallery-shared-kv-and-index"
+ ],
+ "changedRequestIds": [
+  "ml-stable-diffusion-unet-timestep-and-skips",
+  "figure-gallery-shared-kv-and-index"
+ ],
+ "addedRefs": [],
+ "removedRefs": [],
+ "specChangedButRequestSame": [],
+ "undeclaredPrompts": 740,
+ "undeclaredIdentical": 740
+}

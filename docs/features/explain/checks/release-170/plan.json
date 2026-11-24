@@ -1,0 +1,45 @@
+[
+ {
+  "cwd": "packages/web",
+  "args": [
+   "--test",
+   "src/browse-contrast.test.mjs",
+   "src/inline-ai-annotation.test.mjs",
+   "src/no-sparkles.test.mjs",
+   "src/notebook-hosts.test.mjs",
+   "src/session-display.test.mjs",
+   "src/tutor-diagrams/d2l-figure-references.test.mjs",
+   "src/tutor-diagrams/ml-batch3-topology.test.mjs",
+   "src/tutor-diagrams/ml-topology.test.mjs",
+   "src/tutor-diagrams/relationship-graph.test.mjs"
+  ],
+  "ran": [
+   "packages/web/src/browse-contrast.test.mjs",
+   "packages/web/src/inline-ai-annotation.test.mjs",
+   "packages/web/src/no-sparkles.test.mjs",
+   "packages/web/src/notebook-hosts.test.mjs",
+   "packages/web/src/session-display.test.mjs",
+   "packages/web/src/tutor-diagrams/d2l-figure-references.test.mjs",
+   "packages/web/src/tutor-diagrams/ml-batch3-topology.test.mjs",
+   "packages/web/src/tutor-diagrams/ml-topology.test.mjs",
+   "packages/web/src/tutor-diagrams/relationship-graph.test.mjs"
+  ],
+  "uncovered": [
+   "packages/web/src/tutor-diagrams/figure-chapter-token-budgets.json",
+   "packages/web/src/tutor-diagrams/gallery-architecture-expansion-references.js",
+   "packages/web/src/tutor-diagrams/stable-diffusion-figure-references.js",
+   "packages/web/src/tutor-diagrams/svg-snapshots.json"
+  ]
+ },
+ {
+  "cwd": "packages/control-plane",
+  "args": [
+   "--test",
+   "test/credits-only-ui.test.js"
+  ],
+  "ran": [
+   "packages/control-plane/test/credits-only-ui.test.js"
+  ],
+  "uncovered": []
+ }
+]

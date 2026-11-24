@@ -1,0 +1,498 @@
+{
+ "measure": "tip = last point of the wire; HIT = vertical segment of another edge with ymin < tipY-1 and ymax > tipY+1 and |x-tipX| <= 16 (every hit is at 14.0 px, so < 16 gives the same counts); 57 relationship specs x [408, 720] px = 114 renders per tree",
+ "helper": "tipHits in packages/web/src/tutor-diagrams/test-relationship-geometry.mjs of feat/release-170 (b29b6bdd7), copied into the main and rel169 extracts; trees are git archive of rabbit-hole/main (d0addb74a), rabbit-hole/feat/release-169 (0e6a1475b) and feat/release-170 (b29b6bdd7)",
+ "counts": {
+  "main": {
+   "hits": 2,
+   "rendersWithHits": 2,
+   "specs": 57,
+   "renders": 114
+  },
+  "release169": {
+   "hits": 32,
+   "rendersWithHits": 14,
+   "specs": 57,
+   "renders": 114
+  },
+  "branch170": {
+   "hits": 2,
+   "rendersWithHits": 2,
+   "specs": 57,
+   "renders": 114
+  }
+ },
+ "main": [
+  {
+   "id": "ml-feedback-graph",
+   "width": 408,
+   "tipEdge": "training:model",
+   "edge": "users:model",
+   "tip": [
+    97,
+    49.333333
+   ],
+   "x": 83,
+   "y1": 30.666667,
+   "y2": 144
+  },
+  {
+   "id": "ml-feedback-graph",
+   "width": 720,
+   "tipEdge": "training:model",
+   "edge": "users:model",
+   "tip": [
+    253,
+    49.333333
+   ],
+   "x": 239,
+   "y1": 30.666667,
+   "y2": 144
+  }
+ ],
+ "release169": [
+  {
+   "id": "ml-feedback-graph",
+   "width": 408,
+   "tipEdge": "training:model",
+   "edge": "users:model",
+   "tip": [
+    97,
+    49.333333
+   ],
+   "x": 83,
+   "y1": 30.666667,
+   "y2": 144
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "width": 408,
+   "tipEdge": "x:down",
+   "edge": "down:up",
+   "tip": [
+    210,
+    242.4
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "width": 408,
+   "tipEdge": "t:down",
+   "edge": "down:up",
+   "tip": [
+    210,
+    253.6
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "width": 408,
+   "tipEdge": "down:middle",
+   "edge": "down:up",
+   "tip": [
+    210,
+    348.333333
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-brief",
+   "width": 408,
+   "tipEdge": "x:down",
+   "edge": "down:up",
+   "tip": [
+    210,
+    242.4
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 439.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-brief",
+   "width": 408,
+   "tipEdge": "t:down",
+   "edge": "down:up",
+   "tip": [
+    210,
+    253.6
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 439.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-brief",
+   "width": 408,
+   "tipEdge": "down:middle",
+   "edge": "down:up",
+   "tip": [
+    210,
+    342.666667
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 439.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-detailed",
+   "width": 408,
+   "tipEdge": "x:down",
+   "edge": "down:up",
+   "tip": [
+    210,
+    242.4
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-detailed",
+   "width": 408,
+   "tipEdge": "t:down",
+   "edge": "down:up",
+   "tip": [
+    210,
+    253.6
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-detailed",
+   "width": 408,
+   "tipEdge": "down:middle",
+   "edge": "down:up",
+   "tip": [
+    210,
+    348.333333
+   ],
+   "x": 224,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index",
+   "width": 408,
+   "tipEdge": "index:early",
+   "edge": "early:late",
+   "tip": [
+    234,
+    248
+   ],
+   "x": 248,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index",
+   "width": 408,
+   "tipEdge": "cache:early",
+   "edge": "early:late",
+   "tip": [
+    234,
+    262
+   ],
+   "x": 248,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-brief",
+   "width": 408,
+   "tipEdge": "index:early",
+   "edge": "early:late",
+   "tip": [
+    234,
+    248
+   ],
+   "x": 248,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-brief",
+   "width": 408,
+   "tipEdge": "cache:early",
+   "edge": "early:late",
+   "tip": [
+    234,
+    262
+   ],
+   "x": 248,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-detailed",
+   "width": 408,
+   "tipEdge": "index:early",
+   "edge": "early:late",
+   "tip": [
+    234,
+    248
+   ],
+   "x": 248,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-detailed",
+   "width": 408,
+   "tipEdge": "cache:early",
+   "edge": "early:late",
+   "tip": [
+    234,
+    262
+   ],
+   "x": 248,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "ml-feedback-graph",
+   "width": 720,
+   "tipEdge": "training:model",
+   "edge": "users:model",
+   "tip": [
+    253,
+    49.333333
+   ],
+   "x": 239,
+   "y1": 30.666667,
+   "y2": 144
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "width": 720,
+   "tipEdge": "x:down",
+   "edge": "down:up",
+   "tip": [
+    366,
+    242.4
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "width": 720,
+   "tipEdge": "t:down",
+   "edge": "down:up",
+   "tip": [
+    366,
+    253.6
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "width": 720,
+   "tipEdge": "down:middle",
+   "edge": "down:up",
+   "tip": [
+    366,
+    348.333333
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-brief",
+   "width": 720,
+   "tipEdge": "x:down",
+   "edge": "down:up",
+   "tip": [
+    366,
+    242.4
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 439.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-brief",
+   "width": 720,
+   "tipEdge": "t:down",
+   "edge": "down:up",
+   "tip": [
+    366,
+    253.6
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 439.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-brief",
+   "width": 720,
+   "tipEdge": "down:middle",
+   "edge": "down:up",
+   "tip": [
+    366,
+    342.666667
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 439.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-detailed",
+   "width": 720,
+   "tipEdge": "x:down",
+   "edge": "down:up",
+   "tip": [
+    366,
+    242.4
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-detailed",
+   "width": 720,
+   "tipEdge": "t:down",
+   "edge": "down:up",
+   "tip": [
+    366,
+    253.6
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "ml-stable-diffusion-unet-timestep-and-skips-detailed",
+   "width": 720,
+   "tipEdge": "down:middle",
+   "edge": "down:up",
+   "tip": [
+    366,
+    348.333333
+   ],
+   "x": 380,
+   "y1": 231.2,
+   "y2": 456.2
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index",
+   "width": 720,
+   "tipEdge": "index:early",
+   "edge": "early:late",
+   "tip": [
+    390,
+    248
+   ],
+   "x": 404,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index",
+   "width": 720,
+   "tipEdge": "cache:early",
+   "edge": "early:late",
+   "tip": [
+    390,
+    262
+   ],
+   "x": 404,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-brief",
+   "width": 720,
+   "tipEdge": "index:early",
+   "edge": "early:late",
+   "tip": [
+    390,
+    248
+   ],
+   "x": 404,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-brief",
+   "width": 720,
+   "tipEdge": "cache:early",
+   "edge": "early:late",
+   "tip": [
+    390,
+    262
+   ],
+   "x": 404,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-detailed",
+   "width": 720,
+   "tipEdge": "index:early",
+   "edge": "early:late",
+   "tip": [
+    390,
+    248
+   ],
+   "x": 404,
+   "y1": 234,
+   "y2": 338
+  },
+  {
+   "id": "figure-gallery-shared-kv-and-index-detailed",
+   "width": 720,
+   "tipEdge": "cache:early",
+   "edge": "early:late",
+   "tip": [
+    390,
+    262
+   ],
+   "x": 404,
+   "y1": 234,
+   "y2": 338
+  }
+ ],
+ "branch170": [
+  {
+   "id": "ml-feedback-graph",
+   "width": 408,
+   "tipEdge": "training:model",
+   "edge": "users:model",
+   "tip": [
+    97,
+    49.333333
+   ],
+   "x": 83,
+   "y1": 30.666667,
+   "y2": 144
+  },
+  {
+   "id": "ml-feedback-graph",
+   "width": 720,
+   "tipEdge": "training:model",
+   "edge": "users:model",
+   "tip": [
+    253,
+    49.333333
+   ],
+   "x": 239,
+   "y1": 30.666667,
+   "y2": 144
+  }
+ ]
+}

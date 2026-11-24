@@ -1,0 +1,1 @@
+{"specs":57,"renders":114,"count":2,"rendersWithHits":2,"hits":[{"id":"ml-feedback-graph","width":408,"tipEdge":"training:model","edge":"users:model","tip":[97,49.333333],"x":83,"y1":30.666667,"y2":144},{"id":"ml-feedback-graph","width":720,"tipEdge":"training:model","edge":"users:model","tip":[253,49.333333],"x":239,"y1":30.666667,"y2":144}]}
