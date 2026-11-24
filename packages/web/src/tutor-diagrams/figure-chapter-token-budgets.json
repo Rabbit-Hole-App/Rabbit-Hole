@@ -1541,20 +1541,20 @@
     "ml-stable-diffusion-unet-timestep-and-skips": {
       "overview": [
         {
-          "tokens": 205,
-          "sha256": "fc6f861ae296bdf40f4b012c20bce80c4377d050498a7d3f4a409807e1cc62f0"
+          "tokens": 212,
+          "sha256": "5d5c97cb5bd5a36d7e32393a0749265a1f08474968cbe7cebff83fc039493260"
         }
       ],
       "standard": [
         {
-          "tokens": 213,
-          "sha256": "834d26ec72373c6ac7ec755a1947d4caeffc598b4fac84b94b7b4e98a024803c"
+          "tokens": 225,
+          "sha256": "c0f9212cea30e8af2d6996f31bcf9d9aa8b378aa3ac2a59133ec90e74e57417f"
         }
       ],
       "deep": [
         {
-          "tokens": 222,
-          "sha256": "b507688a65a2cefd269e5ce701dab5bdb51a59e877f41dea8f04444999753d19"
+          "tokens": 228,
+          "sha256": "7a239c83015dd1c732d5799541757ba03dad98647b92735824899679cbacb83a"
         }
       ]
     },
@@ -1841,20 +1841,20 @@
     "d2l-softmax-affine-class-scores": {
       "overview": [
         {
-          "tokens": 147,
-          "sha256": "6a38e09f24b7cc546c01bfb9c44427e3afb6d0bfd02edd120619748b6c20376e"
+          "tokens": 156,
+          "sha256": "dfdca2720ae734530d4b87cb5539bb8e3f977855211c70e79236d82de50e8878"
         }
       ],
       "standard": [
         {
-          "tokens": 148,
-          "sha256": "c1088699ba5ae82d6d78b8a799aa2ee102d6e1dc9125af341f718df097f67066"
+          "tokens": 157,
+          "sha256": "3c3afce129b2aa46d384054734ab400b67c851f3c89219dafd0a9f1dddc8aa65"
         }
       ],
       "deep": [
         {
-          "tokens": 159,
-          "sha256": "8b268b272e34f2dbe26078ea415e2d522c5d9bb183d667513dac68116aeba083"
+          "tokens": 168,
+          "sha256": "7355d5e07926e68292524fdb800ffb317dd8290b019daec4c4c8865f00c0c52c"
         }
       ]
     },
@@ -1881,20 +1881,20 @@
     "d2l-dense-hidden-layer-activations": {
       "overview": [
         {
-          "tokens": 196,
-          "sha256": "eecf76cdcfe1a0b393bc230d447819eeea426fcb06393de41e9bed2242f5fa66"
+          "tokens": 187,
+          "sha256": "23a43c7ee334ed5423dad0b08ea8282f999f802a5bbcc6d128c64aef489fa54a"
         }
       ],
       "standard": [
         {
-          "tokens": 196,
-          "sha256": "d7ba1270aadbd4113e3e7f2370f7f1c1a4d1fdb8d66f3642ed9f81084418e2f8"
+          "tokens": 187,
+          "sha256": "00bea4675be21f55896e15d6fece9fd3bee67929527972bc5cbd06b184f6d3f7"
         }
       ],
       "deep": [
         {
-          "tokens": 201,
-          "sha256": "a4855d6fa644e3fab4342e73575092481a652668b19d9e07fb3a341855b6f120"
+          "tokens": 194,
+          "sha256": "ff2d045d7d7c3e45cfba1c149a37dbbb17a05dbc9a4b56246313ebff9f2f8f4d"
         }
       ]
     },
@@ -1981,20 +1981,20 @@
     "d2l-regularized-forward-graph": {
       "overview": [
         {
-          "tokens": 215,
-          "sha256": "dd6b1bd614d345865edae4eeb3c7471585fbfe36fdfe76ad8e069edf0a4425f2"
+          "tokens": 214,
+          "sha256": "32ee7722da871116f030ac3d8221e1cedae8fdd1d50e0694c395c238118671a3"
         }
       ],
       "standard": [
         {
-          "tokens": 216,
-          "sha256": "9f268b452612262355a222055cc3deaa431fb4b0129ea7aee5ac04a7e704238e"
+          "tokens": 215,
+          "sha256": "017c3546bd19db24ac385ebd44b0a54ffc466941f2c669058699520a1a22e9b3"
         }
       ],
       "deep": [
         {
-          "tokens": 223,
-          "sha256": "25d9d815189fcb7a2bd404bb22e7b1629f17a5b186c6a421a3f1de107960e4f7"
+          "tokens": 221,
+          "sha256": "bb7e7d4cf6f68c001b1ec9cf58b95762e137656978f43f407a8d79c2c8c31ffd"
         }
       ]
     },
@@ -4209,20 +4209,20 @@
     "figure-gallery-multistream-residual": {
       "overview": [
         {
-          "tokens": 224,
-          "sha256": "8015339818bb8877a3dedd15154b4fe71d74c289a7859a0c4c64a01ad8440ace"
+          "tokens": 254,
+          "sha256": "809938512c7c492c6228008ad4ee892d5e6e90c050f67cb75964ee1f3da2b1d2"
         }
       ],
       "standard": [
         {
-          "tokens": 227,
-          "sha256": "29c687720d82847c3aa9a9bba2c0be0ee89a662a4780700ee53358bdf742c757"
+          "tokens": 257,
+          "sha256": "061293c49f8f1635aac7f501f4fca415fa59801f9695c6b3dbea39600e4b3e32"
         }
       ],
       "deep": [
         {
-          "tokens": 241,
-          "sha256": "77d79264910b52ae164c1b8f1fc86ab1904876e622273839250880a456840c17"
+          "tokens": 271,
+          "sha256": "e3f9719a905325534a615ff3704c55453f6ab2c49efdebd972d55831105a3d76"
         },
         {
           "tokens": 104,
@@ -4274,19 +4274,19 @@
       "overview": [
         {
           "tokens": 194,
-          "sha256": "c6849afb2d9266c9ca16755a6fe0fa9e8e48f21532520adb6ed295a3172e79be"
+          "sha256": "f5937bbc1df68f6bf6a668d87b6163bccd9400df3b96cd127c0757459aa66067"
         }
       ],
       "standard": [
         {
           "tokens": 194,
-          "sha256": "ddd2c4b7897eec889674317ed9a7bc9c6d179db5cb928f4984b47aac1d528d7d"
+          "sha256": "2ace50c154503e430ab2ccd81e9c7289ac2c16e3384a439964d1c6ca78046b64"
         }
       ],
       "deep": [
         {
           "tokens": 197,
-          "sha256": "a894779d49e5562063e716c8478a2dc126f29fb6a0b50f8f90fc802c72c4cc5f"
+          "sha256": "703a25bff92a04daa982179b0b4d340f6193fe59fcec2729c7bef3090f7f6562"
         }
       ]
     },
@@ -4373,20 +4373,20 @@
     "figure-gallery-shared-kv-and-index": {
       "overview": [
         {
-          "tokens": 170,
-          "sha256": "6556e841c5a7b7d9fc161e1c509633f801dea684c9894f7c11ab71066a2e5027"
+          "tokens": 169,
+          "sha256": "9e1b820dee2a741a9eb05e4e45320844e626f413d82899c29859f267c6509132"
         }
       ],
       "standard": [
         {
-          "tokens": 172,
-          "sha256": "1a9c6a50df5fc882b15352ae6c954c026f11b20a7905c55186253c765269f188"
+          "tokens": 171,
+          "sha256": "c165f60952e9f00d890494b000357e974c4ade0c30f9c8d3e5218206d249e34f"
         }
       ],
       "deep": [
         {
-          "tokens": 197,
-          "sha256": "d8860af2f0bb41dd280269ecf1e9ea6e3297259b94b94cce77205b9c571f87af"
+          "tokens": 196,
+          "sha256": "8ccfeab20cfad36b517bde9b6291b7ee770454561454698d77d2390437a137cc"
         }
       ]
     },

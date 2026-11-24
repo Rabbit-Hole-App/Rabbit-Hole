@@ -295,6 +295,15 @@ test('signed stacks accumulate positive and negative values independently', () =
   assert.match(svg, /net -1/);
 });
 
+test('a stacked bar with no negative part reads "total", not a net of zero', () => {
+  const { svg } = render({ ...bars('stacked'), unit: 'pts', categories: ['First', 'Second'],
+    series: [{ label: 'A', values: [4, 1] }, { label: 'B', values: [3, 5] }, { label: 'C', values: [4, 2] }] });
+  const text = svg.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  assert.match(text, /total 11 pts/);
+  assert.match(text, /total 8 pts/);
+  assert.doesNotMatch(text, /net|\/ 0/);
+});
+
 test('stacked baselines stop before the value notes between categories', () => {
   const { svg } = render(bars('stacked'));
   const baselines = marks(svg, 'data-tutor-bar-baseline');

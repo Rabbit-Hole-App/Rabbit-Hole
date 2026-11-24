@@ -1,13 +1,14 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, longestWordWidth, textWidth, widestFormula, wrap, wrapShared } from './primitives.js';
+import { titleWithUnit } from './axis-title.js';
 import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
-import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
+import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, itemCount, sampleMemberships } from './ml-statistical-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
 const NOTE = 13, TICK = 15; // readouts and counts 13 px muted; tick labels 15 px / 500 muted (the coordinate plot's sizes)
 const scale = (min, max, start, end) => value => start + (value - min) / (max - min) * (end - start);
-const axisName = (label, unit) => unit ? `${label} (${unit})` : label;
+const axisName = titleWithUnit;
 const formulaWidth = (values, size) => Math.max(0, ...values.filter(Boolean).map(value => widestFormula(value, size)));
 
 function textBlock(elements, text, x, top, width, options = {}) {
@@ -44,8 +45,10 @@ function heatmap(d, requested, options) {
     let top = PAD;
     if (d.columnLabel) top = textBlock(elements, d.columnLabel, left, top, width - left - PAD, { weight: 700, ...(sizes?.heading ? { size: sizes.heading } : {}) }) + 8; // today the title is wrapped at 14 and drawn at the label default 15: kept when no size is asked
     const titleBlock = top - PAD;
-    const heads = d.columns.map(text => wrap(text, cellWidth - 14, body));
-    const rowHeading = d.rowLabel ? wrap(d.rowLabel, rowWidth - 16, body) : [];
+    // MAT-F: the column headings and the row label (the header row) share one size, and the row headings share one: the smallest any of them needs.
+    const [rowText, ...heads] = wrapShared([d.rowLabel ?? '', ...d.columns], [rowWidth - 16, ...d.columns.map(() => cellWidth - 14)], body);
+    const rowHeading = d.rowLabel ? rowText : [];
+    const rowTitles = wrapShared(d.rows.map(row => row.label), rowWidth - 16, body);
     const headHeight = Math.max(34, ...[...heads, rowHeading].map(lines => lines.length * lineHeight(body) + 12));
     if (d.rowLabel) elements.push(label(rowHeading, PAD + 6, top + headHeight / 2, { anchor: 'start', weight: 700, size: body }));
     d.columns.forEach((_, column) => {
@@ -57,7 +60,7 @@ function heatmap(d, requested, options) {
     const highlighted = new Set((d.highlights ?? []).map(cell => `${cell.row}:${cell.column}`));
     let rowsHeight = 0;
     d.rows.forEach((row, rowIndex) => {
-      const rowLines = wrap(row.label, rowWidth - 16, body);
+      const rowLines = rowTitles[rowIndex];
       const cellLines = row.cells.map(value => wrap(value === null ? 'Masked' : String(value), cellWidth - 12, body));
       const height = Math.max(44, rowLines.length * lineHeight(body) + 12, ...cellLines.map(lines => lines.length * lineHeight(body) + 12)) + rowExtra(rowIndex);
       elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700, size: body }));
@@ -158,7 +161,7 @@ function sampleSet(d, requested) {
   d.groups.forEach(group => {
     y += 10;
     y = textBlock(elements, group.label, PAD, y, width - PAD * 2, { weight: 700 }) + 4;
-    const count = group.outOfBagFor ? `${group.members.length} not drawn` : `${group.members.length} draws · ${new Set(group.members).size} unique${group.replacement ? ' · with replacement' : ''}`;
+    const count = group.outOfBagFor ? `${group.members.length} not drawn` : group.replacement ? `${group.members.length} draws · ${new Set(group.members).size} unique · with replacement` : itemCount(group);
     y = textBlock(elements, count, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
     if (group.outOfBagFor) y = textBlock(elements, `Out of bag for ${d.groups.find(source => source.id === group.outOfBagFor).label}`, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
     const memberships = sampleMemberships(group);
