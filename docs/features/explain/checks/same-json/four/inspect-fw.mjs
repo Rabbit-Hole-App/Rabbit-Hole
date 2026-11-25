@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const rows = fs.readFileSync('C:/s/same-json-run/four/results.jsonl', 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+const r = rows.find(x => x.idx === 76 && x.arm === 'after');
+console.log('keys with fireworks/raw:', Object.keys(r).filter(k => /raw|fire|events|ledger|provider/i.test(k)).join(' '));
+console.log('events', JSON.stringify(r.events).slice(0, 900));
+console.log('rawGoogle', JSON.stringify(r.rawGoogle)?.slice(0, 600));
+console.log('ledger', JSON.stringify(r.ledger)?.slice(0, 500));
+const l = rows.find(x => x.idx === 12 && x.arm === 'before');
+console.log('--- idx12 main lost: attempts', JSON.stringify(l.attempts).slice(0, 700));
+console.log('stepsRun', l.stepsRun, 'providerCalls', l.providerCalls, 'rawGoogle', JSON.stringify(l.rawGoogle)?.slice(0, 500));
+console.log('ledger', JSON.stringify(l.ledger)?.slice(0, 500));

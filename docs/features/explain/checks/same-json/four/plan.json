@@ -1,0 +1,864 @@
+{
+ "meta": {
+  "items": 83,
+  "runs": 158,
+  "estimateUsd": 0.6,
+  "stopLineUsd": 1
+ },
+ "items": [
+  {
+   "idx": 1,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 1,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 2,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 2,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 3,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 3,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 4,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 4,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 5,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 5,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 6,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 1,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 7,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 2,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 8,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 3,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 9,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 4,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 10,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 5,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 11,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 1,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 12,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 2,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 13,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 3,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 14,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 4,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 15,
+   "set": "four",
+   "tag": "top-k",
+   "refId": "ml-sampling-top-k",
+   "rep": 5,
+   "prompt": "Does top-k filtering affect the reported probability of the chosen token?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 16,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 1,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 17,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 2,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 18,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 3,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 19,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 4,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 20,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 5,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 21,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 1,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 22,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 2,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 23,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 3,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 24,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 4,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 25,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 5,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 26,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 1,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 27,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 2,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 28,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 3,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 29,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 4,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 30,
+   "set": "four",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 5,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 31,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 1,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 32,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 2,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 33,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 3,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 34,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 4,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 35,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 5,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 36,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 1,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 37,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 2,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 38,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 3,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 39,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 4,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 40,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 5,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 41,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 1,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 42,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 2,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 43,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 3,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 44,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 4,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 45,
+   "set": "four",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 5,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 46,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 1,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 47,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 2,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 48,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 3,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 49,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 4,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 50,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 5,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 51,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 1,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 52,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 2,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 53,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 3,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 54,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 4,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 55,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 5,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 56,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 1,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 57,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 2,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 58,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 3,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 59,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 4,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 60,
+   "set": "four",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 5,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 61,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 1,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 62,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 2,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 63,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 3,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 64,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 4,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 65,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 5,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "brief",
+   "profile": "google-low"
+  },
+  {
+   "idx": 66,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 1,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 67,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 2,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 68,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 3,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 69,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 4,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 70,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 5,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "google-low"
+  },
+  {
+   "idx": 71,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 1,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 72,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 2,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 73,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 3,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 74,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 4,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 75,
+   "set": "four",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 5,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "detailed",
+   "profile": "google-low"
+  },
+  {
+   "idx": 76,
+   "set": "fallback",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 1,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 77,
+   "set": "fallback",
+   "tag": "softmax-probabilities",
+   "refId": "softmax-probabilities",
+   "rep": 2,
+   "prompt": "How do softmax probabilities compare two multiclass predictions?",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 78,
+   "set": "fallback",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 1,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 79,
+   "set": "fallback",
+   "tag": "regression-mean-baseline",
+   "refId": "regression-mean-baseline",
+   "rep": 2,
+   "prompt": "What does predicting the mean give as a regression baseline?",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 80,
+   "set": "fallback",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 1,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 81,
+   "set": "fallback",
+   "tag": "confusion-matrix-counts",
+   "refId": "confusion-matrix-counts",
+   "rep": 2,
+   "prompt": "Explain a confusion matrix with exact counts.",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 82,
+   "set": "fallback",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 1,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  },
+  {
+   "idx": 83,
+   "set": "fallback",
+   "tag": "ml-self-attention-token-links",
+   "refId": "ml-self-attention-token-links",
+   "rep": 2,
+   "prompt": "When the word sat attends to the sentence the cat sat on the mat, which words matter most?",
+   "depth": "balanced",
+   "profile": "fireworks-low",
+   "arms": [
+    "after"
+   ]
+  }
+ ]
+}
