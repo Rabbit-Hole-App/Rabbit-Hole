@@ -61,7 +61,7 @@ test('(c) the R2 thermostat shape: a visual tagged k:spec that carries a spec is
 });
 
 test('(c) a k:spec visual with no spec object, or a string, makes no fence: nothing is invented', () => {
-  for (const visual of [{ k: 'spec' }, { k: 'spec', kind: 'cycle', p: '' }, { k: 'spec', spec: 'cycle' }, { k: 'spec', spec: ['cycle'] }, { k: 'other', spec: 'cycle' }]) { // owner 2026-11-24 (same-JSON decision (a)): a tag other than diagram/spec/picture with a spec that holds a diagram is a diagram now (explanation-rescued-visual.test.js)
+  for (const visual of [{ k: 'spec' }, { k: 'spec', kind: 'cycle', p: '' }, { k: 'spec', spec: 'cycle' }, { k: 'spec', spec: ['cycle'] }, { k: 'other', spec: CYCLE }]) {
     assert.equal(composeVisuals('Intro.\n\n[[visual:1]]\n\nAfter.', [visual]), 'Intro.\n\nAfter.', JSON.stringify(visual));
   }
   assert.match(composeVisuals('Intro.\n\n[[visual:1]]\n\nAfter.', [{ k: 'spec', spec: CYCLE }]), /```rh-diagram/);

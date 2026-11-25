@@ -19,7 +19,7 @@ import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
 import { fillTokens, leftoverToken } from './explanation-tokens.js';
-import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, boxValuesFromQuestion, boxFieldsChanged, boxStatsApplied, stripUnknownKeys, rescuedVisualTag, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, primitiveFor, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, numbersIssue, boxValuesFromQuestion, boxFieldsChanged, boxStatsApplied, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -56,9 +56,7 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
-import { applyCalculations } from './explanation-calculation.js';
-import { isDeclared } from '../../web/src/tutor-diagrams/calculation.js';
-import { ARTIFACT_SYSTEM, EXPLANATION_NUMBER_RULE, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
+import { ARTIFACT_SYSTEM, INPUTS_RULE, NUMBER_RULE, artifactSystem, explanationSystem } from './agents/learn-artifact.js';
 import { capExampleList, exampleReferences } from './explanation-examples.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
@@ -153,15 +151,12 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // GEN-1 G2 (R2): the seeded examples come with the inputs sentence right after the number rule (agents/learn-artifact.js INPUTS_RULE); every other request is untouched.
   const withInputsRule = text => (seeded.length ? text.replace(NUMBER_RULE, () => `${NUMBER_RULE} ${INPUTS_RULE}`) : text);
   if (seeded.length) { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.description = withInputsRule(t.description); }
-  // Same-JSON change set: a request that shows a declared reference (web/src/tutor-diagrams/calculation.js) carries the explanation card's own number rule (the author builds a small worked example of its own); every
-  // other request keeps main's wording, byte for byte.
-  if (diagramReferences.some(isDeclared)) { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.description = t.description.replace(NUMBER_RULE, () => EXPLANATION_NUMBER_RULE); }
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
   if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds, plannedKinds: input.plan ? plannedBundleKinds(resolved) : [] })); }
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
-  const system = withInputsRule((input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '')) + diagramReferenceContext(diagramReferences, requestSeed);
+  const system = withInputsRule((input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '')) + diagramReferenceContext(diagramReferences);
   return { request, ready, messages, diagramReferences, requestSeed, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
@@ -267,9 +262,6 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         for (const { kind, key } of clean.stripped) console.log(JSON.stringify({ event: 'explanation_unknown_key_stripped', kind, key }));
         keysStripped = clean.stripped.length;
         if (keysStripped) call = { ...call, input: { ...call.input, visuals: clean.visuals } };
-        // Same-JSON decision (a): a visual tagged with a kind name that carries a diagram spec is read as the diagram (composeVisuals); one trace entry per such visual, with its tag.
-        const rescued = clean.visuals.flatMap(visual => { const tag = rescuedVisualTag(visual); return tag === null ? [] : [{ tag }]; });
-        if (trace && rescued.length) trace.rescuedVisual = [...(trace.rescuedVisual ?? []), ...rescued];
       }
       let block, extraction, diagramsDropped = 0, diagramsSimplified = 0, questions, terms;
       if (input.imageSource) {
@@ -320,9 +312,6 @@ export async function generateArtifact(env, input, { callModel: injected = null,
           const changed = [block.body, ...(block.more || []).map(s => s?.text)].flatMap(md => boxFieldsChanged(md)); // typed statistics the code replaces, read before it writes them
           block = { ...block, body: boxStatsApplied(block.body), ...(block.more ? { more: block.more.map(s => (typeof s?.text === 'string' ? { ...s, text: boxStatsApplied(s.text) } : s)) } : {}) }; // the saved card text carries the computed numbers too
           if (trace) Object.assign(trace, { box_values_from_question: set, box_values_unmatched: unmatched, box_fields_changed: changed }); }
-        // MVP4: a card made from a reference that has a calculation: the author's inputs are read through the diagram's variables, the function runs, its results are written onto the card and the {{v:name}} placeholders are filled,
-        // before any check reads the numbers. A problem is a card problem: the one repair.
-        { const calculated = applyCalculations(block, prepared.diagramReferences); if (calculated.problem) throw new Error(calculated.problem); block = calculated.block; if (trace && calculated.steps.length) trace.calculation = calculated.steps; }
         // VAR-1 step 2: a {{d:N.path}} in the prose becomes the figure's own number before any check reads the text; the archive keeps the body as written (trace.bodyWithTokens).
         { const tokens = fillTokens(block); if (tokens.problem) throw new Error(tokens.problem); block = tokens.block; if (trace) Object.assign(trace, { tokensFilled: tokens.filled, bodyWithTokens: tokens.authored }); }
         if (attempt >= limit) {

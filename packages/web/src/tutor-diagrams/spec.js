@@ -40,20 +40,10 @@ const text = max => {
   return schema;
 };
 const id = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,31}$/, 'Use a simple ID starting with a letter (at most 32 characters)');
+const titled = { title: text(90), caption: text(140).optional() };
 const endpoint = { from: id, to: id };
 
 const numeric = z.number().min(-1e9).max(1e9);
-// MVP4 (owner 2026-11-19): the optional `variables` list of every diagram kind, defined once beside title and caption. One entry per number that matters: its name, who sets it (input or result),
-// its type and limits, and where it is: `at` (a dot path into the diagram, a list when it points at one: the type and limits then apply to every item) or `value` (a number or a list, for
-// something not drawn), never both. The parser accepts it everywhere; no JSON schema a model is shown carries it (stripVariables below) except the bundle of a card whose reference has a function.
-const variableName = z.string().regex(/^[A-Za-z][A-Za-z0-9]{0,23}$/, 'Use a short name of letters and digits');
-const variablePath = z.string().max(60).regex(/^[A-Za-z][A-Za-z0-9]*(?:\.(?:[A-Za-z0-9]+|\*))*$/, 'Use a dot path such as series.0.values, or series.0.points.*.y for every item of a list');
-const variable = z.strictObject({
-  name: variableName, role: z.enum(['input', 'result']), type: z.enum(['int', 'float']), min: numeric, max: numeric,
-  at: variablePath.optional(), value: z.union([numeric, z.array(numeric).min(1).max(12)]).optional(),
-}).refine(entry => (entry.at === undefined) !== (entry.value === undefined), 'Give exactly one of at or value')
-  .refine(entry => entry.min <= entry.max, 'min must not exceed max');
-const titled = { title: text(90), caption: text(140).optional(), variables: z.array(variable).min(1).max(8).optional() };
 const unit = text(12).optional();
 const node = { id, label: text(60) };
 const tensorPayload = createTensorPayload({ z, text, numeric });
@@ -403,16 +393,6 @@ const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
 // Provider constraints describe the JSON shape. The local parse additionally
 // checks topology, labels, child slots and row widths that JSON Schema cannot express here.
 const { $schema, ...jsonSchema } = z.toJSONSchema(shape, { target: 'draft-7', io: 'input' });
-// MVP4: `variables` never reaches a model's schema by default (every kind would carry it: the Gemini answer schema limit is 362 properties); the one copy is kept for the cards that need it.
-let variablesSchema = null;
-(function stripVariables(node) {
-  if (!node || typeof node !== 'object') return;
-  if (node.properties?.kind && node.properties.variables) {
-    variablesSchema ??= node.properties.variables; delete node.properties.variables;
-    if (Array.isArray(node.required)) node.required = node.required.filter(key => key !== 'variables');
-  }
-  Object.values(node).forEach(stripVariables);
-})(jsonSchema);
 // A flow node's title is written by the server only (a trimmed label's full text), so the author is never asked for it.
 const flowNode = (jsonSchema.properties.diagram.oneOf ?? jsonSchema.properties.diagram.anyOf).find(s => s.properties.kind.const === 'flow').properties.nodes.items;
 delete flowNode.properties.title;
@@ -428,7 +408,7 @@ authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properti
   if (node.properties?.kind?.const === 'bar-chart') delete node.properties.total;
   Object.values(node).forEach(dropTotal);
 })(authorOnlyFree);
-return { tutorDiagramSchema, jsonSchema, authorJsonSchema: authorOnlyFree, variablesJsonSchema: variablesSchema };
+return { tutorDiagramSchema, jsonSchema, authorJsonSchema: authorOnlyFree };
 }
 
 // A parsed diagram with EVERY derived value on it, silent ones too (derived.js): what a prose token reads and what the reference lint compares against. Not for drawing.
@@ -445,7 +425,6 @@ export const tutorDiagramSchema = lazy(all => all.tutorDiagramSchema);
 export const tutorDiagramJsonSchema = lazy(all => all.jsonSchema);
 export const tutorDiagramAuthorJsonSchema = lazy(all => all.authorJsonSchema);
 export const authorJsonSchema = () => schemas().authorJsonSchema;
-export const variablesJsonSchema = () => schemas().variablesJsonSchema; // MVP4: the JSON schema of the optional `variables` list (a clone is added to the bundle of a card whose reference has a function)
 export function fillAllDerived(diagram) {
   fillDerived(diagram, { all: true });
   for (const child of childDiagrams(diagram)) fillAllDerived(child.diagram);

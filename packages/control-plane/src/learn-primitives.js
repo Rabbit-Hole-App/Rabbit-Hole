@@ -73,7 +73,7 @@ export function stripUnknown(value, schema, kind, out) {
   if (Array.isArray(value)) return s.items ? value.map(v => stripUnknown(v, s.items, kind, out)) : value;
   if (!s.properties) return value;
   const own = typeof value.kind === 'string' ? value.kind : typeof value.k === 'string' ? value.k : kind;
-  return Object.fromEntries(Object.entries(value).filter(([key]) => Object.hasOwn(s.properties, key) || (key === 'variables' && Object.hasOwn(s.properties, 'kind')) /* MVP4: the optional variables list of any diagram kind is the parser's to accept or refuse, not stripped */ || (out.push({ kind: own, key }), false))
+  return Object.fromEntries(Object.entries(value).filter(([key]) => Object.hasOwn(s.properties, key) || (out.push({ kind: own, key }), false))
     .map(([key, v]) => [key, stripUnknown(v, s.properties[key], own, out)]));
 }
 // -> { visuals, stripped: [{ kind, key }] }: the author's visuals with every undeclared key removed (an unknown kind or shape is left for the parser to name).
@@ -86,13 +86,10 @@ const MARKER = /[ \t]*\[\[visual:(\d+)\]\][ \t]*/g;
 export const pictureId = i => `pic-${i + 1}`;
 // visuals[i] of the author's answer as the rh-illustration spec the server makes and saves, or null when it is not a complete picture.
 export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: withNoTextSuffix(v.p), alt: v.a.trim(), caption: v.c.trim() } : null);
-// Same-JSON decision (a), owner 2026-11-24: a visual tagged with a kind name ('heatmap', 'bar-chart') instead of 'diagram' that carries a spec holding a diagram object is read as the diagram.
-// -> the tag, or null when the visual is not one (a string tag other than 'diagram', 'spec' and 'picture'; its spec an object holding a diagram object). The card's trace records each (learn-artifact.js).
-export const rescuedVisualTag = v => (typeof v?.k === 'string' && !['diagram', 'spec', 'picture'].includes(v.k) && isObject(v.spec) && isObject(v.spec.diagram) ? v.k : null);
 const visualFence = (v, i) => {
   // an incomplete picture keeps its fence, so the validator names what is missing
   // NOVIS-1 (c): Gemini tagged a diagram k:'spec' (R2 bench, thermostat): it carries the spec object, so it is read as the diagram; a k:'spec' with no spec object makes no fence, nothing is invented.
-  const made = v?.k === 'diagram' || (v?.k === 'spec' && isObject(v.spec)) || rescuedVisualTag(v) !== null ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
+  const made = v?.k === 'diagram' || (v?.k === 'spec' && isObject(v.spec)) ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
   return made ? '```' + made[0] + '\n' + JSON.stringify(made[1]) + '\n```' : null;
 };
 // The saved body: each first [[visual:N]] marker becomes visual N's fence on its own lines; an unknown or repeated marker is removed; a visual with no marker

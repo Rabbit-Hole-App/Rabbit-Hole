@@ -4,7 +4,6 @@
 import { fillAllDerived, parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { derivedPaths } from '../../web/src/tutor-diagrams/derived.js';
 import { markdownFences } from './learn-primitives.js';
-import { hasVariableToken } from '../../web/src/tutor-diagrams/calculation.js';
 
 const TOKEN = /\{\{d:([^{}\n]*)\}\}/g, FENCE = /^\s*```\s*([\w+#.-]*)/;
 export const hasToken = value => /\{\{d:/.test(typeof value === 'string' ? value : JSON.stringify(value ?? null));
@@ -65,7 +64,5 @@ export function fillTokens(block) {
 }
 
 // What is still a token after the fill and the diagram checks: the learner must never see one.
-export const leftoverToken = (block, questions) => (hasVariableToken([block?.title, block?.body, ...(block?.more || []).map(s => s?.text), questions ?? null])
-  ? 'explanation_bad_token: a {{v:...}} placeholder was left in the card (it names no number of the variables of a diagram made from a reference with a calculation); write {{v:name}} only for a number of those variables'
-  : hasToken([block?.body, ...(block?.more || []).map(s => s?.text), questions ?? null])
+export const leftoverToken = (block, questions) => (hasToken([block?.body, ...(block?.more || []).map(s => s?.text), questions ?? null])
   ? 'explanation_bad_token: a {{d:...}} token was left in the card (its diagram is not valid, or it sits inside a diagram or a question); write tokens only in the prose, for a number of a valid diagram' : null);

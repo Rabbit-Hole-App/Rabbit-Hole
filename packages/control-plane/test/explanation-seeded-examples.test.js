@@ -6,7 +6,7 @@ import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { planFromAnswers } from '../src/explanation-planner.js';
 import { SEEDED_EXAMPLES_HEADING, REFERENCE_MARK } from '../src/explanation-references.js';
 import { assembledSystem } from '../src/explanation-fast-chain.js';
-import { EXPLANATION_NUMBER_RULE, INPUTS_RULE, NUMBER_RULE } from '../src/agents/learn-artifact.js';
+import { INPUTS_RULE, NUMBER_RULE } from '../src/agents/learn-artifact.js';
 import { EXAMPLES_CAP_CHARS, capExamples } from '../src/explanation-example-cap.js';
 import { capExampleList } from '../src/explanation-examples.js';
 
@@ -50,16 +50,6 @@ test('the inputs sentence follows the number rule in the seeded request and is a
   assert.equal(count(seeded, `${NUMBER_RULE} ${INPUTS_RULE}`), count(plain, NUMBER_RULE), 'the sentence follows every occurrence of the number rule (the system of a multi-tool request and the explanation tool description), and nothing else');
   assert.equal(count(plain, INPUTS_RULE), 0);
   assert.ok(!SEEDED_EXAMPLES_HEADING.includes('computed') && !SEEDED_EXAMPLES_HEADING.includes(INPUTS_RULE));
-});
-
-// Same-JSON: only a request that shows a declared reference gets the explanation number rule; a seeded-examples request keeps main's number rule with the inputs sentence right after it.
-test('a seeded request carries INPUTS_RULE right after the NUMBER_RULE of main, in the tool description, and not the explanation number rule', () => {
-  const p = prep(NO_MATCH, 'flow', { requestSeed: 'seed-a' });
-  assert.ok(p.diagramReferences.length > 0 && p.diagramReferences.every(r => r.seededExample));
-  assert.ok(description(p).includes(`${NUMBER_RULE} ${INPUTS_RULE}`));
-  assert.ok(!description(p).includes(EXPLANATION_NUMBER_RULE));
-  assert.equal(count(everything(p), EXPLANATION_NUMBER_RULE), 0);
-  assert.ok(![].concat(p.body.system).join('\n').includes('starting numbers'), 'the seeded examples carry no starting numbers');
 });
 
 test('no seed: the request is the one of main (one gallery example under the old heading, nothing else added)', () => {

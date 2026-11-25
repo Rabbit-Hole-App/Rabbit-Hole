@@ -14,7 +14,7 @@ const text = max => z.string().min(1).max(max);
 const numeric = z.number().min(-1e9).max(1e9);
 const unit = text(12).optional();
 const shapes = createShapes({ z, text, numeric, unit, id: text(32),
-  titled: { title: text(90), caption: text(140).optional(), variables: z.array(z.unknown()).optional() }, // MVP4: a reference with a calculation carries its variables list (spec.js checks it)
+  titled: { title: text(90), caption: text(140).optional() },
   axes: z.strictObject({ label: text(36), min: numeric, max: numeric, unit }),
 });
 const schema = z.discriminatedUnion('kind', shapes).superRefine((diagram, ctx) =>

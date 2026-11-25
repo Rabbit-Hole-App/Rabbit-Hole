@@ -1,6 +1,5 @@
 // Illustrative teaching data, never source evidence. Null heatmap cells are
 // masked; histogram values are bin masses and density is derived from widths.
-import { needsNoCalculation } from './calculation.js';
 const ref = (id, lessons, prompts, keywords, useWhen, diagram) => ({
   id, lessons, prompts, keywords, useWhen, spec: { version: 1, diagram },
 });
@@ -10,12 +9,12 @@ const labelled = [
 ];
 
 export const references = [
-  needsNoCalculation(ref('confusion-matrix-counts', ['03', '09', '17'],
+  ref('confusion-matrix-counts', ['03', '09', '17'],
     ['Explain a confusion matrix with exact counts.'], ['confusion matrix', 'true positive', 'false negative', 'classification errors'],
     'Use for actual-versus-predicted counts. Row and column labels state their direction; adapt every count to the source.',
     { kind: 'heatmap', title: 'Actual and predicted classes', rowLabel: 'Actual', columnLabel: 'Predicted',
       columns: ['Negative', 'Positive'], rows: [{ label: 'Negative', cells: [90, 10] }, { label: 'Positive', cells: [20, 80] }],
-      range: { min: 0, max: 100 }, highlights: [{ row: 1, column: 0 }], caption: 'The highlighted 20 are actual positives predicted negative.' })),
+      range: { min: 0, max: 100 }, highlights: [{ row: 1, column: 0 }], caption: 'The highlighted 20 are actual positives predicted negative.' }),
   ref('signed-feature-correlation', ['08', '18'],
     ['Show positive, negative and missing feature correlations.'], ['correlation', 'redundancy', 'feature dependence', 'correlation heatmap'],
     'Use when numeric correlation values matter. A null cell is masked; it is never shown as zero.',
