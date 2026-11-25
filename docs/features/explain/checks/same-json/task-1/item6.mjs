@@ -1,0 +1,14 @@
+const root = 'C:/s/sj-text/packages/control-plane/src/';
+const log = console.log; console.log = () => {};
+const fs = await import('file:///' + root + 'explanation-formula-series.js'), img = await import('file:///' + root + 'inline-image-extraction.js'), ag = await import('file:///' + root + 'agents/learn-artifact.js'), dep = await import('file:///' + root + 'chat-depth.js'), mf = await import('file:///' + root + 'agents/math-format.js');
+console.log = log;
+console.log('FORMULA_SERIES_GUIDANCE', fs.FORMULA_SERIES_GUIDANCE.length);
+console.log('IMAGE_EXTRACTION_SYSTEM', img.IMAGE_EXTRACTION_SYSTEM.length);
+console.log('INPUTS_RULE', ag.INPUTS_RULE.length);
+console.log('MATH_FORMAT', mf.MATH_FORMAT.length);
+console.log('depthInstruction card brief/detailed', dep.depthInstruction('brief', 'card').length, dep.depthInstruction('detailed', 'card').length, 'answer', dep.depthInstruction('brief').length, dep.depthInstruction('detailed').length);
+console.log('EXPLANATION_OBJECTIVES', Object.values(dep.EXPLANATION_OBJECTIVES).map(s => s.length).join('/'));
+const detail = 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
+console.log('detailSpec line', detail.length);
+const lengths = ` Keep body under 3,000 characters (about 420 words): longer is refused.`; console.log('length sentence (body)', lengths.length);
+const paid = ' Paid: it is proposed to the learner, who confirms before anything is generated.'; console.log('paid sentence', paid.length);

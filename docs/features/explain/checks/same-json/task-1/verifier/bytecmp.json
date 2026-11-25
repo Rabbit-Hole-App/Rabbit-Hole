@@ -1,0 +1,71 @@
+{
+ "stat": {
+  "exportedNames": 154,
+  "stringLeaves": 721,
+  "stringChars": 23878,
+  "otherLeaves": 3086,
+  "calls": 114,
+  "callChars": 217683,
+  "requests": 6858,
+  "requestChars": 911526603
+ },
+ "shapesChecked": 18,
+ "plannedRequests": 4320,
+ "primitiveCommandPairs": 1134,
+ "primitives": [
+  "explanation",
+  "table",
+  "flashcards",
+  "quiz",
+  "challenge",
+  "explain_back",
+  "code_sample",
+  "flow_diagram",
+  "mermaid_diagram",
+  "walkthrough",
+  "interactive_graph",
+  "data_plot",
+  "video_generate",
+  "maths_animation",
+  "blender_scene",
+  "animation",
+  "code_exercise",
+  "narration",
+  "knowledge_graph",
+  "reference_attention",
+  "3d_model",
+  "image",
+  "image_generate",
+  "video",
+  "notebook",
+  "whiteboard",
+  "paper"
+ ],
+ "commands": 21,
+ "added": {
+  "agents/learn-artifact.js": [],
+  "chat-depth.js": [
+   "explanationDepthSection"
+  ],
+  "explanation-fast-chain.js": [],
+  "explanation-interactions.js": [
+   "OUTPUT_FORMAT_HEADING"
+  ],
+  "explanation-planner.js": [],
+  "explanation-references.js": [],
+  "learn-artifact.js": [],
+  "learn-primitives.js": []
+ },
+ "removed": {
+  "agents/learn-artifact.js": [],
+  "chat-depth.js": [],
+  "explanation-fast-chain.js": [],
+  "explanation-interactions.js": [],
+  "explanation-planner.js": [],
+  "explanation-references.js": [],
+  "learn-artifact.js": [],
+  "learn-primitives.js": []
+ },
+ "diffCount": 0,
+ "diffs": []
+}
